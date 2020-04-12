@@ -1,2 +1,2 @@
 [workspace]
-members = ["libbpf-cargo"]
+members = ["libbpf-cargo", "libbpf-rs"]

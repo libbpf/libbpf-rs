@@ -1,0 +1,7 @@
+[package]
+name = "libbpf-rs"
+version = "0.1.0"
+authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
+edition = "2018"
+
+[dependencies]
