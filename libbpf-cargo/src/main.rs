@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::exit;
 
 use structopt::StructOpt;
@@ -30,7 +31,10 @@ enum Wrapper {
 #[derive(Debug, StructOpt)]
 enum Command {
     /// Build bpf programs
-    Build {},
+    Build {
+        #[structopt(long, parse(from_os_str))]
+        manifest_path: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -38,7 +42,7 @@ fn main() {
 
     let rc = match opts.wrapper {
         Wrapper::Libbpf(cmd) => match cmd {
-            Command::Build {} => build::build(opts.debug),
+            Command::Build { manifest_path } => build::build(opts.debug, manifest_path),
         },
     };
 

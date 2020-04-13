@@ -12,4 +12,5 @@ name = "cargo-libbpf"
 path = "src/main.rs"
 
 [dependencies]
+cargo_metadata = "0.9"
 structopt = "0.3"
