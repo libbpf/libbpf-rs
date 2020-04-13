@@ -33,6 +33,7 @@ enum Command {
         #[structopt(short, long)]
         debug: bool,
         #[structopt(long, parse(from_os_str))]
+        /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
     },
 }
