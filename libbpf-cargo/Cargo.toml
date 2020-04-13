@@ -12,5 +12,8 @@ name = "cargo-libbpf"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1.0"
 cargo_metadata = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 structopt = "0.3"
