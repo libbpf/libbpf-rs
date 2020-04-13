@@ -4,4 +4,10 @@ version = "0.1.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
 
+# Crate is named libbpf-cargo to be consistent with libbpf-rs.
+# Binary must be named cargo-${SUBCOMMAND} to interop with cargo.
+[[bin]]
+name = "cargo-libbpf"
+path = "src/main.rs"
+
 [dependencies]
