@@ -3,6 +3,7 @@ name = "libbpf-cargo"
 version = "0.1.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
+license = "LGPL-2.1 OR BSD-2-Clause"
 
 # Crate is named libbpf-cargo to be consistent with libbpf-rs.
 # Binary must be named cargo-${SUBCOMMAND} to interop with cargo.

@@ -3,5 +3,6 @@ name = "libbpf-rs"
 version = "0.1.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
+license = "LGPL-2.1 OR BSD-2-Clause"
 
 [dependencies]
