@@ -96,20 +96,24 @@ fn locate_package(
         }
     };
 
-    // Process file entries
-    let mut progs: Vec<UnprocessedProg> = Vec::new();
-    for file in dir_iter {
-        let file_path = file?.path();
-        if file_path.is_file() {
-            progs.push(UnprocessedProg {
-                package: package.name.clone(),
-                path: file_path,
-                out: out_dir.clone(),
-            });
-        }
-    }
+    Ok(dir_iter
+        .filter_map(|file| {
+            let file_path = match file {
+                Ok(f) => f.path(),
+                Err(_) => return None,
+            };
 
-    Ok(progs)
+            if file_path.is_file() {
+                Some(UnprocessedProg {
+                    package: package.name.clone(),
+                    path: file_path,
+                    out: out_dir.clone(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect())
 }
 
 fn locate(debug: bool, metadata: &Metadata) -> Result<Vec<UnprocessedProg>> {
