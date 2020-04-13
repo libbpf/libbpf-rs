@@ -7,8 +7,6 @@ mod build;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    #[structopt(short, long)]
-    debug: bool,
     #[structopt(subcommand)]
     wrapper: Wrapper,
 }
@@ -32,6 +30,8 @@ enum Wrapper {
 enum Command {
     /// Build bpf programs
     Build {
+        #[structopt(short, long)]
+        debug: bool,
         #[structopt(long, parse(from_os_str))]
         manifest_path: Option<PathBuf>,
     },
@@ -42,7 +42,10 @@ fn main() {
 
     let rc = match opts.wrapper {
         Wrapper::Libbpf(cmd) => match cmd {
-            Command::Build { manifest_path } => build::build(opts.debug, manifest_path),
+            Command::Build {
+                debug,
+                manifest_path,
+            } => build::build(debug, manifest_path),
         },
     };
 
