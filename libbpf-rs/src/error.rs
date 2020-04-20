@@ -3,6 +3,7 @@ use std::result;
 
 use thiserror::Error;
 
+/// The canonical error type for this crate.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("I/O error")]

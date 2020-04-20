@@ -1,6 +1,10 @@
 use crate::object::{Object, Program};
 use crate::*;
 
+/// Represents an attached [`Program`].
+///
+/// This struct is used to model ownership. The underlying program will be detached
+/// and unloaded from the system when this object is dropped.
 pub struct Link {}
 
 impl Link {

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use crate::*;
 
+/// Represents a special kind of [`Map`]. Typically used to transfer data between
+/// [`Program`]s and userspace.
 pub struct PerfBuffer {}
 
 impl PerfBuffer {
@@ -14,6 +16,10 @@ impl PerfBuffer {
     }
 }
 
+/// Options and callbacks to configure [`PerfBuffer`].
+///
+/// Some callbacks provide raw byte slices. You may find libraries such as
+/// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Default)]
 pub struct PerfBufferOpts {}
 

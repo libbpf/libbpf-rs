@@ -2,6 +2,8 @@ use std::path::Path;
 
 use crate::*;
 
+/// Represents a BPF object file. An object may contain zero or more
+/// [`Program`]s and [`Map`]s.
 pub struct Object {}
 
 impl Object {
@@ -43,8 +45,13 @@ impl Object {
     }
 }
 
+/// Options to configure [`Object`] processing.
 pub struct ObjectOptions {}
 
+/// Represents a map.
+///
+/// Some methods require working with raw bytes. You may find libraries such as
+/// [`plain`](https://crates.io/crates/plain) helpful.
 pub struct Map {}
 
 impl Map {
@@ -62,8 +69,7 @@ impl Map {
         unimplemented!();
     }
 
-    /// Returns map value as `Vec` of `u8`. You will most likely need to use `unsafe` to turn the
-    /// buffer into something you can work with.
+    /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
     pub fn lookup(&self, _key: &[u8]) -> Result<Option<Vec<u8>>> {
@@ -93,8 +99,15 @@ impl Map {
     }
 }
 
+/// Options to configure [`Map`] operations.
 pub struct MapOptions {}
 
+/// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
+///
+/// Note this enum may gain more variants as feature are added to the kernel.
+pub enum MapType {}
+
+/// Represents a BPF program.
 pub struct Program {}
 
 impl Program {
@@ -117,6 +130,12 @@ impl Program {
     }
 }
 
+/// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
+///
+/// Note this enum may gain more variants as feature are added to the kernel.
 pub enum ProgramType {}
 
+/// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
+///
+/// Note this enum may gain more variants as feature are added to the kernel.
 pub enum ProgramAttachType {}
