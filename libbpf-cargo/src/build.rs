@@ -141,7 +141,7 @@ fn compile(_progs: &[UnprocessedProg]) -> Result<()> {
     Ok(())
 }
 
-pub fn build(debug: bool, manifest_path: Option<PathBuf>) -> i32 {
+pub fn build(debug: bool, manifest_path: Option<&PathBuf>) -> i32 {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {

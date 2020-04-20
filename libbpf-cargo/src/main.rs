@@ -4,6 +4,8 @@ use std::process::exit;
 use structopt::StructOpt;
 
 mod build;
+#[cfg(test)]
+mod test;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -46,7 +48,7 @@ fn main() {
             Command::Build {
                 debug,
                 manifest_path,
-            } => build::build(debug, manifest_path),
+            } => build::build(debug, manifest_path.as_ref()),
         },
     };
 
