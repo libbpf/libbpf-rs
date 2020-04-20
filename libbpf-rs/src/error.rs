@@ -7,9 +7,13 @@ use thiserror::Error;
 pub enum Error {
     #[error("I/O error")]
     Io(#[from] io::Error),
-    #[error("System error, errno={0}")]
+    #[error("System error, errno: {0}")]
     System(u32),
-    #[error("Internal error={0}")]
+    #[error("Invalid binary: {0}")]
+    InvalidObjectFile(String),
+    #[error("Invalid map: {0}")]
+    InvalidMap(String),
+    #[error("Internal error: {0}")]
     Internal(String),
 }
 
