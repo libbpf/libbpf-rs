@@ -6,3 +6,4 @@ edition = "2018"
 license = "LGPL-2.1 OR BSD-2-Clause"
 
 [dependencies]
+thiserror = "1.0"
