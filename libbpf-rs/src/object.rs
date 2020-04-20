@@ -23,7 +23,7 @@ impl Object {
         unimplemented!();
     }
 
-    /// Acquire ownership of [`Map`] s in this [`Object`] for which `f` returns `true`.
+    /// Acquire ownership of [`Map`] s in this object for which `f` returns `true`.
     pub fn take_maps<F>(&mut self, _f: F) -> Vec<Map>
     where
         F: FnMut(&Map),
@@ -35,8 +35,7 @@ impl Object {
         unimplemented!();
     }
 
-    /// Acquire ownership of [`Program`]s in this [`Object`] for which `f`
-    /// returns `true`.
+    /// Acquire ownership of [`Program`]s in this object for which `f` returns `true`.
     pub fn take_progs<F>(&mut self, _f: F) -> Vec<Program>
     where
         F: FnMut(&Program),
