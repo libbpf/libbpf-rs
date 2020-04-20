@@ -66,21 +66,21 @@ impl Map {
     /// buffer into something you can work with.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup(&self, _key: &[u8]) -> Option<Vec<u8>> {
+    pub fn lookup(&self, _key: &[u8]) -> Result<Option<Vec<u8>>> {
         unimplemented!();
     }
 
-    /// Deletes the element from the map. `Some(())` on success, `None` on failure.
+    /// Deletes an element from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn delete(&self, _key: &[u8]) -> Option<()> {
+    pub fn delete(&self, _key: &[u8]) -> Result<()> {
         unimplemented!();
     }
 
     /// Same as [`Map::lookup()`] except this also deletes the key from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup_and_delete(&self, _key: &[u8], _opts: MapOptions) -> Option<Vec<u8>> {
+    pub fn lookup_and_delete(&self, _key: &[u8], _opts: MapOptions) -> Result<Option<Vec<u8>>> {
         unimplemented!();
     }
 
@@ -88,9 +88,7 @@ impl Map {
     ///
     /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
     /// [`Map::value_size()`] elements.
-    ///
-    /// Returns `Some(())` on success, `None` on failure.
-    pub fn update(&self, _key: &[u8], _value: &[u8], _opts: MapOptions) -> Option<()> {
+    pub fn update(&self, _key: &[u8], _value: &[u8], _opts: MapOptions) -> Result<()> {
         unimplemented!();
     }
 }
