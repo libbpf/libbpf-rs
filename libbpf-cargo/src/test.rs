@@ -37,14 +37,14 @@ fn test_build_default() {
 
     // No bpf progs yet
     assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
         0
     );
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
     assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
         0
     );
 
@@ -53,7 +53,7 @@ fn test_build_default() {
         File::create(proj_dir.join("src/bpf/prog.c")).expect("failed to create prog file");
 
     assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
         0
     );
 
@@ -77,7 +77,7 @@ fn test_build_custom() {
 
     // No bpf progs yet
     assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
         0
     );
 
@@ -87,7 +87,7 @@ fn test_build_custom() {
         .expect("failed to create prog file");
 
     assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
         0
     );
 
