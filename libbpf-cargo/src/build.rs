@@ -1,8 +1,10 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
+use semver::Version;
 use serde::Deserialize;
 use serde_json::value::Value;
 
@@ -136,12 +138,59 @@ fn locate(debug: bool, metadata: &Metadata) -> Result<Vec<UnprocessedProg>> {
     Ok(v)
 }
 
-fn compile(_progs: &[UnprocessedProg]) -> Result<()> {
+fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
+    let output = Command::new(clang.as_os_str()).arg("--version").output()?;
+
+    if !output.status.success() {
+        bail!("Failed to execute clang binary");
+    }
+
+    if skip_version_checks {
+        return Ok(());
+    }
+
+    // Example output:
+    //
+    //     clang version 10.0.0
+    //     Target: x86_64-pc-linux-gnu
+    //     Thread model: posix
+    //     InstalledDir: /bin
+    //
+    let output = String::from_utf8_lossy(&output.stdout);
+    let version_str = output
+        .split("\n")
+        .nth(0)
+        .ok_or(anyhow!("Invalid version format"))?
+        .split(" ")
+        .nth(2)
+        .ok_or(anyhow!("Invalid version format"))?;
+
+    let version = Version::parse(version_str)?;
+    if debug {
+        println!("{} is version {}", clang.display(), version);
+    }
+
+    if version < Version::parse("9.0.0").unwrap() {
+        bail!(
+            "version {} is too old. Use --skip-clang-version-checks to skip verion check",
+            version
+        );
+    }
+
+    Ok(())
+}
+
+fn compile(_progs: &[UnprocessedProg], _clang: &Path) -> Result<()> {
     // XXX implement
     Ok(())
 }
 
-pub fn build(debug: bool, manifest_path: Option<&PathBuf>) -> i32 {
+pub fn build(
+    debug: bool,
+    manifest_path: Option<&PathBuf>,
+    clang: &Path,
+    skip_clang_version_checks: bool,
+) -> i32 {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {
@@ -174,7 +223,12 @@ pub fn build(debug: bool, manifest_path: Option<&PathBuf>) -> i32 {
         return 1;
     }
 
-    match compile(&to_compile) {
+    if let Err(e) = check_clang(debug, clang, skip_clang_version_checks) {
+        eprintln!("{} is invalid: {}", clang.display(), e);
+        return 1;
+    }
+
+    match compile(&to_compile, clang) {
         Ok(_) => 0,
         Err(e) => {
             eprintln!("Failed to compile progs: {}", e);

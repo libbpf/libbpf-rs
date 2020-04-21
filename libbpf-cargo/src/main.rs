@@ -37,6 +37,12 @@ enum Command {
         #[structopt(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
+        #[structopt(long, parse(from_os_str), default_value = "/bin/clang")]
+        /// Path to clang binary
+        clang_path: PathBuf,
+        #[structopt(long)]
+        /// Skip clang version checks
+        skip_clang_version_checks: bool,
     },
 }
 
@@ -48,7 +54,14 @@ fn main() {
             Command::Build {
                 debug,
                 manifest_path,
-            } => build::build(debug, manifest_path.as_ref()),
+                clang_path,
+                skip_clang_version_checks,
+            } => build::build(
+                debug,
+                manifest_path.as_ref(),
+                clang_path.as_path(),
+                skip_clang_version_checks,
+            ),
         },
     };
 

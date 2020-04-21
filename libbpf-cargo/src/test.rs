@@ -1,6 +1,6 @@
 use std::fs::{create_dir, File, OpenOptions};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use tempfile::{tempdir, TempDir};
@@ -36,14 +36,26 @@ fn test_build_default() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // No bpf progs yet
-    assert_ne!(build(true, Some(&cargo_toml)), 0);
+    assert_ne!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        0
+    );
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+    assert_ne!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        0
+    );
 
     // Add a prog
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.c")).expect("failed to create prog file");
 
-    assert_eq!(build(true, Some(&cargo_toml)), 0);
+    assert_eq!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        0
+    );
 
     // XXX validate generated object file
 }
@@ -64,14 +76,20 @@ fn test_build_custom() {
         .expect("write to Cargo.toml failed");
 
     // No bpf progs yet
-    assert_ne!(build(true, Some(&cargo_toml)), 0);
+    assert_ne!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        0
+    );
 
     // Add a prog
     create_dir(proj_dir.join("src/other_bpf_dir")).expect("failed to create prog dir");
     let _prog_file = File::create(proj_dir.join("src/other_bpf_dir/prog.c"))
         .expect("failed to create prog file");
 
-    assert_eq!(build(true, Some(&cargo_toml)), 0);
+    assert_eq!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), false),
+        0
+    );
 
     // XXX validate generated object file
 }
