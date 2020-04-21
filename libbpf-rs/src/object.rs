@@ -58,6 +58,10 @@ impl Map {
         unimplemented!();
     }
 
+    pub fn map_type(&self) -> MapType {
+        unimplemented!();
+    }
+
     /// Key size in bytes
     pub fn key_size(&self) -> u32 {
         unimplemented!();
