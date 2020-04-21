@@ -82,14 +82,14 @@ impl Map {
     /// Deletes an element from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn delete(&self, _key: &[u8]) -> Result<()> {
+    pub fn delete(&mut self, _key: &[u8]) -> Result<()> {
         unimplemented!();
     }
 
     /// Same as [`Map::lookup()`] except this also deletes the key from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup_and_delete(&self, _key: &[u8], _opts: MapOptions) -> Result<Option<Vec<u8>>> {
+    pub fn lookup_and_delete(&mut self, _key: &[u8], _opts: MapOptions) -> Result<Option<Vec<u8>>> {
         unimplemented!();
     }
 
@@ -97,7 +97,7 @@ impl Map {
     ///
     /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
     /// [`Map::value_size()`] elements.
-    pub fn update(&self, _key: &[u8], _value: &[u8], _opts: MapOptions) -> Result<()> {
+    pub fn update(&mut self, _key: &[u8], _value: &[u8], _opts: MapOptions) -> Result<()> {
         unimplemented!();
     }
 }
