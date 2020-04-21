@@ -158,12 +158,12 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
     //
     let output = String::from_utf8_lossy(&output.stdout);
     let version_str = output
-        .split("\n")
-        .nth(0)
-        .ok_or(anyhow!("Invalid version format"))?
-        .split(" ")
+        .split('\n')
+        .next()
+        .ok_or_else(|| anyhow!("Invalid version format"))?
+        .split(' ')
         .nth(2)
-        .ok_or(anyhow!("Invalid version format"))?;
+        .ok_or_else(|| anyhow!("Invalid version format"))?;
 
     let version = Version::parse(version_str)?;
     if debug {
