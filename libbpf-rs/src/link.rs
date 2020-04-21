@@ -22,8 +22,8 @@ impl Link {
         unimplemented!();
     }
 
-    /// Attach a `prog` to a [perf_event_open(2)]
-    /// (https://linux.die.net/man/2/perf_event_open) file descriptor.
+    /// Attach a `prog` to a [perf event](https://linux.die.net/man/2/perf_event_open)
+    /// file descriptor.
     pub fn attach_perf_event(_prog: Program, _pfd: i64) -> Result<Self> {
         unimplemented!();
     }
