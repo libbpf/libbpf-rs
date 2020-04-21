@@ -106,8 +106,7 @@ impl Map {
 pub struct MapOptions {}
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
-///
-/// Note this enum may gain more variants as feature are added to the kernel.
+#[non_exhaustive]
 pub enum MapType {}
 
 /// Represents a BPF program.
@@ -134,11 +133,9 @@ impl Program {
 }
 
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
-///
-/// Note this enum may gain more variants as feature are added to the kernel.
+#[non_exhaustive]
 pub enum ProgramType {}
 
 /// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
-///
-/// Note this enum may gain more variants as feature are added to the kernel.
+#[non_exhaustive]
 pub enum ProgramAttachType {}
