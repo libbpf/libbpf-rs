@@ -207,8 +207,61 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
     Ok(())
 }
 
-fn compile(_progs: &[UnprocessedProg], _clang: &Path) -> Result<()> {
-    // XXX implement
+/// We're essentially going to run:
+///
+///     clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
+///
+/// for each prog.
+fn compile(progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
+    let arch = if std::env::consts::ARCH == "x86_64" {
+        "x86"
+    } else {
+        std::env::consts::ARCH
+    };
+
+    for prog in progs {
+        let dest_name = if let Some(f) = prog.path.as_path().file_stem() {
+            let mut stem = f.to_os_string();
+            stem.push(".o");
+            stem
+        } else {
+            bail!(
+                "Could not calculate destination name for prog={}",
+                prog.path.as_path().display()
+            );
+        };
+        let mut dest_path = prog.out.clone();
+        dest_path.push(&dest_name);
+
+        fs::create_dir_all(prog.out.as_path())?;
+
+        let output = Command::new(clang.as_os_str())
+            .arg("-g")
+            .arg("-O2")
+            .arg("-target")
+            .arg("bpf")
+            .arg("-c")
+            .arg(format!("-D__TARGET_ARCH_{}", arch))
+            .arg(prog.path.as_path().as_os_str())
+            .arg("-o")
+            .arg(dest_path)
+            .output()?;
+
+        if !output.status.success() {
+            bail!(
+                "Failed to compile prog={} with status={}\n \
+                stdout=\n \
+                \t{}\n \
+                stderr=\n \
+                \t{}\n",
+                dest_name.to_string_lossy(),
+                output.status,
+                String::from_utf8(output.stdout).unwrap(),
+                String::from_utf8(output.stderr).unwrap()
+            )
+        }
+    }
+
     Ok(())
 }
 

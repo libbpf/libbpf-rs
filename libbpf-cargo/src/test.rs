@@ -1,8 +1,9 @@
-use std::fs::{create_dir, File, OpenOptions};
+use std::fs::{create_dir, read, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use goblin::Object;
 use tempfile::{tempdir, TempDir};
 
 use crate::build::build;
@@ -75,6 +76,16 @@ fn setup_temp_workspace() -> (TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
     (dir, dir_pathbuf, workspace_cargo_toml, path_one, path_two)
 }
 
+/// Validate if bpf object file at `path` is a valid bpf object file
+fn validate_bpf_o(path: &Path) {
+    let buffer = read(path)
+        .expect(format!("failed to read object file at path={}", path.display()).as_str());
+    match Object::parse(&buffer).expect("failed to parse object file") {
+        Object::Elf(_) => (),
+        _ => panic!("wrong object file format"),
+    }
+}
+
 #[test]
 fn test_build_default() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
@@ -101,7 +112,26 @@ fn test_build_default() {
         0
     );
 
-    // XXX validate generated object file
+    // Validate generated object file
+    validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
+}
+
+#[test]
+fn test_build_invalid_prog() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog_file =
+        File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
+    writeln!(prog_file, "1").expect("write to prog file failed");
+
+    assert_ne!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
 }
 
 #[test]
@@ -135,7 +165,13 @@ fn test_build_custom() {
         0
     );
 
-    // XXX validate generated object file
+    // Validate generated object file
+    validate_bpf_o(
+        proj_dir
+            .as_path()
+            .join("target/other_target_dir/prog.bpf.o")
+            .as_path(),
+    );
 }
 
 #[test]
