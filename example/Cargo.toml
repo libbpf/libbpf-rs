@@ -1,0 +1,8 @@
+[package]
+name = "example"
+version = "0.1.0"
+authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
+edition = "2018"
+
+[dependencies]
+libbpf-rs = { path = "../libbpf-rs" }
