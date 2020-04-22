@@ -173,3 +173,28 @@ fn test_build_workspace() {
         0
     );
 }
+
+#[test]
+fn test_build_workspace_collision() {
+    let (_dir, _, workspace_cargo_toml, proj_one_dir, proj_two_dir) = setup_temp_workspace();
+
+    // Create bpf prog for project one
+    create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
+    let _prog_file_1 =
+        File::create(proj_one_dir.join("src/bpf/prog.c")).expect("failed to create prog file 1");
+
+    // Create bpf prog for project two, same name as project one
+    create_dir(proj_two_dir.join("src/bpf")).expect("failed to create prog dir");
+    let _prog_file_2 =
+        File::create(proj_two_dir.join("src/bpf/prog.c")).expect("failed to create prog file 2");
+
+    assert_ne!(
+        build(
+            true,
+            Some(&workspace_cargo_toml),
+            Path::new("/bin/clang"),
+            true
+        ),
+        0
+    );
+}

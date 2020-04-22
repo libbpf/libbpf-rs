@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -138,6 +139,25 @@ fn locate(debug: bool, metadata: &Metadata) -> Result<Vec<UnprocessedProg>> {
     Ok(v)
 }
 
+fn check_progs(progs: &[UnprocessedProg]) -> Result<()> {
+    let mut set = HashSet::with_capacity(progs.len());
+    for prog in progs {
+        // OK to unwrap() file_name() b/c we already checked earlier that this is a valid file
+        let dest = prog
+            .out
+            .as_path()
+            .join(prog.path.as_path().file_name().unwrap());
+        if !set.insert(dest) {
+            bail!(
+                "Duplicate prog={} detected",
+                prog.path.as_path().file_name().unwrap().to_string_lossy()
+            );
+        }
+    }
+
+    Ok(())
+}
+
 fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
     let output = Command::new(clang.as_os_str()).arg("--version").output()?;
 
@@ -220,6 +240,11 @@ pub fn build(
         }
     } else if to_compile.is_empty() {
         eprintln!("Did not find any bpf progs to compile");
+        return 1;
+    }
+
+    if let Err(e) = check_progs(&to_compile) {
+        eprintln!("{}", e);
         return 1;
     }
 
