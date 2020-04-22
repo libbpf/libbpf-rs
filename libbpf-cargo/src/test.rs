@@ -19,6 +19,7 @@ fn setup_temp_project() -> (TempDir, PathBuf, PathBuf) {
     // Create default rust project
     let status = Command::new("cargo")
         .arg("new")
+        .arg("--quiet")
         .arg("--bin")
         .arg(proj_dir.clone().into_os_string())
         .status()
@@ -46,6 +47,7 @@ fn setup_temp_workspace() -> (TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
     let path_one = dir.path().join("one");
     let status_one = Command::new("cargo")
         .arg("new")
+        .arg("--quiet")
         .arg("--bin")
         .arg(path_one.clone().into_os_string())
         .status()
@@ -56,6 +58,7 @@ fn setup_temp_workspace() -> (TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
     let path_two = dir.path().join("two");
     let status_two = Command::new("cargo")
         .arg("new")
+        .arg("--quiet")
         .arg("--bin")
         .arg(path_two.clone().into_os_string())
         .status()
