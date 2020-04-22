@@ -106,15 +106,22 @@ fn locate_package(
                 Err(_) => return None,
             };
 
-            if file_path.is_file() {
-                Some(UnprocessedProg {
-                    package: package.name.clone(),
-                    path: file_path,
-                    out: out_dir.clone(),
-                })
-            } else {
-                None
+            if !file_path.is_file() {
+                return None;
             }
+
+            // Only take files with extension ".bpf.c"
+            if let Some(file_name) = file_path.as_path().file_name() {
+                if file_name.to_string_lossy().ends_with(".bpf.c") {
+                    return Some(UnprocessedProg {
+                        package: package.name.clone(),
+                        path: file_path,
+                        out: out_dir.clone(),
+                    });
+                }
+            }
+
+            None
         })
         .collect())
 }

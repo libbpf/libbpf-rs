@@ -94,7 +94,7 @@ fn test_build_default() {
 
     // Add a prog
     let _prog_file =
-        File::create(proj_dir.join("src/bpf/prog.c")).expect("failed to create prog file");
+        File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
     assert_eq!(
         build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
@@ -127,7 +127,7 @@ fn test_build_custom() {
 
     // Add a prog
     create_dir(proj_dir.join("src/other_bpf_dir")).expect("failed to create prog dir");
-    let _prog_file = File::create(proj_dir.join("src/other_bpf_dir/prog.c"))
+    let _prog_file = File::create(proj_dir.join("src/other_bpf_dir/prog.bpf.c"))
         .expect("failed to create prog file");
 
     assert_eq!(
@@ -136,6 +136,32 @@ fn test_build_custom() {
     );
 
     // XXX validate generated object file
+}
+
+#[test]
+fn test_enforce_file_extension() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+    assert_ne!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
+
+    let _prog_file = File::create(proj_dir.join("src/bpf/prog_BAD_EXTENSION.c"))
+        .expect("failed to create prog file");
+    assert_ne!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
+
+    let _prog_file_again = File::create(proj_dir.join("src/bpf/prog_GOOD_EXTENSION.bpf.c"))
+        .expect("failed to create prog file");
+    assert_eq!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
 }
 
 #[test]
@@ -155,13 +181,13 @@ fn test_build_workspace() {
 
     // Create bpf prog for project one
     create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
-    let _prog_file_1 =
-        File::create(proj_one_dir.join("src/bpf/prog1.c")).expect("failed to create prog file 1");
+    let _prog_file_1 = File::create(proj_one_dir.join("src/bpf/prog1.bpf.c"))
+        .expect("failed to create prog file 1");
 
     // Create bpf prog for project two
     create_dir(proj_two_dir.join("src/bpf")).expect("failed to create prog dir");
-    let _prog_file_2 =
-        File::create(proj_two_dir.join("src/bpf/prog2.c")).expect("failed to create prog file 2");
+    let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog2.bpf.c"))
+        .expect("failed to create prog file 2");
 
     assert_eq!(
         build(
@@ -180,13 +206,13 @@ fn test_build_workspace_collision() {
 
     // Create bpf prog for project one
     create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
-    let _prog_file_1 =
-        File::create(proj_one_dir.join("src/bpf/prog.c")).expect("failed to create prog file 1");
+    let _prog_file_1 = File::create(proj_one_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to create prog file 1");
 
     // Create bpf prog for project two, same name as project one
     create_dir(proj_two_dir.join("src/bpf")).expect("failed to create prog dir");
-    let _prog_file_2 =
-        File::create(proj_two_dir.join("src/bpf/prog.c")).expect("failed to create prog file 2");
+    let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to create prog file 2");
 
     assert_ne!(
         build(
