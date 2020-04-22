@@ -251,9 +251,9 @@ fn compile(progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
             bail!(
                 "Failed to compile prog={} with status={}\n \
                 stdout=\n \
-                \t{}\n \
+                {}\n \
                 stderr=\n \
-                \t{}\n",
+                {}\n",
                 dest_name.to_string_lossy(),
                 output.status,
                 String::from_utf8(output.stdout).unwrap(),
