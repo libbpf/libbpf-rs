@@ -212,7 +212,7 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 ///     clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile(progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
+fn compile(debug: bool, progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
     let arch = if std::env::consts::ARCH == "x86_64" {
         "x86"
     } else {
@@ -234,6 +234,10 @@ fn compile(progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
         dest_path.push(&dest_name);
 
         fs::create_dir_all(prog.out.as_path())?;
+
+        if debug {
+            println!("Building {}", prog.path.display());
+        }
 
         let output = Command::new(clang.as_os_str())
             .arg("-g")
@@ -313,7 +317,7 @@ pub fn build(
         return 1;
     }
 
-    match compile(&to_compile, clang) {
+    match compile(debug, &to_compile, clang) {
         Ok(_) => 0,
         Err(e) => {
             eprintln!("Failed to compile progs: {}", e);
