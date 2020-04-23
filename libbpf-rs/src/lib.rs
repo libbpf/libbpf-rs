@@ -18,6 +18,7 @@ mod perf_buffer;
 pub use crate::error::{Error, Result};
 pub use crate::link::Link;
 pub use crate::object::{
-    Map, MapOptions, MapType, Object, ObjectOptions, Program, ProgramAttachType, ProgramType,
+    LoadedMap, LoadedMapFlags, LoadedProgram, Map, MapType, Object, Program, ProgramAttachType,
+    ProgramType,
 };
-pub use crate::perf_buffer::{PerfBuffer, PerfBufferOpts};
+pub use crate::perf_buffer::PerfBuffer;

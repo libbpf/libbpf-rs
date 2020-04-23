@@ -7,44 +7,39 @@ use crate::*;
 pub struct PerfBuffer {}
 
 impl PerfBuffer {
-    pub fn new(_map: Map, _pages: usize, _opts: PerfBufferOpts) -> Self {
+    pub fn new(_map: Map) -> Self {
+        unimplemented!();
+    }
+
+    /// Callback to run when a sample is received.
+    ///
+    /// This callback provides a raw byte slice. You may find libraries such as
+    /// [`plain`](https://crates.io/crates/plain) helpful.
+    ///
+    /// Callback arguments are: (cpu, data).
+    pub fn sample_cb<F>(&mut self, _cb: F) -> &mut Self
+    where
+        F: FnMut(u32, &[u8]),
+    {
+        unimplemented!();
+    }
+
+    /// Callback to run when a sample is received.
+    ///
+    /// Callback arguments are: (cpu, lost_count).
+    pub fn lost_cb<F>(&mut self, _cb: F) -> &mut Self
+    where
+        F: FnMut(u32, u64),
+    {
+        unimplemented!();
+    }
+
+    /// The number of pages to size the ring buffer.
+    pub fn pages(&mut self, _pages: usize) -> &mut Self {
         unimplemented!();
     }
 
     pub fn poll(&mut self, _timeout: Duration) {
-        unimplemented!();
-    }
-}
-
-/// Options and callbacks to configure [`PerfBuffer`].
-///
-/// Some callbacks provide raw byte slices. You may find libraries such as
-/// [`plain`](https://crates.io/crates/plain) helpful.
-#[derive(Default)]
-pub struct PerfBufferOpts {}
-
-impl PerfBufferOpts {
-    pub fn new() -> Self {
-        unimplemented!();
-    }
-
-    /// Callback to run when a sample is received.
-    ///
-    /// Callback arguments are: (ctx, cpu, data).
-    pub fn sample_cb<F>(self, _cb: F) -> Self
-    where
-        F: FnMut(usize, u32, &[u8]),
-    {
-        unimplemented!();
-    }
-
-    /// Callback to run when a sample is received.
-    ///
-    /// Callback arguments are: (ctx, cpu, lost_count).
-    pub fn lost_cb<F>(self, _cb: F) -> Self
-    where
-        F: FnMut(usize, u32, u64),
-    {
         unimplemented!();
     }
 }
