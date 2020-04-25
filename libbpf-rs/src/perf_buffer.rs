@@ -16,30 +16,30 @@ impl PerfBuffer {
     /// This callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
-    /// Callback arguments are: (cpu, data).
+    /// Callback arguments are: (self, cpu, data).
     pub fn sample_cb<F>(&mut self, _cb: F) -> &mut Self
     where
-        F: FnMut(u32, &[u8]),
+        F: FnMut(&mut PerfBuffer, u32, &[u8]),
     {
         unimplemented!();
     }
 
     /// Callback to run when a sample is received.
     ///
-    /// Callback arguments are: (cpu, lost_count).
+    /// Callback arguments are: (self, cpu, lost_count).
     pub fn lost_cb<F>(&mut self, _cb: F) -> &mut Self
     where
-        F: FnMut(u32, u64),
+        F: FnMut(&mut PerfBuffer, u32, u64),
     {
         unimplemented!();
     }
 
     /// The number of pages to size the ring buffer.
-    pub fn pages(&mut self, _pages: usize) -> &mut Self {
+    pub fn pages(&mut self, _pages: usize) -> Result<&mut Self> {
         unimplemented!();
     }
 
-    pub fn poll(&mut self, _timeout: Duration) {
+    pub fn poll(&mut self, _timeout: Duration) -> Result<()> {
         unimplemented!();
     }
 }

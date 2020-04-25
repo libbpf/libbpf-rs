@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use bitflags::bitflags;
+
 use crate::*;
 
 /// Represents a BPF object file. An object may contain zero or more
@@ -16,108 +18,93 @@ impl Object {
     }
 
     /// Override the generated name that would have been inferred from the constructor.
-    pub fn name<T: AsRef<str>>(&mut self, _name: T) -> &mut Self {
+    pub fn set_name<T: AsRef<str>>(&mut self, _name: T) -> &mut Self {
         unimplemented!();
     }
 
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
-    pub fn relaxed_maps(&mut self) -> &mut Self {
+    pub fn set_relaxed_maps(&mut self, _relaxed_maps: bool) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         unimplemented!();
     }
 
-    pub fn get_map<T: AsRef<str>>(&mut self, _name: T) -> Option<&mut Map> {
+    pub fn map<T: AsRef<str>>(&mut self, _name: T) -> Option<&mut MapBuilder> {
         unimplemented!();
     }
 
-    pub fn get_prog<T: AsRef<str>>(&mut self, _name: T) -> Option<&mut Program> {
+    pub fn prog<T: AsRef<str>>(&mut self, _name: T) -> Option<&mut ProgramBuilder> {
         unimplemented!();
     }
 }
 
 /// Represents a parsed but not yet loaded map.
-pub struct Map {}
+///
+/// Some methods require working with raw bytes. You may find libraries such as
+/// [`plain`](https://crates.io/crates/plain) helpful.
+pub struct MapBuilder {}
 
-impl Map {
-    pub fn name<T: AsRef<str>>(&mut self, _name: T) -> &mut Self {
+impl MapBuilder {
+    pub fn set_map_ifindex(&mut self, _idx: u32) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn map_type(&mut self, _map_type: MapType) -> &mut Self {
+    pub fn set_max_entries(&mut self, _entries: u32) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn key_size(&mut self, _size: u32) -> &mut Self {
+    pub fn set_initial_value(&mut self, _data: &[u8]) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn value_size(&mut self, _size: u32) -> &mut Self {
+    pub fn set_numa_node(&mut self, _node: u32) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn max_entries(&mut self, _entries: u32) -> &mut Self {
+    pub fn set_inner_map_fd(&mut self, _inner: Map) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn numa_node(&mut self, _node: u32) -> &mut Self {
+    pub fn set_flags(&mut self, _flags: MapBuilderFlags) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn btf_fd(&mut self, _fd: u32) -> &mut Self {
+    pub fn load(&mut self) -> Result<Map> {
         unimplemented!();
     }
+}
 
-    pub fn btf_key_type_id(&mut self, _id: u32) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn btf_value_type_id(&mut self, _id: u32) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn map_ifindex(&mut self, _idx: u32) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn inner_map_fd(&mut self, _fd: u32) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn btf_vmlinux_value_type_id(&mut self, _id: u32) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn no_prealloc(&mut self) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn no_common_lru(&mut self) -> &mut Self {
-        unimplemented!();
-    }
-
-    // TODO: more flags here:
-    // https://github.com/torvalds/linux/blob/master/include/uapi/linux/bpf.h#L340-L341
-
-    pub fn load(&mut self) -> Result<LoadedMap> {
-        unimplemented!();
+#[rustfmt::skip]
+bitflags! {
+    pub struct MapBuilderFlags: u64 {
+	const NO_PREALLOC     = 1 << 0;
+	const NO_COMMON_LRU   = 1 << 1;
+	const NUMA_NODE       = 1 << 2;
+	const RDONLY          = 1 << 3;
+	const WRONLY          = 1 << 4;
+	const STACK_BUILD_ID  = 1 << 5;
+	const ZERO_SEED       = 1 << 6;
+	const RDONLY_PROG     = 1 << 7;
+	const WRONLY_PROG     = 1 << 8;
+	const CLONE           = 1 << 9;
+	const MMAPABLE        = 1 << 10;
     }
 }
 
 /// Represents a created map.
 ///
-/// The kernel ensure the atomicity and safety of operations on a `LoadedMap`. Therefore,
+/// The kernel ensure the atomicity and safety of operations on a `Map`. Therefore,
 /// this handle is safe to clone and pass around between threads. This is essentially a
 /// file descriptor.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Clone)]
-pub struct LoadedMap {}
+pub struct Map {}
 
-impl LoadedMap {
+impl Map {
     pub fn name(&self) -> &str {
         unimplemented!();
     }
@@ -155,14 +142,10 @@ impl LoadedMap {
         unimplemented!();
     }
 
-    /// Same as [`LoadedMap::lookup()`] except this also deletes the key from the map.
+    /// Same as [`Map::lookup()`] except this also deletes the key from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup_and_delete(
-        &mut self,
-        _key: &[u8],
-        _flags: LoadedMapFlags,
-    ) -> Result<Option<Vec<u8>>> {
+    pub fn lookup_and_delete(&mut self, _key: &[u8], _flags: MapFlags) -> Result<Option<Vec<u8>>> {
         unimplemented!();
     }
 
@@ -170,50 +153,46 @@ impl LoadedMap {
     ///
     /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
     /// [`Map::value_size()`] elements.
-    pub fn update(&mut self, _key: &[u8], _value: &[u8], _flags: LoadedMapFlags) -> Result<()> {
+    pub fn update(&mut self, _key: &[u8], _value: &[u8], _flags: MapFlags) -> Result<()> {
         unimplemented!();
     }
 }
 
-/// Flags to configure [`Map`] operations.
-pub struct LoadedMapFlags {}
+#[rustfmt::skip]
+bitflags! {
+    /// Flags to configure [`Map`] operations.
+    pub struct MapFlags: u64 {
+	const ANY      = 0;
+	const NO_EXIST = 1 << 0;
+	const EXIST    = 1 << 1;
+	const LOCK     = 1 << 2;
+    }
+}
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
 #[non_exhaustive]
 pub enum MapType {}
 
 /// Represents a parsed but not yet loaded BPF program.
-pub struct Program {}
+pub struct ProgramBuilder {}
 
-impl Program {
-    pub fn prog_type(&mut self, _prog_type: ProgramType) -> &mut Self {
+impl ProgramBuilder {
+    pub fn set_prog_type(&mut self, _prog_type: ProgramType) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn attach_type(&mut self, _attach_type: ProgramAttachType) -> &mut Self {
+    pub fn set_attach_type(&mut self, _attach_type: ProgramAttachType) -> &mut Self {
         unimplemented!();
     }
 
-    pub fn ifindex(&mut self, _idx: i32) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn allow_override(&mut self) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn allow_multi(&mut self) -> &mut Self {
-        unimplemented!();
-    }
-
-    pub fn replace(&mut self) -> &mut Self {
+    pub fn set_ifindex(&mut self, _idx: i32) -> &mut Self {
         unimplemented!();
     }
 
     // TODO: more flags here:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/bpf.h#L267
 
-    pub fn load(&mut self) -> Result<LoadedProgram> {
+    pub fn load(&mut self) -> Result<Program> {
         unimplemented!();
     }
 }
@@ -228,16 +207,16 @@ pub enum ProgramAttachType {}
 
 /// Represents a loaded [`Program`].
 ///
-/// The kernel ensure the atomicity and safety of operations on a `LoadedProgram`. Therefore,
+/// The kernel ensure the atomicity and safety of operations on a `Program`. Therefore,
 /// this handle is safe to clone and pass around between threads. This is essentially a
 /// file descriptor.
 ///
-/// If you attempt to attach a `LoadedProgram` with the wrong attach method, the `attach_*`
+/// If you attempt to attach a `Program` with the wrong attach method, the `attach_*`
 /// method will fail with the appropriate error.
 #[derive(Clone)]
-pub struct LoadedProgram {}
+pub struct Program {}
 
-impl LoadedProgram {
+impl Program {
     pub fn name(&self) -> &str {
         unimplemented!();
     }
@@ -260,11 +239,20 @@ impl LoadedProgram {
         unimplemented!();
     }
 
-    pub fn attach_cgroup<T: AsRef<str>>(&mut self, _cgroup: T) -> Result<Link> {
+    pub fn attach_cgroup(&mut self, _cgroup_fd: u32, _flags: CgroupAttachFlags) -> Result<Link> {
         unimplemented!();
     }
 
-    pub fn attach_perf_event(&mut self, _pfd: i64) -> Result<Link> {
+    pub fn attach_perf_event(&mut self, _pfd: u32) -> Result<Link> {
         unimplemented!();
+    }
+}
+
+#[rustfmt::skip]
+bitflags! {
+    pub struct CgroupAttachFlags: u64 {
+	const ALLOW_OVERRIDE   = 1 << 0;
+	const ALLOW_MULTI      = 1 << 1;
+	const REPLACE          = 1 << 2;
     }
 }
