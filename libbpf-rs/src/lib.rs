@@ -21,4 +21,4 @@ pub use crate::object::{
     CgroupAttachFlags, Map, MapBuilder, MapBuilderFlags, MapFlags, MapType, Object, Program,
     ProgramAttachType, ProgramBuilder, ProgramType,
 };
-pub use crate::perf_buffer::PerfBuffer;
+pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
