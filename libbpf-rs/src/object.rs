@@ -79,7 +79,7 @@ impl MapBuilder {
 #[rustfmt::skip]
 bitflags! {
     pub struct MapBuilderFlags: u64 {
-	const NO_PREALLOC     = 1 << 0;
+	const NO_PREALLOC     = 1;
 	const NO_COMMON_LRU   = 1 << 1;
 	const NUMA_NODE       = 1 << 2;
 	const RDONLY          = 1 << 3;
@@ -163,7 +163,7 @@ bitflags! {
     /// Flags to configure [`Map`] operations.
     pub struct MapFlags: u64 {
 	const ANY      = 0;
-	const NO_EXIST = 1 << 0;
+	const NO_EXIST = 1;
 	const EXIST    = 1 << 1;
 	const LOCK     = 1 << 2;
     }
@@ -251,7 +251,7 @@ impl Program {
 #[rustfmt::skip]
 bitflags! {
     pub struct CgroupAttachFlags: u64 {
-	const ALLOW_OVERRIDE   = 1 << 0;
+	const ALLOW_OVERRIDE   = 1;
 	const ALLOW_MULTI      = 1 << 1;
 	const REPLACE          = 1 << 2;
     }
