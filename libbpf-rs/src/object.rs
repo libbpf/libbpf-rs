@@ -1,29 +1,117 @@
+use core::ffi::c_void;
+use std::mem;
+use std::os::raw::c_char;
 use std::path::Path;
+use std::ptr;
 
 use bitflags::bitflags;
 
+use crate::util;
 use crate::*;
 
 /// Sets options for opening a [`Object`]
-pub struct ObjectBuilder {}
+pub struct ObjectBuilder {
+    name: String,
+    relaxed_maps: bool,
+}
 
 impl ObjectBuilder {
     /// Override the generated name that would have been inferred from the constructor.
-    pub fn set_name<T: AsRef<str>>(&mut self, _name: T) -> &mut Self {
-        unimplemented!();
+    pub fn set_name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
+        self.name = name.as_ref().to_string();
+        self
     }
 
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
-    pub fn set_relaxed_maps(&mut self, _relaxed_maps: bool) -> &mut Self {
-        unimplemented!();
+    pub fn set_relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
+        self.relaxed_maps = relaxed_maps;
+        self
     }
 
-    pub fn from_path<P: AsRef<Path>>(&mut self, _path: P) -> Result<Object> {
-        unimplemented!();
+    fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
+        libbpf_sys::bpf_object_open_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            object_name: name,
+            relaxed_maps: self.relaxed_maps,
+            relaxed_core_relocs: false,
+            pin_root_path: ptr::null(),
+            attach_prog_fd: 0,
+            kconfig: ptr::null(),
+        }
     }
 
-    pub fn from_memory<T: AsRef<str>>(&mut self, _name: T, _mem: &[u8]) -> Result<Object> {
-        unimplemented!();
+    pub fn from_path<P: AsRef<Path>>(&mut self, path: P) -> Result<Object> {
+        // Convert path to a C style pointer
+        let path_str = path.as_ref().to_str().ok_or_else(|| {
+            Error::InvalidInput(format!("{} is not valid unicode", path.as_ref().display()))
+        })?;
+        let path_c = util::str_to_cstring(path_str)?;
+        let path_ptr = path_c.as_ptr();
+
+        // Convert name to a C style pointer
+        //
+        // NB: we must hold onto a CString otherwise our pointer dangles
+        let name = util::str_to_cstring(&self.name)?;
+        let name_ptr = if !self.name.is_empty() {
+            name.as_ptr()
+        } else {
+            ptr::null()
+        };
+
+        let opts = self.opts(name_ptr);
+
+        let obj = unsafe { libbpf_sys::bpf_object__open_file(path_ptr, &opts) };
+        if obj.is_null() {
+            return Err(Error::Internal("Could not create bpf_object".to_string()));
+        }
+
+        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
+        if ret != 0 {
+            return Err(Error::Internal("Could not load bpf_object".to_string()));
+        }
+
+        Ok(Object::new(obj))
+    }
+
+    pub fn from_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<Object> {
+        // Convert name to a C style pointer
+        //
+        // NB: we must hold onto a CString otherwise our pointer dangles
+        let name = util::str_to_cstring(name.as_ref())?;
+        let name_ptr = if !name.to_bytes().is_empty() {
+            name.as_ptr()
+        } else {
+            ptr::null()
+        };
+
+        let opts = self.opts(name_ptr);
+
+        let obj = unsafe {
+            libbpf_sys::bpf_object__open_mem(
+                mem.as_ptr() as *const c_void,
+                mem.len() as libbpf_sys::size_t,
+                &opts,
+            )
+        };
+        if obj.is_null() {
+            return Err(Error::Internal("Could not create bpf_object".to_string()));
+        }
+
+        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
+        if ret != 0 {
+            return Err(Error::Internal("Could not load bpf_object".to_string()));
+        }
+
+        Ok(Object::new(obj))
+    }
+}
+
+impl Default for ObjectBuilder {
+    fn default() -> Self {
+        ObjectBuilder {
+            name: String::new(),
+            relaxed_maps: false,
+        }
     }
 }
 
@@ -32,6 +120,10 @@ impl ObjectBuilder {
 pub struct Object {}
 
 impl Object {
+    fn new(_ptr: *mut libbpf_sys::bpf_object) -> Self {
+        unimplemented!();
+    }
+
     pub fn name(&self) -> &str {
         unimplemented!();
     }

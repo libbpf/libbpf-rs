@@ -14,6 +14,8 @@ pub enum Error {
     InvalidObjectFile(String),
     #[error("Invalid map: {0}")]
     InvalidMap(String),
+    #[error("Input input: {0}")]
+    InvalidInput(String),
     #[error("Internal error: {0}")]
     Internal(String),
 }
