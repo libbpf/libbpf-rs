@@ -15,20 +15,20 @@ impl PerfBufferBuilder {
     /// This callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
-    /// Callback arguments are: (cpu, data).
+    /// Callback arguments are: (&PerfBuffer, cpu, data).
     pub fn set_sample_cb<F>(&mut self, _cb: F) -> &mut Self
     where
-        F: FnMut(u32, &[u8]),
+        F: FnMut(&PerfBuffer, u32, &[u8]),
     {
         unimplemented!();
     }
 
     /// Callback to run when a sample is received.
     ///
-    /// Callback arguments are: (cpu, lost_count).
+    /// Callback arguments are: (&PerfBuffer, cpu, lost_count).
     pub fn set_lost_cb<F>(&mut self, _cb: F) -> &mut Self
     where
-        F: FnMut(u32, u64),
+        F: FnMut(&PerfBuffer, u32, u64),
     {
         unimplemented!();
     }
@@ -48,7 +48,7 @@ impl PerfBufferBuilder {
 pub struct PerfBuffer {}
 
 impl PerfBuffer {
-    pub fn poll(&mut self, _timeout: Duration) -> Result<()> {
+    pub fn poll(&self, _timeout: Duration) -> Result<()> {
         unimplemented!();
     }
 }
