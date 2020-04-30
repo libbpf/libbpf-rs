@@ -4,19 +4,10 @@ use bitflags::bitflags;
 
 use crate::*;
 
-/// Represents a BPF object file. An object may contain zero or more
-/// [`Program`]s and [`Map`]s.
-pub struct Object {}
+/// Sets options for opening a [`Object`]
+pub struct ObjectBuilder {}
 
-impl Object {
-    pub fn from_path<P: AsRef<Path>>(_path: P) -> Result<Self> {
-        unimplemented!();
-    }
-
-    pub fn from_memory(_name: &str, _mem: &[u8]) -> Result<Self> {
-        unimplemented!();
-    }
-
+impl ObjectBuilder {
     /// Override the generated name that would have been inferred from the constructor.
     pub fn set_name<T: AsRef<str>>(&mut self, _name: T) -> &mut Self {
         unimplemented!();
@@ -27,6 +18,20 @@ impl Object {
         unimplemented!();
     }
 
+    pub fn from_path<P: AsRef<Path>>(&mut self, _path: P) -> Result<Object> {
+        unimplemented!();
+    }
+
+    pub fn from_memory<T: AsRef<str>>(&mut self, _name: T, _mem: &[u8]) -> Result<Object> {
+        unimplemented!();
+    }
+}
+
+/// Represents a BPF object file. An object may contain zero or more
+/// [`Program`]s and [`Map`]s.
+pub struct Object {}
+
+impl Object {
     pub fn name(&self) -> &str {
         unimplemented!();
     }
