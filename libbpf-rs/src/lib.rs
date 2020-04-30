@@ -14,6 +14,7 @@ mod error;
 mod link;
 mod object;
 mod perf_buffer;
+mod util;
 
 pub use crate::error::{Error, Result};
 pub use crate::link::Link;
