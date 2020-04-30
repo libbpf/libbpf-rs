@@ -197,7 +197,7 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
         println!("{} is version {}", clang.display(), version);
     }
 
-    if version < Version::parse("9.0.0").unwrap() {
+    if version < Version::parse("10.0.0").unwrap() {
         bail!(
             "version {} is too old. Use --skip-clang-version-checks to skip verion check",
             version
