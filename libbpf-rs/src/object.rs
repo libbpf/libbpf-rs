@@ -110,7 +110,7 @@ impl Map {
     }
 
     /// Returns a file descriptor to the underlying map.
-    pub fn fd(&self) -> i64 {
+    pub fn fd(&self) -> u32 {
         unimplemented!();
     }
 
@@ -131,7 +131,7 @@ impl Map {
     /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup(&self, _key: &[u8]) -> Result<Option<Vec<u8>>> {
+    pub fn lookup(&self, _key: &[u8], _flags: MapFlags) -> Result<Option<Vec<u8>>> {
         unimplemented!();
     }
 
@@ -231,7 +231,7 @@ impl Program {
     }
 
     /// Returns a file descriptor to the underlying program.
-    pub fn fd(&self) -> i64 {
+    pub fn fd(&self) -> u32 {
         unimplemented!();
     }
 
