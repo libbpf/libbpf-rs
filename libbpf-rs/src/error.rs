@@ -9,7 +9,7 @@ pub enum Error {
     #[error("I/O error")]
     Io(#[from] io::Error),
     #[error("System error, errno: {0}")]
-    System(u32),
+    System(i32),
     #[error("Invalid binary: {0}")]
     InvalidObjectFile(String),
     #[error("Invalid map: {0}")]
