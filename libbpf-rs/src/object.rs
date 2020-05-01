@@ -234,7 +234,9 @@ impl Drop for Object {
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
-pub struct MapBuilder {}
+pub struct MapBuilder {
+    _ptr: *mut libbpf_sys::bpf_map,
+}
 
 impl MapBuilder {
     fn new(_ptr: *mut libbpf_sys::bpf_map, _name: String, _btf_fd: i32) -> Self {
@@ -368,11 +370,13 @@ bitflags! {
 pub enum MapType {}
 
 /// Represents a parsed but not yet loaded BPF program.
-pub struct ProgramBuilder {}
+pub struct ProgramBuilder {
+    _ptr: *mut libbpf_sys::bpf_program,
+}
 
 impl ProgramBuilder {
     fn new(_ptr: *mut libbpf_sys::bpf_program) -> Self {
-        unimplemented!();
+        ProgramBuilder { _ptr }
     }
 
     pub fn set_prog_type(&mut self, _prog_type: ProgramType) -> &mut Self {
