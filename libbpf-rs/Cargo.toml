@@ -8,6 +8,7 @@ license = "LGPL-2.1 OR BSD-2-Clause"
 [dependencies]
 thiserror = "1.0"
 bitflags = "1.2"
+nix = "0.17"
 libbpf-sys = { version = "0.0.8-2" }
 vsprintf = "1.0"
 

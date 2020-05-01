@@ -7,6 +7,7 @@ use std::path::Path;
 use std::ptr;
 
 use bitflags::bitflags;
+use nix::errno;
 
 use crate::util;
 use crate::*;
@@ -235,46 +236,99 @@ impl Drop for Object {
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 pub struct MapBuilder {
-    _ptr: *mut libbpf_sys::bpf_map,
+    ptr: *mut libbpf_sys::bpf_map,
+    name: String,
+    attrs: libbpf_sys::bpf_create_map_attr,
+    initial_val: Option<Vec<u8>>,
 }
 
 impl MapBuilder {
-    fn new(_ptr: *mut libbpf_sys::bpf_map, _name: String, _btf_fd: i32) -> Self {
-        unimplemented!();
+    fn new(ptr: *mut libbpf_sys::bpf_map, name: String, btf_fd: i32) -> Self {
+        // bpf_map__def can return null but only if it's passed a null. Object::map
+        // already error checks that condition for us.
+        let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(ptr)) };
+
+        let mut attrs = libbpf_sys::bpf_create_map_attr::default();
+        attrs.map_type = def.type_;
+        attrs.key_size = def.key_size;
+        attrs.value_size = def.value_size;
+        attrs.max_entries = def.max_entries;
+        attrs.map_flags = def.map_flags;
+
+        if btf_fd >= 0 {
+            attrs.btf_fd = btf_fd as u32;
+            attrs.btf_value_type_id = unsafe { libbpf_sys::bpf_map__btf_value_type_id(ptr) };
+            attrs.btf_key_type_id = unsafe { libbpf_sys::bpf_map__btf_key_type_id(ptr) };
+        }
+
+        MapBuilder {
+            ptr,
+            attrs,
+            name,
+            initial_val: None,
+        }
     }
 
-    pub fn set_map_ifindex(&mut self, _idx: u32) -> &mut Self {
-        unimplemented!();
+    pub fn set_map_ifindex(&mut self, idx: u32) -> &mut Self {
+        self.attrs.map_ifindex = idx;
+        self
     }
 
-    pub fn set_max_entries(&mut self, _entries: u32) -> &mut Self {
-        unimplemented!();
+    pub fn set_max_entries(&mut self, entries: u32) -> &mut Self {
+        self.attrs.max_entries = entries;
+        self
     }
 
-    pub fn set_initial_value(&mut self, _data: &[u8]) -> &mut Self {
-        unimplemented!();
+    pub fn set_initial_value(&mut self, data: &[u8]) -> &mut Self {
+        self.initial_val = Some(data.to_vec());
+        self
     }
 
-    pub fn set_numa_node(&mut self, _node: u32) -> &mut Self {
-        unimplemented!();
+    pub fn set_numa_node(&mut self, node: u32) -> &mut Self {
+        self.attrs.numa_node = node;
+        self
     }
 
-    pub fn set_inner_map_fd(&mut self, _inner: Map) -> &mut Self {
-        unimplemented!();
+    pub fn set_inner_map_fd(&mut self, inner: Map) -> &mut Self {
+        self.attrs.__bindgen_anon_1.inner_map_fd = inner.fd;
+        mem::forget(inner);
+        self
     }
 
-    pub fn set_flags(&mut self, _flags: MapBuilderFlags) -> &mut Self {
-        unimplemented!();
+    pub fn set_flags(&mut self, flags: MapBuilderFlags) -> &mut Self {
+        self.attrs.map_flags = flags.bits;
+        self
     }
 
     pub fn load(&mut self) -> Result<Map> {
-        unimplemented!();
+        if let Some(val) = &self.initial_val {
+            let ret = unsafe {
+                libbpf_sys::bpf_map__set_initial_value(
+                    self.ptr,
+                    val.as_ptr() as *const std::ffi::c_void,
+                    val.len() as u64,
+                )
+            };
+            if ret != 0 {
+                // Error code is returned negative, flip to positive to match errno
+                return Err(Error::System(-ret));
+            }
+        }
+
+        // libbpf_sys::bpf_object__load() already created the map for us. So we just
+        // need to get the FD out.
+        let fd = unsafe { libbpf_sys::bpf_map__fd(self.ptr) };
+        if fd < 0 {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Map::new(fd as u32))
+        }
     }
 }
 
 #[rustfmt::skip]
 bitflags! {
-    pub struct MapBuilderFlags: u64 {
+    pub struct MapBuilderFlags: u32 {
 	const NO_PREALLOC     = 1;
 	const NO_COMMON_LRU   = 1 << 1;
 	const NUMA_NODE       = 1 << 2;
@@ -298,9 +352,15 @@ bitflags! {
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Clone)]
-pub struct Map {}
+pub struct Map {
+    fd: u32,
+}
 
 impl Map {
+    fn new(fd: u32) -> Self {
+        Map { fd }
+    }
+
     pub fn name(&self) -> &str {
         unimplemented!();
     }
