@@ -1,4 +1,6 @@
 use core::ffi::c_void;
+use std::collections::HashMap;
+use std::ffi::CStr;
 use std::mem;
 use std::os::raw::c_char;
 use std::path::Path;
@@ -159,23 +161,72 @@ impl Default for ObjectBuilder {
 
 /// Represents a BPF object file. An object may contain zero or more
 /// [`Program`]s and [`Map`]s.
-pub struct Object {}
+pub struct Object {
+    ptr: *mut libbpf_sys::bpf_object,
+    maps: HashMap<String, MapBuilder>,
+    progs: HashMap<String, ProgramBuilder>,
+}
 
 impl Object {
-    fn new(_ptr: *mut libbpf_sys::bpf_object) -> Self {
-        unimplemented!();
+    fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
+        Object {
+            ptr,
+            maps: HashMap::new(),
+            progs: HashMap::new(),
+        }
     }
 
-    pub fn name(&self) -> &str {
-        unimplemented!();
+    pub fn name<'a>(&'a self) -> Result<&'a str> {
+        unsafe {
+            let ptr = libbpf_sys::bpf_object__name(self.ptr);
+            CStr::from_ptr(ptr)
+                .to_str()
+                .map_err(|e| Error::Internal(e.to_string()))
+        }
     }
 
-    pub fn map<T: AsRef<str>>(&mut self, _name: T) -> Option<&mut MapBuilder> {
-        unimplemented!();
+    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut MapBuilder>> {
+        if self.maps.contains_key(name.as_ref()) {
+            Ok(self.maps.get_mut(name.as_ref()))
+        } else {
+            let c_name = util::str_to_cstring(name.as_ref())?;
+            let ptr =
+                unsafe { libbpf_sys::bpf_object__find_map_by_name(self.ptr, c_name.as_ptr()) };
+            if ptr.is_null() {
+                Ok(None)
+            } else {
+                let btf_fd = unsafe { libbpf_sys::bpf_object__btf_fd(self.ptr) };
+                let owned_name = name.as_ref().to_owned();
+                self.maps
+                    .insert(owned_name.clone(), MapBuilder::new(ptr, owned_name, btf_fd));
+                Ok(self.maps.get_mut(name.as_ref()))
+            }
+        }
     }
 
-    pub fn prog<T: AsRef<str>>(&mut self, _name: T) -> Option<&mut ProgramBuilder> {
-        unimplemented!();
+    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut ProgramBuilder>> {
+        if self.progs.contains_key(name.as_ref()) {
+            Ok(self.progs.get_mut(name.as_ref()))
+        } else {
+            let c_name = util::str_to_cstring(name.as_ref())?;
+            let ptr =
+                unsafe { libbpf_sys::bpf_object__find_program_by_name(self.ptr, c_name.as_ptr()) };
+            if ptr.is_null() {
+                Ok(None)
+            } else {
+                let owned_name = name.as_ref().to_owned();
+                self.progs.insert(owned_name, ProgramBuilder::new(ptr));
+                Ok(self.progs.get_mut(name.as_ref()))
+            }
+        }
+    }
+}
+
+impl Drop for Object {
+    fn drop(&mut self) {
+        unsafe {
+            libbpf_sys::bpf_object__close(self.ptr);
+        }
     }
 }
 
@@ -186,6 +237,10 @@ impl Object {
 pub struct MapBuilder {}
 
 impl MapBuilder {
+    fn new(_ptr: *mut libbpf_sys::bpf_map, _name: String, _btf_fd: i32) -> Self {
+        unimplemented!();
+    }
+
     pub fn set_map_ifindex(&mut self, _idx: u32) -> &mut Self {
         unimplemented!();
     }
@@ -316,6 +371,10 @@ pub enum MapType {}
 pub struct ProgramBuilder {}
 
 impl ProgramBuilder {
+    fn new(_ptr: *mut libbpf_sys::bpf_program) -> Self {
+        unimplemented!();
+    }
+
     pub fn set_prog_type(&mut self, _prog_type: ProgramType) -> &mut Self {
         unimplemented!();
     }
