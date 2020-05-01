@@ -43,3 +43,30 @@ fn test_object_name() {
     let obj_name = obj.name().expect("failed to get object name");
     assert!(obj_name == "test name");
 }
+
+#[test]
+fn test_object_maps() {
+    let mut obj = get_test_object();
+    obj.map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+    obj.map("events")
+        .expect("error finding map")
+        .expect("failed to find map");
+    assert!(obj.map("asdf").expect("error finding map").is_none());
+}
+
+#[test]
+fn test_object_programs() {
+    let mut obj = get_test_object();
+    obj.prog("handle__sched_wakeup")
+        .expect("error finding program")
+        .expect("failed to find program");
+    obj.prog("handle__sched_wakeup_new")
+        .expect("error finding program")
+        .expect("failed to find program");
+    obj.prog("handle__sched_switch")
+        .expect("error finding program")
+        .expect("failed to find program");
+    assert!(obj.prog("asdf").expect("error finding program").is_none());
+}
