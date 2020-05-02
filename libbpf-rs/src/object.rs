@@ -1,5 +1,6 @@
 use core::ffi::c_void;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem;
 use std::os::raw::c_char;
@@ -7,7 +8,8 @@ use std::path::Path;
 use std::ptr;
 
 use bitflags::bitflags;
-use nix::errno;
+use nix::{errno, fcntl, unistd};
+use num_enum::TryFromPrimitive;
 
 use crate::util;
 use crate::*;
@@ -255,6 +257,10 @@ impl MapBuilder {
         attrs.max_entries = def.max_entries;
         attrs.map_flags = def.map_flags;
 
+        if attrs.map_type == (MapType::PerfEventArray as u32) && attrs.max_entries == 0 {
+            attrs.max_entries = unsafe { libbpf_sys::libbpf_num_possible_cpus() as u32 };
+        }
+
         if btf_fd >= 0 {
             attrs.btf_fd = btf_fd as u32;
             attrs.btf_value_type_id = unsafe { libbpf_sys::bpf_map__btf_value_type_id(ptr) };
@@ -290,7 +296,7 @@ impl MapBuilder {
     }
 
     pub fn set_inner_map_fd(&mut self, inner: Map) -> &mut Self {
-        self.attrs.__bindgen_anon_1.inner_map_fd = inner.fd;
+        self.attrs.__bindgen_anon_1.inner_map_fd = inner.fd as u32;
         mem::forget(inner);
         self
     }
@@ -315,13 +321,23 @@ impl MapBuilder {
             }
         }
 
+        // Set name here because self.name could be memmoved during object construction
+        let name_cstring = util::str_to_cstring(self.name.as_str())?;
+        self.attrs.name = name_cstring.as_ptr();
+
         // libbpf_sys::bpf_object__load() already created the map for us. So we just
         // need to get the FD out.
         let fd = unsafe { libbpf_sys::bpf_map__fd(self.ptr) };
         if fd < 0 {
             Err(Error::System(errno::errno()))
         } else {
-            Ok(Map::new(fd as u32))
+            Ok(Map::new(
+                fd,
+                self.name.clone(),
+                self.attrs.map_type,
+                self.attrs.key_size,
+                self.attrs.value_size,
+            ))
         }
     }
 }
@@ -351,66 +367,216 @@ bitflags! {
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
-#[derive(Clone)]
 pub struct Map {
-    fd: u32,
+    fd: i32,
+    name: String,
+    ty: libbpf_sys::bpf_map_type,
+    key_size: u32,
+    value_size: u32,
 }
 
 impl Map {
-    fn new(fd: u32) -> Self {
-        Map { fd }
+    fn new(
+        fd: i32,
+        name: String,
+        ty: libbpf_sys::bpf_map_type,
+        key_size: u32,
+        value_size: u32,
+    ) -> Self {
+        Map {
+            fd,
+            name,
+            ty,
+            key_size,
+            value_size,
+        }
     }
 
     pub fn name(&self) -> &str {
-        unimplemented!();
+        &self.name
     }
 
     /// Returns a file descriptor to the underlying map.
     pub fn fd(&self) -> i32 {
-        unimplemented!();
+        self.fd
     }
 
     pub fn map_type(&self) -> MapType {
-        unimplemented!();
+        match MapType::try_from(self.ty) {
+            Ok(t) => t,
+            Err(_) => MapType::Unknown,
+        }
     }
 
     /// Key size in bytes
     pub fn key_size(&self) -> u32 {
-        unimplemented!();
+        self.key_size
     }
 
     /// Value size in bytes
     pub fn value_size(&self) -> u32 {
-        unimplemented!();
+        self.value_size
     }
 
     /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup(&self, _key: &[u8], _flags: MapFlags) -> Result<Option<Vec<u8>>> {
-        unimplemented!();
+    pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_elem_flags(
+                self.fd as i32,
+                key.as_ptr() as *const c_void,
+                out.as_mut_ptr() as *mut c_void,
+                flags.bits,
+            )
+        };
+
+        if ret == 0 {
+            unsafe {
+                out.set_len(self.value_size() as usize);
+            }
+            Ok(Some(out))
+        } else {
+            let errno = errno::errno();
+            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+                Ok(None)
+            } else {
+                Err(Error::System(errno))
+            }
+        }
     }
 
     /// Deletes an element from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn delete(&mut self, _key: &[u8]) -> Result<()> {
-        unimplemented!();
+    pub fn delete(&mut self, key: &[u8]) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_delete_elem(self.fd as i32, key.as_ptr() as *const c_void)
+        };
+
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(Error::System(errno::errno()))
+        }
     }
 
     /// Same as [`Map::lookup()`] except this also deletes the key from the map.
     ///
+    /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
+    /// and [`MapType::Stack`].
+    ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup_and_delete(&mut self, _key: &[u8], _flags: MapFlags) -> Result<Option<Vec<u8>>> {
-        unimplemented!();
+    pub fn lookup_and_delete(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_and_delete_elem(
+                self.fd as i32,
+                key.as_ptr() as *const c_void,
+                out.as_mut_ptr() as *mut c_void,
+            )
+        };
+
+        if ret == 0 {
+            unsafe {
+                out.set_len(self.value_size() as usize);
+            }
+            Ok(Some(out))
+        } else {
+            let errno = errno::errno();
+            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+                Ok(None)
+            } else {
+                Err(Error::System(errno))
+            }
+        }
     }
 
     /// Update an element.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
     /// [`Map::value_size()`] elements.
-    pub fn update(&mut self, _key: &[u8], _value: &[u8], _flags: MapFlags) -> Result<()> {
-        unimplemented!();
+    pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        if value.len() != self.value_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "value_size {} != {}",
+                value.len(),
+                self.value_size()
+            )));
+        };
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_update_elem(
+                self.fd as i32,
+                key.as_ptr() as *const c_void,
+                value.as_ptr() as *const c_void,
+                flags.bits,
+            )
+        };
+
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(Error::System(errno::errno()))
+        }
+    }
+}
+
+impl Drop for Map {
+    fn drop(&mut self) {
+        // Can't report errors here, so ignore result
+        let _ = unistd::close(self.fd as i32);
+    }
+}
+
+impl Clone for Map {
+    fn clone(&self) -> Self {
+        // No way to report errors here. Regardless, if we've exhausted FDs on system
+        // then we're going to crash sooner or later.
+        let newfd =
+            fcntl::fcntl(self.fd as i32, fcntl::FcntlArg::F_DUPFD_CLOEXEC(0 as i32)).unwrap();
+        Map {
+            fd: newfd,
+            name: self.name.clone(),
+            ty: self.ty,
+            key_size: self.key_size,
+            value_size: self.value_size,
+        }
     }
 }
 
@@ -427,7 +593,41 @@ bitflags! {
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
 #[non_exhaustive]
-pub enum MapType {}
+#[repr(u32)]
+#[derive(Clone, TryFromPrimitive)]
+pub enum MapType {
+    Unspec = 0,
+    Hash,
+    Array,
+    ProgArray,
+    PerfEventArray,
+    PercpuHash,
+    PercpuArray,
+    StackTrace,
+    CgroupArray,
+    LruHash,
+    LruPercpuHash,
+    LpmTrie,
+    ArrayOfMaps,
+    HashOfMaps,
+    Devmap,
+    Sockmap,
+    Cpumap,
+    Xskmap,
+    Sockhash,
+    CgroupStorage,
+    ReuseportSockarray,
+    PercpuCgroupStorage,
+    Queue,
+    Stack,
+    SkStorage,
+    DevmapHash,
+    StructOps,
+    /// We choose to specify our own "unknown" type here b/c it's really up to the kernel
+    /// to decide if it wants to reject the map. If it accepts it, it just means whoever
+    /// using this library is a bit out of date.
+    Unknown = u32::MAX,
+}
 
 /// Represents a parsed but not yet loaded BPF program.
 pub struct ProgramBuilder {
