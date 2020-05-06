@@ -631,41 +631,131 @@ pub enum MapType {
 
 /// Represents a parsed but not yet loaded BPF program.
 pub struct ProgramBuilder {
-    _ptr: *mut libbpf_sys::bpf_program,
+    ptr: *mut libbpf_sys::bpf_program,
+    license: String,
 }
 
 impl ProgramBuilder {
-    fn new(_ptr: *mut libbpf_sys::bpf_program) -> Self {
-        ProgramBuilder { _ptr }
+    fn new(ptr: *mut libbpf_sys::bpf_program) -> Self {
+        ProgramBuilder {
+            ptr,
+            license: "GPL".to_owned(),
+        }
     }
 
-    pub fn set_prog_type(&mut self, _prog_type: ProgramType) -> &mut Self {
-        unimplemented!();
+    pub fn set_license<T: AsRef<str>>(&mut self, license: T) -> &mut Self {
+        self.license = license.as_ref().to_owned();
+        self
     }
 
-    pub fn set_attach_type(&mut self, _attach_type: ProgramAttachType) -> &mut Self {
-        unimplemented!();
+    pub fn set_prog_type(&mut self, prog_type: ProgramType) -> &mut Self {
+        unsafe {
+            libbpf_sys::bpf_program__set_type(self.ptr, prog_type as u32);
+        }
+        self
     }
 
-    pub fn set_ifindex(&mut self, _idx: i32) -> &mut Self {
-        unimplemented!();
+    pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) -> &mut Self {
+        unsafe {
+            libbpf_sys::bpf_program__set_expected_attach_type(self.ptr, attach_type as u32);
+        }
+        self
     }
 
-    // TODO: more flags here:
-    // https://github.com/torvalds/linux/blob/master/include/uapi/linux/bpf.h#L267
+    pub fn set_ifindex(&mut self, idx: u32) -> &mut Self {
+        unsafe {
+            libbpf_sys::bpf_program__set_ifindex(self.ptr, idx);
+        }
+        self
+    }
 
     pub fn load(&mut self) -> Result<Program> {
-        unimplemented!();
+        // libbpf_sys::bpf_object__load() already loads all the programs for us so we don't
+        // need to do much work here.
+
+        let name = util::c_ptr_to_string(unsafe { libbpf_sys::bpf_program__name(self.ptr) })?;
+        let section =
+            util::c_ptr_to_string(unsafe { libbpf_sys::bpf_program__title(self.ptr, false) })?;
+
+        Ok(Program::new(self.ptr, name, section))
     }
 }
 
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
-pub enum ProgramType {}
+#[repr(u32)]
+#[derive(Clone, TryFromPrimitive)]
+pub enum ProgramType {
+    Unspec = 0,
+    SocketFilter,
+    Kprobe,
+    SchedCls,
+    SchedAct,
+    Tracepoint,
+    Xdp,
+    PerfEvent,
+    CgroupSkb,
+    CgroupSock,
+    LwtIn,
+    LwtOut,
+    LwtXmit,
+    SockOps,
+    SkSkb,
+    CgroupDevice,
+    SkMsg,
+    RawTracepoint,
+    CgroupSockAddr,
+    LwtSeg6local,
+    LircMode2,
+    SkReuseport,
+    FlowDissector,
+    CgroupSysctl,
+    RawTracepointWritable,
+    CgroupSockopt,
+    Tracing,
+    StructOps,
+    Ext,
+    Lsm,
+    /// See [`MapType::Unknown`]
+    Unknown = u32::MAX,
+}
 
 /// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
 #[non_exhaustive]
-pub enum ProgramAttachType {}
+#[repr(u32)]
+#[derive(Clone, TryFromPrimitive)]
+pub enum ProgramAttachType {
+    CgroupInetIngress,
+    CgroupInetEgress,
+    CgroupInetSockCreate,
+    CgroupSockOps,
+    SkSkbStreamParser,
+    SkSkbStreamVerdict,
+    CgroupDevice,
+    SkMsgVerdict,
+    CgroupInet4Bind,
+    CgroupInet6Bind,
+    CgroupInet4Connect,
+    CgroupInet6Connect,
+    CgroupInet4PostBind,
+    CgroupInet6PostBind,
+    CgroupUdp4Sendmsg,
+    CgroupUdp6Sendmsg,
+    LircMode2,
+    FlowDissector,
+    CgroupSysctl,
+    CgroupUdp4Recvmsg,
+    CgroupUdp6Recvmsg,
+    CgroupGetsockopt,
+    CgroupSetsockopt,
+    TraceRawTp,
+    TraceFentry,
+    TraceFexit,
+    ModifyReturn,
+    LsmMac,
+    /// See [`MapType::Unknown`]
+    Unknown = u32::MAX,
+}
 
 /// Represents a loaded [`Program`].
 ///
@@ -673,12 +763,22 @@ pub enum ProgramAttachType {}
 /// this handle is safe to clone and pass around between threads. This is essentially a
 /// file descriptor.
 ///
+/// This struct is not safe to clone because the underlying libbpf resource cannot currently
+/// be protected from data races.
+///
 /// If you attempt to attach a `Program` with the wrong attach method, the `attach_*`
 /// method will fail with the appropriate error.
-#[derive(Clone)]
-pub struct Program {}
+pub struct Program {
+    ptr: *mut libbpf_sys::bpf_program,
+    name: String,
+    section: String,
+}
 
 impl Program {
+    fn new(ptr: *mut libbpf_sys::bpf_program, name: String, section: String) -> Self {
+        Program { ptr, name, section }
+    }
+
     pub fn name(&self) -> &str {
         unimplemented!();
     }
