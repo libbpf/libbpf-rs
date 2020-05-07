@@ -759,10 +759,6 @@ pub enum ProgramAttachType {
 
 /// Represents a loaded [`Program`].
 ///
-/// The kernel ensure the atomicity and safety of operations on a `Program`. Therefore,
-/// this handle is safe to clone and pass around between threads. This is essentially a
-/// file descriptor.
-///
 /// This struct is not safe to clone because the underlying libbpf resource cannot currently
 /// be protected from data races.
 ///
@@ -780,41 +776,174 @@ impl Program {
     }
 
     pub fn name(&self) -> &str {
-        unimplemented!();
+        &self.name
     }
 
     /// Name of the section this `Program` belongs to.
     pub fn section(&self) -> &str {
-        unimplemented!();
+        &self.section
     }
 
     pub fn prog_type(&self) -> ProgramType {
-        unimplemented!();
+        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__get_type(self.ptr) }) {
+            Ok(ty) => ty,
+            Err(_) => ProgramType::Unknown,
+        }
     }
 
     /// Returns a file descriptor to the underlying program.
     pub fn fd(&self) -> i32 {
-        unimplemented!();
+        unsafe { libbpf_sys::bpf_program__fd(self.ptr) }
     }
 
     pub fn attach_type(&self) -> ProgramAttachType {
-        unimplemented!();
+        match ProgramAttachType::try_from(unsafe {
+            libbpf_sys::bpf_program__get_expected_attach_type(self.ptr)
+        }) {
+            Ok(ty) => ty,
+            Err(_) => ProgramAttachType::Unknown,
+        }
     }
 
-    pub fn attach_cgroup(&mut self, _cgroup_fd: i32, _flags: CgroupAttachFlags) -> Result<Link> {
-        unimplemented!();
+    /// Auto-attach based on prog section
+    pub fn attach(&mut self) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach(self.ptr) };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
     }
 
-    pub fn attach_perf_event(&mut self, _pfd: i32) -> Result<Link> {
-        unimplemented!();
+    /// Attach this program to a
+    /// [cgroup](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html).
+    pub fn attach_cgroup(&mut self, cgroup_fd: i32) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_cgroup(self.ptr, cgroup_fd) };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
+    pub fn attach_perf_event(&mut self, pfd: i32) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr, pfd) };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to a [userspace
+    /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html).
+    pub fn attach_uprobe<T: AsRef<str>>(
+        &mut self,
+        retprobe: bool,
+        pid: i32,
+        binary_path: T,
+        func_offset: u64,
+    ) -> Result<Link> {
+        let path = binary_path.as_ref().as_ptr() as *const c_char;
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_uprobe(self.ptr, retprobe, pid, path, func_offset)
+        };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to a [kernel
+    /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html).
+    pub fn attach_kprobe<T: AsRef<str>>(&mut self, retprobe: bool, func_name: T) -> Result<Link> {
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_kprobe(
+                self.ptr,
+                retprobe,
+                func_name.as_ref().as_ptr() as *const c_char,
+            )
+        };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to a [kernel
+    /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
+    pub fn attach_tracepoint<T: AsRef<str>>(&mut self, tp_category: T, tp_name: T) -> Result<Link> {
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_tracepoint(
+                self.ptr,
+                tp_category.as_ref().as_ptr() as *const c_char,
+                tp_name.as_ref().as_ptr() as *const c_char,
+            )
+        };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to a [raw kernel
+    /// tracepoint](https://lwn.net/Articles/748352/).
+    pub fn attach_raw_tracepoint<T: AsRef<str>>(&mut self, tp_name: T) -> Result<Link> {
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_raw_tracepoint(
+                self.ptr,
+                tp_name.as_ref().as_ptr() as *const c_char,
+            )
+        };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
+    pub fn attach_lsm(&mut self) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_lsm(self.ptr) };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
+    pub fn attach_trace(&mut self) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr) };
+        if ptr.is_null() {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(Link::new(ptr))
+        }
     }
 }
 
-#[rustfmt::skip]
-bitflags! {
-    pub struct CgroupAttachFlags: u64 {
-	const ALLOW_OVERRIDE   = 1;
-	const ALLOW_MULTI      = 1 << 1;
-	const REPLACE          = 1 << 2;
+/// Represents an attached [`Program`].
+///
+/// This struct is used to model ownership. The underlying program will be detached
+/// when this object is dropped if nothing else is holding a reference count.
+pub struct Link {
+    ptr: *mut libbpf_sys::bpf_link,
+}
+
+impl Link {
+    fn new(ptr: *mut libbpf_sys::bpf_link) -> Self {
+        Link { ptr }
+    }
+
+    /// Replace the underlying prog with `prog`.
+    ///
+    /// Returns the replaced [`Program`] on success.
+    pub fn update_prog(&mut self, _prog: Program) -> Result<Program> {
+        unimplemented!();
     }
 }

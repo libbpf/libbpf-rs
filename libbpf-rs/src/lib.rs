@@ -11,15 +11,13 @@
 //! here](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html).
 
 mod error;
-mod link;
 mod object;
 mod perf_buffer;
 mod util;
 
 pub use crate::error::{Error, Result};
-pub use crate::link::Link;
 pub use crate::object::{
-    CgroupAttachFlags, Map, MapBuilder, MapBuilderFlags, MapFlags, MapType, Object, ObjectBuilder,
-    Program, ProgramAttachType, ProgramBuilder, ProgramType,
+    Link, Map, MapBuilder, MapBuilderFlags, MapFlags, MapType, Object, ObjectBuilder, Program,
+    ProgramAttachType, ProgramBuilder, ProgramType,
 };
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
