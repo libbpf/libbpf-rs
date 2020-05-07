@@ -110,7 +110,7 @@ impl Map {
     }
 
     /// Returns a file descriptor to the underlying map.
-    pub fn fd(&self) -> u32 {
+    pub fn fd(&self) -> i32 {
         unimplemented!();
     }
 
@@ -231,7 +231,7 @@ impl Program {
     }
 
     /// Returns a file descriptor to the underlying program.
-    pub fn fd(&self) -> u32 {
+    pub fn fd(&self) -> i32 {
         unimplemented!();
     }
 
@@ -239,11 +239,11 @@ impl Program {
         unimplemented!();
     }
 
-    pub fn attach_cgroup(&mut self, _cgroup_fd: u32, _flags: CgroupAttachFlags) -> Result<Link> {
+    pub fn attach_cgroup(&mut self, _cgroup_fd: i32, _flags: CgroupAttachFlags) -> Result<Link> {
         unimplemented!();
     }
 
-    pub fn attach_perf_event(&mut self, _pfd: u32) -> Result<Link> {
+    pub fn attach_perf_event(&mut self, _pfd: i32) -> Result<Link> {
         unimplemented!();
     }
 }
