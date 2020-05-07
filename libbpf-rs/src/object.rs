@@ -941,9 +941,18 @@ impl Link {
     }
 
     /// Replace the underlying prog with `prog`.
-    ///
-    /// Returns the replaced [`Program`] on success.
-    pub fn update_prog(&mut self, _prog: Program) -> Result<Program> {
-        unimplemented!();
+    pub fn update_prog(&mut self, prog: Program) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_link__update_program(self.ptr, prog.ptr) };
+        if ret != 0 {
+            Err(Error::System(errno::errno()))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Drop for Link {
+    fn drop(&mut self) {
+        let _ = unsafe { libbpf_sys::bpf_link__destroy(self.ptr) };
     }
 }
