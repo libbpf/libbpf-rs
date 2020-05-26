@@ -14,6 +14,12 @@ fn get_test_object_path() -> PathBuf {
 fn get_test_object() -> Object {
     let obj_path = get_test_object_path();
     let mut builder = ObjectBuilder::default();
+    // Invoke cargo with:
+    //
+    //     cargo test -- --nocapture
+    //
+    // To get all the output
+    builder.set_debug(true);
     builder.from_path(obj_path).expect("failed to build object")
 }
 
