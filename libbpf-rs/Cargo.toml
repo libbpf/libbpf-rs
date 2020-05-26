@@ -9,3 +9,7 @@ license = "LGPL-2.1 OR BSD-2-Clause"
 thiserror = "1.0"
 bitflags = "1.2"
 libbpf-sys = { version = "0.0.8-2" }
+vsprintf = "1.0"
+
+[dev-dependencies]
+libc = "0.2"

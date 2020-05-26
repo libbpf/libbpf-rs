@@ -13,6 +13,7 @@ use crate::*;
 pub struct ObjectBuilder {
     name: String,
     relaxed_maps: bool,
+    log_level: i32,
 }
 
 impl ObjectBuilder {
@@ -25,6 +26,36 @@ impl ObjectBuilder {
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
     pub fn set_relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
         self.relaxed_maps = relaxed_maps;
+        self
+    }
+
+    /// Option to print debug output to stderr.
+    pub fn set_debug(&mut self, dbg: bool) -> &mut Self {
+        extern "C" fn cb(
+            _level: libbpf_sys::libbpf_print_level,
+            fmtstr: *const c_char,
+            va_list: *mut libbpf_sys::__va_list_tag,
+        ) -> i32 {
+            match unsafe { vsprintf::vsprintf(fmtstr, va_list) } {
+                Ok(s) => {
+                    print!("{}", s);
+                    0
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse libbpf output: {}", e);
+                    1
+                }
+            }
+        }
+
+        if dbg {
+            self.log_level = 1;
+            unsafe { libbpf_sys::libbpf_set_print(Some(cb)) };
+        } else {
+            self.log_level = 0;
+            unsafe { libbpf_sys::libbpf_set_print(None) };
+        }
+
         self
     }
 
@@ -65,7 +96,12 @@ impl ObjectBuilder {
             return Err(Error::Internal("Could not create bpf_object".to_string()));
         }
 
-        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
+        let mut load_attr = libbpf_sys::bpf_object_load_attr {
+            obj,
+            log_level: self.log_level,
+            target_btf_path: ptr::null(),
+        };
+        let ret = unsafe { libbpf_sys::bpf_object__load_xattr(&mut load_attr) };
         if ret != 0 {
             return Err(Error::Internal("Could not load bpf_object".to_string()));
         }
@@ -97,7 +133,12 @@ impl ObjectBuilder {
             return Err(Error::Internal("Could not create bpf_object".to_string()));
         }
 
-        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
+        let mut load_attr = libbpf_sys::bpf_object_load_attr {
+            obj,
+            log_level: self.log_level,
+            target_btf_path: ptr::null(),
+        };
+        let ret = unsafe { libbpf_sys::bpf_object__load_xattr(&mut load_attr) };
         if ret != 0 {
             return Err(Error::Internal("Could not load bpf_object".to_string()));
         }
@@ -111,6 +152,7 @@ impl Default for ObjectBuilder {
         ObjectBuilder {
             name: String::new(),
             relaxed_maps: false,
+            log_level: 0,
         }
     }
 }
