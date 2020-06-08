@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install deps
-      run: sudo apt-get install -y clang-9
+      run: sudo apt-get install -y clang-9 libelf-dev
     - name: Symlink clang
       run: sudo ln -s /usr/bin/clang-9 /bin/clang
     - name: Build
