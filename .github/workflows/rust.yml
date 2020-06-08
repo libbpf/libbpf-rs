@@ -18,6 +18,7 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
+      # Skip tests that require BTF built into kernel
+      run: cargo test --verbose -- --skip test_object
     - name: Run rustfmt
       run: cargo fmt -- --check
