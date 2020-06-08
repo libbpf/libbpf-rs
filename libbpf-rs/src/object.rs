@@ -594,7 +594,7 @@ bitflags! {
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive)]
+#[derive(Clone, TryFromPrimitive, PartialEq)]
 pub enum MapType {
     Unspec = 0,
     Hash,
