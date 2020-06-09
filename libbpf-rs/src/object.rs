@@ -18,7 +18,6 @@ use crate::*;
 pub struct ObjectBuilder {
     name: String,
     relaxed_maps: bool,
-    log_level: i32,
 }
 
 impl ObjectBuilder {
@@ -54,10 +53,8 @@ impl ObjectBuilder {
         }
 
         if dbg {
-            self.log_level = 1;
             unsafe { libbpf_sys::libbpf_set_print(Some(cb)) };
         } else {
-            self.log_level = 0;
             unsafe { libbpf_sys::libbpf_set_print(None) };
         }
 
@@ -102,14 +99,10 @@ impl ObjectBuilder {
             return Err(Error::System(err as i32));
         }
 
-        let mut load_attr = libbpf_sys::bpf_object_load_attr {
-            obj,
-            log_level: self.log_level,
-            target_btf_path: ptr::null(),
-        };
-        let ret = unsafe { libbpf_sys::bpf_object__load_xattr(&mut load_attr) };
+        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
         if ret != 0 {
-            return Err(Error::Internal("Could not load bpf_object".to_string()));
+            // bpf_object__load() returns errno as negative, so flip
+            return Err(Error::System(-ret));
         }
 
         Ok(Object::new(obj))
@@ -140,14 +133,10 @@ impl ObjectBuilder {
             return Err(Error::System(err as i32));
         }
 
-        let mut load_attr = libbpf_sys::bpf_object_load_attr {
-            obj,
-            log_level: self.log_level,
-            target_btf_path: ptr::null(),
-        };
-        let ret = unsafe { libbpf_sys::bpf_object__load_xattr(&mut load_attr) };
+        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
         if ret != 0 {
-            return Err(Error::Internal("Could not load bpf_object".to_string()));
+            // bpf_object__load() returns errno as negative, so flip
+            return Err(Error::System(-ret));
         }
 
         Ok(Object::new(obj))
@@ -159,7 +148,6 @@ impl Default for ObjectBuilder {
         ObjectBuilder {
             name: String::new(),
             relaxed_maps: false,
-            log_level: 0,
         }
     }
 }
