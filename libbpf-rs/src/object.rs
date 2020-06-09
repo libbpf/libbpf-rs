@@ -193,10 +193,9 @@ impl Object {
             if ptr.is_null() {
                 Ok(None)
             } else {
-                let btf_fd = unsafe { libbpf_sys::bpf_object__btf_fd(self.ptr) };
                 let owned_name = name.as_ref().to_owned();
                 self.maps
-                    .insert(owned_name.clone(), MapBuilder::new(ptr, owned_name, btf_fd));
+                    .insert(owned_name.clone(), MapBuilder::new(ptr, owned_name));
                 Ok(self.maps.get_mut(name.as_ref()))
             }
         }
@@ -235,93 +234,61 @@ impl Drop for Object {
 pub struct MapBuilder {
     ptr: *mut libbpf_sys::bpf_map,
     name: String,
-    attrs: libbpf_sys::bpf_create_map_attr,
-    initial_val: Option<Vec<u8>>,
+    initial_val_err: Option<i32>,
+    map_type: libbpf_sys::bpf_map_type,
+    key_size: u32,
+    value_size: u32,
 }
 
 impl MapBuilder {
-    fn new(ptr: *mut libbpf_sys::bpf_map, name: String, btf_fd: i32) -> Self {
+    fn new(ptr: *mut libbpf_sys::bpf_map, name: String) -> Self {
         // bpf_map__def can return null but only if it's passed a null. Object::map
         // already error checks that condition for us.
         let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(ptr)) };
 
-        let mut attrs = libbpf_sys::bpf_create_map_attr::default();
-        attrs.map_type = def.type_;
-        attrs.key_size = def.key_size;
-        attrs.value_size = def.value_size;
-        attrs.max_entries = def.max_entries;
-        attrs.map_flags = def.map_flags;
-
-        if attrs.map_type == (MapType::PerfEventArray as u32) && attrs.max_entries == 0 {
-            attrs.max_entries = unsafe { libbpf_sys::libbpf_num_possible_cpus() as u32 };
-        }
-
-        if btf_fd >= 0 {
-            attrs.btf_fd = btf_fd as u32;
-            attrs.btf_value_type_id = unsafe { libbpf_sys::bpf_map__btf_value_type_id(ptr) };
-            attrs.btf_key_type_id = unsafe { libbpf_sys::bpf_map__btf_key_type_id(ptr) };
-        }
-
         MapBuilder {
             ptr,
-            attrs,
             name,
-            initial_val: None,
+            initial_val_err: None,
+            map_type: def.type_,
+            key_size: def.key_size,
+            value_size: def.value_size,
         }
     }
 
     pub fn set_map_ifindex(&mut self, idx: u32) -> &mut Self {
-        self.attrs.map_ifindex = idx;
-        self
-    }
+        unsafe { libbpf_sys::bpf_map__set_ifindex(self.ptr, idx) };
 
-    pub fn set_max_entries(&mut self, entries: u32) -> &mut Self {
-        self.attrs.max_entries = entries;
         self
     }
 
     pub fn set_initial_value(&mut self, data: &[u8]) -> &mut Self {
-        self.initial_val = Some(data.to_vec());
-        self
-    }
+        let ret = unsafe {
+            libbpf_sys::bpf_map__set_initial_value(
+                self.ptr,
+                data.as_ptr() as *const std::ffi::c_void,
+                data.len() as u64,
+            )
+        };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            self.initial_val_err = Some(-ret);
+        }
 
-    pub fn set_numa_node(&mut self, node: u32) -> &mut Self {
-        self.attrs.numa_node = node;
         self
     }
 
     pub fn set_inner_map_fd(&mut self, inner: Map) -> &mut Self {
-        self.attrs.__bindgen_anon_1.inner_map_fd = inner.fd as u32;
-        mem::forget(inner);
-        self
-    }
+        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
 
-    pub fn set_flags(&mut self, flags: MapBuilderFlags) -> &mut Self {
-        self.attrs.map_flags = flags.bits;
         self
     }
 
     pub fn load(&mut self) -> Result<Map> {
-        if let Some(val) = &self.initial_val {
-            let ret = unsafe {
-                libbpf_sys::bpf_map__set_initial_value(
-                    self.ptr,
-                    val.as_ptr() as *const std::ffi::c_void,
-                    val.len() as u64,
-                )
-            };
-            if ret != 0 {
-                // Error code is returned negative, flip to positive to match errno
-                return Err(Error::System(-ret));
-            }
+        if let Some(err) = self.initial_val_err {
+            return Err(Error::System(err));
         }
 
-        // Set name here because self.name could be memmoved during object construction
-        let name_cstring = util::str_to_cstring(self.name.as_str())?;
-        self.attrs.name = name_cstring.as_ptr();
-
-        // libbpf_sys::bpf_object__load() already created the map for us. So we just
-        // need to get the FD out.
         let fd = unsafe { libbpf_sys::bpf_map__fd(self.ptr) };
         if fd < 0 {
             Err(Error::System(errno::errno()))
@@ -329,28 +296,11 @@ impl MapBuilder {
             Ok(Map::new(
                 fd,
                 self.name.clone(),
-                self.attrs.map_type,
-                self.attrs.key_size,
-                self.attrs.value_size,
+                self.map_type,
+                self.key_size,
+                self.value_size,
             ))
         }
-    }
-}
-
-#[rustfmt::skip]
-bitflags! {
-    pub struct MapBuilderFlags: u32 {
-	const NO_PREALLOC     = 1;
-	const NO_COMMON_LRU   = 1 << 1;
-	const NUMA_NODE       = 1 << 2;
-	const RDONLY          = 1 << 3;
-	const WRONLY          = 1 << 4;
-	const STACK_BUILD_ID  = 1 << 5;
-	const ZERO_SEED       = 1 << 6;
-	const RDONLY_PROG     = 1 << 7;
-	const WRONLY_PROG     = 1 << 8;
-	const CLONE           = 1 << 9;
-	const MMAPABLE        = 1 << 10;
     }
 }
 
