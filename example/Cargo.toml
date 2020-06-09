@@ -5,4 +5,9 @@ authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0"
+chrono = "0.4"
 libbpf-rs = { path = "../libbpf-rs" }
+libc = "0.2"
+plain = "0.2"
+structopt = "0.3"

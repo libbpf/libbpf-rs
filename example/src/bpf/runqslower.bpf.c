@@ -6,16 +6,19 @@
 
 #define TASK_RUNNING 0
 
-const volatile __u64 min_us = 0;
-const volatile pid_t targ_pid = 0;
-const volatile pid_t targ_tgid = 0;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 10240);
 	__type(key, u32);
 	__type(value, u64);
 } start SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, u32);
+	__type(value, u64);
+} min_us SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -30,10 +33,6 @@ int trace_enqueue(u32 tgid, u32 pid)
 	u64 ts;
 
 	if (!pid)
-		return 0;
-	if (targ_tgid && targ_tgid != tgid)
-		return 0;
-	if (targ_pid && targ_pid != pid)
 		return 0;
 
 	ts = bpf_ktime_get_ns();
@@ -67,10 +66,10 @@ int handle__sched_switch(u64 *ctx)
 	 */
 	struct task_struct *prev = (struct task_struct *)ctx[1];
 	struct task_struct *next = (struct task_struct *)ctx[2];
+	u64 *tsp, delta_us, *min_us_val;
 	struct event event = {};
-	u64 *tsp, delta_us;
+	u32 pid, zero = 0;
 	long state;
-	u32 pid;
 
 	/* ivcsw: treat like an enqueue event and store timestamp */
 	if (prev->state == TASK_RUNNING)
@@ -83,8 +82,9 @@ int handle__sched_switch(u64 *ctx)
 	if (!tsp)
 		return 0;   /* missed enqueue */
 
+	min_us_val = bpf_map_lookup_elem(&min_us, &zero);
 	delta_us = (bpf_ktime_get_ns() - *tsp) / 1000;
-	if (min_us && delta_us <= min_us)
+	if (!min_us_val || !*min_us_val || delta_us <= *min_us_val)
 		return 0;
 
 	event.pid = pid;
