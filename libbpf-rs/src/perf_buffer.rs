@@ -124,8 +124,9 @@ where
         };
 
         let ptr = unsafe { libbpf_sys::perf_buffer__new(self.map.fd(), self.pages as u64, &opts) };
-        if ptr.is_null() {
-            Err(Error::Internal("Failed to create perf buffer".to_string()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(PerfBuffer {
                 ptr,
