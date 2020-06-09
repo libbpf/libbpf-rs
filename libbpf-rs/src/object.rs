@@ -97,8 +97,9 @@ impl ObjectBuilder {
         let opts = self.opts(name_ptr);
 
         let obj = unsafe { libbpf_sys::bpf_object__open_file(path_ptr, &opts) };
-        if obj.is_null() {
-            return Err(Error::Internal("Could not create bpf_object".to_string()));
+        let err = unsafe { libbpf_sys::libbpf_get_error(obj as *const _) };
+        if err != 0 {
+            return Err(Error::System(err as i32));
         }
 
         let mut load_attr = libbpf_sys::bpf_object_load_attr {
@@ -134,8 +135,9 @@ impl ObjectBuilder {
                 &opts,
             )
         };
-        if obj.is_null() {
-            return Err(Error::Internal("Could not create bpf_object".to_string()));
+        let err = unsafe { libbpf_sys::libbpf_get_error(obj as *const _) };
+        if err != 0 {
+            return Err(Error::System(err as i32));
         }
 
         let mut load_attr = libbpf_sys::bpf_object_load_attr {
@@ -182,6 +184,11 @@ impl Object {
     pub fn name<'a>(&'a self) -> Result<&'a str> {
         unsafe {
             let ptr = libbpf_sys::bpf_object__name(self.ptr);
+            let err = libbpf_sys::libbpf_get_error(ptr as *const _);
+            if err != 0 {
+                return Err(Error::System(err as i32));
+            }
+
             CStr::from_ptr(ptr)
                 .to_str()
                 .map_err(|e| Error::Internal(e.to_string()))
@@ -674,8 +681,13 @@ impl ProgramBuilder {
         // need to do much work here.
 
         let name = util::c_ptr_to_string(unsafe { libbpf_sys::bpf_program__name(self.ptr) })?;
-        let section =
-            util::c_ptr_to_string(unsafe { libbpf_sys::bpf_program__title(self.ptr, false) })?;
+        let title = unsafe { libbpf_sys::bpf_program__title(self.ptr, false) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
+        if err != 0 {
+            return Err(Error::System(err as i32));
+        }
+
+        let section = util::c_ptr_to_string(title)?;
 
         Ok(Program::new(self.ptr, name, section))
     }
@@ -819,8 +831,9 @@ impl Program {
     /// [cgroup](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html).
     pub fn attach_cgroup(&mut self, cgroup_fd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_cgroup(self.ptr, cgroup_fd) };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -829,8 +842,9 @@ impl Program {
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
     pub fn attach_perf_event(&mut self, pfd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr, pfd) };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -849,8 +863,9 @@ impl Program {
         let ptr = unsafe {
             libbpf_sys::bpf_program__attach_uprobe(self.ptr, retprobe, pid, path, func_offset)
         };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -866,8 +881,9 @@ impl Program {
                 func_name.as_ref().as_ptr() as *const c_char,
             )
         };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -883,8 +899,9 @@ impl Program {
                 tp_name.as_ref().as_ptr() as *const c_char,
             )
         };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -899,8 +916,9 @@ impl Program {
                 tp_name.as_ref().as_ptr() as *const c_char,
             )
         };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -909,8 +927,9 @@ impl Program {
     /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
     pub fn attach_lsm(&mut self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_lsm(self.ptr) };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
@@ -919,8 +938,9 @@ impl Program {
     /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
     pub fn attach_trace(&mut self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
