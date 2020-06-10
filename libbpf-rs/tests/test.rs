@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use libbpf_rs::{MapFlags, Object, ObjectBuilder};
+use libbpf_rs::{MapFlags, ObjectBuilder, OpenObject};
 
 fn get_test_object_path() -> PathBuf {
     let mut path = PathBuf::new();
@@ -11,7 +11,7 @@ fn get_test_object_path() -> PathBuf {
     path
 }
 
-fn get_test_object() -> Object {
+fn get_test_object() -> OpenObject {
     let obj_path = get_test_object_path();
     let mut builder = ObjectBuilder::default();
     // Invoke cargo with:
