@@ -202,9 +202,8 @@ impl OpenObject {
         if self.maps.contains_key(name.as_ref()) {
             Ok(self.maps.get_mut(name.as_ref()))
         } else if let Some(ptr) = find_map_in_object(self.ptr, name.as_ref())? {
-            let owned_name = name.as_ref().to_owned();
             self.maps
-                .insert(owned_name.clone(), OpenMap::new(ptr, owned_name));
+                .insert(name.as_ref().to_owned(), OpenMap::new(ptr));
             Ok(self.maps.get_mut(name.as_ref()))
         } else {
             Ok(None)
@@ -320,36 +319,18 @@ impl Drop for Object {
 /// [`plain`](https://crates.io/crates/plain) helpful.
 pub struct OpenMap {
     ptr: *mut libbpf_sys::bpf_map,
-    name: String,
-    initial_val_err: Option<i32>,
-    map_type: libbpf_sys::bpf_map_type,
-    key_size: u32,
-    value_size: u32,
 }
 
 impl OpenMap {
-    fn new(ptr: *mut libbpf_sys::bpf_map, name: String) -> Self {
-        // bpf_map__def can return null but only if it's passed a null. Object::map
-        // already error checks that condition for us.
-        let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(ptr)) };
-
-        OpenMap {
-            ptr,
-            name,
-            initial_val_err: None,
-            map_type: def.type_,
-            key_size: def.key_size,
-            value_size: def.value_size,
-        }
+    fn new(ptr: *mut libbpf_sys::bpf_map) -> Self {
+        OpenMap { ptr }
     }
 
-    pub fn set_map_ifindex(&mut self, idx: u32) -> &mut Self {
+    pub fn set_map_ifindex(&mut self, idx: u32) {
         unsafe { libbpf_sys::bpf_map__set_ifindex(self.ptr, idx) };
-
-        self
     }
 
-    pub fn set_initial_value(&mut self, data: &[u8]) -> &mut Self {
+    pub fn set_initial_value(&mut self, data: &[u8]) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_initial_value(
                 self.ptr,
@@ -357,26 +338,17 @@ impl OpenMap {
                 data.len() as u64,
             )
         };
+
         if ret != 0 {
             // Error code is returned negative, flip to positive to match errno
-            self.initial_val_err = Some(-ret);
-        }
-
-        self
-    }
-
-    pub fn set_inner_map_fd(&mut self, inner: Map) -> &mut Self {
-        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
-
-        self
-    }
-
-    pub fn load(&mut self) -> Result<()> {
-        if let Some(err) = self.initial_val_err {
-            return Err(Error::System(err));
+            return Err(Error::System(-ret));
         }
 
         Ok(())
+    }
+
+    pub fn set_inner_map_fd(&mut self, inner: Map) {
+        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
     }
 }
 
@@ -653,45 +625,29 @@ pub enum MapType {
 /// Represents a parsed but not yet loaded BPF program.
 pub struct OpenProgram {
     ptr: *mut libbpf_sys::bpf_program,
-    license: String,
 }
 
 impl OpenProgram {
     fn new(ptr: *mut libbpf_sys::bpf_program) -> Self {
-        OpenProgram {
-            ptr,
-            license: "GPL".to_owned(),
-        }
+        OpenProgram { ptr }
     }
 
-    pub fn set_license<T: AsRef<str>>(&mut self, license: T) -> &mut Self {
-        self.license = license.as_ref().to_owned();
-        self
-    }
-
-    pub fn set_prog_type(&mut self, prog_type: ProgramType) -> &mut Self {
+    pub fn set_prog_type(&mut self, prog_type: ProgramType) {
         unsafe {
             libbpf_sys::bpf_program__set_type(self.ptr, prog_type as u32);
         }
-        self
     }
 
-    pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) -> &mut Self {
+    pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
         unsafe {
             libbpf_sys::bpf_program__set_expected_attach_type(self.ptr, attach_type as u32);
         }
-        self
     }
 
-    pub fn set_ifindex(&mut self, idx: u32) -> &mut Self {
+    pub fn set_ifindex(&mut self, idx: u32) {
         unsafe {
             libbpf_sys::bpf_program__set_ifindex(self.ptr, idx);
         }
-        self
-    }
-
-    pub fn load(&mut self) -> Result<()> {
-        Ok(())
     }
 }
 
