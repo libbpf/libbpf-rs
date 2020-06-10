@@ -146,11 +146,7 @@ fn find_map_in_object(
 ) -> Result<Option<*mut libbpf_sys::bpf_map>> {
     let c_name = util::str_to_cstring(name)?;
     let ptr = unsafe { libbpf_sys::bpf_object__find_map_by_name(obj, c_name.as_ptr()) };
-    if ptr.is_null() {
-        Ok(None)
-    } else {
-        Ok(Some(ptr))
-    }
+    Ok(util::ptr_to_option(ptr))
 }
 
 fn find_prog_in_object(
@@ -159,11 +155,7 @@ fn find_prog_in_object(
 ) -> Result<Option<*mut libbpf_sys::bpf_program>> {
     let c_name = util::str_to_cstring(name)?;
     let ptr = unsafe { libbpf_sys::bpf_object__find_program_by_name(obj, c_name.as_ptr()) };
-    if ptr.is_null() {
-        Ok(None)
-    } else {
-        Ok(Some(ptr))
-    }
+    Ok(util::ptr_to_option(ptr))
 }
 
 /// Represents an opened (but not yet loaded) BPF object file.
