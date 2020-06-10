@@ -8,7 +8,7 @@ use std::path::Path;
 use std::ptr;
 
 use bitflags::bitflags;
-use nix::{errno, fcntl, unistd};
+use nix::errno;
 use num_enum::TryFromPrimitive;
 
 use crate::util;
@@ -354,10 +354,6 @@ impl OpenMap {
 
 /// Represents a created map.
 ///
-/// The kernel ensure the atomicity and safety of operations on a `Map`. Therefore,
-/// this handle is safe to clone and pass around between threads. This is essentially a
-/// file descriptor.
-///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 pub struct Map {
@@ -546,29 +542,6 @@ impl Map {
             Ok(())
         } else {
             Err(Error::System(errno::errno()))
-        }
-    }
-}
-
-impl Drop for Map {
-    fn drop(&mut self) {
-        // Can't report errors here, so ignore result
-        let _ = unistd::close(self.fd as i32);
-    }
-}
-
-impl Clone for Map {
-    fn clone(&self) -> Self {
-        // No way to report errors here. Regardless, if we've exhausted FDs on system
-        // then we're going to crash sooner or later.
-        let newfd =
-            fcntl::fcntl(self.fd as i32, fcntl::FcntlArg::F_DUPFD_CLOEXEC(0 as i32)).unwrap();
-        Map {
-            fd: newfd,
-            name: self.name.clone(),
-            ty: self.ty,
-            key_size: self.key_size,
-            value_size: self.value_size,
         }
     }
 }
