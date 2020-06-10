@@ -17,7 +17,7 @@ mod util;
 
 pub use crate::error::{Error, Result};
 pub use crate::object::{
-    Link, Map, MapBuilder, MapFlags, MapType, Object, ObjectBuilder, Program, ProgramAttachType,
-    ProgramBuilder, ProgramType,
+    Link, Map, MapFlags, MapType, Object, ObjectBuilder, OpenMap, OpenObject, OpenProgram, Program,
+    ProgramAttachType, ProgramType,
 };
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};

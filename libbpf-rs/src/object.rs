@@ -73,7 +73,7 @@ impl ObjectBuilder {
         }
     }
 
-    pub fn from_path<P: AsRef<Path>>(&mut self, path: P) -> Result<Object> {
+    pub fn from_path<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
         // Convert path to a C style pointer
         let path_str = path.as_ref().to_str().ok_or_else(|| {
             Error::InvalidInput(format!("{} is not valid unicode", path.as_ref().display()))
@@ -105,10 +105,10 @@ impl ObjectBuilder {
             return Err(Error::System(-ret));
         }
 
-        Ok(Object::new(obj))
+        Ok(OpenObject::new(obj))
     }
 
-    pub fn from_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<Object> {
+    pub fn from_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
         // Convert name to a C style pointer
         //
         // NB: we must hold onto a CString otherwise our pointer dangles
@@ -139,7 +139,7 @@ impl ObjectBuilder {
             return Err(Error::System(-ret));
         }
 
-        Ok(Object::new(obj))
+        Ok(OpenObject::new(obj))
     }
 }
 
@@ -152,17 +152,18 @@ impl Default for ObjectBuilder {
     }
 }
 
-/// Represents a BPF object file. An object may contain zero or more
-/// [`Program`]s and [`Map`]s.
-pub struct Object {
+/// Represents an opened (but not yet loaded) BPF object file.
+///
+/// An object may contain zero or more [`Program`]s and [`Map`]s.
+pub struct OpenObject {
     ptr: *mut libbpf_sys::bpf_object,
-    maps: HashMap<String, MapBuilder>,
-    progs: HashMap<String, ProgramBuilder>,
+    maps: HashMap<String, OpenMap>,
+    progs: HashMap<String, OpenProgram>,
 }
 
-impl Object {
+impl OpenObject {
     fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
-        Object {
+        OpenObject {
             ptr,
             maps: HashMap::new(),
             progs: HashMap::new(),
@@ -183,7 +184,7 @@ impl Object {
         }
     }
 
-    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut MapBuilder>> {
+    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenMap>> {
         if self.maps.contains_key(name.as_ref()) {
             Ok(self.maps.get_mut(name.as_ref()))
         } else {
@@ -195,13 +196,13 @@ impl Object {
             } else {
                 let owned_name = name.as_ref().to_owned();
                 self.maps
-                    .insert(owned_name.clone(), MapBuilder::new(ptr, owned_name));
+                    .insert(owned_name.clone(), OpenMap::new(ptr, owned_name));
                 Ok(self.maps.get_mut(name.as_ref()))
             }
         }
     }
 
-    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut ProgramBuilder>> {
+    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenProgram>> {
         if self.progs.contains_key(name.as_ref()) {
             Ok(self.progs.get_mut(name.as_ref()))
         } else {
@@ -212,11 +213,24 @@ impl Object {
                 Ok(None)
             } else {
                 let owned_name = name.as_ref().to_owned();
-                self.progs.insert(owned_name, ProgramBuilder::new(ptr));
+                self.progs.insert(owned_name, OpenProgram::new(ptr));
                 Ok(self.progs.get_mut(name.as_ref()))
             }
         }
     }
+}
+
+/// Represents a loaded BPF object file.
+///
+/// An `Object` is logically in charge of all the contained [`Program`]s and [`Map`]s as well as
+/// the associated metadata and runtime state that underpins the userspace portions of BPF program
+/// execution. As a libbpf-rs user, you must keep the `Object` alive during the entire lifetime
+/// of your interaction with anything inside the `Object`.
+///
+/// Note that this is an explanation of the motivation -- Rust's lifetime system should already be
+/// enforcing this invariant.
+pub struct Object {
+    ptr: *mut libbpf_sys::bpf_object,
 }
 
 impl Drop for Object {
@@ -227,11 +241,11 @@ impl Drop for Object {
     }
 }
 
-/// Represents a parsed but not yet loaded map.
+/// Contains operations on a not-yet-created map.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
-pub struct MapBuilder {
+pub struct OpenMap {
     ptr: *mut libbpf_sys::bpf_map,
     name: String,
     initial_val_err: Option<i32>,
@@ -240,13 +254,13 @@ pub struct MapBuilder {
     value_size: u32,
 }
 
-impl MapBuilder {
+impl OpenMap {
     fn new(ptr: *mut libbpf_sys::bpf_map, name: String) -> Self {
         // bpf_map__def can return null but only if it's passed a null. Object::map
         // already error checks that condition for us.
         let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(ptr)) };
 
-        MapBuilder {
+        OpenMap {
             ptr,
             name,
             initial_val_err: None,
@@ -575,14 +589,14 @@ pub enum MapType {
 }
 
 /// Represents a parsed but not yet loaded BPF program.
-pub struct ProgramBuilder {
+pub struct OpenProgram {
     ptr: *mut libbpf_sys::bpf_program,
     license: String,
 }
 
-impl ProgramBuilder {
+impl OpenProgram {
     fn new(ptr: *mut libbpf_sys::bpf_program) -> Self {
-        ProgramBuilder {
+        OpenProgram {
             ptr,
             license: "GPL".to_owned(),
         }
