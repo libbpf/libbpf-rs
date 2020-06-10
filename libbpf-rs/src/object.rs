@@ -210,6 +210,11 @@ impl OpenObject {
         }
     }
 
+    /// Same as [`OpenObject::map`] except will panic if `Err` or `None` is encountered.
+    pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenMap {
+        self.map(name).unwrap().unwrap()
+    }
+
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenProgram>> {
         if self.progs.contains_key(name.as_ref()) {
             Ok(self.progs.get_mut(name.as_ref()))
@@ -220,6 +225,11 @@ impl OpenObject {
         } else {
             Ok(None)
         }
+    }
+
+    /// Same as [`OpenObject::prog`] except will panic if `Err` or `None` is encountered.
+    pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenProgram {
+        self.prog(name).unwrap().unwrap()
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
@@ -286,6 +296,11 @@ impl Object {
         }
     }
 
+    // Same as [`map`] except will panic if `Err` or `None` is encountered.
+    pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
+        self.map(name).unwrap().unwrap()
+    }
+
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Program>> {
         if self.progs.contains_key(name.as_ref()) {
             Ok(self.progs.get_mut(name.as_ref()))
@@ -306,6 +321,11 @@ impl Object {
         } else {
             Ok(None)
         }
+    }
+
+    // Same as [`prog`] except will panic if `Err` or `None` is encountered.
+    pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
+        self.prog(name).unwrap().unwrap()
     }
 }
 
