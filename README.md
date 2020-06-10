@@ -1,5 +1,9 @@
 ![Rust](https://github.com/danobi/libbpf-rs/workflows/Rust/badge.svg?branch=master)
 
+WARNING: The API is not stable and is subject to breakage. Any breakage will include
+a minor version bump pre-1.0 and a major version bump post-1.0.
+[Semantic versioning](https://semver.org/) will be followed post-1.0 release.
+
 # libbpf-rs
 
 Idiomatic rust wrapper around
