@@ -1,9 +1,14 @@
 [package]
 name = "libbpf-rs"
+description= "libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys"
 version = "0.1.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
 license = "LGPL-2.1 OR BSD-2-Clause"
+keywords = ["eBPF", "bpf", "ebpf", "libbpf"]
+
+[badges]
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 thiserror = "1.0"
