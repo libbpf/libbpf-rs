@@ -1,6 +1,8 @@
 [package]
 name = "libbpf-rs"
 description= "libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys"
+repository = "https://github.com/danobi/libbpf-rs"
+homepage = "https://github.com/danobi/libbpf-rs"
 version = "0.1.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
