@@ -14,7 +14,7 @@ use num_enum::TryFromPrimitive;
 use crate::util;
 use crate::*;
 
-/// Sets options for opening a [`Object`]
+/// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
 pub struct ObjectBuilder {
     name: String,
     relaxed_maps: bool,
@@ -168,7 +168,7 @@ fn find_prog_in_object(
 
 /// Represents an opened (but not yet loaded) BPF object file.
 ///
-/// An object may contain zero or more [`Program`]s and [`Map`]s.
+/// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
 pub struct OpenObject {
     ptr: *mut libbpf_sys::bpf_object,
     maps: HashMap<String, OpenMap>,
@@ -222,6 +222,10 @@ impl OpenObject {
         }
     }
 
+    /// Load the maps and programs contained in this BPF object into the system.
+    ///
+    /// After load, further calls to [`OpenMap`]s and [`OpenProgram`]s are not guaranteed
+    /// to have any effect.
     pub fn load(&mut self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr) };
         if ret != 0 {
@@ -313,7 +317,9 @@ impl Drop for Object {
     }
 }
 
-/// Contains operations on a not-yet-created map.
+/// Represents a parsed but not yet loaded BPF map.
+///
+/// This object exposes operations that need to happen before the map is created.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
@@ -596,6 +602,8 @@ pub enum MapType {
 }
 
 /// Represents a parsed but not yet loaded BPF program.
+///
+/// This object exposes operations that need to happen before the program is loaded.
 pub struct OpenProgram {
     ptr: *mut libbpf_sys::bpf_program,
 }
