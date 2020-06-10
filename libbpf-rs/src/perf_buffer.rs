@@ -29,23 +29,23 @@ impl Drop for CbStruct {
 }
 
 /// Builds [`PerfBuffer`] instances.
-pub struct PerfBufferBuilder<F, G>
+pub struct PerfBufferBuilder<'a, F, G>
 where
     F: FnMut(i32, &[u8]) + 'static,
     G: FnMut(i32, u64) + 'static,
 {
-    map: Map,
+    map: &'a Map,
     pages: usize,
     sample_cb: Option<Box<F>>,
     lost_cb: Option<Box<G>>,
 }
 
-impl<F, G> PerfBufferBuilder<F, G>
+impl<'a, F, G> PerfBufferBuilder<'a, F, G>
 where
     F: FnMut(i32, &[u8]) + 'static,
     G: FnMut(i32, u64) + 'static,
 {
-    pub fn new(map: Map) -> Self {
+    pub fn new(map: &'a Map) -> Self {
         Self {
             map,
             pages: 64,
