@@ -373,7 +373,7 @@ impl OpenMap {
         Ok(())
     }
 
-    pub fn set_inner_map_fd(&mut self, inner: Map) {
+    pub fn set_inner_map_fd(&mut self, inner: &Map) {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
     }
 }
