@@ -1,9 +1,5 @@
 ![Rust](https://github.com/danobi/libbpf-rs/workflows/Rust/badge.svg?branch=master)
 
-WARNING: this repo under heavy development. A minimal
-prototype will be ready to use and uploaded to crates.io by
-June 2020.
-
 # libbpf-rs
 
 Idiomatic rust wrapper around
