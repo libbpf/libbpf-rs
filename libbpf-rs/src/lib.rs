@@ -25,7 +25,7 @@
 //! ## Design
 //!
 //! libbpf-rs models various "phases":
-//! ```
+//! ```text
 //!                from_*()        load()
 //!                  |               |
 //!                  v               v
