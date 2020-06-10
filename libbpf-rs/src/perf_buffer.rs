@@ -28,7 +28,7 @@ impl Drop for CbStruct {
     }
 }
 
-/// Builds [`PerfBuffer`] instances
+/// Builds [`PerfBuffer`] instances.
 pub struct PerfBufferBuilder<F, G>
 where
     F: FnMut(i32, &[u8]) + 'static,
