@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use libbpf_rs::{MapFlags, ObjectBuilder, OpenObject};
+use libbpf_rs::{MapFlags, Object, ObjectBuilder};
 
 fn get_test_object_path() -> PathBuf {
     let mut path = PathBuf::new();
@@ -11,7 +11,7 @@ fn get_test_object_path() -> PathBuf {
     path
 }
 
-fn get_test_object() -> OpenObject {
+fn get_test_object() -> Object {
     let obj_path = get_test_object_path();
     let mut builder = ObjectBuilder::default();
     // Invoke cargo with:
@@ -20,7 +20,11 @@ fn get_test_object() -> OpenObject {
     //
     // To get all the output
     builder.set_debug(true);
-    builder.from_path(obj_path).expect("failed to build object")
+    builder
+        .from_path(obj_path)
+        .expect("failed to open object")
+        .load()
+        .expect("failed to load object")
 }
 
 fn bump_rlimit_mlock() {
@@ -34,7 +38,7 @@ fn bump_rlimit_mlock() {
 }
 
 #[test]
-fn test_object_build() {
+fn test_object_build_and_load() {
     get_test_object();
 }
 
@@ -73,35 +77,14 @@ fn test_object_maps() {
 }
 
 #[test]
-fn test_object_map_load() {
-    bump_rlimit_mlock();
-
-    let mut obj = get_test_object();
-    let _ = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map")
-        .load()
-        .expect("failed to load start map");
-    let _ = obj
-        .map("events")
-        .expect("error finding map")
-        .expect("failed to find map")
-        .load()
-        .expect("failed to load events map");
-}
-
-#[test]
 fn test_object_map_key_value_size() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object();
-    let mut start = obj
+    let start = obj
         .map("start")
         .expect("error finding map")
-        .expect("failed to find map")
-        .load()
-        .expect("failed to load start map");
+        .expect("failed to find map");
 
     assert!(start.lookup(&[1, 2, 3, 4, 5], MapFlags::empty()).is_err());
     assert!(start.delete(&[1]).is_err());
@@ -119,9 +102,8 @@ fn test_object_map_empty_lookup() {
     let start = obj
         .map("start")
         .expect("error finding map")
-        .expect("failed to find map")
-        .load()
-        .expect("failed to load start map");
+        .expect("failed to find map");
+
     assert!(start
         .lookup(&[1, 2, 3, 4], MapFlags::empty())
         .expect("err in map lookup")
@@ -133,12 +115,10 @@ fn test_object_map_mutation() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object();
-    let mut start = obj
+    let start = obj
         .map("start")
         .expect("error finding map")
-        .expect("failed to find map")
-        .load()
-        .expect("failed to load start map");
+        .expect("failed to find map");
 
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
@@ -163,12 +143,10 @@ fn test_object_map_lookup_flags() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object();
-    let mut start = obj
+    let start = obj
         .map("start")
         .expect("error finding map")
-        .expect("failed to find map")
-        .load()
-        .expect("failed to load start map");
+        .expect("failed to find map");
 
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::NO_EXIST)
@@ -180,6 +158,8 @@ fn test_object_map_lookup_flags() {
 
 #[test]
 fn test_object_programs() {
+    bump_rlimit_mlock();
+
     let mut obj = get_test_object();
     obj.prog("handle__sched_wakeup")
         .expect("error finding program")
@@ -191,30 +171,4 @@ fn test_object_programs() {
         .expect("error finding program")
         .expect("failed to find program");
     assert!(obj.prog("asdf").expect("error finding program").is_none());
-}
-
-#[test]
-fn test_object_programs_load() {
-    let mut obj = get_test_object();
-
-    let _ = obj
-        .prog("handle__sched_wakeup")
-        .expect("error finding program")
-        .expect("failed to find program")
-        .load()
-        .expect("failed to load handle__sched_wakeup");
-
-    let _ = obj
-        .prog("handle__sched_wakeup_new")
-        .expect("error finding program")
-        .expect("failed to find program")
-        .load()
-        .expect("failed to load handle__sched_wakeup_new");
-
-    let _ = obj
-        .prog("handle__sched_switch")
-        .expect("error finding program")
-        .expect("failed to find program")
-        .load()
-        .expect("failed to load handle__sched_switch");
 }
