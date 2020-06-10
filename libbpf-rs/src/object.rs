@@ -99,12 +99,6 @@ impl ObjectBuilder {
             return Err(Error::System(err as i32));
         }
 
-        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
-        if ret != 0 {
-            // bpf_object__load() returns errno as negative, so flip
-            return Err(Error::System(-ret));
-        }
-
         Ok(OpenObject::new(obj))
     }
 
@@ -133,12 +127,6 @@ impl ObjectBuilder {
             return Err(Error::System(err as i32));
         }
 
-        let ret = unsafe { libbpf_sys::bpf_object__load(obj) };
-        if ret != 0 {
-            // bpf_object__load() returns errno as negative, so flip
-            return Err(Error::System(-ret));
-        }
-
         Ok(OpenObject::new(obj))
     }
 }
@@ -149,6 +137,32 @@ impl Default for ObjectBuilder {
             name: String::new(),
             relaxed_maps: false,
         }
+    }
+}
+
+fn find_map_in_object(
+    obj: *const libbpf_sys::bpf_object,
+    name: &str,
+) -> Result<Option<*mut libbpf_sys::bpf_map>> {
+    let c_name = util::str_to_cstring(name)?;
+    let ptr = unsafe { libbpf_sys::bpf_object__find_map_by_name(obj, c_name.as_ptr()) };
+    if ptr.is_null() {
+        Ok(None)
+    } else {
+        Ok(Some(ptr))
+    }
+}
+
+fn find_prog_in_object(
+    obj: *const libbpf_sys::bpf_object,
+    name: &str,
+) -> Result<Option<*mut libbpf_sys::bpf_program>> {
+    let c_name = util::str_to_cstring(name)?;
+    let ptr = unsafe { libbpf_sys::bpf_object__find_program_by_name(obj, c_name.as_ptr()) };
+    if ptr.is_null() {
+        Ok(None)
+    } else {
+        Ok(Some(ptr))
     }
 }
 
@@ -187,36 +201,36 @@ impl OpenObject {
     pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenMap>> {
         if self.maps.contains_key(name.as_ref()) {
             Ok(self.maps.get_mut(name.as_ref()))
+        } else if let Some(ptr) = find_map_in_object(self.ptr, name.as_ref())? {
+            let owned_name = name.as_ref().to_owned();
+            self.maps
+                .insert(owned_name.clone(), OpenMap::new(ptr, owned_name));
+            Ok(self.maps.get_mut(name.as_ref()))
         } else {
-            let c_name = util::str_to_cstring(name.as_ref())?;
-            let ptr =
-                unsafe { libbpf_sys::bpf_object__find_map_by_name(self.ptr, c_name.as_ptr()) };
-            if ptr.is_null() {
-                Ok(None)
-            } else {
-                let owned_name = name.as_ref().to_owned();
-                self.maps
-                    .insert(owned_name.clone(), OpenMap::new(ptr, owned_name));
-                Ok(self.maps.get_mut(name.as_ref()))
-            }
+            Ok(None)
         }
     }
 
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenProgram>> {
         if self.progs.contains_key(name.as_ref()) {
             Ok(self.progs.get_mut(name.as_ref()))
+        } else if let Some(ptr) = find_prog_in_object(self.ptr, name.as_ref())? {
+            let owned_name = name.as_ref().to_owned();
+            self.progs.insert(owned_name, OpenProgram::new(ptr));
+            Ok(self.progs.get_mut(name.as_ref()))
         } else {
-            let c_name = util::str_to_cstring(name.as_ref())?;
-            let ptr =
-                unsafe { libbpf_sys::bpf_object__find_program_by_name(self.ptr, c_name.as_ptr()) };
-            if ptr.is_null() {
-                Ok(None)
-            } else {
-                let owned_name = name.as_ref().to_owned();
-                self.progs.insert(owned_name, OpenProgram::new(ptr));
-                Ok(self.progs.get_mut(name.as_ref()))
-            }
+            Ok(None)
         }
+    }
+
+    pub fn load(&mut self) -> Result<Object> {
+        let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr) };
+        if ret != 0 {
+            // bpf_object__load() returns errno as negative, so flip
+            return Err(Error::System(-ret));
+        }
+
+        Ok(Object::new(self.ptr))
     }
 }
 
@@ -231,6 +245,65 @@ impl OpenObject {
 /// enforcing this invariant.
 pub struct Object {
     ptr: *mut libbpf_sys::bpf_object,
+    maps: HashMap<String, Map>,
+    progs: HashMap<String, Program>,
+}
+
+impl Object {
+    fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
+        Object {
+            ptr,
+            maps: HashMap::new(),
+            progs: HashMap::new(),
+        }
+    }
+
+    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Map>> {
+        if self.maps.contains_key(name.as_ref()) {
+            Ok(self.maps.get_mut(name.as_ref()))
+        } else if let Some(ptr) = find_map_in_object(self.ptr, name.as_ref())? {
+            let owned_name = name.as_ref().to_owned();
+            let fd = unsafe { libbpf_sys::bpf_map__fd(ptr) };
+            if fd < 0 {
+                Err(Error::System(errno::errno()))
+            } else {
+                // bpf_map__def can return null but only if it's passed a null. Object::map
+                // already error checks that condition for us.
+                let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(ptr)) };
+
+                self.maps.insert(
+                    owned_name.clone(),
+                    Map::new(fd, owned_name, def.type_, def.key_size, def.value_size),
+                );
+
+                Ok(self.maps.get_mut(name.as_ref()))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Program>> {
+        if self.progs.contains_key(name.as_ref()) {
+            Ok(self.progs.get_mut(name.as_ref()))
+        } else if let Some(ptr) = find_prog_in_object(self.ptr, name.as_ref())? {
+            let owned_name = name.as_ref().to_owned();
+
+            let title = unsafe { libbpf_sys::bpf_program__title(ptr, false) };
+            let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
+            if err != 0 {
+                return Err(Error::System(err as i32));
+            }
+            let section = util::c_ptr_to_string(title)?;
+
+            self.progs
+                .insert(owned_name.clone(), Program::new(ptr, owned_name, section));
+
+            Ok(self.progs.get_mut(name.as_ref()))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl Drop for Object {
@@ -298,23 +371,12 @@ impl OpenMap {
         self
     }
 
-    pub fn load(&mut self) -> Result<Map> {
+    pub fn load(&mut self) -> Result<()> {
         if let Some(err) = self.initial_val_err {
             return Err(Error::System(err));
         }
 
-        let fd = unsafe { libbpf_sys::bpf_map__fd(self.ptr) };
-        if fd < 0 {
-            Err(Error::System(errno::errno()))
-        } else {
-            Ok(Map::new(
-                fd,
-                self.name.clone(),
-                self.map_type,
-                self.key_size,
-                self.value_size,
-            ))
-        }
+        Ok(())
     }
 }
 
@@ -628,20 +690,8 @@ impl OpenProgram {
         self
     }
 
-    pub fn load(&mut self) -> Result<Program> {
-        // libbpf_sys::bpf_object__load() already loads all the programs for us so we don't
-        // need to do much work here.
-
-        let name = util::c_ptr_to_string(unsafe { libbpf_sys::bpf_program__name(self.ptr) })?;
-        let title = unsafe { libbpf_sys::bpf_program__title(self.ptr, false) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
-        if err != 0 {
-            return Err(Error::System(err as i32));
-        }
-
-        let section = util::c_ptr_to_string(title)?;
-
-        Ok(Program::new(self.ptr, name, section))
+    pub fn load(&mut self) -> Result<()> {
+        Ok(())
     }
 }
 
