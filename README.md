@@ -16,6 +16,8 @@ To use in your project, add into your `Cargo.toml`:
 libbpf-rs = "0.1"
 ```
 
+See [full documentation here](https://docs.rs/libbpf-rs).
+
 # libbpf-cargo
 
 Cargo subcommand to build bpf programs
@@ -27,6 +29,4 @@ $ cargo install libbpf-cargo
 $ cargo libbpf --help
 ```
 
-XXX link to docs.rs
-
-See [full documentation here](google.com).
+See [full documentation here](https://docs.rs/crate/libbpf-cargo).
