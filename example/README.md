@@ -11,7 +11,16 @@ $ pwd
 /home/daniel/dev/libbpf-rs/example
 $ cargo libbpf build
 $ cargo build
-$ # XXX tbd
+$ sudo ../target/debug/example -o ~/dev/libbpf-rs/target/bpf/runqslower.bpf.o 1000
+Tracing run queue latency higher than 1000 us
+TIME     COMM             TID     LAT(us)
+13:40:58 WebExtensions    961211  1287
+13:40:58 WebExtensions    961211  1516
+13:40:58 Timer            961076  2255
+13:40:58 AudioIPC0        1111261 2375
+13:40:58 Gecko_IOThread   961074  2252
+13:40:58 WebExtensions    961211  1030
+^C
 ```
 
 ---
