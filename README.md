@@ -1,4 +1,4 @@
-![Rust](https://github.com/danobi/libbpf-rs/workflows/Rust/badge.svg?branch=master)
+![Rust](https://github.com/libbpf/libbpf-rs/workflows/Rust/badge.svg?branch=master)
 
 WARNING: The API is not stable and is subject to breakage. Any breakage will
 include a minor version bump pre-1.0 and a major version bump post-1.0.

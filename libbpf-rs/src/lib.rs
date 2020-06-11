@@ -51,7 +51,7 @@
 //!
 //! This is probably the best way to understand how libbpf-rs and libbpf-cargo work together.
 //!
-//! [See example here](https://github.com/danobi/libbpf-rs/tree/master/example).
+//! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/example).
 
 mod error;
 mod object;
