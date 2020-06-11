@@ -6,6 +6,8 @@ include a minor version bump pre-1.0 and a major version bump post-1.0.
 
 # libbpf-rs
 
+[![crates.io badge](https://img.shields.io/crates/v/libbpf-rs.svg)](https://crates.io/crates/libbpf-rs)
+
 Idiomatic rust wrapper around
 [libbpf](https://github.com/libbpf/libbpf)
 
@@ -19,6 +21,8 @@ libbpf-rs = "0.1"
 See [full documentation here](https://docs.rs/libbpf-rs).
 
 # libbpf-cargo
+
+[![crates.io badge](https://img.shields.io/crates/v/libbpf-cargo.svg)](https://crates.io/crates/libbpf-cargo)
 
 Cargo subcommand to build bpf programs
 
