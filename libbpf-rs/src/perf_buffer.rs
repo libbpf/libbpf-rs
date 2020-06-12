@@ -40,11 +40,7 @@ where
     lost_cb: Option<Box<G>>,
 }
 
-impl<'a, F, G> PerfBufferBuilder<'a, F, G>
-where
-    F: FnMut(i32, &[u8]) + 'static,
-    G: FnMut(i32, u64) + 'static,
-{
+impl<'a> PerfBufferBuilder<'a, fn(i32, &[u8]), fn(i32, u64)> {
     pub fn new(map: &'a Map) -> Self {
         Self {
             map,
@@ -53,24 +49,44 @@ where
             lost_cb: None,
         }
     }
+}
 
+impl<'a, F, G> PerfBufferBuilder<'a, F, G>
+where
+    F: FnMut(i32, &[u8]) + 'static,
+    G: FnMut(i32, u64) + 'static,
+{
     /// Callback to run when a sample is received.
     ///
     /// This callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn set_sample_cb(&mut self, cb: F) -> &mut Self {
-        self.sample_cb = Some(Box::new(cb));
-        self
+    pub fn with_sample_cb<NewF: FnMut(i32, &[u8])>(
+        self,
+        cb: NewF,
+    ) -> PerfBufferBuilder<'a, NewF, G> {
+        PerfBufferBuilder {
+            map: self.map,
+            pages: self.pages,
+            sample_cb: Some(Box::new(cb)),
+            lost_cb: self.lost_cb,
+        }
     }
 
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn set_lost_cb(&mut self, cb: G) -> &mut Self {
-        self.lost_cb = Some(Box::new(cb));
-        self
+    pub fn with_lost_cb<NewG: FnMut(i32, u64) -> ()>(
+        self,
+        cb: NewG,
+    ) -> PerfBufferBuilder<'a, F, NewG> {
+        PerfBufferBuilder {
+            map: self.map,
+            pages: self.pages,
+            sample_cb: self.sample_cb,
+            lost_cb: Some(Box::new(cb)),
+        }
     }
 
     /// The number of pages to size the ring buffer.
