@@ -109,10 +109,11 @@ fn main() {
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");
 
     let events = obj.map_unwrap("events");
-    let mut perf_builder = PerfBufferBuilder::new(events);
-    perf_builder.set_sample_cb(handle_event);
-    perf_builder.set_lost_cb(handle_lost_events);
-    let perf = perf_builder.build().unwrap();
+    let perf = PerfBufferBuilder::new(events)
+        .with_sample_cb(handle_event)
+        .with_lost_cb(handle_lost_events)
+        .build()
+        .unwrap();
 
     loop {
         let ret = perf.poll(Duration::from_millis(100));
