@@ -62,10 +62,7 @@ where
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn with_sample_cb<NewF: FnMut(i32, &[u8])>(
-        self,
-        cb: NewF,
-    ) -> PerfBufferBuilder<'a, NewF, G> {
+    pub fn sample_cb<NewF: FnMut(i32, &[u8])>(self, cb: NewF) -> PerfBufferBuilder<'a, NewF, G> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -77,10 +74,7 @@ where
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn with_lost_cb<NewG: FnMut(i32, u64) -> ()>(
-        self,
-        cb: NewG,
-    ) -> PerfBufferBuilder<'a, F, NewG> {
+    pub fn lost_cb<NewG: FnMut(i32, u64)>(self, cb: NewG) -> PerfBufferBuilder<'a, F, NewG> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -90,7 +84,7 @@ where
     }
 
     /// The number of pages to size the ring buffer.
-    pub fn set_pages(&mut self, pages: usize) -> &mut Self {
+    pub fn pages(&mut self, pages: usize) -> &mut Self {
         self.pages = pages;
         self
     }
