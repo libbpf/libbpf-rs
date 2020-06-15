@@ -19,9 +19,9 @@ fn get_test_object() -> Object {
     //     cargo test -- --nocapture
     //
     // To get all the output
-    builder.set_debug(true);
+    builder.debug(true);
     builder
-        .from_path(obj_path)
+        .open_file(obj_path)
         .expect("failed to open object")
         .load()
         .expect("failed to load object")
@@ -48,7 +48,7 @@ fn test_object_build_from_memory() {
     let contents = fs::read(obj_path).expect("failed to read object file");
     let mut builder = ObjectBuilder::default();
     let obj = builder
-        .from_memory("memory name", &contents)
+        .open_memory("memory name", &contents)
         .expect("failed to build object");
     let name = obj.name().expect("failed to get object name");
     assert!(name == "memory name");
@@ -58,8 +58,8 @@ fn test_object_build_from_memory() {
 fn test_object_name() {
     let obj_path = get_test_object_path();
     let mut builder = ObjectBuilder::default();
-    builder.set_name("test name");
-    let obj = builder.from_path(obj_path).expect("failed to build object");
+    builder.name("test name");
+    let obj = builder.open_file(obj_path).expect("failed to build object");
     let obj_name = obj.name().expect("failed to get object name");
     assert!(obj_name == "test name");
 }

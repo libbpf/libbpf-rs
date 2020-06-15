@@ -22,19 +22,19 @@ pub struct ObjectBuilder {
 
 impl ObjectBuilder {
     /// Override the generated name that would have been inferred from the constructor.
-    pub fn set_name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
+    pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.name = name.as_ref().to_string();
         self
     }
 
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
-    pub fn set_relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
+    pub fn relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
         self.relaxed_maps = relaxed_maps;
         self
     }
 
     /// Option to print debug output to stderr.
-    pub fn set_debug(&mut self, dbg: bool) -> &mut Self {
+    pub fn debug(&mut self, dbg: bool) -> &mut Self {
         extern "C" fn cb(
             _level: libbpf_sys::libbpf_print_level,
             fmtstr: *const c_char,
@@ -73,7 +73,7 @@ impl ObjectBuilder {
         }
     }
 
-    pub fn from_path<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
+    pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
         // Convert path to a C style pointer
         let path_str = path.as_ref().to_str().ok_or_else(|| {
             Error::InvalidInput(format!("{} is not valid unicode", path.as_ref().display()))
@@ -102,7 +102,7 @@ impl ObjectBuilder {
         Ok(OpenObject::new(obj))
     }
 
-    pub fn from_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
+    pub fn open_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
         // Convert name to a C style pointer
         //
         // NB: we must hold onto a CString otherwise our pointer dangles

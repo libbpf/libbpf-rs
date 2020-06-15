@@ -77,12 +77,12 @@ fn main() {
 
     let mut obj_builder = ObjectBuilder::default();
     if opts.verbose {
-        obj_builder.set_debug(true);
+        obj_builder.debug(true);
     }
 
     bump_memlock_rlimit().unwrap();
     let mut obj = obj_builder
-        .from_path(opts.obj_path)
+        .open_file(opts.obj_path)
         .unwrap()
         .load()
         .unwrap();
@@ -110,8 +110,8 @@ fn main() {
 
     let events = obj.map_unwrap("events");
     let perf = PerfBufferBuilder::new(events)
-        .with_sample_cb(handle_event)
-        .with_lost_cb(handle_lost_events)
+        .sample_cb(handle_event)
+        .lost_cb(handle_lost_events)
         .build()
         .unwrap();
 
