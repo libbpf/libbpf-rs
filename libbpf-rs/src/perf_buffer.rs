@@ -97,7 +97,7 @@ where
 
     pub fn build(self) -> Result<PerfBuffer> {
         if self.map.map_type() != MapType::PerfEventArray {
-            return Err(Error::InvalidMap(
+            return Err(Error::InvalidInput(
                 "Must use a PerfEventArray map".to_string(),
             ));
         }
