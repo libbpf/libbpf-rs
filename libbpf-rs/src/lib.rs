@@ -57,11 +57,11 @@ mod error;
 mod map;
 mod object;
 mod perf_buffer;
+mod program;
 mod util;
 
 pub use crate::error::{Error, Result};
 pub use crate::map::{Map, MapFlags, MapType, OpenMap};
-pub use crate::object::{
-    Link, Object, ObjectBuilder, OpenObject, OpenProgram, Program, ProgramAttachType, ProgramType,
-};
+pub use crate::object::{Link, Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
+pub use crate::program::{OpenProgram, Program, ProgramAttachType, ProgramType};
