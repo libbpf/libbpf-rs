@@ -54,13 +54,14 @@
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/example).
 
 mod error;
+mod map;
 mod object;
 mod perf_buffer;
 mod util;
 
 pub use crate::error::{Error, Result};
+pub use crate::map::{Map, MapFlags, MapType, OpenMap};
 pub use crate::object::{
-    Link, Map, MapFlags, MapType, Object, ObjectBuilder, OpenMap, OpenObject, OpenProgram, Program,
-    ProgramAttachType, ProgramType,
+    Link, Object, ObjectBuilder, OpenObject, OpenProgram, Program, ProgramAttachType, ProgramType,
 };
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
