@@ -1,2 +1,7 @@
 [workspace]
-members = ["libbpf-cargo", "libbpf-rs", "example"]
+members = [
+  "libbpf-cargo",
+  "libbpf-rs",
+  "examples/runqslower",
+  "examples/query",
+]
