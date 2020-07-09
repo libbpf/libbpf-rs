@@ -59,6 +59,7 @@ mod map;
 mod object;
 mod perf_buffer;
 mod program;
+pub mod query;
 mod util;
 
 pub use crate::error::{Error, Result};
