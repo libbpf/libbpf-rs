@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use bitflags::bitflags;
 use nix::errno;
 use num_enum::TryFromPrimitive;
+use strum_macros::Display;
 
 use crate::*;
 
@@ -256,7 +257,7 @@ bitflags! {
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, PartialEq)]
+#[derive(Clone, TryFromPrimitive, PartialEq, Display)]
 pub enum MapType {
     Unspec = 0,
     Hash,
