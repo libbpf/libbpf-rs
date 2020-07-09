@@ -30,18 +30,36 @@ macro_rules! gen_info_impl {
             cur_id: u32,
         }
 
+        impl $name {
+            // Returns Some(next_valid_fd), None on none left
+            fn get_next_valid_fd(&mut self) -> Option<i32> {
+                loop {
+                    if unsafe { $next_id(self.cur_id, &mut self.cur_id) } != 0 {
+                        return None;
+                    }
+
+                    let fd = unsafe { $fd_by_id(self.cur_id) };
+                    if fd < 0 {
+                        if errno::errno() == errno::Errno::ENOENT as i32 {
+                            continue;
+                        }
+
+                        return None;
+                    }
+
+                    return Some(fd);
+                }
+            }
+        }
+
         impl Iterator for $name {
             type Item = $info_ty;
 
             fn next(&mut self) -> Option<Self::Item> {
-                if unsafe { $next_id(self.cur_id, &mut self.cur_id) } != 0 {
-                    return None;
-                }
-
-                let fd = unsafe { $fd_by_id(self.cur_id) };
-                if fd < 0 && errno::errno() == errno::Errno::ENOENT as i32 {
-                    return None;
-                }
+                let fd = match self.get_next_valid_fd() {
+                    Some(fd) => fd,
+                    None => return None,
+                };
 
                 let mut item = <$uapi_info_ty>::default();
                 let item_ptr: *mut $uapi_info_ty = &mut item;
