@@ -322,6 +322,11 @@ dependencies = [
 [[package]]
 name = "query"
 version = "0.1.0"
+dependencies = [
+ "libbpf-rs",
+ "nix",
+ "structopt",
+]
 
 [[package]]
 name = "quote"
