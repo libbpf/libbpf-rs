@@ -13,6 +13,8 @@ enum Command {
     Map,
     /// Display information about BTF
     Btf,
+    /// Display information about links
+    Link,
 }
 
 fn prog() {
@@ -39,6 +41,24 @@ fn btf() {
     }
 }
 
+fn link() {
+    for link in query::LinkInfoIter::default() {
+        let link_type_str = match link.info {
+            query::LinkTypeInfo::RawTracepoint(_) => "raw_tracepoint",
+            query::LinkTypeInfo::Tracing(_) => "tracing",
+            query::LinkTypeInfo::Cgroup(_) => "cgroup",
+            query::LinkTypeInfo::Iter => "iter",
+            query::LinkTypeInfo::NetNs(_) => "netns",
+            query::LinkTypeInfo::Unknown => "unknown",
+        };
+
+        println!(
+            "id={:4} prog_id={:4} type={}",
+            link.id, link.prog_id, link_type_str
+        );
+    }
+}
+
 fn main() {
     if !Uid::effective().is_root() {
         eprintln!("Must run as root");
@@ -51,5 +71,6 @@ fn main() {
         Command::Prog => prog(),
         Command::Map => map(),
         Command::Btf => btf(),
+        Command::Link => link(),
     };
 }
