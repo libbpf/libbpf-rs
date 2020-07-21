@@ -66,13 +66,14 @@ macro_rules! gen_info_impl {
                 let mut len = size_of::<$uapi_info_ty>() as u32;
 
                 let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
-                let _ = close(fd);
-                if ret != 0 {
-                    return None
+                let parsed_uapi = if ret != 0 {
+                    None
                 } else {
-                    Some(<$info_ty>::from_uapi(item))
-                }
+                    <$info_ty>::from_uapi(fd, item)
+                };
 
+                let _ = close(fd);
+                parsed_uapi
             }
         }
     };
@@ -131,14 +132,14 @@ pub struct ProgramInfo {
 }
 
 impl ProgramInfo {
-    fn from_uapi(s: libbpf_sys::bpf_prog_info) -> Self {
+    fn from_uapi(_fd: i32, s: libbpf_sys::bpf_prog_info) -> Option<Self> {
         let name = name_arr_to_string(&s.name, "(?)");
         let ty = match ProgramType::try_from(s.type_) {
             Ok(ty) => ty,
             Err(_) => ProgramType::Unknown,
         };
 
-        ProgramInfo {
+        Some(ProgramInfo {
             name,
             ty,
             tag: s.tag,
@@ -173,7 +174,7 @@ impl ProgramInfo {
             prog_tags: s.prog_tags,
             run_time_ns: s.run_time_ns,
             run_cnt: s.run_cnt,
-        }
+        })
     }
 }
 
@@ -205,14 +206,14 @@ pub struct MapInfo {
 }
 
 impl MapInfo {
-    fn from_uapi(s: libbpf_sys::bpf_map_info) -> Self {
+    fn from_uapi(_fd: i32, s: libbpf_sys::bpf_map_info) -> Option<Self> {
         let name = name_arr_to_string(&s.name, "(?)");
         let ty = match MapType::try_from(s.type_) {
             Ok(ty) => ty,
             Err(_) => MapType::Unknown,
         };
 
-        Self {
+        Some(Self {
             name,
             ty,
             id: s.id,
@@ -227,7 +228,7 @@ impl MapInfo {
             btf_id: s.btf_id,
             btf_key_type_id: s.btf_key_type_id,
             btf_value_type_id: s.btf_value_type_id,
-        }
+        })
     }
 }
 
@@ -248,12 +249,12 @@ pub struct BtfInfo {
 }
 
 impl BtfInfo {
-    fn from_uapi(s: libbpf_sys::bpf_btf_info) -> Self {
-        Self {
+    fn from_uapi(_fd: i32, s: libbpf_sys::bpf_btf_info) -> Option<Self> {
+        Some(Self {
             btf: s.btf,
             btf_size: s.btf_size,
             id: s.id,
-        }
+        })
     }
 }
 
@@ -264,4 +265,103 @@ gen_info_impl!(
     libbpf_sys::bpf_btf_info,
     libbpf_sys::bpf_btf_get_next_id,
     libbpf_sys::bpf_btf_get_fd_by_id
+);
+
+pub struct RawTracepointLinkInfo {
+    pub name: String,
+}
+
+pub struct TracingLinkInfo {
+    pub attach_type: ProgramAttachType,
+}
+
+pub struct CgroupLinkInfo {
+    pub cgroup_id: u64,
+    pub attach_type: ProgramAttachType,
+}
+
+pub struct NetNsLinkInfo {
+    pub ino: u32,
+    pub attach_type: ProgramAttachType,
+}
+
+pub enum LinkTypeInfo {
+    RawTracepoint(RawTracepointLinkInfo),
+    Tracing(TracingLinkInfo),
+    Cgroup(CgroupLinkInfo),
+    Iter,
+    NetNs(NetNsLinkInfo),
+    Unknown,
+}
+
+/// Information about a BPF link
+pub struct LinkInfo {
+    pub info: LinkTypeInfo,
+    pub id: u32,
+    pub prog_id: u32,
+}
+
+impl LinkInfo {
+    fn from_uapi(fd: i32, mut s: libbpf_sys::bpf_link_info) -> Option<Self> {
+        let type_info = match s.type_ {
+            libbpf_sys::BPF_LINK_TYPE_RAW_TRACEPOINT => {
+                let mut buf = [0; 256];
+                s.__bindgen_anon_1.raw_tracepoint.tp_name = buf.as_mut_ptr() as u64;
+                s.__bindgen_anon_1.raw_tracepoint.tp_name_len = buf.len() as u32;
+                let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
+                let mut len = size_of::<libbpf_sys::bpf_link_info>() as u32;
+
+                let ret = unsafe {
+                    libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len)
+                };
+                if ret != 0 {
+                    return None;
+                }
+
+                LinkTypeInfo::RawTracepoint(RawTracepointLinkInfo {
+                    name: util::c_ptr_to_string(
+                        unsafe { s.__bindgen_anon_1.raw_tracepoint.tp_name } as *const i8,
+                    )
+                    .unwrap_or_else(|_| "?".to_string()),
+                })
+            }
+            libbpf_sys::BPF_LINK_TYPE_TRACING => LinkTypeInfo::Tracing(TracingLinkInfo {
+                attach_type: ProgramAttachType::try_from(unsafe {
+                    s.__bindgen_anon_1.tracing.attach_type
+                })
+                .unwrap_or_else(|_| ProgramAttachType::Unknown),
+            }),
+            libbpf_sys::BPF_LINK_TYPE_CGROUP => LinkTypeInfo::Cgroup(CgroupLinkInfo {
+                cgroup_id: unsafe { s.__bindgen_anon_1.cgroup.cgroup_id },
+                attach_type: ProgramAttachType::try_from(unsafe {
+                    s.__bindgen_anon_1.cgroup.attach_type
+                })
+                .unwrap_or_else(|_| ProgramAttachType::Unknown),
+            }),
+            libbpf_sys::BPF_LINK_TYPE_ITER => LinkTypeInfo::Iter,
+            libbpf_sys::BPF_LINK_TYPE_NETNS => LinkTypeInfo::NetNs(NetNsLinkInfo {
+                ino: unsafe { s.__bindgen_anon_1.netns.netns_ino },
+                attach_type: ProgramAttachType::try_from(unsafe {
+                    s.__bindgen_anon_1.netns.attach_type
+                })
+                .unwrap_or_else(|_| ProgramAttachType::Unknown),
+            }),
+            _ => LinkTypeInfo::Unknown,
+        };
+
+        Some(Self {
+            info: type_info,
+            id: s.id,
+            prog_id: s.prog_id,
+        })
+    }
+}
+
+gen_info_impl!(
+    /// Iterator that returns [`LinkInfo`]s.
+    LinkInfoIter,
+    LinkInfo,
+    libbpf_sys::bpf_link_info,
+    libbpf_sys::bpf_link_get_next_id,
+    libbpf_sys::bpf_link_get_fd_by_id
 );
