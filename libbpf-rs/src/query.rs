@@ -13,6 +13,7 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::mem::size_of;
+use std::os::raw::c_char;
 use std::string::String;
 use std::time::Duration;
 
@@ -79,7 +80,7 @@ macro_rules! gen_info_impl {
     };
 }
 
-fn name_arr_to_string(a: &[i8], default: &str) -> String {
+fn name_arr_to_string(a: &[c_char], default: &str) -> String {
     let converted_arr: Vec<u8> = a
         .iter()
         .take_while(|x| **x != 0)
@@ -320,7 +321,7 @@ impl LinkInfo {
 
                 LinkTypeInfo::RawTracepoint(RawTracepointLinkInfo {
                     name: util::c_ptr_to_string(
-                        unsafe { s.__bindgen_anon_1.raw_tracepoint.tp_name } as *const i8,
+                        unsafe { s.__bindgen_anon_1.raw_tracepoint.tp_name } as *const c_char,
                     )
                     .unwrap_or_else(|_| "?".to_string()),
                 })
