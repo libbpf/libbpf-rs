@@ -1,4 +1,5 @@
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 use crate::*;
 
@@ -6,7 +7,7 @@ pub fn str_to_cstring(s: &str) -> Result<CString> {
     CString::new(s).map_err(|e| Error::InvalidInput(e.to_string()))
 }
 
-pub fn c_ptr_to_string(p: *const i8) -> Result<String> {
+pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
     if p.is_null() {
         return Err(Error::Internal("Null string".to_owned()));
     }

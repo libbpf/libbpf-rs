@@ -133,7 +133,9 @@ where
             ctx: callback_struct_ptr as *mut _,
         };
 
-        let ptr = unsafe { libbpf_sys::perf_buffer__new(self.map.fd(), self.pages as u64, &opts) };
+        let ptr = unsafe {
+            libbpf_sys::perf_buffer__new(self.map.fd(), self.pages as libbpf_sys::size_t, &opts)
+        };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
             Err(Error::System(err as i32))

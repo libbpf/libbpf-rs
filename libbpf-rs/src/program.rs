@@ -202,11 +202,17 @@ impl Program {
         retprobe: bool,
         pid: i32,
         binary_path: T,
-        func_offset: u64,
+        func_offset: usize,
     ) -> Result<Link> {
         let path = binary_path.as_ref().as_ptr() as *const c_char;
         let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_uprobe(self.ptr, retprobe, pid, path, func_offset)
+            libbpf_sys::bpf_program__attach_uprobe(
+                self.ptr,
+                retprobe,
+                pid,
+                path,
+                func_offset as libbpf_sys::size_t,
+            )
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
