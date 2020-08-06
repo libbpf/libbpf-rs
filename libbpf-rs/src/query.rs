@@ -61,7 +61,12 @@ macro_rules! gen_info_impl {
                     None => return None,
                 };
 
-                let mut item = <$uapi_info_ty>::default();
+                // We need to use std::mem::zeroed() instead of just using
+                // ::default() because padding bytes need to be zero as well.
+                // Old kernels which know about fewer fields than we do will
+                // check to make sure every byte past what they know is zero
+                // and will return E2BIG otherwise.
+                let mut item: $uapi_info_ty = unsafe { std::mem::zeroed() };
                 let item_ptr: *mut $uapi_info_ty = &mut item;
                 let mut len = size_of::<$uapi_info_ty>() as u32;
 
