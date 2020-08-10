@@ -1,5 +1,6 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
+use std::path::Path;
 
 use bitflags::bitflags;
 use nix::errno;
@@ -59,6 +60,7 @@ pub struct Map {
     ty: libbpf_sys::bpf_map_type,
     key_size: u32,
     value_size: u32,
+    ptr: *mut libbpf_sys::bpf_map,
 }
 
 impl Map {
@@ -68,6 +70,7 @@ impl Map {
         ty: libbpf_sys::bpf_map_type,
         key_size: u32,
         value_size: u32,
+        ptr: *mut libbpf_sys::bpf_map,
     ) -> Self {
         Map {
             fd,
@@ -75,6 +78,7 @@ impl Map {
             ty,
             key_size,
             value_size,
+            ptr,
         }
     }
 
@@ -102,6 +106,36 @@ impl Map {
     /// Value size in bytes
     pub fn value_size(&self) -> u32 {
         self.value_size
+    }
+
+    /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this map to bpffs.
+    pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let ret = unsafe { libbpf_sys::bpf_map__pin(self.ptr, path_ptr) };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// from bpffs
+    pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let ret = unsafe { libbpf_sys::bpf_map__unpin(self.ptr, path_ptr) };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
+        } else {
+            Ok(())
+        }
     }
 
     /// Returns map value as `Vec` of `u8`.
