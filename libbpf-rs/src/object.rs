@@ -275,7 +275,7 @@ impl Object {
 
                 self.maps.insert(
                     owned_name.clone(),
-                    Map::new(fd, owned_name, def.type_, def.key_size, def.value_size),
+                    Map::new(fd, owned_name, def.type_, def.key_size, def.value_size, ptr),
                 );
 
                 Ok(self.maps.get_mut(name.as_ref()))

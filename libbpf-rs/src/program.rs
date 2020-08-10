@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::os::raw::c_char;
+use std::path::Path;
 
 use nix::errno;
 use num_enum::TryFromPrimitive;
@@ -159,6 +160,36 @@ impl Program {
         }) {
             Ok(ty) => ty,
             Err(_) => ProgramAttachType::Unknown,
+        }
+    }
+
+    /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this program to bpffs.
+    pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let ret = unsafe { libbpf_sys::bpf_program__pin(self.ptr, path_ptr) };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this program from bpffs
+    pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let ret = unsafe { libbpf_sys::bpf_program__unpin(self.ptr, path_ptr) };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
+        } else {
+            Ok(())
         }
     }
 
