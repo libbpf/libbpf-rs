@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use libbpf_rs::{MapFlags, Object, ObjectBuilder};
 
@@ -157,6 +157,29 @@ fn test_object_map_lookup_flags() {
 }
 
 #[test]
+fn test_object_map_pin() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let map = obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+
+    let path = "/sys/fs/bpf/mymap";
+
+    // Unpinning a unpinned map should be an error
+    assert!(map.unpin(path).is_err());
+    assert!(!Path::new(path).exists());
+
+    // Pin and unpin should be successful
+    map.pin(path).expect("failed to pin map");
+    assert!(Path::new(path).exists());
+    map.unpin(path).expect("failed to unpin map");
+    assert!(!Path::new(path).exists());
+}
+
+#[test]
 fn test_object_programs() {
     bump_rlimit_mlock();
 
@@ -171,4 +194,27 @@ fn test_object_programs() {
         .expect("error finding program")
         .expect("failed to find program");
     assert!(obj.prog("asdf").expect("error finding program").is_none());
+}
+
+#[test]
+fn test_object_program_pin() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let prog = obj
+        .prog("handle__sched_wakeup")
+        .expect("error finding program")
+        .expect("failed to find program");
+
+    let path = "/sys/fs/bpf/myprog";
+
+    // Unpinning a unpinned prog should be an error
+    assert!(prog.unpin(path).is_err());
+    assert!(!Path::new(path).exists());
+
+    // Pin and unpin should be successful
+    prog.pin(path).expect("failed to pin prog");
+    assert!(Path::new(path).exists());
+    prog.unpin(path).expect("failed to unpin prog");
+    assert!(!Path::new(path).exists());
 }
