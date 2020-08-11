@@ -218,3 +218,27 @@ fn test_object_program_pin() {
     prog.unpin(path).expect("failed to unpin prog");
     assert!(!Path::new(path).exists());
 }
+
+#[test]
+fn test_object_link_pin() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let prog = obj
+        .prog("handle__sched_wakeup")
+        .expect("error finding program")
+        .expect("failed to find program");
+    let mut link = prog.attach().expect("failed to attach prog");
+
+    let path = "/sys/fs/bpf/mylink";
+
+    // Unpinning a unpinned prog should be an error
+    assert!(link.unpin().is_err());
+    assert!(!Path::new(path).exists());
+
+    // Pin and unpin should be successful
+    link.pin(path).expect("failed to pin prog");
+    assert!(Path::new(path).exists());
+    link.unpin().expect("failed to unpin prog");
+    assert!(!Path::new(path).exists());
+}

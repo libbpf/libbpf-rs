@@ -1,4 +1,5 @@
 use nix::errno;
+use std::path::Path;
 
 use crate::*;
 
@@ -20,6 +21,33 @@ impl Link {
         let ret = unsafe { libbpf_sys::bpf_link__update_program(self.ptr, prog.ptr) };
         if ret != 0 {
             Err(Error::System(errno::errno()))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this link to bpffs.
+    pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let ret = unsafe { libbpf_sys::bpf_link__pin(self.ptr, path_ptr) };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// from bpffs
+    pub fn unpin(&mut self) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_link__unpin(self.ptr) };
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
         } else {
             Ok(())
         }
