@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 #[doc(hidden)]
 mod build;
+mod gen;
 mod metadata;
 #[cfg(test)]
 mod test;
@@ -72,6 +73,14 @@ enum Command {
         /// Skip clang version checks
         skip_clang_version_checks: bool,
     },
+    /// Generate skeleton files
+    Gen {
+        #[structopt(short, long)]
+        debug: bool,
+        #[structopt(long, parse(from_os_str))]
+        /// Path to top level Cargo.toml
+        manifest_path: Option<PathBuf>,
+    },
 }
 
 #[doc(hidden)]
@@ -91,6 +100,10 @@ fn main() {
                 clang_path.as_path(),
                 skip_clang_version_checks,
             ),
+            Command::Gen {
+                debug,
+                manifest_path,
+            } => gen::gen(debug, manifest_path.as_ref()),
         },
     };
 
