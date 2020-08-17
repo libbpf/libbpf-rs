@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 #[doc(hidden)]
 mod build;
+mod metadata;
 #[cfg(test)]
 mod test;
 
