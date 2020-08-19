@@ -26,6 +26,8 @@ pub struct UnprocessedObj {
     pub path: PathBuf,
     /// Where to place compiled object
     pub out: PathBuf,
+    /// Object name (eg: `runqslower.bpf.c` -> `runqslower`)
+    pub name: String,
 }
 
 fn get_package(
@@ -112,8 +114,17 @@ fn get_package(
                 if file_name.to_string_lossy().ends_with(".bpf.c") {
                     return Some(UnprocessedObj {
                         package: package.name.clone(),
-                        path: file_path,
+                        name: file_path
+                            .as_path()
+                            .file_stem() // Remove `.c` suffix
+                            .unwrap() // We already know it's a file
+                            .to_string_lossy()
+                            .rsplitn(2, '.') // Remove `.bpf` suffix
+                            .nth(1)
+                            .unwrap() // Already know it has enough `.`s
+                            .to_string(),
                         out: out_dir.clone(),
+                        path: file_path,
                     });
                 }
             }
