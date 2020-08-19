@@ -8,20 +8,20 @@ use regex::Regex;
 use semver::Version;
 
 use crate::metadata;
-use crate::metadata::UnprocessedProg;
+use crate::metadata::UnprocessedObj;
 
-fn check_progs(progs: &[UnprocessedProg]) -> Result<()> {
-    let mut set = HashSet::with_capacity(progs.len());
-    for prog in progs {
+fn check_progs(objs: &[UnprocessedObj]) -> Result<()> {
+    let mut set = HashSet::with_capacity(objs.len());
+    for obj in objs {
         // OK to unwrap() file_name() b/c we already checked earlier that this is a valid file
-        let dest = prog
+        let dest = obj
             .out
             .as_path()
-            .join(prog.path.as_path().file_name().unwrap());
+            .join(obj.path.as_path().file_name().unwrap());
         if !set.insert(dest) {
             bail!(
-                "Duplicate prog={} detected",
-                prog.path.as_path().file_name().unwrap().to_string_lossy()
+                "Duplicate obj={} detected",
+                obj.path.as_path().file_name().unwrap().to_string_lossy()
             );
         }
     }
@@ -81,31 +81,31 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 ///     clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile(debug: bool, progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
+fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
     let arch = if std::env::consts::ARCH == "x86_64" {
         "x86"
     } else {
         std::env::consts::ARCH
     };
 
-    for prog in progs {
-        let dest_name = if let Some(f) = prog.path.as_path().file_stem() {
+    for obj in objs {
+        let dest_name = if let Some(f) = obj.path.as_path().file_stem() {
             let mut stem = f.to_os_string();
             stem.push(".o");
             stem
         } else {
             bail!(
-                "Could not calculate destination name for prog={}",
-                prog.path.as_path().display()
+                "Could not calculate destination name for obj={}",
+                obj.path.as_path().display()
             );
         };
-        let mut dest_path = prog.out.clone();
+        let mut dest_path = obj.out.clone();
         dest_path.push(&dest_name);
 
-        fs::create_dir_all(prog.out.as_path())?;
+        fs::create_dir_all(obj.out.as_path())?;
 
         if debug {
-            println!("Building {}", prog.path.display());
+            println!("Building {}", obj.path.display());
         }
 
         let output = Command::new(clang.as_os_str())
@@ -115,14 +115,14 @@ fn compile(debug: bool, progs: &[UnprocessedProg], clang: &Path) -> Result<()> {
             .arg("bpf")
             .arg("-c")
             .arg(format!("-D__TARGET_ARCH_{}", arch))
-            .arg(prog.path.as_path().as_os_str())
+            .arg(obj.path.as_path().as_os_str())
             .arg("-o")
             .arg(dest_path)
             .output()?;
 
         if !output.status.success() {
             bail!(
-                "Failed to compile prog={} with status={}\n \
+                "Failed to compile obj={} with status={}\n \
                 stdout=\n \
                 {}\n \
                 stderr=\n \
@@ -154,8 +154,8 @@ pub fn build(
 
     if debug && !to_compile.is_empty() {
         println!("Found bpf progs to compile:");
-        for prog in &to_compile {
-            println!("\t{:?}", prog);
+        for obj in &to_compile {
+            println!("\t{:?}", obj);
         }
     } else if to_compile.is_empty() {
         eprintln!("Did not find any bpf progs to compile");
