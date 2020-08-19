@@ -19,12 +19,12 @@ enum PackageMetadata {
 }
 
 #[derive(Debug)]
-pub struct UnprocessedProg {
-    /// Package the prog belongs to
+pub struct UnprocessedObj {
+    /// Package the object belongs to
     pub package: String,
     /// Path to .c
     pub path: PathBuf,
-    /// Where to place compiled prog
+    /// Where to place compiled object
     pub out: PathBuf,
 }
 
@@ -32,7 +32,7 @@ fn get_package(
     debug: bool,
     package: &Package,
     workspace_target_dir: &PathBuf,
-) -> Result<Vec<UnprocessedProg>> {
+) -> Result<Vec<UnprocessedObj>> {
     if debug {
         println!("Metadata for package={}", package.name);
         println!("\t{}", package.metadata);
@@ -110,7 +110,7 @@ fn get_package(
             // Only take files with extension ".bpf.c"
             if let Some(file_name) = file_path.as_path().file_name() {
                 if file_name.to_string_lossy().ends_with(".bpf.c") {
-                    return Some(UnprocessedProg {
+                    return Some(UnprocessedObj {
                         package: package.name.clone(),
                         path: file_path,
                         out: out_dir.clone(),
@@ -123,7 +123,7 @@ fn get_package(
         .collect())
 }
 
-pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<Vec<UnprocessedProg>> {
+pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<Vec<UnprocessedObj>> {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {
@@ -139,7 +139,7 @@ pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<Vec<Unprocess
         bail!("Failed to find targets")
     }
 
-    let mut v: Vec<UnprocessedProg> = Vec::new();
+    let mut v: Vec<UnprocessedObj> = Vec::new();
     for id in &metadata.workspace_members {
         for package in &metadata.packages {
             if id == &package.id {
