@@ -173,6 +173,7 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "goblin",
+ "libbpf-sys",
  "regex",
  "semver",
  "serde",
