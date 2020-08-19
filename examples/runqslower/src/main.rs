@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 use core::time::Duration;
-use std::path::PathBuf;
 use std::process::exit;
 
 use anyhow::{bail, Result};
 use chrono::Local;
-use libbpf_rs::{MapFlags, ObjectBuilder, PerfBufferBuilder};
+use libbpf_rs::{MapFlags, PerfBufferBuilder};
 use plain::Plain;
 use structopt::StructOpt;
+
+mod bpf;
+use bpf::*;
 
 /// Trace high run queue latency
 #[derive(Debug, StructOpt)]
@@ -19,9 +21,6 @@ struct Command {
     /// Verbose debug output
     #[structopt(short, long)]
     verbose: bool,
-    /// Path to runqslower bpf object file
-    #[structopt(short, long, default_value = "/bin/runqslower.bpf.o")]
-    obj_path: PathBuf,
 }
 
 #[repr(C)]
@@ -70,37 +69,27 @@ fn handle_lost_events(cpu: i32, count: u64) {
 fn main() -> Result<()> {
     let opts = Command::from_args();
 
-    if !opts.obj_path.as_path().exists() {
-        eprintln!("{} does not exist", opts.obj_path.as_path().display());
-        exit(1);
-    }
-
-    let mut obj_builder = ObjectBuilder::default();
+    let mut skel_builder = RunqslowerSkelBuilder::default();
     if opts.verbose {
-        obj_builder.debug(true);
+        skel_builder.debug(true);
     }
 
     bump_memlock_rlimit()?;
-    let mut obj = obj_builder.open_file(opts.obj_path)?.load()?;
+    let mut skel = skel_builder.open()?.load()?;
 
     // Write latency value into map
-    obj.map_unwrap("min_us").update(
+    skel.maps().min_us().update(
         &0u32.to_le_bytes(),
         &opts.latency.to_le_bytes(),
         MapFlags::empty(),
     )?;
 
-    // NB it's crucial that these are named underscore variables otherwise
-    // the link is immediately dropped and our progs aren't run.
-    let _wakup_link = obj.prog_unwrap("handle__sched_wakeup").attach()?;
-    let _wakeup_new_link = obj.prog_unwrap("handle__sched_wakeup_new").attach()?;
-    let _switch_link = obj.prog_unwrap("handle__sched_switch").attach()?;
-
+    // Begin tracing
+    skel.attach()?;
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");
 
-    let events = obj.map_unwrap("events");
-    let perf = PerfBufferBuilder::new(events)
+    let perf = PerfBufferBuilder::new(skel.maps().events())
         .sample_cb(handle_event)
         .lost_cb(handle_lost_events)
         .build()?;

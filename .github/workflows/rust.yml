@@ -16,9 +16,9 @@ jobs:
     - name: Symlink clang
       run: sudo ln -s /usr/bin/clang-9 /bin/clang
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --workspace --exclude runqslower
     - name: Run tests
       # Skip tests that require BTF built into kernel
-      run: cargo test --verbose -- --skip test_object
+      run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object
     - name: Run rustfmt
-      run: cargo fmt -- --check
+      run: cargo fmt --package libbpf-cargo libbpf-rs -- --check
