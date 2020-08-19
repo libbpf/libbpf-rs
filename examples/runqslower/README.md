@@ -8,10 +8,11 @@ effectively.
 To build the project:
 ```shell
 $ pwd
-/home/daniel/dev/libbpf-rs/example
+/home/daniel/dev/libbpf-rs/examples/runqslower
 $ cargo libbpf build
+$ cargo libbpf gen
 $ cargo build
-$ sudo ../target/debug/example -o ~/dev/libbpf-rs/target/bpf/runqslower.bpf.o 1000
+$ sudo ../../target/debug/runqslower 1000
 Tracing run queue latency higher than 1000 us
 TIME     COMM             TID     LAT(us)
 13:40:58 WebExtensions    961211  1287
