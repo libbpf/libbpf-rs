@@ -327,4 +327,15 @@ impl Program {
             Ok(Link::new(ptr))
         }
     }
+
+    /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
+    pub fn attach_sockmap(&self, map_fd: i32) -> Result<()> {
+        let err =
+            unsafe { libbpf_sys::bpf_prog_attach(self.fd(), map_fd, self.attach_type() as u32, 0) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(())
+        }
+    }
 }
