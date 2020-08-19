@@ -18,7 +18,7 @@ enum PackageMetadata {
     Libbpf(LibbpfPackageMetadata),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnprocessedObj {
     /// Package the object belongs to
     pub package: String,
