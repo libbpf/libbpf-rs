@@ -333,7 +333,7 @@ impl Program {
         let err =
             unsafe { libbpf_sys::bpf_prog_attach(self.fd(), map_fd, self.attach_type() as u32, 0) };
         if err != 0 {
-            Err(Error::System(err as i32))
+            Err(Error::System(errno::errno()))
         } else {
             Ok(())
         }
