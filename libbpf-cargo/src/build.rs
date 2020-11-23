@@ -5,6 +5,7 @@ use std::process::Command;
 
 use anyhow::{anyhow, bail, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
+use regex::Regex;
 use semver::Version;
 use serde::Deserialize;
 use serde_json::value::Value;
@@ -165,6 +166,18 @@ fn check_progs(progs: &[UnprocessedProg]) -> Result<()> {
     Ok(())
 }
 
+fn extract_version(output: &str) -> Result<&str> {
+    let re = Regex::new(r"clang\s+version\s+(?P<version_str>\d+\.\d+\.\d+)")?;
+    let captures = re
+        .captures(output)
+        .ok_or_else(|| anyhow!("Failed to run regex on version string"))?;
+
+    captures.name("version_str").map_or_else(
+        || Err(anyhow!("Failed to find version capture group")),
+        |v| Ok(v.as_str()),
+    )
+}
+
 fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
     let output = Command::new(clang.as_os_str()).arg("--version").output()?;
 
@@ -184,14 +197,7 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
     //     InstalledDir: /bin
     //
     let output = String::from_utf8_lossy(&output.stdout);
-    let version_str = output
-        .split('\n')
-        .next()
-        .ok_or_else(|| anyhow!("Invalid version format"))?
-        .split(' ')
-        .nth(2)
-        .ok_or_else(|| anyhow!("Invalid version format"))?;
-
+    let version_str = extract_version(&output)?;
     let version = Version::parse(version_str)?;
     if debug {
         println!("{} is version {}", clang.display(), version);
@@ -324,4 +330,24 @@ pub fn build(
             1
         }
     }
+}
+
+#[test]
+fn test_extract_version() {
+    let upstream_format = r"clang version 10.0.0
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /bin
+";
+    assert_eq!(extract_version(upstream_format).unwrap(), "10.0.0");
+
+    let ubuntu_format = r"Ubuntu clang version 11.0.1-++20201121072624+973b95e0a84-1~exp1~20201121063303.19
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /bin
+";
+    assert_eq!(extract_version(ubuntu_format).unwrap(), "11.0.1");
+
+    assert!(extract_version("askldfjwe").is_err());
+    assert!(extract_version("my clang version 1.5").is_err());
 }
