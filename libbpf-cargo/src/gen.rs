@@ -9,6 +9,45 @@ use anyhow::Result;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
+macro_rules! gen_bpf_object_iter {
+    ($name:ident, $iter_ty:ty, $next_fn:expr) => {
+        struct $name {
+            obj: *mut libbpf_sys::bpf_object,
+            last: *mut $iter_ty,
+        }
+
+        impl $name {
+            fn new(obj: *mut libbpf_sys::bpf_object) -> $name {
+                $name {
+                    obj,
+                    last: ptr::null_mut(),
+                }
+            }
+        }
+
+        impl Iterator for $name {
+            type Item = *mut $iter_ty;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.last = unsafe { $next_fn(self.last, self.obj) };
+
+                if self.last.is_null() {
+                    None
+                } else {
+                    Some(self.last)
+                }
+            }
+        }
+    };
+}
+
+gen_bpf_object_iter!(MapIter, libbpf_sys::bpf_map, libbpf_sys::bpf_map__next);
+gen_bpf_object_iter!(
+    ProgIter,
+    libbpf_sys::bpf_program,
+    libbpf_sys::bpf_program__next
+);
+
 /// Run `rustfmt` over `s` and return result
 fn rustfmt(s: &str) -> Result<String> {
     let mut cmd = Command::new("rustfmt")
