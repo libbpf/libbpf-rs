@@ -254,6 +254,56 @@ fn gen_skel_prog_getter(
     Ok(())
 }
 
+fn gen_skel_link_defs(
+    skel: &mut String,
+    object: *mut libbpf_sys::bpf_object,
+    obj_name: &str,
+) -> Result<()> {
+    if ProgIter::new(object).next().is_none() {
+        return Ok(());
+    }
+
+    write!(
+        skel,
+        r#"
+        pub struct {}Links {{
+        "#,
+        obj_name
+    )?;
+
+    for prog in ProgIter::new(object) {
+        write!(
+            skel,
+            r#"pub {}: libbpf_rs::Link,
+            "#,
+            get_prog_name(prog)?
+        )?;
+    }
+
+    writeln!(skel, "}}")?;
+
+    Ok(())
+}
+
+fn gen_skel_link_getter(
+    skel: &mut String,
+    object: *mut libbpf_sys::bpf_object,
+    obj_name: &str,
+) -> Result<()> {
+    if ProgIter::new(object).next().is_none() {
+        return Ok(());
+    }
+
+    write!(
+        skel,
+        r#"pub links: Option<{}Links>,
+        "#,
+        obj_name
+    )?;
+
+    Ok(())
+}
+
 fn open_object_file(path: &Path) -> Result<*mut libbpf_sys::bpf_object> {
     if !path.exists() {
         bail!("Object file not found: {}", path.display());
@@ -267,6 +317,46 @@ fn open_object_file(path: &Path) -> Result<*mut libbpf_sys::bpf_object> {
     }
 
     Ok(object)
+}
+
+fn gen_skel_attach(
+    skel: &mut String,
+    object: *mut libbpf_sys::bpf_object,
+    obj_name: &str,
+) -> Result<()> {
+    if ProgIter::new(object).next().is_none() {
+        return Ok(());
+    }
+
+    write!(
+        skel,
+        r#"
+        pub fn attach(&mut self) -> libbpf_rs::Result<()> {{
+            self.links = Some({}Links {{
+        "#,
+        obj_name
+    )?;
+
+    for prog in ProgIter::new(object) {
+        write!(
+            skel,
+            r#"{prog_name}: self.progs().{prog_name}().attach()?,
+            "#,
+            prog_name = get_prog_name(prog)?
+        )?;
+    }
+
+    write!(
+        skel,
+        r#"
+            }});
+
+            Ok(())
+        }}
+        "#,
+    )?;
+
+    Ok(())
 }
 
 /// Generate contents of a single skeleton
@@ -353,10 +443,16 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
             pub fn load(&mut self) -> libbpf_rs::Result<{name}Skel> {{
                 Ok({name}Skel {{
                     obj: self.obj.load()?,
+                    {links}
                 }})
             }}
         "#,
-        name = &obj_name
+        name = &obj_name,
+        links = if ProgIter::new(object).next().is_some() {
+            r#"links: None"#
+        } else {
+            ""
+        }
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, true)?;
     gen_skel_map_getter(&mut skel, object, &obj_name, true)?;
@@ -364,12 +460,20 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 
     gen_skel_map_defs(&mut skel, object, &obj_name, false)?;
     gen_skel_prog_defs(&mut skel, object, &obj_name, false)?;
+    gen_skel_link_defs(&mut skel, object, &obj_name)?;
 
     write!(
         skel,
         r#"
         pub struct {name}Skel {{
             pub obj: libbpf_rs::Object,
+        "#,
+        name = &obj_name,
+    )?;
+    gen_skel_link_getter(&mut skel, object, &obj_name)?;
+    write!(
+        skel,
+        r#"
         }}
 
         impl {name}Skel {{
@@ -378,6 +482,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, false)?;
     gen_skel_map_getter(&mut skel, object, &obj_name, false)?;
+    gen_skel_attach(&mut skel, object, &obj_name)?;
     writeln!(skel, "}}")?;
 
     Ok(skel)
