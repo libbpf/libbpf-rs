@@ -196,8 +196,9 @@ impl Program {
     /// Auto-attach based on prog section
     pub fn attach(&mut self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach(self.ptr) };
-        if ptr.is_null() {
-            Err(Error::System(errno::errno()))
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
         }
