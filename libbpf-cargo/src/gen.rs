@@ -267,6 +267,7 @@ fn gen_skel_link_defs(
     write!(
         skel,
         r#"
+        #[derive(Default)]
         pub struct {}Links {{
         "#,
         obj_name
@@ -275,7 +276,7 @@ fn gen_skel_link_defs(
     for prog in ProgIter::new(object) {
         write!(
             skel,
-            r#"pub {}: libbpf_rs::Link,
+            r#"pub {}: Option<libbpf_rs::Link>,
             "#,
             get_prog_name(prog)?
         )?;
@@ -297,7 +298,7 @@ fn gen_skel_link_getter(
 
     write!(
         skel,
-        r#"pub links: Option<{}Links>,
+        r#"pub links: {}Links,
         "#,
         obj_name
     )?;
@@ -333,7 +334,7 @@ fn gen_skel_attach(
         skel,
         r#"
         pub fn attach(&mut self) -> libbpf_rs::Result<()> {{
-            self.links = Some({}Links {{
+            self.links = {}Links {{
         "#,
         obj_name
     )?;
@@ -341,7 +342,23 @@ fn gen_skel_attach(
     for prog in ProgIter::new(object) {
         write!(
             skel,
-            r#"{prog_name}: self.progs().{prog_name}().attach()?,
+            r#"{prog_name}: self
+                .progs()
+                .{prog_name}()
+                .attach()
+                .map_or_else(
+                    |e| {{
+                        if let libbpf_rs::Error::System(errno) = e {{
+                            // ESRCH: cannot be auto-attached
+                            if errno == 3 {{
+                                return Ok(None);
+                            }}
+                        }}
+
+                        Err(e)
+                    }},
+                    |v| Ok(Some(v))
+                )?,
             "#,
             prog_name = get_prog_name(prog)?
         )?;
@@ -350,7 +367,7 @@ fn gen_skel_attach(
     write!(
         skel,
         r#"
-            }});
+            }};
 
             Ok(())
         }}
@@ -450,9 +467,9 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         "#,
         name = &obj_name,
         links = if ProgIter::new(object).next().is_some() {
-            r#"links: None"#
+            format!(r#"links: {}Links::default()"#, obj_name)
         } else {
-            ""
+            "".to_string()
         }
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, true)?;
