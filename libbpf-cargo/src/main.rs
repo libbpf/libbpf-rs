@@ -94,6 +94,9 @@ enum Command {
         #[structopt(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
+        #[structopt(short, long)]
+        /// Quiet output
+        quiet: bool,
         /// Arguments to pass to `cargo build`
         ///
         /// Example: cargo libbpf build -- --package mypackage
@@ -127,12 +130,14 @@ fn main() {
                 manifest_path,
                 clang_path,
                 skip_clang_version_checks,
+                quiet,
                 cargo_build_args,
             } => make::make(
                 debug,
                 manifest_path.as_ref(),
                 clang_path.as_path(),
                 skip_clang_version_checks,
+                quiet,
                 cargo_build_args,
             ),
         },

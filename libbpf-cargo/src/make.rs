@@ -8,16 +8,21 @@ pub fn make(
     manifest_path: Option<&PathBuf>,
     clang: &Path,
     skip_clang_version_checks: bool,
+    quiet: bool,
     cargo_build_args: Vec<String>,
 ) -> i32 {
-    println!("Compiling BPF objects");
+    if !quiet {
+        println!("Compiling BPF objects");
+    }
     let mut ret = build::build(debug, manifest_path, clang, skip_clang_version_checks);
     if ret != 0 {
         eprintln!("Failed to compile BPF objects");
         return ret;
     }
 
-    println!("Generating skeletons");
+    if !quiet {
+        println!("Generating skeletons");
+    }
     ret = gen::gen(debug, manifest_path);
     if ret != 0 {
         eprintln!("Failed to generate skeletons");
@@ -26,6 +31,9 @@ pub fn make(
 
     let mut cmd = Command::new("cargo");
     cmd.arg("build");
+    if quiet {
+        cmd.arg("--quiet");
+    }
     for arg in cargo_build_args {
         cmd.arg(arg);
     }
