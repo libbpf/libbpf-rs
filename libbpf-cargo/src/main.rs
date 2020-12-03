@@ -6,6 +6,7 @@ use structopt::StructOpt;
 #[doc(hidden)]
 mod build;
 mod gen;
+mod make;
 mod metadata;
 #[cfg(test)]
 mod test;
@@ -81,6 +82,23 @@ enum Command {
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
     },
+    Make {
+        #[structopt(short, long)]
+        debug: bool,
+        #[structopt(long, parse(from_os_str))]
+        /// Path to top level Cargo.toml
+        manifest_path: Option<PathBuf>,
+        #[structopt(long, parse(from_os_str), default_value = "clang")]
+        /// Path to clang binary
+        clang_path: PathBuf,
+        #[structopt(long)]
+        /// Skip clang version checks
+        skip_clang_version_checks: bool,
+        /// Arguments to pass to `cargo build`
+        ///
+        /// Example: cargo libbpf build -- --package mypackage
+        cargo_build_args: Vec<String>,
+    },
 }
 
 #[doc(hidden)]
@@ -104,6 +122,19 @@ fn main() {
                 debug,
                 manifest_path,
             } => gen::gen(debug, manifest_path.as_ref()),
+            Command::Make {
+                debug,
+                manifest_path,
+                clang_path,
+                skip_clang_version_checks,
+                cargo_build_args,
+            } => make::make(
+                debug,
+                manifest_path.as_ref(),
+                clang_path.as_path(),
+                skip_clang_version_checks,
+                cargo_build_args,
+            ),
         },
     };
 
