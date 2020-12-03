@@ -6,7 +6,11 @@ use std::process::Command;
 use goblin::Object;
 use tempfile::{tempdir, TempDir};
 
-use crate::build::build;
+use crate::{build::build, make::make};
+
+static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
+static BPF_HELPERS: &'static str = include_str!("../test_data/bpf_helpers.h");
+static BPF_HELPER_DEFS: &'static str = include_str!("../test_data/bpf_helper_defs.h");
 
 /// Creates a temporary directory and initializes a default cargo project inside.
 ///
@@ -87,6 +91,22 @@ fn validate_bpf_o(path: &Path) {
         Object::Elf(_) => (),
         _ => panic!("wrong object file format"),
     }
+}
+
+/// Returns the path to the local libbpf-rs
+///
+/// Warning: hacky! But necessary to run tests. We assume that the current working directory is
+/// libbpf-cargo project root. Hopefully this is a cargo-provided invariant. I tried using the
+/// file!() macro but it returns a relative path and seems even hackier to make work.
+fn get_libbpf_rs_path() -> PathBuf {
+    let cwd = std::env::current_dir().expect("failed to get cwd");
+
+    Path::new(&cwd)
+        .parent()
+        .expect("failed to get parent of cwd")
+        .join("libbpf-rs")
+        .canonicalize()
+        .expect("failed to canonicalize libbpf-rs")
 }
 
 #[test]
@@ -262,4 +282,299 @@ fn test_build_workspace_collision() {
         ),
         0
     );
+}
+
+#[test]
+fn test_make_basic() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let _prog_file =
+        File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
+
+    assert_eq!(
+        make(
+            true,
+            Some(&cargo_toml),
+            Path::new("/bin/clang"),
+            true,
+            true,
+            Vec::new()
+        ),
+        0
+    );
+
+    // Validate generated object file
+    validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
+
+    // Check that skeleton exists (other tests will check for skeleton validity)
+    assert!(proj_dir
+        .as_path()
+        .join("src/bpf/prog.skel.rs")
+        .as_path()
+        .exists());
+}
+
+#[test]
+fn test_make_workspace() {
+    let (_dir, workspace_dir, workspace_cargo_toml, proj_one_dir, proj_two_dir) =
+        setup_temp_workspace();
+
+    // Create bpf prog for project one
+    create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
+    let _prog_file_1 = File::create(proj_one_dir.join("src/bpf/prog1.bpf.c"))
+        .expect("failed to create prog file 1");
+
+    // Create bpf prog for project two, same name as project one
+    create_dir(proj_two_dir.join("src/bpf")).expect("failed to create prog dir");
+    let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog2.bpf.c"))
+        .expect("failed to create prog file 2");
+
+    assert_eq!(
+        make(
+            true,
+            Some(&workspace_cargo_toml),
+            Path::new("/bin/clang"),
+            true,
+            true,
+            Vec::new()
+        ),
+        0
+    );
+
+    // Validate generated object files
+    validate_bpf_o(
+        workspace_dir
+            .as_path()
+            .join("target/bpf/prog1.bpf.o")
+            .as_path(),
+    );
+    validate_bpf_o(
+        workspace_dir
+            .as_path()
+            .join("target/bpf/prog2.bpf.o")
+            .as_path(),
+    );
+
+    // Check that skeleton exists (other tests will check for skeleton validity)
+    assert!(proj_one_dir
+        .as_path()
+        .join("src/bpf/prog1.skel.rs")
+        .as_path()
+        .exists());
+    assert!(proj_two_dir
+        .as_path()
+        .join("src/bpf/prog2.skel.rs")
+        .as_path()
+        .exists());
+}
+
+#[test]
+fn test_skeleton_empty_source() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let _prog_file =
+        File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
+
+    assert_eq!(
+        make(
+            true,
+            Some(&cargo_toml),
+            Path::new("/bin/clang"),
+            true,
+            true,
+            Vec::new()
+        ),
+        0
+    );
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        mod bpf;
+        use bpf::*;
+
+        fn main() {{
+            let mut builder = ProgSkelBuilder::default();
+            let _skel = builder
+                .open()
+                .expect("failed to open skel")
+                .load()
+                .expect("failed to load skel");
+        }}
+        "#,
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
+#[test]
+fn test_skeleton_basic() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        struct {{
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __type(key, u32);
+                __type(value, u64);
+        }} mymap SEC(".maps");
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {{
+                return 0;
+        }}
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    let mut vmlinux = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(proj_dir.join("src/bpf/vmlinux.h"))
+        .expect("failed to open vmlinux.h");
+    write!(vmlinux, "{}", VMLINUX).expect("failed to write vmlinux.h");
+
+    let mut bpf_helpers = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(proj_dir.join("src/bpf/bpf_helpers.h"))
+        .expect("failed to open bpf_helpers.h");
+    write!(bpf_helpers, "{}", BPF_HELPERS).expect("failed to write bpf_helpers.h");
+
+    let mut bpf_helper_defs = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(proj_dir.join("src/bpf/bpf_helper_defs.h"))
+        .expect("failed to open bpf_helper_defs.h");
+    write!(bpf_helper_defs, "{}", BPF_HELPER_DEFS).expect("failed to write bpf_helper_defs.h");
+
+    assert_eq!(
+        make(
+            true,
+            Some(&cargo_toml),
+            Path::new("/bin/clang"),
+            true,
+            true,
+            Vec::new()
+        ),
+        0
+    );
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        mod bpf;
+        use bpf::*;
+
+        fn main() {{
+            let mut builder = ProgSkelBuilder::default();
+            let mut open_skel = builder
+                .open()
+                .expect("failed to open skel");
+
+            // Check that we can grab handles to open maps/progs
+            let _open_map = open_skel.maps().mymap();
+            let _open_prog = open_skel.progs().this_is_my_prog();
+
+            let mut skel = open_skel
+                .load()
+                .expect("failed to load skel");
+
+            // Check that we can grab handles to loaded maps/progs
+            let _map = skel.maps().mymap();
+            let _prog = skel.progs().this_is_my_prog();
+
+            // Check that attach() is generated
+            skel.attach().expect("failed to attach progs");
+
+            // Check that Option<Link> field is generated
+            let _mylink = skel.links.this_is_my_prog.unwrap();
+        }}
+        "#,
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
 }
