@@ -1,1 +1,3 @@
-example/src/bpf/vmlinux*.h linguist-generated
+vmlinux*.h linguist-generated
+bpf_helper_defs.h linguist-generated
+bpf_helpers.h linguist-generated
