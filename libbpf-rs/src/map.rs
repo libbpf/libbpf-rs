@@ -45,6 +45,17 @@ impl OpenMap {
         Ok(())
     }
 
+    pub fn set_max_entries(&mut self, count: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_max_entries(self.ptr, count) };
+
+        if ret != 0 {
+            // Error code is returned negative, flip to positive to match errno
+            return Err(Error::System(-ret));
+        }
+
+        Ok(())
+    }
+
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
     }
