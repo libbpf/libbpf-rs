@@ -7,11 +7,8 @@ effectively.
 
 To build the project:
 ```shell
-$ pwd
-/home/daniel/dev/libbpf-rs/examples/runqslower
-$ cargo libbpf build
-$ cargo libbpf gen
-$ cargo build
+$ cd examples/runqslower
+$ cargo libbpf make
 $ sudo ../../target/debug/runqslower 1000
 Tracing run queue latency higher than 1000 us
 TIME     COMM             TID     LAT(us)
