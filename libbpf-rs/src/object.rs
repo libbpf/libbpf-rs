@@ -222,14 +222,28 @@ impl OpenObject {
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
-    pub fn load(self) -> Result<Object> {
+    pub fn load(mut self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr) };
         if ret != 0 {
             // bpf_object__load() returns errno as negative, so flip
             return Err(Error::System(-ret));
         }
 
-        Ok(Object::new(self.ptr))
+        let obj = Object::new(self.ptr);
+
+        // Prevent object from being closed once `self` is dropped
+        self.ptr = ptr::null_mut();
+
+        Ok(obj)
+    }
+}
+
+impl Drop for OpenObject {
+    fn drop(&mut self) {
+        // `self.ptr` may be null if `load()` was called. This is ok: libbpf noops
+        unsafe {
+            libbpf_sys::bpf_object__close(self.ptr);
+        }
     }
 }
 
