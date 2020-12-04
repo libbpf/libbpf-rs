@@ -66,7 +66,7 @@ enum Command {
         #[structopt(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str), default_value = "/bin/clang")]
+        #[structopt(long, parse(from_os_str), default_value = "clang")]
         /// Path to clang binary
         clang_path: PathBuf,
         #[structopt(long)]
