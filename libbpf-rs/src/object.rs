@@ -285,7 +285,7 @@ impl Object {
         }
     }
 
-    // Same as [`map`] except will panic if `Err` or `None` is encountered.
+    /// Same as [`map`] except will panic if `Err` or `None` is encountered.
     pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
         self.map(name).unwrap().unwrap()
     }
@@ -312,7 +312,7 @@ impl Object {
         }
     }
 
-    // Same as [`prog`] except will panic if `Err` or `None` is encountered.
+    /// Same as [`prog`] except will panic if `Err` or `None` is encountered.
     pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
         self.prog(name).unwrap().unwrap()
     }
