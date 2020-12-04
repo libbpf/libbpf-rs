@@ -458,7 +458,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         }}
 
         impl Open{name}Skel {{
-            pub fn load(&mut self) -> libbpf_rs::Result<{name}Skel> {{
+            pub fn load(self) -> libbpf_rs::Result<{name}Skel> {{
                 Ok({name}Skel {{
                     obj: self.obj.load()?,
                     {links}

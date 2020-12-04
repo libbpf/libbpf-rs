@@ -222,10 +222,7 @@ impl OpenObject {
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
-    ///
-    /// After load, further calls to [`OpenMap`]s and [`OpenProgram`]s are not guaranteed
-    /// to have any effect.
-    pub fn load(&mut self) -> Result<Object> {
+    pub fn load(self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr) };
         if ret != 0 {
             // bpf_object__load() returns errno as negative, so flip
