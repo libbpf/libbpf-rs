@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::convert::TryInto;
 use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
@@ -10,6 +11,7 @@ use std::ptr;
 use anyhow::{bail, Result};
 use memmap::Mmap;
 
+use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
@@ -306,6 +308,34 @@ fn gen_skel_prog_defs(
     Ok(())
 }
 
+fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Result<()> {
+    let btf = match btf::Btf::new(obj_name, object)? {
+        Some(b) => b,
+        None => return Ok(()),
+    };
+
+    for (idx, ty) in btf.types().iter().enumerate() {
+        if let btf::BtfType::Datasec(d) = ty {
+            let sec_ident = canonicalize_internal_map_name(d.name)?;
+
+            write!(
+                skel,
+                r#"
+                pub mod {}_{}_types {{
+                "#,
+                obj_name, sec_ident,
+            )?;
+
+            let sec_def = btf.type_definition(idx.try_into().unwrap())?;
+            write!(skel, "{}", sec_def)?;
+
+            writeln!(skel, "}}")?;
+        }
+    }
+
+    Ok(())
+}
+
 fn gen_skel_map_getter(
     skel: &mut String,
     object: *mut libbpf_sys::bpf_object,
@@ -561,6 +591,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 
     gen_skel_map_defs(&mut skel, object, &obj_name, true)?;
     gen_skel_prog_defs(&mut skel, object, &obj_name, true)?;
+    gen_skel_datasec_defs(&mut skel, &obj.name, &*mmap)?;
 
     write!(
         skel,
