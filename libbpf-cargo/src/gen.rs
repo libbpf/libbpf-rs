@@ -51,6 +51,49 @@ gen_bpf_object_iter!(
     libbpf_sys::bpf_program__next
 );
 
+struct BtfIter {
+    btf: *const libbpf_sys::btf,
+    i: u32,
+    nr_types: u32,
+}
+
+impl BtfIter {
+    fn new(obj: *mut libbpf_sys::bpf_object) -> Self {
+        assert!(!obj.is_null());
+
+        let btf = unsafe { libbpf_sys::bpf_object__btf(obj) };
+        let nr_types = if btf.is_null() {
+            0
+        } else {
+            unsafe { libbpf_sys::btf__get_nr_types(btf) }
+        };
+
+        BtfIter {
+            btf,
+            i: 1,
+            nr_types,
+        }
+    }
+}
+
+impl Iterator for BtfIter {
+    type Item = *const libbpf_sys::btf_type;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.i > self.nr_types {
+            return None;
+        }
+
+        let ty = unsafe { libbpf_sys::btf__type_by_id(self.btf, self.i) };
+        // Will only be null if `i > nr_types`
+        assert!(!ty.is_null());
+
+        self.i += 1;
+
+        Some(ty)
+    }
+}
+
 /// Run `rustfmt` over `s` and return result
 fn rustfmt(s: &str) -> Result<String> {
     let mut cmd = Command::new("rustfmt")
