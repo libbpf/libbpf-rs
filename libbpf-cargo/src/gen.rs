@@ -1,13 +1,18 @@
 use std::collections::BTreeMap;
+use std::ffi::c_void;
 use std::ffi::{CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::Write;
+use std::mem::size_of;
+use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
 
 use anyhow::{bail, ensure, Result};
+use scopeguard::defer;
+use vsprintf::vsprintf;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
@@ -375,6 +380,151 @@ fn gen_skel_prog_defs(
     Ok(())
 }
 
+unsafe extern "C" fn dump_printer(
+    ctx: *mut c_void,
+    fmt: *const c_char,
+    args: *mut libbpf_sys::__va_list_tag,
+) {
+    let buf = &mut *(ctx as *mut String);
+
+    match vsprintf(fmt, args) {
+        Ok(d) => buf.push_str(&d),
+        Err(e) => panic!("Failed to vsprintf btf type: {}", e),
+    };
+}
+
+fn gen_skel_one_datasec_def(
+    _skel: &mut String,
+    btf: *const libbpf_sys::btf,
+    sec: *const libbpf_sys::btf_type,
+    obj_name: &str,
+    debug: bool,
+) -> Result<()> {
+    // Setup libbpf BTF dumper
+    let mut buf = String::new();
+    let buf_ptr: *mut String = &mut buf;
+    let mut dump_opts = libbpf_sys::btf_dump_opts::default();
+    dump_opts.ctx = buf_ptr as *mut c_void;
+    let dump =
+        unsafe { libbpf_sys::btf_dump__new(btf, ptr::null(), &dump_opts, Some(dump_printer)) };
+    if unsafe { libbpf_sys::libbpf_get_error(dump as *const _) } != 0 {
+        bail!("Failed to create struct bpf_dump");
+    }
+    defer! {
+        unsafe { libbpf_sys::btf_dump__free(dump) };
+    }
+
+    let sec_name =
+        unsafe { CStr::from_ptr(libbpf_sys::btf__name_by_offset(btf, (*sec).name_off)).to_str()? };
+    let sec_ident = match canonicalize_internal_map_name(sec_name) {
+        Ok(n) => capitalize_first_letter(&n),
+        // Not a datasection we can generate definitions for
+        Err(_) => return Ok(()),
+    };
+
+    writeln!(
+        buf,
+        r#"struct {obj_name}{sec_name} {{"#,
+        obj_name = obj_name,
+        sec_name = sec_ident,
+    )?;
+
+    let mut sec_var = btf_var_secinfos(sec)?;
+    let mut offset: u32 = 0;
+    for _ in 0..btf_info_vlen(sec)? {
+        let var = unsafe { libbpf_sys::btf__type_by_id(btf, (*sec_var).ty) };
+        let var_name =
+            unsafe { CStr::from_ptr(libbpf_sys::btf__name_by_offset(btf, (*var).name_off)) };
+
+        // Where BTF tells us the var offset needs to be
+        let needed_offset = unsafe { (*sec_var).offset };
+        if offset > needed_offset {
+            bail!(
+                "Invalid var={}, offset={} > needed_offset={}",
+                var_name.to_string_lossy(),
+                offset,
+                needed_offset
+            );
+        }
+
+        // Get alignment of var
+        let align_signed = unsafe { libbpf_sys::btf__align_of(btf, (*var).__bindgen_anon_1.type_) };
+        if align_signed <= 0 {
+            bail!(
+                "Failed to determine alignment of var={}",
+                var_name.to_string_lossy()
+            );
+        }
+        let mut align = align_signed as u32;
+
+        // Assume 32-bit alignment in case we're generating code for 32-bit
+        // arch. Worst case is on a 64-bit arch the compiler will generate
+        // extra padding. The final layout will still be identical to what is
+        // described by BTF.
+        if align > 4 {
+            align = 4;
+        }
+
+        // Round `offset` _up_ to nearest multiple of `align`
+        let aligned_offset = (offset + align - 1) / align * align;
+
+        // If we aren't naturally aligning to the right offset, insert padding to the right offset
+        if aligned_offset != needed_offset {
+            writeln!(buf, r#"char __pad_{}[{}]"#, offset, needed_offset - offset)?;
+        }
+
+        // Dump current field
+        //
+        // NB: create through `default()` to ensure the trailing padding is zero'd. If non-zero,
+        // libbpf will complain.
+        let mut emit_opts = libbpf_sys::btf_dump_emit_type_decl_opts::default();
+        emit_opts.sz = size_of::<libbpf_sys::btf_dump_emit_type_decl_opts>() as u64;
+        emit_opts.field_name = var_name.as_ptr();
+        emit_opts.indent_level = 1;
+        emit_opts.strip_mods = true;
+        if unsafe {
+            libbpf_sys::btf_dump__emit_type_decl(dump, (*var).__bindgen_anon_1.type_, &emit_opts)
+        } != 0
+        {
+            bail!("Failed to dump type decl: {}", var_name.to_string_lossy());
+        }
+        writeln!(buf, ";")?;
+
+        // Set `offset` to end of current var
+        offset = unsafe { (*sec_var).offset + (*sec_var).size };
+
+        // Go to next var in section
+        sec_var = unsafe { sec_var.offset(1) };
+    }
+
+    writeln!(buf, "}};")?;
+
+    if debug {
+        println!("Datasec C struct:\n{}", buf);
+    }
+
+    Ok(())
+}
+
+fn gen_skel_datasec_defs(
+    skel: &mut String,
+    object: *mut libbpf_sys::bpf_object,
+    obj_name: &str,
+    debug: bool,
+) -> Result<()> {
+    let btf = unsafe { libbpf_sys::bpf_object__btf(object) };
+
+    for ty in BtfIter::new(object) {
+        if btf_info_kind(ty)? != libbpf_sys::BTF_KIND_DATASEC {
+            continue;
+        }
+
+        gen_skel_one_datasec_def(skel, btf, ty, obj_name, debug)?;
+    }
+
+    Ok(())
+}
+
 fn gen_skel_map_getter(
     skel: &mut String,
     object: *mut libbpf_sys::bpf_object,
@@ -559,7 +709,7 @@ fn gen_skel_attach(
 }
 
 /// Generate contents of a single skeleton
-fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
+fn gen_skel_contents(debug: bool, obj: &UnprocessedObj) -> Result<String> {
     let mut skel = String::new();
 
     write!(
@@ -621,6 +771,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 
     gen_skel_map_defs(&mut skel, object, &obj_name, true)?;
     gen_skel_prog_defs(&mut skel, object, &obj_name, true)?;
+    gen_skel_datasec_defs(&mut skel, object, &obj_name, debug)?;
 
     write!(
         skel,

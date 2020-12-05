@@ -177,11 +177,13 @@ dependencies = [
  "goblin",
  "libbpf-sys",
  "regex",
+ "scopeguard",
  "semver",
  "serde",
  "serde_json",
  "structopt",
  "tempfile",
+ "vsprintf",
 ]
 
 [[package]]
@@ -445,6 +447,12 @@ name = "ryu"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
+
+[[package]]
+name = "scopeguard"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scroll"

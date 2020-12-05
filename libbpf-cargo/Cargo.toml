@@ -25,10 +25,12 @@ anyhow = "1.0"
 cargo_metadata = "0.9"
 libbpf-sys = { version = "0.1.0-1" }
 regex = "1.4"
+scopeguard = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 structopt = "0.3"
 semver = "0.9"
+vsprintf = "1.0"
 
 [dev-dependencies]
 tempfile = "3.1"
