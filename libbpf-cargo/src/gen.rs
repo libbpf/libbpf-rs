@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Result};
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
@@ -92,6 +92,37 @@ impl Iterator for BtfIter {
 
         Some(ty)
     }
+}
+
+fn btf_info_kind(ty: *const libbpf_sys::btf_type) -> Result<u32> {
+    ensure!(!ty.is_null(), "ty is null");
+
+    let info = unsafe { (*ty).info };
+
+    Ok((info >> 24) & 0x0F)
+}
+
+fn btf_info_vlen(ty: *const libbpf_sys::btf_type) -> Result<u32> {
+    ensure!(!ty.is_null(), "ty is null");
+
+    let info = unsafe { (*ty).info };
+
+    Ok(info & 0xFFFF)
+}
+
+#[repr(C)]
+struct BtfVarSecinfo {
+    ty: u32,
+    offset: u32,
+    size: u32,
+}
+
+fn btf_var_secinfos(ty: *const libbpf_sys::btf_type) -> Result<*const BtfVarSecinfo> {
+    ensure!(!ty.is_null(), "ty is null");
+
+    let ptr = unsafe { ty.offset(1) } as *const BtfVarSecinfo;
+
+    Ok(ptr)
 }
 
 /// Run `rustfmt` over `s` and return result
