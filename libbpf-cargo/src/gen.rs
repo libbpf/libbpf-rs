@@ -393,8 +393,21 @@ unsafe extern "C" fn dump_printer(
     };
 }
 
+fn c_to_rust(c: &str) -> Result<String> {
+    let bindings = bindgen::Builder::default()
+        .header_contents("input.h", c)
+        .disable_header_comment()
+        .layout_tests(false)
+        .generate();
+
+    match bindings {
+        Ok(b) => Ok(b.to_string()),
+        Err(_) => bail!("Failed to generate rust bindings to datasec variables"),
+    }
+}
+
 fn gen_skel_one_datasec_def(
-    _skel: &mut String,
+    skel: &mut String,
     btf: *const libbpf_sys::btf,
     sec: *const libbpf_sys::btf_type,
     obj_name: &str,
@@ -486,7 +499,10 @@ fn gen_skel_one_datasec_def(
             libbpf_sys::btf_dump__emit_type_decl(dump, (*var).__bindgen_anon_1.type_, &emit_opts)
         } != 0
         {
-            bail!("Failed to dump type decl: {}", var_name.to_string_lossy());
+            bail!(
+                "Failed to dump type decl for var={}",
+                var_name.to_string_lossy()
+            );
         }
         writeln!(buf, ";")?;
 
@@ -502,6 +518,9 @@ fn gen_skel_one_datasec_def(
     if debug {
         println!("Datasec C struct:\n{}", buf);
     }
+
+    let rust_defs = c_to_rust(&buf)?;
+    write!(skel, "\n{}", rust_defs)?;
 
     Ok(())
 }
