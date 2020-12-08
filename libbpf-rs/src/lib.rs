@@ -62,6 +62,8 @@ mod program;
 pub mod query;
 mod util;
 
+pub use libbpf_sys;
+
 pub use crate::error::{Error, Result};
 pub use crate::link::Link;
 pub use crate::map::{Map, MapFlags, MapType, OpenMap};
