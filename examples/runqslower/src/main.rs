@@ -71,7 +71,7 @@ fn main() -> Result<()> {
 
     let mut skel_builder = RunqslowerSkelBuilder::default();
     if opts.verbose {
-        skel_builder.debug(true);
+        skel_builder.obj_builder.debug(true);
     }
 
     bump_memlock_rlimit()?;
