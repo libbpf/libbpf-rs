@@ -421,22 +421,6 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         }}
 
         impl {name}SkelBuilder {{
-            pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {{
-                self.name = name.as_ref().to_string();
-                self.obj_builder.name(name);
-                self
-            }}
-
-            pub fn relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {{
-                self.obj_builder.relaxed_maps(relaxed_maps);
-                self
-            }}
-
-            pub fn debug(&mut self, dbg: bool) -> &mut Self {{
-                self.obj_builder.debug(dbg);
-                self
-            }}
-
             pub fn open(&mut self) -> libbpf_rs::Result<Open{name}Skel> {{
                 Ok(Open{name}Skel {{
                     obj: self.obj_builder.open_memory(&self.name, DATA)?,
