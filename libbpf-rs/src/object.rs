@@ -58,7 +58,9 @@ impl ObjectBuilder {
         self
     }
 
-    fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
+    /// Used for skeleton -- an end user may not consider this API stable
+    #[doc(hidden)]
+    pub fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
         libbpf_sys::bpf_object_open_opts {
             sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
             object_name: name,
