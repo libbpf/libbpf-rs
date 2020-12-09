@@ -417,13 +417,12 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         #[derive(Default)]
         pub struct {name}SkelBuilder {{
             pub obj_builder: libbpf_rs::ObjectBuilder,
-            name: String,
         }}
 
         impl {name}SkelBuilder {{
             pub fn open(&mut self) -> libbpf_rs::Result<Open{name}Skel> {{
                 Ok(Open{name}Skel {{
-                    obj: self.obj_builder.open_memory(&self.name, DATA)?,
+                    obj: self.obj_builder.open_memory("{name}", DATA)?,
                 }})
             }}
         }}
