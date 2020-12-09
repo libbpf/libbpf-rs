@@ -175,6 +175,18 @@ impl OpenObject {
         }
     }
 
+    /// Takes ownership from pointer.
+    ///
+    /// # Safety
+    ///
+    /// If `ptr` is unopen or already loaded then further operations on the returned object are
+    /// undefined.
+    ///
+    /// It is not safe to manipulate `ptr` after this operation.
+    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Self {
+        Self::new(ptr)
+    }
+
     pub fn name<'a>(&'a self) -> Result<&'a str> {
         unsafe {
             let ptr = libbpf_sys::bpf_object__name(self.ptr);
@@ -271,6 +283,18 @@ impl Object {
             maps: HashMap::new(),
             progs: HashMap::new(),
         }
+    }
+
+    /// Takes ownership from pointer.
+    ///
+    /// # Safety
+    ///
+    /// If `ptr` is not already loaded then further operations on the returned object are
+    /// undefined.
+    ///
+    /// It is not safe to manipulate `ptr` after this operation.
+    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Self {
+        Self::new(ptr)
     }
 
     pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Map>> {

@@ -16,6 +16,15 @@ impl Link {
         Link { ptr }
     }
 
+    /// Takes ownership from pointer.
+    ///
+    /// # Safety
+    ///
+    /// It is not safe to manipulate `ptr` after this operation.
+    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_link) -> Self {
+        Self::new(ptr)
+    }
+
     /// Replace the underlying prog with `prog`.
     pub fn update_prog(&mut self, prog: Program) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__update_program(self.ptr, prog.ptr) };
