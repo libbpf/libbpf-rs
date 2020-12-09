@@ -60,6 +60,9 @@ mod object;
 mod perf_buffer;
 mod program;
 pub mod query;
+/// Used for skeleton -- an end user may not consider this API stable
+#[doc(hidden)]
+pub mod skeleton;
 mod util;
 
 pub use libbpf_sys;
