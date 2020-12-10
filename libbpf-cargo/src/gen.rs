@@ -134,8 +134,9 @@ fn map_is_mmapable(map: *const libbpf_sys::bpf_map) -> bool {
     let internal = unsafe { libbpf_sys::bpf_map__is_internal(map) };
     let def = unsafe { libbpf_sys::bpf_map__def(map) };
     let mmapable = unsafe { (*def).map_flags } & libbpf_sys::BPF_F_MMAPABLE;
+    let name = get_map_name(map);
 
-    internal && (mmapable > 0)
+    internal && (mmapable > 0) && (name.is_ok() && name.unwrap().is_some())
 }
 
 fn gen_skel_c_skel_constructor(
@@ -204,7 +205,12 @@ fn gen_skel_map_defs(
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
-    if MapIter::new(object).next().is_none() {
+    // If no non-datasec maps, return early
+    if MapIter::new(object)
+        .filter(|map| !map_is_mmapable(*map))
+        .count()
+        == 0
+    {
         return Ok(());
     }
 
@@ -236,6 +242,10 @@ fn gen_skel_map_defs(
     )?;
 
     for map in MapIter::new(object) {
+        if map_is_mmapable(map) {
+            continue;
+        }
+
         let map_name = match get_map_name(map)? {
             Some(n) => n,
             None => continue,
@@ -351,7 +361,12 @@ fn gen_skel_map_getter(
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
-    if MapIter::new(object).next().is_none() {
+    // If no non-datasec maps, return early
+    if MapIter::new(object)
+        .filter(|map| !map_is_mmapable(*map))
+        .count()
+        == 0
+    {
         return Ok(());
     }
 
