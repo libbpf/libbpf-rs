@@ -5,7 +5,7 @@ use std::process::exit;
 
 use anyhow::{bail, Result};
 use chrono::Local;
-use libbpf_rs::{MapFlags, PerfBufferBuilder};
+use libbpf_rs::PerfBufferBuilder;
 use plain::Plain;
 use structopt::StructOpt;
 
@@ -75,16 +75,13 @@ fn main() -> Result<()> {
     }
 
     bump_memlock_rlimit()?;
-    let mut skel = skel_builder.open()?.load()?;
+    let mut open_skel = skel_builder.open()?;
 
     // Write latency value into map
-    skel.maps().min_us().update(
-        &0u32.to_le_bytes(),
-        &opts.latency.to_le_bytes(),
-        MapFlags::empty(),
-    )?;
+    open_skel.rodata().min_us = opts.latency;
 
     // Begin tracing
+    let mut skel = open_skel.load()?;
     skel.attach()?;
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");

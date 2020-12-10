@@ -6,19 +6,14 @@
 
 #define TASK_RUNNING 0
 
+const volatile unsigned long long min_us = 0;
+
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 10240);
 	__type(key, u32);
 	__type(value, u64);
 } start SEC(".maps");
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, u32);
-	__type(value, u64);
-} min_us SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -66,7 +61,7 @@ int handle__sched_switch(u64 *ctx)
 	 */
 	struct task_struct *prev = (struct task_struct *)ctx[1];
 	struct task_struct *next = (struct task_struct *)ctx[2];
-	u64 *tsp, delta_us, *min_us_val;
+	u64 *tsp, delta_us;
 	struct event event = {};
 	u32 pid, zero = 0;
 	long state;
@@ -82,9 +77,8 @@ int handle__sched_switch(u64 *ctx)
 	if (!tsp)
 		return 0;   /* missed enqueue */
 
-	min_us_val = bpf_map_lookup_elem(&min_us, &zero);
 	delta_us = (bpf_ktime_get_ns() - *tsp) / 1000;
-	if (!min_us_val || !*min_us_val || delta_us <= *min_us_val)
+	if (min_us && delta_us <= min_us)
 		return 0;
 
 	event.pid = pid;
