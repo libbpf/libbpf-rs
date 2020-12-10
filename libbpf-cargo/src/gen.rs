@@ -139,6 +139,14 @@ fn map_is_mmapable(map: *const libbpf_sys::bpf_map) -> bool {
     internal && (mmapable > 0) && (name.is_ok() && name.unwrap().is_some())
 }
 
+fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
+    assert!(map_is_mmapable(map));
+    let def = unsafe { libbpf_sys::bpf_map__def(map) };
+
+    // BPF_F_RDONLY_PROG means readonly from prog side
+    (unsafe { (*def).map_flags } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
+}
+
 fn gen_skel_c_skel_constructor(
     skel: &mut String,
     object: *mut libbpf_sys::bpf_object,
@@ -422,6 +430,53 @@ fn gen_skel_prog_getter(
     Ok(())
 }
 
+fn gen_skel_datasec_getters(
+    skel: &mut String,
+    object: *mut libbpf_sys::bpf_object,
+    obj_name: &str,
+    loaded: bool,
+) -> Result<()> {
+    for (idx, map) in MapIter::new(object).enumerate() {
+        if !map_is_mmapable(map) {
+            continue;
+        }
+
+        let name = match get_map_name(map)? {
+            Some(n) => n,
+            None => continue,
+        };
+        let struct_name = format!(
+            "{obj_name}_{name}_types::{name}",
+            obj_name = obj_name,
+            name = name,
+        );
+        let mutability = if loaded && map_is_readonly(map) {
+            ""
+        } else {
+            "mut"
+        };
+
+        write!(
+            skel,
+            r#"
+            pub fn {name}(&mut self) -> &'a {mut} {struct_name} {{
+                unsafe {{
+                    std::mem::transmute::<*mut std::ffi::c_void, &'a {mut} {struct_name}>(
+                        self.skel_config.map_mmap_ptr({idx}).unwrap()
+                    )
+                }}
+            }}
+            "#,
+            name = name,
+            struct_name = struct_name,
+            mut = mutability,
+            idx = idx,
+        )?;
+    }
+
+    Ok(())
+}
+
 fn gen_skel_link_defs(
     skel: &mut String,
     object: *mut libbpf_sys::bpf_object,
@@ -559,6 +614,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 
            #![allow(dead_code)]
            #![allow(non_snake_case)]
+           #![allow(clippy::transmute_ptr_to_ref)]
 
            use libbpf_rs::libbpf_sys;
         "#
@@ -650,6 +706,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, true)?;
     gen_skel_map_getter(&mut skel, object, &obj_name, true)?;
+    gen_skel_datasec_getters(&mut skel, object, &obj.name, false)?;
     writeln!(skel, "}}")?;
 
     gen_skel_map_defs(&mut skel, object, &obj_name, false)?;
@@ -677,6 +734,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, false)?;
     gen_skel_map_getter(&mut skel, object, &obj_name, false)?;
+    gen_skel_datasec_getters(&mut skel, object, &obj.name, true)?;
     gen_skel_attach(&mut skel, object, &obj_name)?;
     writeln!(skel, "}}")?;
 
