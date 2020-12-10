@@ -427,33 +427,32 @@ fn gen_skel_attach(
         skel,
         r#"
         pub fn attach(&mut self) -> libbpf_rs::Result<()> {{
+            let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) }};
+            if ret != 0 {{
+                return Err(libbpf_rs::Error::System(-ret));
+            }}
+
             self.links = {}Links {{
         "#,
         obj_name
     )?;
 
-    for prog in ProgIter::new(object) {
+    for (idx, prog) in ProgIter::new(object).enumerate() {
+        let prog_name = get_prog_name(prog)?;
+
         write!(
             skel,
-            r#"{prog_name}: self
-                .progs()
-                .{prog_name}()
-                .attach()
-                .map_or_else(
-                    |e| {{
-                        if let libbpf_rs::Error::System(errno) = e {{
-                            // ESRCH: cannot be auto-attached
-                            if errno == 3 {{
-                                return Ok(None);
-                            }}
-                        }}
-
-                        Err(e)
-                    }},
-                    |v| Ok(Some(v))
-                )?,
+            r#"{prog_name}: (|| {{
+                let ptr = self.skel_config.prog_link_ptr({idx})?;
+                if ptr.is_null() {{
+                    Ok(None)
+                }} else {{
+                    Ok(Some(unsafe {{ libbpf_rs::Link::from_ptr(ptr) }}))
+                }}
+            }})()?,
             "#,
-            prog_name = get_prog_name(prog)?
+            prog_name = prog_name,
+            idx = idx,
         )?;
     }
 
@@ -518,8 +517,19 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 
         impl {name}SkelBuilder {{
             pub fn open(&mut self) -> libbpf_rs::Result<Open{name}Skel> {{
+                let mut skel_config = build_skel_config()?;
+                let open_opts = self.obj_builder.opts(std::ptr::null());
+
+                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) }};
+                if ret != 0 {{
+                    return Err(libbpf_rs::Error::System(-ret));
+                }}
+
+                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr()) }};
+
                 Ok(Open{name}Skel {{
-                    obj: self.obj_builder.open_memory("{name}", DATA)?,
+                    obj,
+                    skel_config
                 }})
             }}
         }}
@@ -533,14 +543,23 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     write!(
         skel,
         r#"
-        pub struct Open{name}Skel {{
+        pub struct Open{name}Skel<'a> {{
             pub obj: libbpf_rs::OpenObject,
+            skel_config: libbpf_rs::skeleton::ObjectSkeletonConfig<'a>,
         }}
 
-        impl Open{name}Skel {{
-            pub fn load(self) -> libbpf_rs::Result<{name}Skel> {{
+        impl<'a> Open{name}Skel<'a> {{
+            pub fn load(mut self) -> libbpf_rs::Result<{name}Skel<'a>> {{
+                let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) }};
+                if ret != 0 {{
+                    return Err(libbpf_rs::Error::System(-ret));
+                }}
+
+                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr()) }};
+
                 Ok({name}Skel {{
-                    obj: self.obj.load()?,
+                    obj,
+                    skel_config: self.skel_config,
                     {links}
                 }})
             }}
@@ -563,8 +582,9 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     write!(
         skel,
         r#"
-        pub struct {name}Skel {{
+        pub struct {name}Skel<'a> {{
             pub obj: libbpf_rs::Object,
+            skel_config: libbpf_rs::skeleton::ObjectSkeletonConfig<'a>,
         "#,
         name = &obj_name,
     )?;
@@ -574,7 +594,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         r#"
         }}
 
-        impl {name}Skel {{
+        impl<'a> {name}Skel<'a> {{
         "#,
         name = &obj_name,
     )?;
