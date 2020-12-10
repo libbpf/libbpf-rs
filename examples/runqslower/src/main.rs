@@ -5,7 +5,7 @@ use std::process::exit;
 
 use anyhow::{bail, Result};
 use chrono::Local;
-use libbpf_rs::{MapFlags, PerfBufferBuilder};
+use libbpf_rs::PerfBufferBuilder;
 use plain::Plain;
 use structopt::StructOpt;
 
@@ -18,6 +18,12 @@ struct Command {
     /// Trace latency higher than this value
     #[structopt(default_value = "10000")]
     latency: u64,
+    /// Process PID to trace
+    #[structopt(default_value = "0")]
+    pid: i32,
+    /// Thread TID to trace
+    #[structopt(default_value = "0")]
+    tid: i32,
     /// Verbose debug output
     #[structopt(short, long)]
     verbose: bool,
@@ -75,16 +81,15 @@ fn main() -> Result<()> {
     }
 
     bump_memlock_rlimit()?;
-    let mut skel = skel_builder.open()?.load()?;
+    let mut open_skel = skel_builder.open()?;
 
-    // Write latency value into map
-    skel.maps().min_us().update(
-        &0u32.to_le_bytes(),
-        &opts.latency.to_le_bytes(),
-        MapFlags::empty(),
-    )?;
+    // Write arguments into prog
+    open_skel.rodata().min_us = opts.latency;
+    open_skel.rodata().targ_pid = opts.pid;
+    open_skel.rodata().targ_tgid = opts.tid;
 
     // Begin tracing
+    let mut skel = open_skel.load()?;
     skel.attach()?;
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");
