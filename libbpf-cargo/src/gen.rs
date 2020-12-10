@@ -63,6 +63,21 @@ fn rustfmt(s: &str) -> Result<String> {
     Ok(String::from_utf8(output.stdout)?)
 }
 
+fn capitalize_first_letter(s: &str) -> String {
+    let mut ret = String::new();
+
+    if s.is_empty() {
+        return ret;
+    }
+
+    ret += &s.chars().next().unwrap().to_uppercase().to_string();
+    if s.len() > 1 {
+        ret += &s[1..];
+    }
+
+    ret
+}
+
 fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
     let name_ptr = unsafe { libbpf_sys::bpf_map__name(map) };
     if name_ptr.is_null() {
@@ -494,16 +509,9 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         obj_file_path.as_path().display()
     )?;
 
-    // Capitalize object name
-    let mut obj_name = String::new();
-    // Unwrap is safe b/c already checked that `obj.name` contains chars
-    obj_name += &obj.name.chars().next().unwrap().to_uppercase().to_string();
-    if obj.name.len() > 1 {
-        obj_name += &obj.name[1..];
-    }
-
     // Open bpf_object so we can iterate over maps and progs
     let object = open_object_file(obj_file_path.as_path())?;
+    let obj_name = capitalize_first_letter(&obj.name);
 
     gen_skel_c_skel_constructor(&mut skel, object, &obj.name)?;
 
