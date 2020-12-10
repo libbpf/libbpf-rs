@@ -275,7 +275,12 @@ fn gen_skel_map_defs(
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
-    if MapIter::new(object).next().is_none() {
+    // If no non-datasec maps, return early
+    if MapIter::new(object)
+        .filter(|map| !map_is_mmapable(*map))
+        .count()
+        == 0
+    {
         return Ok(());
     }
 
@@ -307,6 +312,10 @@ fn gen_skel_map_defs(
     )?;
 
     for map in MapIter::new(object) {
+        if map_is_mmapable(map) {
+            continue;
+        }
+
         write!(
             skel,
             r#"
