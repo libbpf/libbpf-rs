@@ -187,6 +187,13 @@ impl OpenObject {
         Self::new(ptr)
     }
 
+    /// Takes underlying `libbpf_sys::bpf_object` pointer.
+    pub fn take_ptr(mut self) -> *mut libbpf_sys::bpf_object {
+        let ptr = self.ptr;
+        self.ptr = ptr::null_mut();
+        ptr
+    }
+
     pub fn name<'a>(&'a self) -> Result<&'a str> {
         unsafe {
             let ptr = libbpf_sys::bpf_object__name(self.ptr);
