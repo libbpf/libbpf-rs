@@ -16,9 +16,9 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 thiserror = "1.0"
 bitflags = "1.2"
-nix = "0.17"
-num_enum = "0.4"
 libbpf-sys = { version = "0.2.0-2" }
+nix = "0.17"
+num_enum = "0.5"
 strum_macros = "0.18"
 vsprintf = "1.0"
 
