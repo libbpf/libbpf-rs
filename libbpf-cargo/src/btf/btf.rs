@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::convert::TryFrom;
 use std::ffi::{c_void, CStr, CString};
 use std::mem::size_of;
@@ -100,6 +101,82 @@ impl<'a> Btf<'a> {
         }
 
         Ok(Some(btf))
+    }
+
+    pub fn types(&self) -> &[BtfType<'a>] {
+        &self.types
+    }
+
+    pub fn type_by_id(&self, type_id: u32) -> Result<&BtfType> {
+        if (type_id as usize) < self.types.len() {
+            Ok(&self.types[type_id as usize])
+        } else {
+            bail!("Invalid type_id: {}", type_id);
+        }
+    }
+
+    pub fn size_of(&self, type_id: u32) -> Result<u32> {
+        let skipped_type_id = self.skip_mods_and_typedefs(type_id)?;
+
+        Ok(match self.type_by_id(skipped_type_id)? {
+            BtfType::Int(t) => ((t.bits + 7) / 8).into(),
+            BtfType::Ptr(_) => self.ptr_size,
+            BtfType::Array(t) => t.nelems * self.size_of(t.val_type_id)?,
+            BtfType::Struct(t) => t.size,
+            BtfType::Union(t) => t.size,
+            BtfType::Enum(t) => t.size,
+            BtfType::Var(t) => self.size_of(t.type_id)?,
+            BtfType::Datasec(t) => t.size,
+            BtfType::Void
+            | BtfType::Volatile(_)
+            | BtfType::Const(_)
+            | BtfType::Restrict(_)
+            | BtfType::Typedef(_)
+            | BtfType::FuncProto(_)
+            | BtfType::Fwd(_)
+            | BtfType::Func(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
+        })
+    }
+
+    pub fn align_of(&self, type_id: u32) -> Result<u32> {
+        let skipped_type_id = self.skip_mods_and_typedefs(type_id)?;
+
+        Ok(match self.type_by_id(skipped_type_id)? {
+            BtfType::Int(t) => min(self.ptr_size, ((t.bits + 7) / 8).into()),
+            BtfType::Ptr(_) => self.ptr_size,
+            BtfType::Array(t) => self.align_of(t.val_type_id)?,
+            BtfType::Struct(t) | BtfType::Union(t) => {
+                let mut align = 1;
+                for m in &t.members {
+                    align = max(align, self.align_of(m.type_id)?);
+                }
+
+                align
+            }
+            BtfType::Enum(t) => min(self.ptr_size, t.size),
+            BtfType::Var(t) => self.align_of(t.type_id)?,
+            BtfType::Datasec(t) => t.size,
+            BtfType::Void
+            | BtfType::Volatile(_)
+            | BtfType::Const(_)
+            | BtfType::Restrict(_)
+            | BtfType::Typedef(_)
+            | BtfType::FuncProto(_)
+            | BtfType::Fwd(_)
+            | BtfType::Func(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
+        })
+    }
+
+    pub fn skip_mods_and_typedefs(&self, mut type_id: u32) -> Result<u32> {
+        loop {
+            match self.type_by_id(type_id)? {
+                BtfType::Volatile(t) => type_id = t.type_id,
+                BtfType::Const(t) => type_id = t.type_id,
+                BtfType::Restrict(t) => type_id = t.type_id,
+                BtfType::Typedef(t) => type_id = t.type_id,
+                _ => return Ok(type_id),
+            };
+        }
     }
 
     fn load_type(&self, data: &'a [u8]) -> Result<BtfType<'a>> {
