@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::ptr;
 
 use anyhow::{bail, Result};
+use memmap::Mmap;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
@@ -418,16 +419,20 @@ fn gen_skel_link_getter(
     Ok(())
 }
 
-fn open_object_file(path: &Path) -> Result<*mut libbpf_sys::bpf_object> {
-    if !path.exists() {
-        bail!("Object file not found: {}", path.display());
-    }
-    let path_cstring = CString::new(path.to_string_lossy().into_owned())?;
+fn open_bpf_object(name: &str, data: &[u8]) -> Result<*mut libbpf_sys::bpf_object> {
+    let cname = CString::new(name)?;
     let mut obj_opts = libbpf_sys::bpf_object_open_opts::default();
     obj_opts.sz = std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t;
-    let object = unsafe { libbpf_sys::bpf_object__open_file(path_cstring.as_ptr(), &obj_opts) };
+    obj_opts.object_name = cname.as_ptr();
+    let object = unsafe {
+        libbpf_sys::bpf_object__open_mem(
+            data.as_ptr() as *const c_void,
+            data.len() as u64,
+            &obj_opts,
+        )
+    };
     if object.is_null() {
-        bail!("Could not open object file={}", path.display());
+        bail!("Failed to bpf_object__open_mem()");
     }
 
     Ok(object)
@@ -517,7 +522,9 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     )?;
 
     // Open bpf_object so we can iterate over maps and progs
-    let object = open_object_file(obj_file_path.as_path())?;
+    let file = File::open(obj_file_path.as_path())?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let object = open_bpf_object(&obj.name, &*mmap)?;
     let obj_name = capitalize_first_letter(&obj.name);
 
     gen_skel_c_skel_constructor(&mut skel, object, &obj.name)?;
