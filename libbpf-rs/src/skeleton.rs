@@ -1,5 +1,5 @@
 use core::ffi::c_void;
-use std::alloc::{alloc, dealloc, Layout};
+use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::boxed::Box;
 use std::ffi::CString;
 use std::mem::size_of;
@@ -110,7 +110,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
             .expect("Failed to allocate memory for maps skeleton");
 
         unsafe {
-            s.maps = alloc(layout) as *mut bpf_map_skeleton;
+            s.maps = alloc_zeroed(layout) as *mut bpf_map_skeleton;
             for (i, map) in self.maps.iter_mut().enumerate() {
                 let current_map = s.maps.add(i);
 
@@ -146,7 +146,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
             .expect("Failed to allocate memory for progs skeleton");
 
         unsafe {
-            s.progs = alloc(layout) as *mut bpf_prog_skeleton;
+            s.progs = alloc_zeroed(layout) as *mut bpf_prog_skeleton;
             for (i, prog) in self.progs.iter_mut().enumerate() {
                 let current_prog = s.progs.add(i);
 
