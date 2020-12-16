@@ -252,7 +252,7 @@ impl<'a> ObjectSkeletonConfig<'a> {
     ///
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
     pub fn prog_link_ptr(&mut self, index: usize) -> Result<*mut bpf_link> {
-        if index >= self.maps.len() {
+        if index >= self.progs.len() {
             return Err(Error::Internal(format!("Invalid prog index: {}", index)));
         }
 
