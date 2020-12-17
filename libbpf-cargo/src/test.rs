@@ -109,6 +109,30 @@ fn get_libbpf_rs_path() -> PathBuf {
         .expect("failed to canonicalize libbpf-rs")
 }
 
+/// Add bpf headers (eg vmlinux.h and bpf_helpers.h) into `project`'s src/bpf dir
+fn add_bpf_headers(project: &Path) {
+    let mut vmlinux = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(project.join("src/bpf/vmlinux.h"))
+        .expect("failed to open vmlinux.h");
+    write!(vmlinux, "{}", VMLINUX).expect("failed to write vmlinux.h");
+
+    let mut bpf_helpers = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(project.join("src/bpf/bpf_helpers.h"))
+        .expect("failed to open bpf_helpers.h");
+    write!(bpf_helpers, "{}", BPF_HELPERS).expect("failed to write bpf_helpers.h");
+
+    let mut bpf_helper_defs = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(project.join("src/bpf/bpf_helper_defs.h"))
+        .expect("failed to open bpf_helper_defs.h");
+    write!(bpf_helper_defs, "{}", BPF_HELPER_DEFS).expect("failed to write bpf_helper_defs.h");
+}
+
 #[test]
 fn test_build_default() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
@@ -484,26 +508,7 @@ fn test_skeleton_basic() {
     .expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
-    let mut vmlinux = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(proj_dir.join("src/bpf/vmlinux.h"))
-        .expect("failed to open vmlinux.h");
-    write!(vmlinux, "{}", VMLINUX).expect("failed to write vmlinux.h");
-
-    let mut bpf_helpers = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(proj_dir.join("src/bpf/bpf_helpers.h"))
-        .expect("failed to open bpf_helpers.h");
-    write!(bpf_helpers, "{}", BPF_HELPERS).expect("failed to write bpf_helpers.h");
-
-    let mut bpf_helper_defs = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(proj_dir.join("src/bpf/bpf_helper_defs.h"))
-        .expect("failed to open bpf_helper_defs.h");
-    write!(bpf_helper_defs, "{}", BPF_HELPER_DEFS).expect("failed to write bpf_helper_defs.h");
+    add_bpf_headers(&proj_dir);
 
     assert_eq!(
         make(
