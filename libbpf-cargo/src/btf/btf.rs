@@ -1,6 +1,8 @@
 use std::cmp::{max, min};
+use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::ffi::{c_void, CStr, CString};
+use std::fmt::Write;
 use std::mem::size_of;
 use std::slice;
 
@@ -165,6 +167,339 @@ impl<'a> Btf<'a> {
             | BtfType::Fwd(_)
             | BtfType::Func(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
         })
+    }
+
+    /// Returns the rust-ified type declaration of `ty` in string format.
+    ///
+    /// Rule of thumb is `ty` must be a type a variable can have.
+    ///
+    /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
+    pub fn type_declaration(&self, type_id: u32) -> Result<String> {
+        let stripped_type_id = self.skip_mods_and_typedefs(type_id)?;
+        let ty = self.type_by_id(stripped_type_id)?;
+
+        Ok(match ty {
+            BtfType::Void => "std::ffi::c_void".to_string(),
+            BtfType::Int(t) => {
+                let width = match (t.bits + 7) / 8 {
+                    1 => "8",
+                    2 => "16",
+                    4 => "32",
+                    8 => "64",
+                    16 => "128",
+                    _ => bail!("Invalid integer width"),
+                };
+
+                if t.encoding == btf::BtfIntEncoding::Signed {
+                    format!("i{}", width)
+                } else {
+                    format!("u{}", width)
+                }
+            }
+            BtfType::Ptr(t) => {
+                let pointee_ty = self.type_declaration(t.pointee_type)?;
+
+                format!("*mut {}", pointee_ty)
+            }
+            BtfType::Array(t) => {
+                let val_ty = self.type_declaration(t.val_type_id)?;
+
+                format!("[{}; {}]", val_ty, t.nelems)
+            }
+            BtfType::Struct(t) | BtfType::Union(t) => t.name.to_string(),
+            BtfType::Enum(t) => t.name.to_string(),
+            // The only way a variable references a function is through a function pointer.
+            // Return c_void here so the final def will look like `*mut c_void`.
+            //
+            // It's not like rust code can call a function inside a bpf prog either so we don't
+            // really need a full definition. `void *` is totally sufficient for sharing a pointer.
+            BtfType::Func(_) => "std::ffi::c_void".to_string(),
+            BtfType::Var(t) => self.type_declaration(t.type_id)?,
+            BtfType::Fwd(_)
+            | BtfType::FuncProto(_)
+            | BtfType::Datasec(_)
+            | BtfType::Typedef(_)
+            | BtfType::Volatile(_)
+            | BtfType::Const(_)
+            | BtfType::Restrict(_) => {
+                bail!("Invalid type: {}", ty)
+            }
+        })
+    }
+
+    fn is_struct_packed(&self, struct_type_id: u32, t: &BtfComposite) -> Result<bool> {
+        if !t.is_struct {
+            return Ok(false);
+        }
+
+        let align = self.align_of(struct_type_id)?;
+        ensure!(
+            align != 0,
+            "Failed to get alignment of struct_type_id: {}",
+            struct_type_id
+        );
+
+        // Size of a struct has to be a multiple of its alignment
+        if t.size % align != 0 {
+            return Ok(true);
+        }
+
+        // All the non-bitfield fields have to be naturally aligned
+        for m in &t.members {
+            let align = self.align_of(m.type_id)?;
+            ensure!(
+                align != 0,
+                "Failed to get alignment of m.type_id: {}",
+                m.type_id
+            );
+
+            if m.bit_size == 0 && m.bit_offset % (align * 8) != 0 {
+                return Ok(true);
+            }
+        }
+
+        // Even if original struct was marked as packed, we haven't detected any misalignment, so
+        // there is no effect of packedness for given struct
+        Ok(false)
+    }
+
+    /// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
+    /// type `type_id` needs to be placed at, returns how much padding must be inserted before
+    /// `type_id`.
+    fn required_padding(
+        &self,
+        current_offset: usize,
+        required_offset: usize,
+        type_id: u32,
+        packed: bool,
+    ) -> Result<usize> {
+        ensure!(
+            current_offset <= required_offset,
+            "Current offset ahead of required offset"
+        );
+
+        let align = if packed {
+            1
+        } else {
+            // Assume 32-bit alignment in case we're generating code for 32-bit
+            // arch. Worst case is on a 64-bit arch the compiler will generate
+            // extra padding. The final layout will still be identical to what is
+            // described by BTF.
+            let a = self.align_of(type_id)? as usize;
+            ensure!(a != 0, "Failed to get alignment of type_id: {}", type_id);
+
+            if a > 4 {
+                4
+            } else {
+                a
+            }
+        };
+
+        // If we aren't aligning to the natural offset, padding needs to be inserted
+        let aligned_offset = (current_offset + align - 1) / align * align;
+        if aligned_offset == required_offset {
+            Ok(0)
+        } else {
+            Ok(required_offset - current_offset)
+        }
+    }
+
+    /// Returns rust type definition of `ty` in string format, including dependent types.
+    ///
+    /// `ty` must be a struct, union, enum, or datasec type.
+    pub fn type_definition(&self, type_id: u32) -> Result<String> {
+        let is_terminal = |id| -> Result<bool> {
+            match self.type_by_id(id)?.kind() {
+                BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Datasec => Ok(false),
+                _ => Ok(true),
+            }
+        };
+
+        ensure!(
+            !is_terminal(type_id)?,
+            "Tried to print type definition for terminal type"
+        );
+
+        // Process dependent types until there are none left.
+        //
+        // When we hit a terminal, we write out some stuff. A non-terminal adds more types to
+        // the queue.
+        let mut def = String::new();
+        let mut dependent_types = vec![type_id];
+        let mut processed = BTreeSet::new();
+        while !dependent_types.is_empty() {
+            let type_id = dependent_types.remove(0);
+            if processed.contains(&type_id) {
+                continue;
+            } else {
+                processed.insert(type_id);
+            }
+
+            let ty = self.type_by_id(type_id)?;
+
+            match ty {
+                BtfType::Struct(t) | BtfType::Union(t) => {
+                    let packed = self.is_struct_packed(type_id, t)?;
+
+                    let aggregate_type = if t.is_struct { "struct" } else { "union" };
+                    let packed_repr = if packed { ", packed" } else { "" };
+
+                    writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                    writeln!(def, r#"#[repr(C{})]"#, packed_repr)?;
+                    writeln!(
+                        def,
+                        r#"pub {agg_type} {name} {{"#,
+                        agg_type = aggregate_type,
+                        name = t.name,
+                    )?;
+
+                    let mut offset = 0; // In bytes
+                    for member in &t.members {
+                        ensure!(
+                            member.bit_size == 0 && member.bit_offset % 8 == 0,
+                            "Struct bitfields not supported"
+                        );
+
+                        let field_ty_id = self.skip_mods_and_typedefs(member.type_id)?;
+                        if !is_terminal(field_ty_id)? {
+                            dependent_types.push(field_ty_id);
+                        }
+
+                        // Add padding as necessary
+                        if t.is_struct {
+                            let padding = self.required_padding(
+                                offset,
+                                member.bit_offset as usize / 8,
+                                member.type_id,
+                                packed,
+                            )?;
+
+                            if padding != 0 {
+                                writeln!(
+                                    def,
+                                    r#"    __pad_{offset}: [u8; {padding}],"#,
+                                    offset = offset,
+                                    padding = padding,
+                                )?;
+                            }
+                        }
+
+                        // Set `offset` to end of current var
+                        offset = ((member.bit_offset / 8) + self.size_of(field_ty_id)?) as usize;
+
+                        writeln!(
+                            def,
+                            r#"    pub {field_name}: {field_ty_str},"#,
+                            field_name = member.name,
+                            field_ty_str = self.type_declaration(field_ty_id)?,
+                        )?;
+                    }
+
+                    writeln!(def, "}}")?;
+                }
+                BtfType::Enum(t) => {
+                    let repr_size = match t.size {
+                        1 => "8",
+                        2 => "16",
+                        4 => "32",
+                        8 => "64",
+                        16 => "128",
+                        _ => bail!("Invalid enum size: {}", t.size),
+                    };
+
+                    let mut signed = "u";
+                    for value in &t.values {
+                        if value.value < 0 {
+                            signed = "i";
+                            break;
+                        }
+                    }
+
+                    writeln!(def, r#"#[derive(Debug, Copy, Clone, PartialEq)]"#)?;
+                    writeln!(
+                        def,
+                        r#"#[repr({signed}{repr_size})]"#,
+                        signed = signed,
+                        repr_size = repr_size,
+                    )?;
+                    writeln!(def, r#"pub enum {name} {{"#, name = t.name,)?;
+
+                    for value in &t.values {
+                        writeln!(
+                            def,
+                            r#"    {name} = {value},"#,
+                            name = value.name,
+                            value = value.value,
+                        )?;
+                    }
+
+                    writeln!(def, "}}")?;
+                }
+                BtfType::Datasec(t) => {
+                    let mut sec_name = t.name.to_string();
+                    if sec_name.is_empty() || !sec_name.starts_with('.') {
+                        bail!("Datasec name is invalid: {}", sec_name);
+                    }
+                    sec_name.remove(0);
+
+                    writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                    writeln!(def, r#"#[repr(C)]"#)?;
+                    writeln!(def, r#"pub struct {} {{"#, sec_name,)?;
+
+                    let mut offset: u32 = 0;
+                    for datasec_var in &t.vars {
+                        let var = match self.type_by_id(datasec_var.type_id)? {
+                            BtfType::Var(v) => {
+                                let stripped_var_type_id =
+                                    self.skip_mods_and_typedefs(v.type_id)?;
+                                if !is_terminal(stripped_var_type_id)? {
+                                    dependent_types.push(stripped_var_type_id);
+                                }
+
+                                v
+                            }
+                            _ => bail!("BTF is invalid! Datasec var does not point to a var"),
+                        };
+
+                        let padding = self.required_padding(
+                            offset as usize,
+                            datasec_var.offset as usize,
+                            var.type_id,
+                            false,
+                        )?;
+                        if padding != 0 {
+                            writeln!(def, r#"    __pad_{}: [u8; {}],"#, offset, padding,)?;
+                        }
+
+                        // Set `offset` to end of current var
+                        offset = datasec_var.offset + datasec_var.size;
+
+                        writeln!(
+                            def,
+                            r#"    pub {var_name}: {var_type},"#,
+                            var_name = var.name,
+                            var_type = self.type_declaration(var.type_id)?
+                        )?;
+                    }
+
+                    writeln!(def, "}}")?;
+                }
+                BtfType::Void
+                | BtfType::Ptr(_)
+                | BtfType::Func(_)
+                | BtfType::Int(_)
+                | BtfType::Array(_)
+                | BtfType::Fwd(_)
+                | BtfType::Typedef(_)
+                | BtfType::FuncProto(_)
+                | BtfType::Var(_)
+                | BtfType::Volatile(_)
+                | BtfType::Const(_)
+                | BtfType::Restrict(_) => bail!("Invalid type: {}", ty),
+            }
+        }
+
+        Ok(def)
     }
 
     pub fn skip_mods_and_typedefs(&self, mut type_id: u32) -> Result<u32> {
