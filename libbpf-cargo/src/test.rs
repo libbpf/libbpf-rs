@@ -592,6 +592,117 @@ fn test_skeleton_basic() {
 }
 
 #[test]
+fn test_skeleton_datasec() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        int myglobal = 0;
+        void * const myconst = 0;
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {{
+                return 0;
+        }}
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    assert_eq!(
+        make(
+            true,
+            Some(&cargo_toml),
+            Path::new("/bin/clang"),
+            true,
+            true,
+            Vec::new(),
+            None
+        ),
+        0
+    );
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        mod bpf;
+        use bpf::*;
+
+        fn main() {{
+            let mut builder = ProgSkelBuilder::default();
+            let mut open_skel = builder
+                .open()
+                .expect("failed to open skel");
+
+            // Check that we set rodata vars before load
+            open_skel.rodata().myconst = std::ptr::null_mut();
+
+            // We can always set bss vars
+            open_skel.bss().myglobal = 42;
+
+            let mut skel = open_skel
+                .load()
+                .expect("failed to load skel");
+
+            // We can always set bss vars
+            skel.bss().myglobal = 24;
+
+            // Read only for rodata after load
+            let _rodata: &prog_rodata_types::rodata = skel.rodata();
+        }}
+        "#,
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
+#[test]
 fn test_btf_dump_basic() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
