@@ -94,28 +94,29 @@ fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
 
-fn canonicalize_internal_map_name(s: &str) -> Result<String> {
+fn canonicalize_internal_map_name(s: &str) -> Option<String> {
     if s.ends_with(".data") {
-        Ok("data".to_string())
+        Some("data".to_string())
     } else if s.ends_with(".rodata") {
-        Ok("rodata".to_string())
+        Some("rodata".to_string())
     } else if s.ends_with(".bss") {
-        Ok("bss".to_string())
+        Some("bss".to_string())
     } else if s.ends_with(".kconfig") {
-        Ok("kconfig".to_string())
+        Some("kconfig".to_string())
     } else {
-        bail!("Unknown map type: {}", s);
+        eprintln!("Warning: unrecognized map: {}", s);
+        None
     }
 }
 
 /// Same as `get_raw_map_name` except the name is canonicalized
-fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
+fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
     let name = get_raw_map_name(map)?;
 
     if unsafe { !libbpf_sys::bpf_map__is_internal(map) } {
-        Ok(name)
+        Ok(Some(name))
     } else {
-        canonicalize_internal_map_name(&name)
+        Ok(canonicalize_internal_map_name(&name))
     }
 }
 
@@ -235,6 +236,11 @@ fn gen_skel_map_defs(
     )?;
 
     for map in MapIter::new(object) {
+        let map_name = match get_map_name(map)? {
+            Some(n) => n,
+            None => continue,
+        };
+
         write!(
             skel,
             r#"
@@ -242,7 +248,7 @@ fn gen_skel_map_defs(
                 self.inner.map_unwrap("{raw_map_name}")
             }}
             "#,
-            map_name = get_map_name(map)?,
+            map_name = map_name,
             raw_map_name = get_raw_map_name(map)?,
             return_ty = return_ty,
         )?;
@@ -316,7 +322,10 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
 
     for (idx, ty) in btf.types().iter().enumerate() {
         if let btf::BtfType::Datasec(d) = ty {
-            let sec_ident = canonicalize_internal_map_name(d.name)?;
+            let sec_ident = match canonicalize_internal_map_name(d.name) {
+                Some(n) => n,
+                None => continue,
+            };
 
             write!(
                 skel,
