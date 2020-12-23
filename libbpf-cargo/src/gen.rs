@@ -4,7 +4,7 @@ use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
 
@@ -14,6 +14,12 @@ use memmap::Mmap;
 use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
+
+enum OutputDest<'a> {
+    Stdout,
+    /// Infer a filename and place file in specified directory
+    Directory(&'a Path),
+}
 
 macro_rules! gen_bpf_object_iter {
     ($name:ident, $iter_ty:ty, $next_fn:expr) => {
@@ -603,7 +609,7 @@ fn gen_skel_attach(
 }
 
 /// Generate contents of a single skeleton
-fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
+fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> Result<String> {
     let mut skel = String::new();
 
     write!(
@@ -620,24 +626,21 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
         "#
     )?;
 
-    let mut obj_file_path = obj.out.clone();
-    obj_file_path.push(format!("{}.bpf.o", obj.name));
-
     write!(
         skel,
         r#"
         const DATA: &[u8] = include_bytes!("{}");
         "#,
-        obj_file_path.as_path().display()
+        obj_file_path.display()
     )?;
 
     // Open bpf_object so we can iterate over maps and progs
-    let file = File::open(obj_file_path.as_path())?;
+    let file = File::open(obj_file_path)?;
     let mmap = unsafe { Mmap::map(&file)? };
-    let object = open_bpf_object(&obj.name, &*mmap)?;
-    let obj_name = capitalize_first_letter(&obj.name);
+    let object = open_bpf_object(raw_obj_name, &*mmap)?;
+    let obj_name = capitalize_first_letter(raw_obj_name);
 
-    gen_skel_c_skel_constructor(&mut skel, object, &obj.name)?;
+    gen_skel_c_skel_constructor(&mut skel, object, &raw_obj_name)?;
 
     write!(
         skel,
@@ -671,7 +674,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 
     gen_skel_map_defs(&mut skel, object, &obj_name, true)?;
     gen_skel_prog_defs(&mut skel, object, &obj_name, true)?;
-    gen_skel_datasec_defs(&mut skel, &obj.name, &*mmap)?;
+    gen_skel_datasec_defs(&mut skel, raw_obj_name, &*mmap)?;
 
     write!(
         skel,
@@ -706,7 +709,7 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, true)?;
     gen_skel_map_getter(&mut skel, object, &obj_name, true)?;
-    gen_skel_datasec_getters(&mut skel, object, &obj.name, false)?;
+    gen_skel_datasec_getters(&mut skel, object, raw_obj_name, false)?;
     writeln!(skel, "}}")?;
 
     gen_skel_map_defs(&mut skel, object, &obj_name, false)?;
@@ -734,26 +737,35 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, false)?;
     gen_skel_map_getter(&mut skel, object, &obj_name, false)?;
-    gen_skel_datasec_getters(&mut skel, object, &obj.name, true)?;
+    gen_skel_datasec_getters(&mut skel, object, raw_obj_name, true)?;
     gen_skel_attach(&mut skel, object, &obj_name)?;
     writeln!(skel, "}}")?;
 
     Ok(skel)
 }
 
-/// Write a single skeleton to disk
-fn gen_skel(debug: bool, obj: &UnprocessedObj, rustfmt_path: Option<&PathBuf>) -> Result<()> {
-    if obj.name.is_empty() {
+/// Generate a single skeleton
+fn gen_skel(
+    debug: bool,
+    name: &str,
+    obj: &Path,
+    out: OutputDest,
+    rustfmt_path: Option<&PathBuf>,
+) -> Result<()> {
+    if name.is_empty() {
         bail!("Object file has no name");
     }
 
-    let skel = rustfmt(&gen_skel_contents(debug, obj)?, rustfmt_path)?;
+    let skel = rustfmt(&gen_skel_contents(debug, name, obj)?, rustfmt_path)?;
 
-    let mut path = obj.path.clone();
-    path.pop();
-    path.push(format!("{}.skel.rs", obj.name));
-    let mut file = File::create(path)?;
-    file.write_all(skel.as_bytes())?;
+    match out {
+        OutputDest::Stdout => print!("{}", skel),
+        OutputDest::Directory(dir) => {
+            let path = dir.join(format!("{}.skel.rs", name));
+            let mut file = File::create(path)?;
+            file.write_all(skel.as_bytes())?;
+        }
+    };
 
     Ok(())
 }
@@ -808,7 +820,55 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     Ok(())
 }
 
-pub fn gen(debug: bool, manifest_path: Option<&PathBuf>, rustfmt_path: Option<&PathBuf>) -> i32 {
+fn gen_single(debug: bool, obj_file: &Path, rustfmt_path: Option<&PathBuf>) -> i32 {
+    let filename = match obj_file.file_name() {
+        Some(n) => n,
+        None => {
+            eprintln!(
+                "Could not determine file name for object file: {}",
+                obj_file.to_string_lossy()
+            );
+            return 1;
+        }
+    };
+
+    let name = match filename.to_str() {
+        Some(n) => {
+            if !n.ends_with(".o") {
+                eprintln!("Object file does not have `.o` suffix: {}", n);
+                return 1;
+            }
+
+            n.split('.').nth(0).unwrap()
+        }
+        None => {
+            eprintln!(
+                "Object file name is not valid unicode: {}",
+                filename.to_string_lossy()
+            );
+            return 1;
+        }
+    };
+
+    match gen_skel(debug, name, obj_file, OutputDest::Stdout, rustfmt_path) {
+        Ok(_) => 0,
+        Err(e) => {
+            eprintln!(
+                "Failed to generate skeleton for {}: {}",
+                obj_file.to_string_lossy(),
+                e
+            );
+
+            1
+        }
+    }
+}
+
+fn gen_project(
+    debug: bool,
+    manifest_path: Option<&PathBuf>,
+    rustfmt_path: Option<&PathBuf>,
+) -> i32 {
     let to_gen = match metadata::get(debug, manifest_path) {
         Ok(v) => v,
         Err(e) => {
@@ -831,7 +891,19 @@ pub fn gen(debug: bool, manifest_path: Option<&PathBuf>, rustfmt_path: Option<&P
     let mut package_objs: BTreeMap<String, Vec<UnprocessedObj>> = BTreeMap::new();
 
     for obj in to_gen {
-        match gen_skel(debug, &obj, rustfmt_path) {
+        let mut obj_file_path = obj.out.clone();
+        obj_file_path.push(format!("{}.bpf.o", obj.name));
+
+        let mut skel_path = obj.path.clone();
+        skel_path.pop();
+
+        match gen_skel(
+            debug,
+            &obj.name,
+            obj_file_path.as_path(),
+            OutputDest::Directory(skel_path.as_path()),
+            rustfmt_path,
+        ) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!(
@@ -862,4 +934,22 @@ pub fn gen(debug: bool, manifest_path: Option<&PathBuf>, rustfmt_path: Option<&P
     }
 
     0
+}
+
+pub fn gen(
+    debug: bool,
+    manifest_path: Option<&PathBuf>,
+    rustfmt_path: Option<&PathBuf>,
+    object: Option<&PathBuf>,
+) -> i32 {
+    if manifest_path.is_some() && object.is_some() {
+        eprintln!("--manifest-path and --object cannot be used together");
+        return 1;
+    }
+
+    if let Some(obj_file) = object {
+        gen_single(debug, obj_file, rustfmt_path)
+    } else {
+        gen_project(debug, manifest_path, rustfmt_path)
+    }
 }
