@@ -24,7 +24,7 @@ pub fn make(
     if !quiet {
         println!("Generating skeletons");
     }
-    ret = gen::gen(debug, manifest_path, rustfmt_path);
+    ret = gen::gen(debug, manifest_path, None, rustfmt_path);
     if ret != 0 {
         eprintln!("Failed to generate skeletons");
         return ret;

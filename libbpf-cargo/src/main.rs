@@ -85,6 +85,11 @@ enum Command {
         #[structopt(long, parse(from_os_str))]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
+        #[structopt(long, parse(from_os_str))]
+        /// Generate skeleton for the specified object file and print results to stdout
+        ///
+        /// When specified, skeletons for the rest of the project will not be generated
+        object: Option<PathBuf>,
     },
     Make {
         #[structopt(short, long)]
@@ -132,7 +137,13 @@ fn main() {
                 debug,
                 manifest_path,
                 rustfmt_path,
-            } => gen::gen(debug, manifest_path.as_ref(), rustfmt_path.as_ref()),
+                object,
+            } => gen::gen(
+                debug,
+                manifest_path.as_ref(),
+                rustfmt_path.as_ref(),
+                object.as_ref(),
+            ),
             Command::Make {
                 debug,
                 manifest_path,
