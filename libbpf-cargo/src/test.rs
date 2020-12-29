@@ -302,7 +302,8 @@ fn test_make_basic() {
             Path::new("/bin/clang"),
             true,
             true,
-            Vec::new()
+            Vec::new(),
+            None,
         ),
         0
     );
@@ -340,7 +341,8 @@ fn test_make_workspace() {
             Path::new("/bin/clang"),
             true,
             true,
-            Vec::new()
+            Vec::new(),
+            None
         ),
         0
     );
@@ -390,7 +392,8 @@ fn test_skeleton_empty_source() {
             Path::new("/bin/clang"),
             true,
             true,
-            Vec::new()
+            Vec::new(),
+            None
         ),
         0
     );
@@ -509,7 +512,8 @@ fn test_skeleton_basic() {
             Path::new("/bin/clang"),
             true,
             true,
-            Vec::new()
+            Vec::new(),
+            None
         ),
         0
     );

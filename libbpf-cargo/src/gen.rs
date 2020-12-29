@@ -52,11 +52,15 @@ gen_bpf_object_iter!(
 );
 
 /// Run `rustfmt` over `s` and return result
-fn rustfmt(s: &str) -> Result<String> {
-    let mut cmd = Command::new("rustfmt")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()?;
+fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
+    let mut cmd = if let Some(r) = rustfmt_path {
+        Command::new(r)
+    } else {
+        Command::new("rustfmt")
+    }
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .spawn()?;
     write!(cmd.stdin.take().unwrap(), "{}", s)?;
     let output = cmd.wait_with_output()?;
 
@@ -610,12 +614,12 @@ fn gen_skel_contents(_debug: bool, obj: &UnprocessedObj) -> Result<String> {
 }
 
 /// Write a single skeleton to disk
-fn gen_skel(debug: bool, obj: &UnprocessedObj) -> Result<()> {
+fn gen_skel(debug: bool, obj: &UnprocessedObj, rustfmt_path: Option<&PathBuf>) -> Result<()> {
     if obj.name.is_empty() {
         bail!("Object file has no name");
     }
 
-    let skel = rustfmt(&gen_skel_contents(debug, obj)?)?;
+    let skel = rustfmt(&gen_skel_contents(debug, obj)?, rustfmt_path)?;
 
     let mut path = obj.path.clone();
     path.pop();
@@ -629,7 +633,7 @@ fn gen_skel(debug: bool, obj: &UnprocessedObj) -> Result<()> {
 /// Generate mod.rs in src/bpf directory of each project.
 ///
 /// Each `UnprocessedObj` in `objs` must belong to same project.
-pub fn gen_mods(objs: &[UnprocessedObj]) -> Result<()> {
+pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Result<()> {
     if objs.is_empty() {
         return Ok(());
     }
@@ -671,12 +675,12 @@ pub fn gen_mods(objs: &[UnprocessedObj]) -> Result<()> {
     }
 
     let mut file = File::create(path)?;
-    file.write_all(rustfmt(&contents)?.as_bytes())?;
+    file.write_all(rustfmt(&contents, rustfmt_path)?.as_bytes())?;
 
     Ok(())
 }
 
-pub fn gen(debug: bool, manifest_path: Option<&PathBuf>) -> i32 {
+pub fn gen(debug: bool, manifest_path: Option<&PathBuf>, rustfmt_path: Option<&PathBuf>) -> i32 {
     let to_gen = match metadata::get(debug, manifest_path) {
         Ok(v) => v,
         Err(e) => {
@@ -699,7 +703,7 @@ pub fn gen(debug: bool, manifest_path: Option<&PathBuf>) -> i32 {
     let mut package_objs: BTreeMap<String, Vec<UnprocessedObj>> = BTreeMap::new();
 
     for obj in to_gen {
-        match gen_skel(debug, &obj) {
+        match gen_skel(debug, &obj, rustfmt_path) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!(
@@ -720,7 +724,7 @@ pub fn gen(debug: bool, manifest_path: Option<&PathBuf>) -> i32 {
     }
 
     for (package, objs) in package_objs {
-        match gen_mods(&objs) {
+        match gen_mods(&objs, rustfmt_path) {
             Ok(_) => (),
             Err(e) => {
                 eprintln!("Failed to generate mod.rs for package={}: {}", package, e);

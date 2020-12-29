@@ -10,6 +10,7 @@ pub fn make(
     skip_clang_version_checks: bool,
     quiet: bool,
     cargo_build_args: Vec<String>,
+    rustfmt_path: Option<&PathBuf>,
 ) -> i32 {
     if !quiet {
         println!("Compiling BPF objects");
@@ -23,7 +24,7 @@ pub fn make(
     if !quiet {
         println!("Generating skeletons");
     }
-    ret = gen::gen(debug, manifest_path);
+    ret = gen::gen(debug, manifest_path, rustfmt_path);
     if ret != 0 {
         eprintln!("Failed to generate skeletons");
         return ret;

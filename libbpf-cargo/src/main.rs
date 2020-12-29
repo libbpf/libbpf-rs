@@ -81,6 +81,9 @@ enum Command {
         #[structopt(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
+        #[structopt(long, parse(from_os_str))]
+        /// Path to rustfmt binary
+        rustfmt_path: Option<PathBuf>,
     },
     Make {
         #[structopt(short, long)]
@@ -101,6 +104,9 @@ enum Command {
         ///
         /// Example: cargo libbpf build -- --package mypackage
         cargo_build_args: Vec<String>,
+        #[structopt(long, parse(from_os_str))]
+        /// Path to rustfmt binary
+        rustfmt_path: Option<PathBuf>,
     },
 }
 
@@ -124,7 +130,8 @@ fn main() {
             Command::Gen {
                 debug,
                 manifest_path,
-            } => gen::gen(debug, manifest_path.as_ref()),
+                rustfmt_path,
+            } => gen::gen(debug, manifest_path.as_ref(), rustfmt_path.as_ref()),
             Command::Make {
                 debug,
                 manifest_path,
@@ -132,6 +139,7 @@ fn main() {
                 skip_clang_version_checks,
                 quiet,
                 cargo_build_args,
+                rustfmt_path,
             } => make::make(
                 debug,
                 manifest_path.as_ref(),
@@ -139,6 +147,7 @@ fn main() {
                 skip_clang_version_checks,
                 quiet,
                 cargo_build_args,
+                rustfmt_path.as_ref(),
             ),
         },
     };
