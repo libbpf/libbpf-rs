@@ -335,14 +335,14 @@ impl LinkInfo {
                 attach_type: ProgramAttachType::try_from(unsafe {
                     s.__bindgen_anon_1.tracing.attach_type
                 })
-                .unwrap_or_else(|_| ProgramAttachType::Unknown),
+                .unwrap_or(ProgramAttachType::Unknown),
             }),
             libbpf_sys::BPF_LINK_TYPE_CGROUP => LinkTypeInfo::Cgroup(CgroupLinkInfo {
                 cgroup_id: unsafe { s.__bindgen_anon_1.cgroup.cgroup_id },
                 attach_type: ProgramAttachType::try_from(unsafe {
                     s.__bindgen_anon_1.cgroup.attach_type
                 })
-                .unwrap_or_else(|_| ProgramAttachType::Unknown),
+                .unwrap_or(ProgramAttachType::Unknown),
             }),
             libbpf_sys::BPF_LINK_TYPE_ITER => LinkTypeInfo::Iter,
             libbpf_sys::BPF_LINK_TYPE_NETNS => LinkTypeInfo::NetNs(NetNsLinkInfo {
@@ -350,7 +350,7 @@ impl LinkInfo {
                 attach_type: ProgramAttachType::try_from(unsafe {
                     s.__bindgen_anon_1.netns.attach_type
                 })
-                .unwrap_or_else(|_| ProgramAttachType::Unknown),
+                .unwrap_or(ProgramAttachType::Unknown),
             }),
             _ => LinkTypeInfo::Unknown,
         };

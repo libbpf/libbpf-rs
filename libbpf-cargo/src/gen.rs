@@ -839,7 +839,7 @@ fn gen_single(debug: bool, obj_file: &Path, rustfmt_path: Option<&PathBuf>) -> i
                 return 1;
             }
 
-            n.split('.').nth(0).unwrap()
+            n.split('.').next().unwrap()
         }
         None => {
             eprintln!(
