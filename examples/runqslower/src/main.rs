@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 use core::time::Duration;
-use std::process::exit;
 
 use anyhow::{bail, Result};
 use chrono::Local;
@@ -100,13 +99,6 @@ fn main() -> Result<()> {
         .build()?;
 
     loop {
-        let ret = perf.poll(Duration::from_millis(100));
-        match ret {
-            Ok(()) => (),
-            Err(e) => {
-                eprintln!("Error polling perf buffer: {}", e);
-                exit(1);
-            }
-        };
+        perf.poll(Duration::from_millis(100))?;
     }
 }
