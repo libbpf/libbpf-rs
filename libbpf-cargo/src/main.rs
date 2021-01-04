@@ -40,28 +40,8 @@ enum Wrapper {
 #[structopt(verbatim_doc_comment)]
 ///
 /// cargo-libbpf is a cargo subcommand that helps develop and build eBPF (BPF) programs.
-///
-/// libbpf-cargo provides the following Cargo.toml configuration options:
-///
-///     [package.metadata.libbpf]
-///     prog_dir = "src/other_bpf_dir"  # default: <manifest_directory>/src/bpf
-///     target_dir = "other_target_dir" # default: <target_dir>/bpf
-///
-/// `prog_dir`: path relative to package Cargo.toml to search for bpf progs
-/// `target_dir`: path relative to workspace target directory to place compiled bpf progs
 enum Command {
     /// Build bpf programs
-    ///
-    /// `cargo libbpf build` compiles `<NAME>.bpf.c` C files into corresponding `<NAME>.bpf.o` ELF
-    /// object files. Each object file may contain one or more BPF programs, maps, and associated
-    /// metadata. The object file may then be handed over to `libbpf-rs` for loading and interaction.
-    ///
-    /// cargo-libbpf-build enforces a few conventions:
-    ///
-    /// * source file names must be in the `<NAME>.bpf.c` format
-    /// * object file names will be generated in `<NAME>.bpf.o` format
-    /// * there may not be any two identical `<NAME>.bpf.c` file names in any two projects in a
-    ///   cargo workspace
     Build {
         #[structopt(short, long)]
         debug: bool,
@@ -91,6 +71,7 @@ enum Command {
         /// When specified, skeletons for the rest of the project will not be generated
         object: Option<PathBuf>,
     },
+    /// Build project
     Make {
         #[structopt(short, long)]
         debug: bool,

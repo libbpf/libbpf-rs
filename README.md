@@ -32,3 +32,5 @@ To use:
 $ cargo install libbpf-cargo
 $ cargo libbpf --help
 ```
+
+See [full documentation here](https://docs.rs/libbpf-cargo).
