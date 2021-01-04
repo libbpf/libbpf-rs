@@ -7,9 +7,11 @@
 //!
 //! libbpf-cargo provides the following Cargo.toml configuration options:
 //!
-//!     [package.metadata.libbpf]
-//!     prog_dir = "src/other_bpf_dir"  # default: <manifest_directory>/src/bpf
-//!     target_dir = "other_target_dir" # default: <target_dir>/bpf
+//! ```text
+//! [package.metadata.libbpf]
+//! prog_dir = "src/other_bpf_dir"  # default: <manifest_directory>/src/bpf
+//! target_dir = "other_target_dir" # default: <target_dir>/bpf
+//! ```
 //!
 //! * `prog_dir`: path relative to package Cargo.toml to search for bpf progs
 //! * `target_dir`: path relative to workspace target directory to place compiled bpf progs
