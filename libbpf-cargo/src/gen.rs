@@ -626,14 +626,6 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         "#
     )?;
 
-    write!(
-        skel,
-        r#"
-        const DATA: &[u8] = include_bytes!("{}");
-        "#,
-        obj_file_path.display()
-    )?;
-
     // Open bpf_object so we can iterate over maps and progs
     let file = File::open(obj_file_path)?;
     let mmap = unsafe { Mmap::map(&file)? };
@@ -740,6 +732,16 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     gen_skel_datasec_getters(&mut skel, object, raw_obj_name, true)?;
     gen_skel_attach(&mut skel, object, &obj_name)?;
     writeln!(skel, "}}")?;
+
+    // Coerce to &[u8] just to be safe, as we'll be using debug formatting
+    let bytes: &[u8] = &*mmap;
+    write!(
+        skel,
+        r#"
+        const DATA: &[u8] = &{:?};
+        "#,
+        bytes
+    )?;
 
     Ok(skel)
 }
