@@ -197,6 +197,7 @@ dependencies = [
  "libc",
  "nix",
  "num_enum",
+ "plain",
  "strum_macros",
  "thiserror",
  "vsprintf",
