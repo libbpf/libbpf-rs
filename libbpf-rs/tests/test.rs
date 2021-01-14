@@ -248,7 +248,7 @@ fn test_object_link_pin() {
 }
 
 #[test]
-fn test_ringbuf() {
+fn test_object_ringbuf() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("ringbuf.bpf.o");
@@ -292,7 +292,7 @@ fn test_ringbuf() {
         .expect_err("This shouldn't work until we add a ringbuf");
 
     let map1 = obj
-        .map_immut("ringbuf1")
+        .map("ringbuf1")
         .expect("Error getting ringbuf1 map")
         .expect("Failed to get ringbuf1 map");
 
@@ -300,7 +300,7 @@ fn test_ringbuf() {
         .expect("Failed to add ringbuf");
 
     let map2 = obj
-        .map_immut("ringbuf2")
+        .map("ringbuf2")
         .expect("Error getting ringbuf2 map")
         .expect("Failed to get ringbuf2 map");
 
