@@ -6,82 +6,128 @@ use std::time::Duration;
 
 use crate::*;
 
-/// The canonical interface for managing a collection of [`RingBuffer`]s.
+type Callback = fn(&[u8]) -> i32;
+
+/// Builds [`RingBuffer`] instances.
 ///
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
-pub struct RingBufferManager<F>
-where
-    F: FnMut(&[u8]) -> i32 + 'static,
-{
-    ptr: *mut libbpf_sys::ring_buffer,
-    ringbufs: Vec<Box<F>>,
+#[derive(Default)]
+pub struct RingBufferBuilder {
+    fd_callbacks: Vec<(i32, Box<Callback>)>,
 }
 
-impl<F> RingBufferManager<F>
-where
-    F: FnMut(&[u8]) -> i32 + 'static,
-{
+impl RingBufferBuilder {
+    pub fn new() -> Self {
+        RingBufferBuilder {
+            fd_callbacks: vec![],
+        }
+    }
+
     /// Add a new ringbuf `map` and associated `callback` to this ring buffer
     /// manager. The callback should take one argument, a slice of raw bytes,
     /// and return an i32.
     ///
-    /// Non-zero return values will stop ring buffer consumption early.
+    /// Non-zero return values in the callback will stop ring buffer consumption early.
+    ///
+    /// Callback is defined as:
+    /// ```rust
+    /// type Callback = fn(&[u8]) -> i32;
+    /// ```
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
-    pub fn add_ringbuf(&mut self, map: &Map, callback: F) -> Result<&mut Self> {
-        let callback = Box::new(callback);
-        let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
-        let sample_cb_ptr = Box::into_raw(callback);
-
-        if self.ptr.is_null() {
-            // Allocate a new ringbuf manager
-            self.ptr = unsafe {
-                libbpf_sys::ring_buffer__new(
-                    map.fd(),
-                    c_sample_cb,
-                    sample_cb_ptr as *mut _,
-                    std::ptr::null_mut(),
-                )
-            };
-
-            // Handle errors
-            let err = unsafe { libbpf_sys::libbpf_get_error(self.ptr as *const _) };
-            if err != 0 {
-                return Err(Error::System(err as i32));
-            }
-        } else {
-            // Add a ringbuf to the existing ringbuf manager
-            let err = unsafe {
-                libbpf_sys::ring_buffer__add(
-                    self.ptr,
-                    map.fd(),
-                    c_sample_cb,
-                    sample_cb_ptr as *mut _,
-                )
-            };
-
-            // Handle errors
-            if err != 0 {
-                return Err(Error::System(err as i32));
-            }
+    pub fn add(&mut self, map: &Map, callback: Callback) -> Result<&mut Self> {
+        if map.map_type() != MapType::RingBuf {
+            return Err(Error::InvalidInput("Must use a RingBuf map".into()));
         }
-
-        self.ringbufs.push(unsafe { Box::from_raw(sample_cb_ptr) });
-
+        self.fd_callbacks.push((map.fd(), Box::new(callback)));
         Ok(self)
     }
 
+    /// Build a new [`RingBuffer`]. Must have added at least one ringbuf.
+    pub fn build(&self) -> Result<RingBuffer<Callback>> {
+        let mut ringbufs = vec![];
+        let mut ptr: *mut libbpf_sys::ring_buffer = ptr::null_mut();
+        let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
+
+        for (fd, callback) in self.fd_callbacks.clone() {
+            let sample_cb_ptr = Box::into_raw(callback);
+            if ptr.is_null() {
+                // Allocate a new ringbuf manager and add a ringbuf to it
+                ptr = unsafe {
+                    libbpf_sys::ring_buffer__new(
+                        fd,
+                        c_sample_cb,
+                        sample_cb_ptr as *mut _,
+                        std::ptr::null_mut(),
+                    )
+                };
+
+                // Handle errors
+                let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+            } else {
+                // Add a ringbuf to the existing ringbuf manager
+                let err = unsafe {
+                    libbpf_sys::ring_buffer__add(ptr, fd, c_sample_cb, sample_cb_ptr as *mut _)
+                };
+
+                // Handle errors
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+            }
+
+            ringbufs.push(unsafe { Box::from_raw(sample_cb_ptr) });
+        }
+
+        if ptr.is_null() {
+            return Err(Error::InvalidInput(
+                "You must add at least one ring buffer map and callback before building".into(),
+            ));
+        }
+
+        Ok(RingBuffer {
+            ptr,
+            _ringbufs: ringbufs,
+        })
+    }
+
+    unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: u64) -> i32 {
+        let callback_ptr = ctx as *mut Callback;
+        let callback = &mut *callback_ptr;
+
+        callback(slice::from_raw_parts(data as *const u8, size as usize))
+    }
+}
+
+/// The canonical interface for managing a collection of `ringbuf` maps.
+///
+/// `ringbuf`s are a special kind of [`Map`], used to transfer data between
+/// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
+/// preferred over the `perf buffer`.
+pub struct RingBuffer<F>
+where
+    F: FnMut(&[u8]) -> i32 + 'static,
+{
+    ptr: *mut libbpf_sys::ring_buffer,
+    _ringbufs: Vec<Box<F>>,
+}
+
+impl<F> RingBuffer<F>
+where
+    F: FnMut(&[u8]) -> i32 + 'static,
+{
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
     /// or `timeout` is reached.
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         if self.ptr.is_null() {
-            return Err(Error::InvalidInput(
-                "You must add at least one ring buffer before polling".into(),
-            ));
+            return Err(Error::Internal("Null ringbuf pointer".into()));
         }
 
         let ret = unsafe { libbpf_sys::ring_buffer__poll(self.ptr, timeout.as_millis() as i32) };
@@ -98,9 +144,7 @@ where
     /// to consume or one of the callbacks returns a non-zero integer.
     pub fn consume(&self) -> Result<()> {
         if self.ptr.is_null() {
-            return Err(Error::InvalidInput(
-                "You must add at least one ring buffer before consuming".into(),
-            ));
+            return Err(Error::Internal("Null ringbuf pointer".into()));
         }
 
         let ret = unsafe { libbpf_sys::ring_buffer__consume(self.ptr) };
@@ -111,30 +155,11 @@ where
             Ok(())
         }
     }
-
-    unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: u64) -> i32 {
-        let callback_ptr = ctx as *mut F;
-        let callback = &mut *callback_ptr;
-
-        callback(slice::from_raw_parts(data as *const u8, size as usize))
-    }
 }
 
-impl<F> Default for RingBufferManager<F>
+impl<F> Drop for RingBuffer<F>
 where
-    F: FnMut(&[u8]) -> i32,
-{
-    fn default() -> Self {
-        Self {
-            ptr: ptr::null_mut(),
-            ringbufs: vec![],
-        }
-    }
-}
-
-impl<F> Drop for RingBufferManager<F>
-where
-    F: FnMut(&[u8]) -> i32,
+    F: FnMut(&[u8]) -> i32 + 'static,
 {
     fn drop(&mut self) {
         unsafe {

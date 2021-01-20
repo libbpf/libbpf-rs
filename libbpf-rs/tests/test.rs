@@ -69,12 +69,10 @@ fn test_object_name() {
 #[test]
 fn test_object_maps() {
     let mut obj = get_test_object("runqslower.bpf.o");
-    let map1 = obj
-        .map("start")
+    obj.map("start")
         .expect("error finding map")
         .expect("failed to find map");
-    let map2 = obj
-        .map("events")
+    obj.map("events")
         .expect("error finding map")
         .expect("failed to find map");
     assert!(obj.map("asdf").expect("error finding map").is_none());
@@ -258,15 +256,15 @@ fn test_object_ringbuf() {
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
-    static mut v1: i32 = 0;
-    static mut v2: i32 = 0;
+    static mut V1: i32 = 0;
+    static mut V2: i32 = 0;
 
     fn callback1(data: &[u8]) -> i32 {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
         unsafe {
-            v1 = value;
+            V1 = value;
         }
 
         0
@@ -277,35 +275,42 @@ fn test_object_ringbuf() {
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
         unsafe {
-            v2 = value;
+            V2 = value;
         }
 
         0
     }
 
-    let mut mgr = libbpf_rs::RingBufferManager::default();
+    // Test trying to build without adding any ringbufs
+    // Can't use expect_err here since RingBuffer does not implement Debug
+    let builder = libbpf_rs::RingBufferBuilder::new();
+    if let Ok(_) = builder.build() {
+        assert!(
+            false,
+            "Should not be able to build without adding at least one ringbuf"
+        );
+    }
 
-    mgr.poll(Duration::from_millis(100))
-        .expect_err("This shouldn't work until we add a ringbuf");
+    // Test building with multiple map objects
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
 
-    mgr.consume()
-        .expect_err("This shouldn't work until we add a ringbuf");
-
+    // Add a first map and callback
     let map1 = obj
         .map("ringbuf1")
         .expect("Error getting ringbuf1 map")
         .expect("Failed to get ringbuf1 map");
 
-    mgr.add_ringbuf(map1, callback1 as fn(&[u8]) -> i32)
-        .expect("Failed to add ringbuf");
+    builder.add(map1, callback1).expect("Failed to add ringbuf");
 
+    // Add a second map and callback
     let map2 = obj
         .map("ringbuf2")
         .expect("Error getting ringbuf2 map")
         .expect("Failed to get ringbuf2 map");
 
-    mgr.add_ringbuf(map2, callback2)
-        .expect("Failed to set ringbuf");
+    builder.add(map2, callback2).expect("Failed to add ringbuf");
+
+    let mgr = builder.build().expect("Failed to build");
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
@@ -314,12 +319,12 @@ fn test_object_ringbuf() {
     mgr.consume().expect("Failed to consume ringbuf");
 
     // Our values should both reflect that the callbacks have been called
-    unsafe { assert_eq!(v1, 1) };
-    unsafe { assert_eq!(v2, 2) };
+    unsafe { assert_eq!(V1, 1) };
+    unsafe { assert_eq!(V2, 2) };
 
     // Reset both values
-    unsafe { v1 = 0 };
-    unsafe { v2 = 0 };
+    unsafe { V1 = 0 };
+    unsafe { V2 = 0 };
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
@@ -329,6 +334,6 @@ fn test_object_ringbuf() {
         .expect("Failed to poll ringbuf");
 
     // Our values should both reflect that the callbacks have been called
-    unsafe { assert_eq!(v1, 1) };
-    unsafe { assert_eq!(v2, 2) };
+    unsafe { assert_eq!(V1, 1) };
+    unsafe { assert_eq!(V2, 2) };
 }
