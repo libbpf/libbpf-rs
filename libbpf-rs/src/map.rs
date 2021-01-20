@@ -1,6 +1,7 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::path::Path;
+use std::ptr;
 
 use bitflags::bitflags;
 use nix::errno;
@@ -286,6 +287,15 @@ impl Map {
             Err(Error::System(errno::errno()))
         }
     }
+
+    /// Returns an iterator over keys in this map
+    ///
+    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
+    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
+    /// iteration becomes unpredictable.
+    pub fn keys(&self) -> MapKeyIter {
+        MapKeyIter::new(self, self.key_size())
+    }
 }
 
 #[rustfmt::skip]
@@ -335,4 +345,38 @@ pub enum MapType {
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
     /// using this library is a bit out of date.
     Unknown = u32::MAX,
+}
+
+pub struct MapKeyIter<'a> {
+    map: &'a Map,
+    prev: Option<Vec<u8>>,
+    next: Vec<u8>,
+}
+
+impl<'a> MapKeyIter<'a> {
+    fn new(map: &'a Map, key_size: u32) -> Self {
+        Self {
+            map,
+            prev: None,
+            next: vec![0; key_size as usize],
+        }
+    }
+}
+
+impl<'a> Iterator for MapKeyIter<'a> {
+    type Item = Vec<u8>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let prev = self.prev.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_get_next_key(self.map.fd(), prev as _, self.next.as_mut_ptr() as _)
+        };
+        if ret != 0 {
+            None
+        } else {
+            self.prev = Some(self.next.clone());
+            Some(self.next.clone())
+        }
+    }
 }
