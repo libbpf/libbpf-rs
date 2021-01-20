@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -156,6 +157,57 @@ fn test_object_map_lookup_flags() {
     assert!(start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::NO_EXIST)
         .is_err());
+}
+
+#[test]
+fn test_object_map_key_iter() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let start = obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+
+    let key1 = vec![1, 2, 3, 4];
+    let key2 = vec![1, 2, 3, 5];
+    let key3 = vec![1, 2, 3, 6];
+
+    start
+        .update(&key1, &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+    start
+        .update(&key2, &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+    start
+        .update(&key3, &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    let mut keys = HashSet::new();
+    for key in start.keys() {
+        keys.insert(key);
+    }
+    assert_eq!(keys.len(), 3);
+    assert!(keys.contains(&key1));
+    assert!(keys.contains(&key2));
+    assert!(keys.contains(&key3));
+}
+
+#[test]
+fn test_object_map_key_iter_empty() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let start = obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+
+    let mut count = 0;
+    for _ in start.keys() {
+        count += 1;
+    }
+    assert_eq!(count, 0);
 }
 
 #[test]
