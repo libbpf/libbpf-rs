@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::path::Path;
 
 use bitflags::bitflags;
-use nix::errno;
+use nix::{errno, unistd};
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
@@ -58,6 +58,29 @@ impl OpenMap {
 
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
+    }
+
+    /// Reuse an already-pinned map for `self`.
+    pub fn reuse_pinned_map<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let cstring = util::path_to_cstring(path)?;
+
+        let fd = unsafe { libbpf_sys::bpf_obj_get(cstring.as_ptr()) };
+        if fd < 0 {
+            return Err(Error::System(errno::errno()));
+        }
+
+        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr, fd) };
+
+        // Always close `fd` regardless of if `bpf_map__reuse_fd` succeeded or failed
+        //
+        // Ignore errors b/c can't really recover from failure
+        let _ = unistd::close(fd);
+
+        if ret != 0 {
+            return Err(Error::System(-ret));
+        }
+
+        Ok(())
     }
 }
 
