@@ -284,12 +284,10 @@ fn test_object_ringbuf() {
     // Test trying to build without adding any ringbufs
     // Can't use expect_err here since RingBuffer does not implement Debug
     let builder = libbpf_rs::RingBufferBuilder::new();
-    if let Ok(_) = builder.build() {
-        assert!(
-            false,
-            "Should not be able to build without adding at least one ringbuf"
-        );
-    }
+    assert!(
+        builder.build().is_err(),
+        "Should not be able to build without adding at least one ringbuf"
+    );
 
     // Test building with multiple map objects
     let mut builder = libbpf_rs::RingBufferBuilder::new();
@@ -336,4 +334,73 @@ fn test_object_ringbuf() {
     // Our values should both reflect that the callbacks have been called
     unsafe { assert_eq!(V1, 1) };
     unsafe { assert_eq!(V2, 2) };
+}
+
+#[test]
+fn test_object_ringbuf_closure() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("ringbuf.bpf.o");
+    let prog = obj
+        .prog("handle__sys_enter_getpid")
+        .expect("error finding program")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+
+    let mut v1 = vec![];
+
+    let callback1 = move |data: &[u8]| -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        v1.push(value);
+
+        0
+    };
+
+    let mut v2 = vec![];
+
+    let callback2 = move |data: &[u8]| -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        v2.push(value);
+
+        0
+    };
+
+    // Test trying to build without adding any ringbufs
+    // Can't use expect_err here since RingBuffer does not implement Debug
+    let builder = libbpf_rs::RingBufferBuilder::new();
+    assert!(
+        builder.build().is_err(),
+        "Should not be able to build without adding at least one ringbuf"
+    );
+
+    // Test building with multiple map objects
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+
+    // Add a first map and callback
+    let map1 = obj
+        .map("ringbuf1")
+        .expect("Error getting ringbuf1 map")
+        .expect("Failed to get ringbuf1 map");
+
+    builder.add(map1, callback1).expect("Failed to add ringbuf");
+
+    // Add a second map and callback
+    let map2 = obj
+        .map("ringbuf2")
+        .expect("Error getting ringbuf2 map")
+        .expect("Failed to get ringbuf2 map");
+
+    builder.add(map2, callback2).expect("Failed to add ringbuf");
+
+    let mgr = builder.build().expect("Failed to build");
+
+    // Call getpid to ensure the BPF program runs
+    unsafe { libc::getpid() };
+
+    // This should result in both callbacks being called
+    mgr.consume().expect("Failed to consume ringbuf");
 }
