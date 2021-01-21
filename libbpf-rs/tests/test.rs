@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use scopeguard::defer;
+
 use libbpf_rs::{MapFlags, Object, ObjectBuilder};
 
 fn get_test_object_path() -> PathBuf {
@@ -212,9 +214,16 @@ fn test_object_program_pin() {
     assert!(prog.unpin(path).is_err());
     assert!(!Path::new(path).exists());
 
-    // Pin and unpin should be successful
+    // Pin should be successful
     prog.pin(path).expect("failed to pin prog");
     assert!(Path::new(path).exists());
+
+    // Backup cleanup method in case test errors
+    defer! {
+        let _ = fs::remove_file(path);
+    }
+
+    // Unpin and unpin should be successful
     prog.unpin(path).expect("failed to unpin prog");
     assert!(!Path::new(path).exists());
 }
@@ -236,9 +245,16 @@ fn test_object_link_pin() {
     assert!(link.unpin().is_err());
     assert!(!Path::new(path).exists());
 
-    // Pin and unpin should be successful
+    // Pin should be successful
     link.pin(path).expect("failed to pin prog");
     assert!(Path::new(path).exists());
+
+    // Backup cleanup method in case test errors
+    defer! {
+        let _ = fs::remove_file(path);
+    }
+
+    // Unpin should be successful
     link.unpin().expect("failed to unpin prog");
     assert!(!Path::new(path).exists());
 }
@@ -265,6 +281,11 @@ fn test_object_reuse_pined_map() {
         // Pin map
         map.pin(path).expect("failed to pin map");
         assert!(Path::new(path).exists());
+    }
+
+    // Backup cleanup method in case test errors somewhere
+    defer! {
+        let _ = fs::remove_file(path);
     }
 
     // Reuse the pinned map
