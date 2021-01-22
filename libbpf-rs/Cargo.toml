@@ -25,3 +25,4 @@ vsprintf = "1.0"
 [dev-dependencies]
 libc = "0.2"
 plain = "0.2.3"
+scopeguard = "1.1"

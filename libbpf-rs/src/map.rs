@@ -1,9 +1,10 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::path::Path;
+use std::ptr;
 
 use bitflags::bitflags;
-use nix::errno;
+use nix::{errno, unistd};
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
@@ -58,6 +59,29 @@ impl OpenMap {
 
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
+    }
+
+    /// Reuse an already-pinned map for `self`.
+    pub fn reuse_pinned_map<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let cstring = util::path_to_cstring(path)?;
+
+        let fd = unsafe { libbpf_sys::bpf_obj_get(cstring.as_ptr()) };
+        if fd < 0 {
+            return Err(Error::System(errno::errno()));
+        }
+
+        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr, fd) };
+
+        // Always close `fd` regardless of if `bpf_map__reuse_fd` succeeded or failed
+        //
+        // Ignore errors b/c can't really recover from failure
+        let _ = unistd::close(fd);
+
+        if ret != 0 {
+            return Err(Error::System(-ret));
+        }
+
+        Ok(())
     }
 }
 
@@ -286,6 +310,15 @@ impl Map {
             Err(Error::System(errno::errno()))
         }
     }
+
+    /// Returns an iterator over keys in this map
+    ///
+    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
+    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
+    /// iteration becomes unpredictable.
+    pub fn keys(&self) -> MapKeyIter {
+        MapKeyIter::new(self, self.key_size())
+    }
 }
 
 #[rustfmt::skip]
@@ -336,4 +369,38 @@ pub enum MapType {
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
     /// using this library is a bit out of date.
     Unknown = u32::MAX,
+}
+
+pub struct MapKeyIter<'a> {
+    map: &'a Map,
+    prev: Option<Vec<u8>>,
+    next: Vec<u8>,
+}
+
+impl<'a> MapKeyIter<'a> {
+    fn new(map: &'a Map, key_size: u32) -> Self {
+        Self {
+            map,
+            prev: None,
+            next: vec![0; key_size as usize],
+        }
+    }
+}
+
+impl<'a> Iterator for MapKeyIter<'a> {
+    type Item = Vec<u8>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let prev = self.prev.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_get_next_key(self.map.fd(), prev as _, self.next.as_mut_ptr() as _)
+        };
+        if ret != 0 {
+            None
+        } else {
+            self.prev = Some(self.next.clone());
+            Some(self.next.clone())
+        }
+    }
 }

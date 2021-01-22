@@ -1,6 +1,9 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+use scopeguard::defer;
 
 use libbpf_rs::{MapFlags, Object, ObjectBuilder};
 
@@ -159,6 +162,57 @@ fn test_object_map_lookup_flags() {
 }
 
 #[test]
+fn test_object_map_key_iter() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let start = obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+
+    let key1 = vec![1, 2, 3, 4];
+    let key2 = vec![1, 2, 3, 5];
+    let key3 = vec![1, 2, 3, 6];
+
+    start
+        .update(&key1, &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+    start
+        .update(&key2, &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+    start
+        .update(&key3, &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    let mut keys = HashSet::new();
+    for key in start.keys() {
+        keys.insert(key);
+    }
+    assert_eq!(keys.len(), 3);
+    assert!(keys.contains(&key1));
+    assert!(keys.contains(&key2));
+    assert!(keys.contains(&key3));
+}
+
+#[test]
+fn test_object_map_key_iter_empty() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object();
+    let start = obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+
+    let mut count = 0;
+    for _ in start.keys() {
+        count += 1;
+    }
+    assert_eq!(count, 0);
+}
+
+#[test]
 fn test_object_map_pin() {
     bump_rlimit_mlock();
 
@@ -214,9 +268,16 @@ fn test_object_program_pin() {
     assert!(prog.unpin(path).is_err());
     assert!(!Path::new(path).exists());
 
-    // Pin and unpin should be successful
+    // Pin should be successful
     prog.pin(path).expect("failed to pin prog");
     assert!(Path::new(path).exists());
+
+    // Backup cleanup method in case test errors
+    defer! {
+        let _ = fs::remove_file(path);
+    }
+
+    // Unpin and unpin should be successful
     prog.unpin(path).expect("failed to unpin prog");
     assert!(!Path::new(path).exists());
 }
@@ -238,10 +299,76 @@ fn test_object_link_pin() {
     assert!(link.unpin().is_err());
     assert!(!Path::new(path).exists());
 
-    // Pin and unpin should be successful
+    // Pin should be successful
     link.pin(path).expect("failed to pin prog");
     assert!(Path::new(path).exists());
+
+    // Backup cleanup method in case test errors
+    defer! {
+        let _ = fs::remove_file(path);
+    }
+
+    // Unpin should be successful
     link.unpin().expect("failed to unpin prog");
+    assert!(!Path::new(path).exists());
+}
+
+#[test]
+fn test_object_reuse_pined_map() {
+    bump_rlimit_mlock();
+
+    let path = "/sys/fs/bpf/mymap";
+    let key = vec![1, 2, 3, 4];
+    let val = vec![1, 2, 3, 4, 5, 6, 7, 8];
+
+    // Pin a map
+    {
+        let mut obj = get_test_object();
+        let map = obj
+            .map("start")
+            .expect("error finding map")
+            .expect("failed to find map");
+
+        map.update(&key, &val, MapFlags::empty())
+            .expect("failed to write");
+
+        // Pin map
+        map.pin(path).expect("failed to pin map");
+        assert!(Path::new(path).exists());
+    }
+
+    // Backup cleanup method in case test errors somewhere
+    defer! {
+        let _ = fs::remove_file(path);
+    }
+
+    // Reuse the pinned map
+    let obj_path = get_test_object_path();
+    let mut builder = ObjectBuilder::default();
+    builder.debug(true);
+    let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
+
+    let start = open_obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+    assert!(start.reuse_pinned_map("/asdf").is_err());
+    start.reuse_pinned_map(path).expect("failed to reuse map");
+
+    let mut obj = open_obj.load().expect("Failed to load object");
+    let reused_map = obj
+        .map("start")
+        .expect("error finding map")
+        .expect("failed to find map");
+
+    let found_val = reused_map
+        .lookup(&key, MapFlags::empty())
+        .expect("failed to read map")
+        .expect("failed to find key");
+    assert_eq!(&found_val, &val);
+
+    // Cleanup
+    reused_map.unpin(path).expect("failed to unpin map");
     assert!(!Path::new(path).exists());
 }
 
