@@ -165,7 +165,8 @@ fn test_object_map_lookup_flags() {
 fn test_object_map_key_iter() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
+
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -199,7 +200,7 @@ fn test_object_map_key_iter() {
 fn test_object_map_key_iter_empty() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -323,7 +324,7 @@ fn test_object_reuse_pined_map() {
 
     // Pin a map
     {
-        let mut obj = get_test_object();
+        let mut obj = get_test_object("runqslower.bpf.o");
         let map = obj
             .map("start")
             .expect("error finding map")
@@ -343,7 +344,7 @@ fn test_object_reuse_pined_map() {
     }
 
     // Reuse the pinned map
-    let obj_path = get_test_object_path();
+    let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
     builder.debug(true);
     let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
