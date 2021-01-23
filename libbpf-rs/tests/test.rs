@@ -275,7 +275,7 @@ fn test_object_program_pin() {
         let _ = fs::remove_file(path);
     }
 
-    // Unpin and unpin should be successful
+    // Unpin should be successful
     prog.unpin(path).expect("failed to unpin prog");
     assert!(!Path::new(path).exists());
 }
