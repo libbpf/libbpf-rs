@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use scopeguard::defer;
@@ -475,24 +476,22 @@ fn test_object_ringbuf_closure() {
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
-    let mut v1 = vec![];
-
+    let (sender1, receiver1) = channel();
     let callback1 = move |data: &[u8]| -> i32 {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        v1.push(value);
+        sender1.send(value).expect("Failed to send value");
 
         0
     };
 
-    let mut v2 = vec![];
-
+    let (sender2, receiver2) = channel();
     let callback2 = move |data: &[u8]| -> i32 {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        v2.push(value);
+        sender2.send(value).expect("Failed to send value");
 
         0
     };
@@ -531,4 +530,10 @@ fn test_object_ringbuf_closure() {
 
     // This should result in both callbacks being called
     mgr.consume().expect("Failed to consume ringbuf");
+
+    let v1 = receiver1.recv().expect("Failed to receive value");
+    let v2 = receiver2.recv().expect("Failed to receive value");
+
+    assert_eq!(v1, 1);
+    assert_eq!(v2, 2);
 }
