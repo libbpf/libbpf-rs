@@ -165,7 +165,7 @@ fn gen_skel_c_skel_constructor(
         {{
             let mut builder = libbpf_rs::skeleton::ObjectSkeletonConfigBuilder::new(DATA);
             builder
-                .name("{name}_bpf")
+                .name("{name}")
         "#,
         name = name
     )?;
