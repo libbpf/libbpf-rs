@@ -1,21 +1,24 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::channel;
+use std::time::Duration;
 
 use scopeguard::defer;
 
 use libbpf_rs::{MapFlags, Object, ObjectBuilder};
 
-fn get_test_object_path() -> PathBuf {
+fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
     // env!() macro fails at compile time if var not found
     path.push(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests/bin/runqslower.bpf.o");
+    path.push("tests/bin");
+    path.push(filename);
     path
 }
 
-fn get_test_object() -> Object {
-    let obj_path = get_test_object_path();
+fn get_test_object(filename: &str) -> Object {
+    let obj_path = get_test_object_path(filename);
     let mut builder = ObjectBuilder::default();
     // Invoke cargo with:
     //
@@ -42,12 +45,12 @@ fn bump_rlimit_mlock() {
 
 #[test]
 fn test_object_build_and_load() {
-    get_test_object();
+    get_test_object("runqslower.bpf.o");
 }
 
 #[test]
 fn test_object_build_from_memory() {
-    let obj_path = get_test_object_path();
+    let obj_path = get_test_object_path("runqslower.bpf.o");
     let contents = fs::read(obj_path).expect("failed to read object file");
     let mut builder = ObjectBuilder::default();
     let obj = builder
@@ -59,7 +62,7 @@ fn test_object_build_from_memory() {
 
 #[test]
 fn test_object_name() {
-    let obj_path = get_test_object_path();
+    let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
     builder.name("test name");
     let obj = builder.open_file(obj_path).expect("failed to build object");
@@ -69,7 +72,7 @@ fn test_object_name() {
 
 #[test]
 fn test_object_maps() {
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     obj.map("start")
         .expect("error finding map")
         .expect("failed to find map");
@@ -83,7 +86,7 @@ fn test_object_maps() {
 fn test_object_map_key_value_size() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -101,7 +104,7 @@ fn test_object_map_key_value_size() {
 fn test_object_map_empty_lookup() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -117,7 +120,7 @@ fn test_object_map_empty_lookup() {
 fn test_object_map_mutation() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -145,7 +148,7 @@ fn test_object_map_mutation() {
 fn test_object_map_lookup_flags() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -163,7 +166,8 @@ fn test_object_map_lookup_flags() {
 fn test_object_map_key_iter() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
+
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -197,7 +201,7 @@ fn test_object_map_key_iter() {
 fn test_object_map_key_iter_empty() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let start = obj
         .map("start")
         .expect("error finding map")
@@ -214,7 +218,7 @@ fn test_object_map_key_iter_empty() {
 fn test_object_map_pin() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let map = obj
         .map("start")
         .expect("error finding map")
@@ -237,7 +241,7 @@ fn test_object_map_pin() {
 fn test_object_programs() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     obj.prog("handle__sched_wakeup")
         .expect("error finding program")
         .expect("failed to find program");
@@ -254,7 +258,7 @@ fn test_object_programs() {
 fn test_object_program_pin() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let prog = obj
         .prog("handle__sched_wakeup")
         .expect("error finding program")
@@ -284,7 +288,7 @@ fn test_object_program_pin() {
 fn test_object_link_pin() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object();
+    let mut obj = get_test_object("runqslower.bpf.o");
     let prog = obj
         .prog("handle__sched_wakeup")
         .expect("error finding program")
@@ -321,7 +325,7 @@ fn test_object_reuse_pined_map() {
 
     // Pin a map
     {
-        let mut obj = get_test_object();
+        let mut obj = get_test_object("runqslower.bpf.o");
         let map = obj
             .map("start")
             .expect("error finding map")
@@ -341,7 +345,7 @@ fn test_object_reuse_pined_map() {
     }
 
     // Reuse the pinned map
-    let obj_path = get_test_object_path();
+    let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
     builder.debug(true);
     let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
@@ -368,4 +372,168 @@ fn test_object_reuse_pined_map() {
     // Cleanup
     reused_map.unpin(path).expect("failed to unpin map");
     assert!(!Path::new(path).exists());
+}
+
+#[test]
+fn test_object_ringbuf() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("ringbuf.bpf.o");
+    let prog = obj
+        .prog("handle__sys_enter_getpid")
+        .expect("error finding program")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+
+    static mut V1: i32 = 0;
+    static mut V2: i32 = 0;
+
+    fn callback1(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V1 = value;
+        }
+
+        0
+    }
+
+    fn callback2(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V2 = value;
+        }
+
+        0
+    }
+
+    // Test trying to build without adding any ringbufs
+    // Can't use expect_err here since RingBuffer does not implement Debug
+    let builder = libbpf_rs::RingBufferBuilder::new();
+    assert!(
+        builder.build().is_err(),
+        "Should not be able to build without adding at least one ringbuf"
+    );
+
+    // Test building with multiple map objects
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+
+    // Add a first map and callback
+    let map1 = obj
+        .map("ringbuf1")
+        .expect("Error getting ringbuf1 map")
+        .expect("Failed to get ringbuf1 map");
+
+    builder.add(map1, callback1).expect("Failed to add ringbuf");
+
+    // Add a second map and callback
+    let map2 = obj
+        .map("ringbuf2")
+        .expect("Error getting ringbuf2 map")
+        .expect("Failed to get ringbuf2 map");
+
+    builder.add(map2, callback2).expect("Failed to add ringbuf");
+
+    let mgr = builder.build().expect("Failed to build");
+
+    // Call getpid to ensure the BPF program runs
+    unsafe { libc::getpid() };
+
+    // This should result in both callbacks being called
+    mgr.consume().expect("Failed to consume ringbuf");
+
+    // Our values should both reflect that the callbacks have been called
+    unsafe { assert_eq!(V1, 1) };
+    unsafe { assert_eq!(V2, 2) };
+
+    // Reset both values
+    unsafe { V1 = 0 };
+    unsafe { V2 = 0 };
+
+    // Call getpid to ensure the BPF program runs
+    unsafe { libc::getpid() };
+
+    // This should result in both callbacks being called
+    mgr.poll(Duration::from_millis(100))
+        .expect("Failed to poll ringbuf");
+
+    // Our values should both reflect that the callbacks have been called
+    unsafe { assert_eq!(V1, 1) };
+    unsafe { assert_eq!(V2, 2) };
+}
+
+#[test]
+fn test_object_ringbuf_closure() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("ringbuf.bpf.o");
+    let prog = obj
+        .prog("handle__sys_enter_getpid")
+        .expect("error finding program")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+
+    let (sender1, receiver1) = channel();
+    let callback1 = move |data: &[u8]| -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        sender1.send(value).expect("Failed to send value");
+
+        0
+    };
+
+    let (sender2, receiver2) = channel();
+    let callback2 = move |data: &[u8]| -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        sender2.send(value).expect("Failed to send value");
+
+        0
+    };
+
+    // Test trying to build without adding any ringbufs
+    // Can't use expect_err here since RingBuffer does not implement Debug
+    let builder = libbpf_rs::RingBufferBuilder::new();
+    assert!(
+        builder.build().is_err(),
+        "Should not be able to build without adding at least one ringbuf"
+    );
+
+    // Test building with multiple map objects
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+
+    // Add a first map and callback
+    let map1 = obj
+        .map("ringbuf1")
+        .expect("Error getting ringbuf1 map")
+        .expect("Failed to get ringbuf1 map");
+
+    builder.add(map1, callback1).expect("Failed to add ringbuf");
+
+    // Add a second map and callback
+    let map2 = obj
+        .map("ringbuf2")
+        .expect("Error getting ringbuf2 map")
+        .expect("Failed to get ringbuf2 map");
+
+    builder.add(map2, callback2).expect("Failed to add ringbuf");
+
+    let mgr = builder.build().expect("Failed to build");
+
+    // Call getpid to ensure the BPF program runs
+    unsafe { libc::getpid() };
+
+    // This should result in both callbacks being called
+    mgr.consume().expect("Failed to consume ringbuf");
+
+    let v1 = receiver1.recv().expect("Failed to receive value");
+    let v2 = receiver2.recv().expect("Failed to receive value");
+
+    assert_eq!(v1, 1);
+    assert_eq!(v2, 2);
 }
