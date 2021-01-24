@@ -805,7 +805,7 @@ fn test_btf_dump_basic() {
             .expect("Failed to generate myglobal decl")
     );
 
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -897,7 +897,7 @@ fn test_btf_dump_struct_definition() {
 
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub ip: *mut i32,
@@ -909,7 +909,7 @@ pub struct Foo {
     pub cv: i64,
     pub r: *mut i8,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Bar {
     pub x: u16,
@@ -989,7 +989,7 @@ fn test_btf_dump_definition_packed_struct() {
 
     assert!(struct_foo.is_some());
 
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
 #[repr(C, packed)]
 pub struct Foo {
     pub x: i32,
@@ -1306,13 +1306,13 @@ fn test_btf_dump_definition_shared_dependent_types() {
 
     assert!(struct_foo.is_some());
 
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub bar: Bar,
     pub bartwo: Bar,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Bar {
     pub x: u16,
@@ -1404,7 +1404,7 @@ fn test_btf_dump_definition_datasec() {
 pub struct bss {
     pub foo: Foo,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -1516,7 +1516,7 @@ pub struct bss {
     pub foo2: Foo,
     pub foo3: Foo,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,

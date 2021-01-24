@@ -344,7 +344,12 @@ impl<'a> Btf<'a> {
                     let aggregate_type = if t.is_struct { "struct" } else { "union" };
                     let packed_repr = if packed { ", packed" } else { "" };
 
-                    writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                    if t.is_struct {
+                        writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
+                    } else {
+                        writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                    }
+
                     writeln!(def, r#"#[repr(C{})]"#, packed_repr)?;
                     writeln!(
                         def,
