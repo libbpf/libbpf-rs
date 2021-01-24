@@ -10,6 +10,9 @@ const volatile __u64 min_us = 0;
 const volatile pid_t targ_pid = 0;
 const volatile pid_t targ_tgid = 0;
 
+// Dummy instance to get skeleton to generate definition for `struct event`
+struct event _event = {0};
+
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 10240);

@@ -5,7 +5,7 @@
 #define TASK_COMM_LEN 16
 
 struct event {
-	char task[TASK_COMM_LEN];
+	u8 task[TASK_COMM_LEN];
 	__u64 delta_us;
 	pid_t pid;
 };
