@@ -42,11 +42,6 @@ impl RingBufferBuilder {
     ///
     /// Non-zero return values in the callback will stop ring buffer consumption early.
     ///
-    /// Callback is defined as:
-    /// ```rust
-    /// type Callback = fn(&[u8]) -> i32;
-    /// ```
-    ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     pub fn add<NewF>(&mut self, map: &Map, callback: NewF) -> Result<&mut Self>
