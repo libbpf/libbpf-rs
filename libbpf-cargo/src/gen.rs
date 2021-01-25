@@ -165,7 +165,7 @@ fn gen_skel_c_skel_constructor(
         {{
             let mut builder = libbpf_rs::skeleton::ObjectSkeletonConfigBuilder::new(DATA);
             builder
-                .name("{name}_bpf")
+                .name("{name}")
         "#,
         name = name
     )?;
@@ -626,13 +626,19 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         "#
     )?;
 
+    // The name we'll always hand to libbpf
+    //
+    // Note it's important this remains consistent b/c libbpf infers map/prog names from this name
+    let libbpf_obj_name = format!("{}_bpf", raw_obj_name);
+    // We'll use `obj_name` as the rust-ified object name
+    let obj_name = capitalize_first_letter(raw_obj_name);
+
     // Open bpf_object so we can iterate over maps and progs
     let file = File::open(obj_file_path)?;
     let mmap = unsafe { Mmap::map(&file)? };
-    let object = open_bpf_object(raw_obj_name, &*mmap)?;
-    let obj_name = capitalize_first_letter(raw_obj_name);
+    let object = open_bpf_object(&libbpf_obj_name, &*mmap)?;
 
-    gen_skel_c_skel_constructor(&mut skel, object, &raw_obj_name)?;
+    gen_skel_c_skel_constructor(&mut skel, object, &libbpf_obj_name)?;
 
     write!(
         skel,
