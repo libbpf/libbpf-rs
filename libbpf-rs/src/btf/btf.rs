@@ -13,6 +13,7 @@ use crate::btf::c_types::*;
 use crate::btf::*;
 use crate::{Error, Result};
 
+/// BTF parsing entry point
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
@@ -21,6 +22,11 @@ pub struct Btf<'a> {
 }
 
 impl<'a> Btf<'a> {
+    /// Construct new `Btf` instance
+    ///
+    /// `name` is the name of the object file.
+    ///
+    /// `object_file` is an ELF object file
     pub fn new(name: &str, object_file: &[u8]) -> Result<Option<Self>> {
         let cname = match CString::new(name) {
             Ok(n) => n,
@@ -124,10 +130,12 @@ impl<'a> Btf<'a> {
         Ok(Some(btf))
     }
 
+    /// Returns all known BTF types
     pub fn types(&self) -> &[BtfType<'a>] {
         &self.types
     }
 
+    /// Retrieve a [`BtfType`] by its ID
     pub fn type_by_id(&self, type_id: u32) -> Result<&BtfType> {
         if (type_id as usize) < self.types.len() {
             Ok(&self.types[type_id as usize])
@@ -139,6 +147,7 @@ impl<'a> Btf<'a> {
         }
     }
 
+    /// Lookup a [`BtfType`] and returns the size of the type
     pub fn size_of(&self, type_id: u32) -> Result<u32> {
         let skipped_type_id = self.skip_mods_and_typedefs(type_id)?;
 
@@ -167,6 +176,7 @@ impl<'a> Btf<'a> {
         })
     }
 
+    /// Lookup a [`BtfType`] and returns the alignment of the type
     pub fn align_of(&self, type_id: u32) -> Result<u32> {
         let skipped_type_id = self.skip_mods_and_typedefs(type_id)?;
 
@@ -559,6 +569,8 @@ impl<'a> Btf<'a> {
         Ok(def)
     }
 
+    /// Lookup a [`BtfType`], strip modifiers and resolve typedefs, and return the resulting
+    /// type ID.
     pub fn skip_mods_and_typedefs(&self, mut type_id: u32) -> Result<u32> {
         loop {
             match self.type_by_id(type_id)? {

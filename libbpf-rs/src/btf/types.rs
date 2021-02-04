@@ -161,6 +161,7 @@ pub struct BtfDatasec<'a> {
     pub vars: Vec<BtfDatasecVar>,
 }
 
+/// Primary type enum
 pub enum BtfType<'a> {
     Void,
     Int(BtfInt<'a>),
