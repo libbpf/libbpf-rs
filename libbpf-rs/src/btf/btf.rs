@@ -6,11 +6,12 @@ use std::fmt::Write;
 use std::mem::size_of;
 use std::slice;
 
-use anyhow::{bail, ensure, Result};
+use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 use scroll::Pread;
 
 use crate::btf::c_types::*;
 use crate::btf::*;
+use crate::{Error, Result};
 
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
@@ -21,7 +22,10 @@ pub struct Btf<'a> {
 
 impl<'a> Btf<'a> {
     pub fn new(name: &str, object_file: &[u8]) -> Result<Option<Self>> {
-        let cname = CString::new(name)?;
+        let cname = match CString::new(name) {
+            Ok(n) => n,
+            Err(e) => return Err(Error::InvalidInput(format!("Invalid name: {}", e))),
+        };
         let mut obj_opts = libbpf_sys::bpf_object_open_opts::default();
         obj_opts.sz = std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t;
         obj_opts.object_name = cname.as_ptr();
@@ -33,7 +37,9 @@ impl<'a> Btf<'a> {
             )
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(bpf_obj as *const _) };
-        ensure!(err == 0, "Failed to bpf_object__open_mem: errno {}", err);
+        if err != 0 {
+            return Err(Error::System(err as i32));
+        }
 
         let bpf_obj_btf = unsafe { libbpf_sys::bpf_object__btf(bpf_obj) };
         if bpf_obj_btf.is_null() {
@@ -46,20 +52,24 @@ impl<'a> Btf<'a> {
         } else {
             libbpf_sys::BTF_BIG_ENDIAN
         };
-        ensure!(
-            unsafe { libbpf_sys::btf__set_endianness(bpf_obj_btf, endianness) } == 0,
-            "Failed to set BTF endianness"
-        );
+        if unsafe { libbpf_sys::btf__set_endianness(bpf_obj_btf, endianness) } != 0 {
+            return Err(Error::Internal("Failed to set BTF endianness".to_string()));
+        }
 
         let ptr_size = unsafe { libbpf_sys::btf__pointer_size(bpf_obj_btf) };
-        ensure!(ptr_size != 0, "Could not determine BTF pointer size");
+        if ptr_size == 0 {
+            return Err(Error::InvalidInput(
+                "Could not determine BTF pointer size".to_string(),
+            ));
+        }
 
         let mut raw_data_size = 0;
         let raw_data = unsafe { libbpf_sys::btf__get_raw_data(bpf_obj_btf, &mut raw_data_size) };
-        ensure!(
-            !raw_data.is_null() && raw_data_size > 0,
-            "Could not get raw BTF data"
-        );
+        if raw_data.is_null() || raw_data_size == 0 {
+            return Err(Error::InvalidInput(
+                "Could not get raw BTF data".to_string(),
+            ));
+        }
         // `data` is valid as long as `bpf_obj` ptr is valid, so we're safe to conjure up this
         // `'a` lifetime
         let data: &'a [u8] =
@@ -67,23 +77,32 @@ impl<'a> Btf<'a> {
 
         // Read section header
         let hdr = data.pread::<btf_header>(0)?;
-        ensure!(hdr.magic == BTF_MAGIC, "Invalid BTF magic");
-        ensure!(
-            hdr.version == BTF_VERSION,
-            "Unsupported BTF version: {}",
-            hdr.version
-        );
+        if hdr.magic != BTF_MAGIC {
+            return Err(Error::InvalidInput("Invalid BTF magic".to_string()));
+        }
+        if hdr.version != BTF_VERSION {
+            return Err(Error::InvalidInput(format!(
+                "Unsupported BTF version: {}",
+                hdr.version
+            )));
+        }
 
         // String table
         let str_off = (hdr.hdr_len + hdr.str_off) as usize;
         let str_end = str_off + (hdr.str_len as usize);
-        ensure!(str_end <= data.len(), "String table out of bounds");
+        if str_end > data.len() {
+            return Err(Error::InvalidInput(
+                "String table out of bounds".to_string(),
+            ));
+        }
         let str_data = &data[str_off..str_end];
 
         // Type table
         let type_off = (hdr.hdr_len + hdr.type_off) as usize;
         let type_end = type_off + (hdr.type_len as usize);
-        ensure!(type_end <= data.len(), "Type table out of bounds");
+        if type_end > data.len() {
+            return Err(Error::InvalidInput("Type table out of bounds".to_string()));
+        }
         let type_data = &data[type_off..type_end];
 
         let mut btf = Btf::<'a> {
@@ -113,7 +132,10 @@ impl<'a> Btf<'a> {
         if (type_id as usize) < self.types.len() {
             Ok(&self.types[type_id as usize])
         } else {
-            bail!("Invalid type_id: {}", type_id);
+            Err(Error::InvalidInput(format!(
+                "Invalid type_pid: {}",
+                type_id
+            )))
         }
     }
 
@@ -136,7 +158,12 @@ impl<'a> Btf<'a> {
             | BtfType::Typedef(_)
             | BtfType::FuncProto(_)
             | BtfType::Fwd(_)
-            | BtfType::Func(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
+            | BtfType::Func(_) => {
+                return Err(Error::InvalidInput(format!(
+                    "Cannot get size of type_id: {}",
+                    skipped_type_id
+                )))
+            }
         })
     }
 
@@ -165,7 +192,12 @@ impl<'a> Btf<'a> {
             | BtfType::Typedef(_)
             | BtfType::FuncProto(_)
             | BtfType::Fwd(_)
-            | BtfType::Func(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
+            | BtfType::Func(_) => {
+                return Err(Error::InvalidInput(format!(
+                    "Cannot get alignment of type_id: {}",
+                    skipped_type_id
+                )))
+            }
         })
     }
 
@@ -187,7 +219,7 @@ impl<'a> Btf<'a> {
                     4 => "32",
                     8 => "64",
                     16 => "128",
-                    _ => bail!("Invalid integer width"),
+                    _ => return Err(Error::Internal("Invalid integer width".to_string())),
                 };
 
                 if t.encoding == btf::BtfIntEncoding::Signed {
@@ -222,7 +254,7 @@ impl<'a> Btf<'a> {
             | BtfType::Volatile(_)
             | BtfType::Const(_)
             | BtfType::Restrict(_) => {
-                bail!("Invalid type: {}", ty)
+                return Err(Error::InvalidInput(format!("Invalid type: {}", ty)));
             }
         })
     }
@@ -233,11 +265,12 @@ impl<'a> Btf<'a> {
         }
 
         let align = self.align_of(struct_type_id)?;
-        ensure!(
-            align != 0,
-            "Failed to get alignment of struct_type_id: {}",
-            struct_type_id
-        );
+        if align == 0 {
+            return Err(Error::Internal(format!(
+                "Failed to get alignment of struct_type_id: {}",
+                struct_type_id
+            )));
+        }
 
         // Size of a struct has to be a multiple of its alignment
         if t.size % align != 0 {
@@ -247,11 +280,12 @@ impl<'a> Btf<'a> {
         // All the non-bitfield fields have to be naturally aligned
         for m in &t.members {
             let align = self.align_of(m.type_id)?;
-            ensure!(
-                align != 0,
-                "Failed to get alignment of m.type_id: {}",
-                m.type_id
-            );
+            if align == 0 {
+                return Err(Error::Internal(format!(
+                    "Failed to get alignment of m.type_id: {}",
+                    m.type_id
+                )));
+            }
 
             if m.bit_size == 0 && m.bit_offset % (align * 8) != 0 {
                 return Ok(true);
@@ -273,10 +307,11 @@ impl<'a> Btf<'a> {
         type_id: u32,
         packed: bool,
     ) -> Result<usize> {
-        ensure!(
-            current_offset <= required_offset,
-            "Current offset ahead of required offset"
-        );
+        if current_offset > required_offset {
+            return Err(Error::Internal(
+                "Current offset ahead of required offset".to_string(),
+            ));
+        }
 
         let align = if packed {
             1
@@ -286,7 +321,12 @@ impl<'a> Btf<'a> {
             // extra padding. The final layout will still be identical to what is
             // described by BTF.
             let a = self.align_of(type_id)? as usize;
-            ensure!(a != 0, "Failed to get alignment of type_id: {}", type_id);
+            if a == 0 {
+                return Err(Error::Internal(format!(
+                    "Failed to get alignment of type_id: {}",
+                    type_id
+                )));
+            }
 
             if a > 4 {
                 4
@@ -315,10 +355,11 @@ impl<'a> Btf<'a> {
             }
         };
 
-        ensure!(
-            !is_terminal(type_id)?,
-            "Tried to print type definition for terminal type"
-        );
+        if is_terminal(type_id)? {
+            return Err(Error::InvalidInput(
+                "Tried to print type definition for terminal type".to_string(),
+            ));
+        }
 
         // Process dependent types until there are none left.
         //
@@ -360,10 +401,11 @@ impl<'a> Btf<'a> {
 
                     let mut offset = 0; // In bytes
                     for member in &t.members {
-                        ensure!(
-                            member.bit_size == 0 && member.bit_offset % 8 == 0,
-                            "Struct bitfields not supported"
-                        );
+                        if member.bit_size != 0 || member.bit_offset % 8 != 0 {
+                            return Err(Error::InvalidInput(
+                                "Struct bitfields not supported".to_string(),
+                            ));
+                        }
 
                         let field_ty_id = self.skip_mods_and_typedefs(member.type_id)?;
                         if !is_terminal(field_ty_id)? {
@@ -409,7 +451,7 @@ impl<'a> Btf<'a> {
                         4 => "32",
                         8 => "64",
                         16 => "128",
-                        _ => bail!("Invalid enum size: {}", t.size),
+                        _ => return Err(Error::Internal(format!("Invalid enum size: {}", t.size))),
                     };
 
                     let mut signed = "u";
@@ -443,7 +485,10 @@ impl<'a> Btf<'a> {
                 BtfType::Datasec(t) => {
                     let mut sec_name = t.name.to_string();
                     if sec_name.is_empty() || !sec_name.starts_with('.') {
-                        bail!("Datasec name is invalid: {}", sec_name);
+                        return Err(Error::Internal(format!(
+                            "Datasec name is invalid: {}",
+                            sec_name
+                        )));
                     }
                     sec_name.remove(0);
 
@@ -463,7 +508,12 @@ impl<'a> Btf<'a> {
 
                                 v
                             }
-                            _ => bail!("BTF is invalid! Datasec var does not point to a var"),
+                            _ => {
+                                return Err(Error::InvalidInput(
+                                    "BTF is invalid! Datasec var does not point to a var"
+                                        .to_string(),
+                                ))
+                            }
                         };
 
                         let padding = self.required_padding(
@@ -500,7 +550,9 @@ impl<'a> Btf<'a> {
                 | BtfType::Var(_)
                 | BtfType::Volatile(_)
                 | BtfType::Const(_)
-                | BtfType::Restrict(_) => bail!("Invalid type: {}", ty),
+                | BtfType::Restrict(_) => {
+                    return Err(Error::InvalidInput(format!("Invalid type: {}", ty)))
+                }
             }
         }
 
@@ -527,7 +579,7 @@ impl<'a> Btf<'a> {
         match BtfKind::try_from(kind)? {
             BtfKind::Void => {
                 let _ = BtfType::Void; // Silence unused variant warning
-                bail!("Cannot load Void type");
+                return Err(Error::Internal("Cannot load Void type".to_string()));
             }
             BtfKind::Int => self.load_int(&t, extra),
             BtfKind::Ptr => Ok(BtfType::Ptr(BtfPtr {
@@ -730,7 +782,10 @@ impl<'a> Btf<'a> {
 
     fn get_btf_str(&self, offset: usize) -> Result<&'a str> {
         let c_str = unsafe { CStr::from_ptr(&self.string_table[offset] as *const u8 as *const i8) };
-        Ok(c_str.to_str()?)
+        match c_str.to_str() {
+            Ok(s) => Ok(s),
+            Err(e) => Err(Error::InvalidInput(format!("String invalid UTF: {}", e))),
+        }
     }
 }
 
@@ -739,5 +794,23 @@ impl<'a> Drop for Btf<'a> {
         unsafe {
             libbpf_sys::bpf_object__close(self.bpf_obj);
         }
+    }
+}
+
+impl From<scroll::Error> for Error {
+    fn from(err: scroll::Error) -> Self {
+        Self::InvalidInput(format!("Could not read BTF: {}", err))
+    }
+}
+
+impl From<std::fmt::Error> for Error {
+    fn from(err: std::fmt::Error) -> Self {
+        Self::Internal(format!("Could not format string: {}", err))
+    }
+}
+
+impl<T: TryFromPrimitive> From<TryFromPrimitiveError<T>> for Error {
+    fn from(err: TryFromPrimitiveError<T>) -> Self {
+        Self::InvalidInput(format!("Failed to parse C enum value: {}", err))
     }
 }

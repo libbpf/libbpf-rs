@@ -64,6 +64,7 @@
 //!
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
 
+pub mod btf;
 mod error;
 mod link;
 mod map;

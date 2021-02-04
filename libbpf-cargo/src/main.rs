@@ -3,7 +3,6 @@ use std::process::exit;
 
 use structopt::StructOpt;
 
-mod btf;
 #[doc(hidden)]
 mod build;
 mod gen;

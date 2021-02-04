@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use goblin::Object;
+use libbpf_rs::{btf, btf::Btf};
 use memmap::Mmap;
 use tempfile::{tempdir, TempDir};
 
-use crate::btf;
-use crate::{btf::Btf, build::build, make::make};
+use crate::{build::build, make::make};
 
 static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
 static BPF_HELPERS: &'static str = include_str!("../test_data/bpf_helpers.h");

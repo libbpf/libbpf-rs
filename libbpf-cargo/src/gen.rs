@@ -9,9 +9,9 @@ use std::process::{Command, Stdio};
 use std::ptr;
 
 use anyhow::{bail, Result};
+use libbpf_rs::btf;
 use memmap::Mmap;
 
-use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
@@ -581,7 +581,7 @@ fn gen_skel_attach(
 
         write!(
             skel,
-            r#"{prog_name}: (|| {{
+            r#"{prog_name}: (|| -> libbpf_rs::Result<Option<libbpf_rs::Link>> {{
                 let ptr = self.skel_config.prog_link_ptr({idx})?;
                 if ptr.is_null() {{
                     Ok(None)
