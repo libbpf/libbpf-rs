@@ -15,7 +15,7 @@ To use in your project, add into your `Cargo.toml`:
 
 ```toml
 [dependencies]
-libbpf-rs = "0.1"
+libbpf-rs = "0.7"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-rs).
