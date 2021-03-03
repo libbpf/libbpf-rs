@@ -648,8 +648,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj_builder: libbpf_rs::ObjectBuilder,
         }}
 
-        impl {name}SkelBuilder {{
-            pub fn open(&mut self) -> libbpf_rs::Result<Open{name}Skel> {{
+        impl<'a> {name}SkelBuilder {{
+            pub fn open(mut self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
                 let mut skel_config = build_skel_config()?;
                 let open_opts = self.obj_builder.opts(std::ptr::null());
 
