@@ -1,6 +1,5 @@
 use core::ffi::c_void;
 use std::boxed::Box;
-use std::ptr;
 use std::slice;
 use std::time::Duration;
 
@@ -10,37 +9,29 @@ fn is_power_two(i: usize) -> bool {
     i > 0 && (!(i & (i - 1))) > 0
 }
 
+// Workaround for `trait_alias`
+// (https://doc.rust-lang.org/unstable-book/language-features/trait-alias.html)
+// not being available yet. This is just a custom trait plus a blanket implementation.
+pub trait SampleCb: FnMut(i32, &[u8]) + 'static {}
+impl<T> SampleCb for T where T: FnMut(i32, &[u8]) + 'static {}
+
+pub trait LostCb: FnMut(i32, u64) + 'static {}
+impl<T> LostCb for T where T: FnMut(i32, u64) + 'static {}
+
 struct CbStruct {
-    // Both sample_cb and lost_cb are owning pointers to Box's
-    sample_cb: *mut c_void,
-    lost_cb: *mut c_void,
-}
-
-impl Drop for CbStruct {
-    fn drop(&mut self) {
-        if !self.sample_cb.is_null() {
-            let _ = unsafe { Box::from_raw(self.sample_cb) };
-        }
-
-        if !self.lost_cb.is_null() {
-            let _ = unsafe { Box::from_raw(self.lost_cb) };
-        }
-    }
+    sample_cb: Option<Box<dyn SampleCb>>,
+    lost_cb: Option<Box<dyn LostCb>>,
 }
 
 /// Builds [`PerfBuffer`] instances.
-pub struct PerfBufferBuilder<'a, F, G>
-where
-    F: FnMut(i32, &[u8]) + 'static,
-    G: FnMut(i32, u64) + 'static,
-{
+pub struct PerfBufferBuilder<'a> {
     map: &'a Map,
     pages: usize,
-    sample_cb: Option<Box<F>>,
-    lost_cb: Option<Box<G>>,
+    sample_cb: Option<Box<dyn SampleCb>>,
+    lost_cb: Option<Box<dyn LostCb>>,
 }
 
-impl<'a> PerfBufferBuilder<'a, fn(i32, &[u8]), fn(i32, u64)> {
+impl<'a> PerfBufferBuilder<'a> {
     pub fn new(map: &'a Map) -> Self {
         Self {
             map,
@@ -51,18 +42,14 @@ impl<'a> PerfBufferBuilder<'a, fn(i32, &[u8]), fn(i32, u64)> {
     }
 }
 
-impl<'a, F, G> PerfBufferBuilder<'a, F, G>
-where
-    F: FnMut(i32, &[u8]) + 'static,
-    G: FnMut(i32, u64) + 'static,
-{
+impl<'a> PerfBufferBuilder<'a> {
     /// Callback to run when a sample is received.
     ///
     /// This callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn sample_cb<NewF: FnMut(i32, &[u8])>(self, cb: NewF) -> PerfBufferBuilder<'a, NewF, G> {
+    pub fn sample_cb<NewCb: SampleCb>(self, cb: NewCb) -> PerfBufferBuilder<'a> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -74,7 +61,7 @@ where
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn lost_cb<NewG: FnMut(i32, u64)>(self, cb: NewG) -> PerfBufferBuilder<'a, F, NewG> {
+    pub fn lost_cb<NewCb: LostCb>(self, cb: NewCb) -> PerfBufferBuilder<'a> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -115,16 +102,8 @@ where
         };
 
         let callback_struct_ptr = Box::into_raw(Box::new(CbStruct {
-            sample_cb: if let Some(cb) = self.sample_cb {
-                Box::into_raw(cb) as *mut _
-            } else {
-                ptr::null_mut()
-            },
-            lost_cb: if let Some(cb) = self.lost_cb {
-                Box::into_raw(cb) as *mut _
-            } else {
-                ptr::null_mut()
-            },
+            sample_cb: self.sample_cb,
+            lost_cb: self.lost_cb,
         }));
 
         let opts = libbpf_sys::perf_buffer_opts {
@@ -149,18 +128,18 @@ where
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {
         let callback_struct = ctx as *mut CbStruct;
-        let callback_ptr = (*callback_struct).sample_cb as *mut F;
-        let callback = &mut *callback_ptr;
 
-        callback(cpu, slice::from_raw_parts(data as *const u8, size as usize));
+        if let Some(cb) = &mut (*callback_struct).sample_cb {
+            cb(cpu, slice::from_raw_parts(data as *const u8, size as usize));
+        }
     }
 
     unsafe extern "C" fn call_lost_cb(ctx: *mut c_void, cpu: i32, count: u64) {
         let callback_struct = ctx as *mut CbStruct;
-        let callback_ptr = (*callback_struct).lost_cb as *mut G;
-        let callback = &mut *callback_ptr;
 
-        callback(cpu, count);
+        if let Some(cb) = &mut (*callback_struct).lost_cb {
+            cb(cpu, count);
+        }
     }
 }
 
