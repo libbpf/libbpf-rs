@@ -194,7 +194,7 @@ impl OpenObject {
         ptr
     }
 
-    pub fn name<'a>(&'a self) -> Result<&'a str> {
+    pub fn name(&self) -> Result<&str> {
         unsafe {
             let ptr = libbpf_sys::bpf_object__name(self.ptr);
             let err = libbpf_sys::libbpf_get_error(ptr as *const _);
