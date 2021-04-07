@@ -322,7 +322,7 @@ impl Program {
     pub fn attach_trace(&mut self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr) };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if ptr.is_null() {
+        if err != 0 {
             Err(Error::System(err as i32))
         } else {
             Ok(Link::new(ptr))
@@ -337,6 +337,17 @@ impl Program {
             Err(Error::System(errno::errno()))
         } else {
             Ok(())
+        }
+    }
+
+    /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
+    pub fn attach_xdp(&mut self, ifindex: i32) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_xdp(self.ptr, ifindex) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(Link::new(ptr))
         }
     }
 }
