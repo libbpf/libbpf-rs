@@ -61,6 +61,11 @@ impl Link {
             Ok(())
         }
     }
+
+    /// Returns the file descriptor of the link.
+    pub fn get_fd(&self) -> i32 {
+        unsafe { libbpf_sys::bpf_link__fd(self.ptr) }
+    }
 }
 
 impl Drop for Link {

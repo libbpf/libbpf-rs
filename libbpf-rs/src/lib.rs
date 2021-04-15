@@ -65,6 +65,7 @@
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
 
 mod error;
+mod iter;
 mod link;
 mod map;
 mod object;
@@ -80,6 +81,7 @@ mod util;
 pub use libbpf_sys;
 
 pub use crate::error::{Error, Result};
+pub use crate::iter::Iter;
 pub use crate::link::Link;
 pub use crate::map::{Map, MapFlags, MapType, OpenMap};
 pub use crate::object::{Object, ObjectBuilder, OpenObject};
