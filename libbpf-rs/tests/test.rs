@@ -1,12 +1,15 @@
 use std::collections::HashSet;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
+use nix::errno;
+use plain::Plain;
 use scopeguard::defer;
 
-use libbpf_rs::{MapFlags, Object, ObjectBuilder};
+use libbpf_rs::{Iter, MapFlags, Object, ObjectBuilder};
 
 fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -40,11 +43,18 @@ fn bump_rlimit_mlock() {
     };
 
     let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) };
-    assert!(ret == 0);
+    assert_eq!(
+        ret,
+        0,
+        "Setting RLIMIT_MEMLOCK failed with errno: {}",
+        errno::errno()
+    );
 }
 
 #[test]
 fn test_object_build_and_load() {
+    bump_rlimit_mlock();
+
     get_test_object("runqslower.bpf.o");
 }
 
@@ -72,6 +82,8 @@ fn test_object_name() {
 
 #[test]
 fn test_object_maps() {
+    bump_rlimit_mlock();
+
     let mut obj = get_test_object("runqslower.bpf.o");
     obj.map("start")
         .expect("error finding map")
@@ -536,4 +548,42 @@ fn test_object_ringbuf_closure() {
 
     assert_eq!(v1, 1);
     assert_eq!(v2, 2);
+}
+
+#[test]
+fn test_object_task_iter() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("taskiter.bpf.o");
+    let prog = obj
+        .prog("dump_pid")
+        .expect("Error finding program")
+        .expect("Failed to find program");
+    let link = prog.attach().expect("Failed to attach prog");
+    let mut iter = Iter::new(&link).expect("Failed to create iterator");
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct IndexPidPair {
+        i: u32,
+        pid: i32,
+    }
+
+    unsafe impl Plain for IndexPidPair {}
+
+    let mut buf = Vec::new();
+    let bytes_read = iter
+        .read_to_end(&mut buf)
+        .expect("Failed to read from iterator");
+
+    assert!(bytes_read > 0);
+    assert_eq!(bytes_read % std::mem::size_of::<IndexPidPair>(), 0);
+    let items: &[IndexPidPair] =
+        plain::slice_from_bytes(buf.as_slice()).expect("Input slice cannot satisfy length");
+
+    assert!(!items.is_empty());
+    assert_eq!(items[0].i, 0);
+    assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
+    // Check for init
+    assert!(items.iter().any(|&item| item.pid == 1));
 }
