@@ -80,18 +80,17 @@ fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
 }
 
 fn capitalize_first_letter(s: &str) -> String {
-    let mut ret = String::new();
-
     if s.is_empty() {
-        return ret;
+        return "".to_string();
     }
 
-    ret += &s.chars().next().unwrap().to_uppercase().to_string();
-    if s.len() > 1 {
-        ret += &s[1..];
-    }
-
-    ret
+    s.split('_').fold(String::new(), |mut acc, ts| {
+        acc += &ts.chars().next().unwrap().to_uppercase().to_string();
+        if ts.len() > 1 {
+            acc += &ts[1..];
+        }
+        acc
+    })
 }
 
 fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
