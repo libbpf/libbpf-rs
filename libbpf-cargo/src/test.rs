@@ -453,7 +453,7 @@ fn test_skeleton_empty_source() {
         use bpf::*;
 
         fn main() {{
-            let mut builder = ProgSkelBuilder::default();
+            let builder = ProgSkelBuilder::default();
             let _skel = builder
                 .open()
                 .expect("failed to open skel")
@@ -554,7 +554,7 @@ fn test_skeleton_basic() {
         use bpf::*;
 
         fn main() {{
-            let mut builder = ProgSkelBuilder::default();
+            let builder = ProgSkelBuilder::default();
             let mut open_skel = builder
                 .open()
                 .expect("failed to open skel");
@@ -667,7 +667,7 @@ fn test_skeleton_datasec() {
         use bpf::*;
 
         fn main() {{
-            let mut builder = ProgSkelBuilder::default();
+            let builder = ProgSkelBuilder::default();
             let mut open_skel = builder
                 .open()
                 .expect("failed to open skel");
