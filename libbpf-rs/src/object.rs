@@ -283,8 +283,70 @@ pub struct Object {
     progs: HashMap<String, Program>,
 }
 
+fn object_prog_next(
+    obj: *const libbpf_sys::bpf_object,
+    prog: *mut libbpf_sys::bpf_program, // needed to know what the next program is
+) -> Result<Option<*mut libbpf_sys::bpf_program>> {
+    let next_prog_ptr: *mut libbpf_sys::bpf_program = unsafe { libbpf_sys::bpf_program__next(prog, obj) };
+    Ok(util::ptr_to_option(next_prog_ptr))
+}
+
+fn object_map_next(
+    obj: *const libbpf_sys::bpf_object,
+    map: *mut libbpf_sys::bpf_map, // needed to know what the next map is
+) -> Result<Option<*mut libbpf_sys::bpf_map>> {
+    let next_map_ptr: *mut libbpf_sys::bpf_map = unsafe { libbpf_sys::bpf_map__next(map, obj) };
+    Ok(util::ptr_to_option(next_map_ptr))
+}
+
+
+fn get_maps(ptr: *mut libbpf_sys::bpf_object) -> Result<HashMap<String, Map>> {
+    let mut maps: HashMap<String, Map> = HashMap::new();
+    let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+
+    loop {
+        // while there's another map to grab
+        if let Some(next_map_ptr) = object_map_next(ptr, map).unwrap() {
+
+            // get map name
+            let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
+            let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
+            if err != 0 {
+                std::process::exit(err as i32);
+            }
+
+            let fd = unsafe { libbpf_sys::bpf_map__fd(next_map_ptr) };
+            if fd < 0 {
+                std::process::exit(errno::errno());
+            } else {
+                let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_map_ptr)) };
+
+                // convert to strings
+                let name = util::c_ptr_to_string(mname).unwrap();
+
+                maps.insert(
+                    name.clone(),
+                    Map::new(fd, name, def.type_, def.key_size, def.value_size, next_map_ptr),
+                );
+                map = next_map_ptr;
+            }
+
+        } else {
+            break;
+        }
+    }
+
+    Ok(maps)
+
+}
+     
+
 impl Object {
     fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
+
+        //let progs = get_progs(ptr).unwrap();
+        //let maps = get_maps(ptr).unwrap();
+
         Object {
             ptr,
             maps: HashMap::new(),
@@ -360,6 +422,57 @@ impl Object {
     pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
         self.prog(name).unwrap().unwrap()
     }
+
+    pub fn get_progs(&mut self) -> Result<&HashMap<String, Program>> {
+
+        // if populated already return the populated hashmap
+        if !self.progs.is_empty() {
+            Ok(&self.progs)
+
+        } else {
+            // build the hashmap and then return it
+            let mut progs: HashMap<String, Program> = HashMap::new();
+            let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
+
+            loop {
+                // while there's another program to grab
+                if let Some(next_prog_ptr) = object_prog_next(self.ptr, prog)? {
+
+                    // get program name
+                    let pname = unsafe { libbpf_sys::bpf_program__name(next_prog_ptr) };
+                    let err = unsafe { libbpf_sys::libbpf_get_error(pname as *const _) };
+                    if err != 0 {
+                        std::process::exit(err as i32);
+                    }
+
+                    // get section title
+                    let title = unsafe { libbpf_sys::bpf_program__title(next_prog_ptr, false) };
+                    let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
+                    if err != 0 {
+                        std::process::exit(err as i32);
+                    }
+
+                    // convert to strings
+                    let name = util::c_ptr_to_string(pname)?;
+                    let section = util::c_ptr_to_string(title)?;
+
+                    // push into progs
+                    progs.insert(name.clone(), Program::new(next_prog_ptr, name, section));
+                    prog = next_prog_ptr;
+
+                } else {
+                    break;
+                }
+            }
+
+            self.progs = progs;
+
+            Ok(&self.progs)
+        }
+    }
+
+
+
 }
 
 impl Drop for Object {
