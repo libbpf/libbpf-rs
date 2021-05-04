@@ -436,11 +436,11 @@ impl Object {
         self.prog(name).unwrap().unwrap()
     }
 
-    pub fn get_progs(&mut self) -> Result<&HashMap<String, Program>> {
+    pub fn get_progs(&mut self) -> Result<&mut HashMap<String, Program>> {
 
         // if populated already return the populated hashmap
         if !self.progs.is_empty() {
-            Ok(&self.progs)
+            Ok(&mut self.progs)
 
         } else {
             // build the hashmap and then return it
@@ -480,7 +480,7 @@ impl Object {
 
             self.progs = progs;
 
-            Ok(&self.progs)
+            Ok(&mut self.progs)
         }
     }
 
