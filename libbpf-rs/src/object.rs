@@ -300,46 +300,7 @@ fn object_map_next(
 }
 
 
-fn get_maps(ptr: *mut libbpf_sys::bpf_object) -> Result<HashMap<String, Map>> {
-    let mut maps: HashMap<String, Map> = HashMap::new();
-    let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
-
-    loop {
-        // while there's another map to grab
-        if let Some(next_map_ptr) = object_map_next(ptr, map).unwrap() {
-
-            // get map name
-            let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
-            let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
-            if err != 0 {
-                std::process::exit(err as i32);
-            }
-
-            let fd = unsafe { libbpf_sys::bpf_map__fd(next_map_ptr) };
-            if fd < 0 {
-                std::process::exit(errno::errno());
-            } else {
-                let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_map_ptr)) };
-
-                // convert to strings
-                let name = util::c_ptr_to_string(mname).unwrap();
-
-                maps.insert(
-                    name.clone(),
-                    Map::new(fd, name, def.type_, def.key_size, def.value_size, next_map_ptr),
-                );
-                map = next_map_ptr;
-            }
-
-        } else {
-            break;
-        }
-    }
-
-    Ok(maps)
-
-}
-     
+    
 
 impl Object {
     fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
@@ -395,6 +356,58 @@ impl Object {
     pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
         self.map(name).unwrap().unwrap()
     }
+
+
+    pub fn get_maps(&mut self) -> Result<&HashMap<String, Map>> {
+
+        // if populated already return the populated hashmap
+        if !self.maps.is_empty() {
+            Ok(&self.maps)
+
+        } else {
+     
+            let mut maps: HashMap<String, Map> = HashMap::new();
+            let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+
+            loop {
+                // while there's another map to grab
+                if let Some(next_map_ptr) = object_map_next(self.ptr, map).unwrap() {
+
+                    // get map name
+                    let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
+                    let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
+                    if err != 0 {
+                        std::process::exit(err as i32);
+                    }
+
+                    let fd = unsafe { libbpf_sys::bpf_map__fd(next_map_ptr) };
+                    if fd < 0 {
+                        std::process::exit(errno::errno());
+                    } else {
+                        let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_map_ptr)) };
+
+                        // convert to strings
+                        let name = util::c_ptr_to_string(mname).unwrap();
+
+                        maps.insert(
+                            name.clone(),
+                            Map::new(fd, name, def.type_, def.key_size, def.value_size, next_map_ptr),
+                        );
+                        map = next_map_ptr;
+                    }
+
+                } else {
+                    break;
+                }
+            }
+
+            self.maps = maps;
+
+            Ok(&self.maps)
+        }
+
+    }
+     
 
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Program>> {
         if self.progs.contains_key(name.as_ref()) {
