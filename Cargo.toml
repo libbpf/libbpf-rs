@@ -1,7 +1,28 @@
-[workspace]
-members = [
-  "libbpf-cargo",
-  "libbpf-rs",
-  "examples/runqslower",
-  "examples/query",
-]
+[package]
+name = "libbpf-rs"
+description= "libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys"
+repository = "https://github.com/libbpf/libbpf-rs"
+homepage = "https://github.com/libbpf/libbpf-rs"
+readme = "../README.md"
+version = "0.9.0"
+authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
+edition = "2018"
+license = "LGPL-2.1 OR BSD-2-Clause"
+keywords = ["bpf", "ebpf", "libbpf"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+thiserror = "1.0"
+bitflags = "1.2"
+libbpf-sys = { version = "0.2.0-3" }
+nix = "0.17"
+num_enum = "0.5"
+strum_macros = "0.18"
+vsprintf = "1.0"
+
+[dev-dependencies]
+libc = "0.2"
+plain = "0.2.3"
+scopeguard = "1.1"
