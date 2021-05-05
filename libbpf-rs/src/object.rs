@@ -304,10 +304,6 @@ fn object_map_next(
 
 impl Object {
     fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
-
-        //let progs = get_progs(ptr).unwrap();
-        //let maps = get_maps(ptr).unwrap();
-
         Object {
             ptr,
             maps: HashMap::new(),
