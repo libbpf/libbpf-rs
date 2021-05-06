@@ -373,7 +373,7 @@ impl Object {
                     let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
                     let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
                     if err != 0 {
-                        std::process::exit(err as i32);
+                        return Err(Error::System(err as i32));
                     }
 
                     let fd = unsafe { libbpf_sys::bpf_map__fd(next_map_ptr) };
