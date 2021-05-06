@@ -225,6 +225,40 @@ impl OpenObject {
         self.map(name).unwrap().unwrap()
     }
 
+    /// Function that returns an Iterator over all available maps
+    /// in a given BPF [`Object`]
+    pub fn maps(&mut self) -> Result<&HashMap<String, OpenMap>> {
+        if !self.maps.is_empty() {
+            Ok(&self.maps)
+        } else {
+            let mut maps: HashMap<String, OpenMap> = HashMap::new();
+            let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+
+            loop {
+                let next_map_ptr = unsafe { libbpf_sys::bpf_map__next(map, self.ptr) };
+                if next_map_ptr.is_null() {
+                    break;
+                }
+
+                let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
+                let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+
+                let name = util::c_ptr_to_string(mname)?;
+
+                maps.insert(name.clone(), OpenMap::new(next_map_ptr));
+
+                map = next_map_ptr;
+            }
+
+            self.maps = maps;
+
+            Ok(&self.maps)
+        }
+    }
+
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenProgram>> {
         if self.progs.contains_key(name.as_ref()) {
             Ok(self.progs.get_mut(name.as_ref()))
@@ -240,6 +274,39 @@ impl OpenObject {
     /// Same as [`OpenObject::prog`] except will panic if `Err` or `None` is encountered.
     pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenProgram {
         self.prog(name).unwrap().unwrap()
+    }
+
+    /// Function that returns an Iterator over all available programs
+    /// in a given BPF [`Object`]
+    pub fn progs(&mut self) -> Result<&mut HashMap<String, OpenProgram>> {
+        if !self.progs.is_empty() {
+            Ok(&mut self.progs)
+        } else {
+            let mut progs: HashMap<String, OpenProgram> = HashMap::new();
+            let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
+
+            loop {
+                let next_prog_ptr = unsafe { libbpf_sys::bpf_program__next(prog, self.ptr) };
+                if next_prog_ptr.is_null() {
+                    break;
+                }
+
+                let pname = unsafe { libbpf_sys::bpf_program__name(next_prog_ptr) };
+                let err = unsafe { libbpf_sys::libbpf_get_error(pname as *const _) };
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+
+                let name = util::c_ptr_to_string(pname)?;
+
+                progs.insert(name.clone(), OpenProgram::new(next_prog_ptr));
+                prog = next_prog_ptr;
+            }
+
+            self.progs = progs;
+
+            Ok(&mut self.progs)
+        }
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
@@ -282,25 +349,6 @@ pub struct Object {
     maps: HashMap<String, Map>,
     progs: HashMap<String, Program>,
 }
-
-fn object_prog_next(
-    obj: *const libbpf_sys::bpf_object,
-    prog: *mut libbpf_sys::bpf_program, // needed to know what the next program is
-) -> Result<Option<*mut libbpf_sys::bpf_program>> {
-    let next_prog_ptr: *mut libbpf_sys::bpf_program = unsafe { libbpf_sys::bpf_program__next(prog, obj) };
-    Ok(util::ptr_to_option(next_prog_ptr))
-}
-
-fn object_map_next(
-    obj: *const libbpf_sys::bpf_object,
-    map: *mut libbpf_sys::bpf_map, // needed to know what the next map is
-) -> Result<Option<*mut libbpf_sys::bpf_map>> {
-    let next_map_ptr: *mut libbpf_sys::bpf_map = unsafe { libbpf_sys::bpf_map__next(map, obj) };
-    Ok(util::ptr_to_option(next_map_ptr))
-}
-
-
-    
 
 impl Object {
     fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
@@ -353,47 +401,47 @@ impl Object {
         self.map(name).unwrap().unwrap()
     }
 
-
-    pub fn get_maps(&mut self) -> Result<&HashMap<String, Map>> {
-
-        // if populated already return the populated hashmap
+    /// Function that returns an Iterator over all available maps
+    /// in a given BPF [`Object`]
+    pub fn maps(&mut self) -> Result<&HashMap<String, Map>> {
         if !self.maps.is_empty() {
             Ok(&self.maps)
-
         } else {
-     
             let mut maps: HashMap<String, Map> = HashMap::new();
             let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
 
             loop {
-                // while there's another map to grab
-                if let Some(next_map_ptr) = object_map_next(self.ptr, map).unwrap() {
-
-                    // get map name
-                    let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
-                    let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
-                    if err != 0 {
-                        return Err(Error::System(err as i32));
-                    }
-
-                    let fd = unsafe { libbpf_sys::bpf_map__fd(next_map_ptr) };
-                    if fd < 0 {
-                        std::process::exit(errno::errno());
-                    } else {
-                        let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_map_ptr)) };
-
-                        // convert to strings
-                        let name = util::c_ptr_to_string(mname).unwrap();
-
-                        maps.insert(
-                            name.clone(),
-                            Map::new(fd, name, def.type_, def.key_size, def.value_size, next_map_ptr),
-                        );
-                        map = next_map_ptr;
-                    }
-
-                } else {
+                let next_map_ptr = unsafe { libbpf_sys::bpf_map__next(map, self.ptr) };
+                if next_map_ptr.is_null() {
                     break;
+                }
+
+                let mname = unsafe { libbpf_sys::bpf_map__name(next_map_ptr) };
+                let err = unsafe { libbpf_sys::libbpf_get_error(mname as *const _) };
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+
+                let fd = unsafe { libbpf_sys::bpf_map__fd(next_map_ptr) };
+                if fd < 0 {
+                    return Err(Error::System(errno::errno()));
+                } else {
+                    let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_map_ptr)) };
+
+                    let name = util::c_ptr_to_string(mname)?;
+
+                    maps.insert(
+                        name.clone(),
+                        Map::new(
+                            fd,
+                            name,
+                            def.type_,
+                            def.key_size,
+                            def.value_size,
+                            next_map_ptr,
+                        ),
+                    );
+                    map = next_map_ptr;
                 }
             }
 
@@ -401,9 +449,7 @@ impl Object {
 
             Ok(&self.maps)
         }
-
     }
-     
 
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Program>> {
         if self.progs.contains_key(name.as_ref()) {
@@ -432,46 +478,38 @@ impl Object {
         self.prog(name).unwrap().unwrap()
     }
 
-    pub fn get_progs(&mut self) -> Result<&mut HashMap<String, Program>> {
-
-        // if populated already return the populated hashmap
+    /// Function that returns an Iterator over all available programs
+    /// in a given BPF [`Object`]
+    pub fn progs(&mut self) -> Result<&mut HashMap<String, Program>> {
         if !self.progs.is_empty() {
             Ok(&mut self.progs)
-
         } else {
-            // build the hashmap and then return it
             let mut progs: HashMap<String, Program> = HashMap::new();
             let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
 
             loop {
-                // while there's another program to grab
-                if let Some(next_prog_ptr) = object_prog_next(self.ptr, prog)? {
-
-                    // get program name
-                    let pname = unsafe { libbpf_sys::bpf_program__name(next_prog_ptr) };
-                    let err = unsafe { libbpf_sys::libbpf_get_error(pname as *const _) };
-                    if err != 0 {
-                        std::process::exit(err as i32);
-                    }
-
-                    // get section title
-                    let title = unsafe { libbpf_sys::bpf_program__title(next_prog_ptr, false) };
-                    let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
-                    if err != 0 {
-                        std::process::exit(err as i32);
-                    }
-
-                    // convert to strings
-                    let name = util::c_ptr_to_string(pname)?;
-                    let section = util::c_ptr_to_string(title)?;
-
-                    // push into progs
-                    progs.insert(name.clone(), Program::new(next_prog_ptr, name, section));
-                    prog = next_prog_ptr;
-
-                } else {
+                let next_prog_ptr = unsafe { libbpf_sys::bpf_program__next(prog, self.ptr) };
+                if next_prog_ptr.is_null() {
                     break;
                 }
+
+                let pname = unsafe { libbpf_sys::bpf_program__name(next_prog_ptr) };
+                let err = unsafe { libbpf_sys::libbpf_get_error(pname as *const _) };
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+
+                let title = unsafe { libbpf_sys::bpf_program__title(next_prog_ptr, false) };
+                let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
+                if err != 0 {
+                    return Err(Error::System(err as i32));
+                }
+
+                let name = util::c_ptr_to_string(pname)?;
+                let section = util::c_ptr_to_string(title)?;
+
+                progs.insert(name.clone(), Program::new(next_prog_ptr, name, section));
+                prog = next_prog_ptr;
             }
 
             self.progs = progs;
@@ -479,9 +517,6 @@ impl Object {
             Ok(&mut self.progs)
         }
     }
-
-
-
 }
 
 impl Drop for Object {
