@@ -876,6 +876,132 @@ pub struct Foo {
 }
 
 #[test]
+fn test_btf_dump_basic_long_array() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        int myglobal = 1;
+
+        struct Foo {{
+            int x;
+            char y[33];
+            void *z;
+        }};
+
+        struct Foo foo = {{0}};
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Build the .bpf.o
+    assert_eq!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
+
+    let obj = OpenOptions::new()
+        .read(true)
+        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .expect("failed to open object file");
+    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
+    let btf = Btf::new("prog", &*mmap)
+        .expect("Failed to initialize Btf")
+        .expect("Did not find .BTF section");
+
+    assert!(btf.types().len() > 0);
+    // Find our types
+    let mut struct_foo: Option<u32> = None;
+    let mut foo: Option<u32> = None;
+    let mut myglobal: Option<u32> = None;
+    for (idx, ty) in btf.types().iter().enumerate() {
+        match ty {
+            btf::BtfType::Struct(t) => {
+                if t.name == "Foo" {
+                    assert!(struct_foo.is_none()); // No duplicates
+                    struct_foo = Some(idx.try_into().unwrap());
+                }
+            }
+            btf::BtfType::Datasec(t) => {
+                for var in &t.vars {
+                    let var_ty = btf
+                        .type_by_id(var.type_id)
+                        .expect("Failed to lookup datasec var");
+                    match var_ty {
+                        btf::BtfType::Var(t) => {
+                            if t.name == "foo" {
+                                assert!(foo.is_none());
+                                foo = Some(var.type_id);
+                            } else if t.name == "myglobal" {
+                                assert!(myglobal.is_none());
+                                myglobal = Some(var.type_id);
+                            }
+                        }
+                        _ => panic!("Datasec var didn't point to a var. Instead: {}", var_ty),
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+
+    assert!(struct_foo.is_some());
+    assert!(foo.is_some());
+    assert!(myglobal.is_some());
+
+    assert_eq!(
+        "Foo",
+        btf.type_declaration(foo.unwrap())
+            .expect("Failed to generate foo decl")
+    );
+    assert_eq!(
+        "i32",
+        btf.type_declaration(myglobal.unwrap())
+            .expect("Failed to generate myglobal decl")
+    );
+
+    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub x: i32,
+    pub y: [i8; 33],
+    pub z: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: [i8::default(); 33],
+            z: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+    assert_eq!(
+        foo_defn,
+        btf.type_definition(struct_foo.unwrap())
+            .expect("Failed to generate struct Foo defn")
+    );
+}
+
+#[test]
 fn test_btf_dump_struct_definition() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
