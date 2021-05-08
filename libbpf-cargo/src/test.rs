@@ -1101,6 +1101,118 @@ pub struct Bar {
 }
 
 #[test]
+fn test_btf_dump_struct_definition_long_array() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        struct Bar {{
+            u16 x;
+            u16 y[33];
+        }};
+
+        struct Foo {{
+            int *ip;
+            int **ipp;
+            struct Bar bar;
+            struct Bar *pb;
+            volatile u64 v;
+            const volatile s64 cv;
+            char * restrict r;
+        }};
+
+        struct Foo foo;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Build the .bpf.o
+    assert_eq!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
+
+    let obj = OpenOptions::new()
+        .read(true)
+        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .expect("failed to open object file");
+    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
+    let btf = Btf::new("prog", &*mmap)
+        .expect("Failed to initialize Btf")
+        .expect("Did not find .BTF section");
+
+    assert!(btf.types().len() > 0);
+
+    // Find our struct
+    let mut struct_foo: Option<u32> = None;
+    for (idx, ty) in btf.types().iter().enumerate() {
+        match ty {
+            btf::BtfType::Struct(t) => {
+                if t.name == "Foo" {
+                    assert!(struct_foo.is_none()); // No duplicates
+                    struct_foo = Some(idx.try_into().unwrap());
+                }
+            }
+            _ => (),
+        }
+    }
+
+    assert!(struct_foo.is_some());
+
+    // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
+    // we've assumed 32 bit arch during padding generation.
+    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub ip: *mut i32,
+    pub ipp: *mut *mut i32,
+    pub bar: Bar,
+    __pad_84: [u8; 4],
+    pub pb: *mut Bar,
+    pub v: u64,
+    pub cv: i64,
+    pub r: *mut i8,
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Bar {
+    pub x: u16,
+    pub y: [u16; 33],
+}
+impl Default for Bar {
+    fn default() -> Self {
+        Bar {
+            x: u16::default(),
+            y: [u16::default(); 33],
+        }
+    }
+}
+"#;
+    assert_eq!(
+        foo_defn,
+        btf.type_definition(struct_foo.unwrap())
+            .expect("Failed to generate struct Foo defn")
+    );
+}
+
+#[test]
 fn test_btf_dump_definition_packed_struct() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
@@ -1170,6 +1282,97 @@ pub struct Foo {
     pub x: i32,
     pub y: i8,
     pub z: [i32; 2],
+}
+"#;
+    assert_eq!(
+        foo_defn,
+        btf.type_definition(struct_foo.unwrap())
+            .expect("Failed to generate struct Foo defn")
+    );
+}
+
+#[test]
+fn test_btf_dump_definition_packed_struct_long_array() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        struct Foo {{
+            int x;
+            char y;
+            __s32 z[33];
+        }} __attribute__((packed));
+
+        struct Foo foo;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Build the .bpf.o
+    assert_eq!(
+        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
+        0
+    );
+
+    let obj = OpenOptions::new()
+        .read(true)
+        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .expect("failed to open object file");
+    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
+    let btf = Btf::new("prog", &*mmap)
+        .expect("Failed to initialize Btf")
+        .expect("Did not find .BTF section");
+
+    assert!(btf.types().len() > 0);
+
+    // Find our struct
+    let mut struct_foo: Option<u32> = None;
+    for (idx, ty) in btf.types().iter().enumerate() {
+        match ty {
+            btf::BtfType::Struct(t) => {
+                if t.name == "Foo" {
+                    assert!(struct_foo.is_none()); // No duplicates
+                    struct_foo = Some(idx.try_into().unwrap());
+                }
+            }
+            _ => (),
+        }
+    }
+
+    assert!(struct_foo.is_some());
+
+    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+#[repr(C, packed)]
+pub struct Foo {
+    pub x: i32,
+    pub y: i8,
+    pub z: [i32; 33],
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: i8::default(),
+            z: [i32::default(); 33],
+        }
+    }
 }
 "#;
     assert_eq!(
