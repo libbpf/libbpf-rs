@@ -5,6 +5,7 @@ use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write;
 use std::mem::size_of;
 use std::slice;
+use std::sync::Mutex;
 
 use anyhow::{bail, ensure, Result};
 use scroll::Pread;
@@ -17,6 +18,8 @@ pub struct Btf<'a> {
     ptr_size: u32,
     string_table: &'a [u8],
     bpf_obj: *mut libbpf_sys::bpf_object,
+    anon_union_count: Mutex<u32>,
+    anon_struct_count: Mutex<u32>,
 }
 
 impl<'a> Btf<'a> {
@@ -92,6 +95,8 @@ impl<'a> Btf<'a> {
             ptr_size: ptr_size as u32,
             string_table: str_data,
             bpf_obj,
+            anon_union_count: Mutex::new(0),
+            anon_struct_count: Mutex::new(0),
         };
 
         // Load all types
@@ -519,6 +524,23 @@ impl<'a> Btf<'a> {
         }
     }
 
+    fn get_name_or_anonymous_string(
+        &self,
+        name_off: usize,
+        counter: &Mutex<u32>,
+        prefix: &str,
+    ) -> Result<String> {
+        let mut count = counter.lock().unwrap();
+        Ok(match self.get_btf_str(name_off)? {
+            "" => {
+                let rc = String::from(prefix) + &count.to_string();
+                *count += 1;
+                rc
+            }
+            n => String::from(n),
+        })
+    }
+
     fn load_type(&self, data: &'a [u8]) -> Result<BtfType<'a>> {
         let t = data.pread::<btf_type>(0)?;
         let extra = &data[size_of::<btf_type>()..];
@@ -578,8 +600,13 @@ impl<'a> Btf<'a> {
     }
 
     fn load_struct(&self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+        let name = self.get_name_or_anonymous_string(
+            t.name_off as usize,
+            &self.anon_struct_count,
+            "anon_struct_",
+        )?;
         Ok(BtfType::Struct(BtfComposite {
-            name: self.get_btf_str(t.name_off as usize)?,
+            name: name,
             is_struct: true,
             size: t.type_id,
             members: self.load_members(t, extra)?,
@@ -587,8 +614,13 @@ impl<'a> Btf<'a> {
     }
 
     fn load_union(&self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+        let name = self.get_name_or_anonymous_string(
+            t.name_off as usize,
+            &self.anon_union_count,
+            "anon_union_",
+        )?;
         Ok(BtfType::Union(BtfComposite {
-            name: self.get_btf_str(t.name_off as usize)?,
+            name: name,
             is_struct: false,
             size: t.type_id,
             members: self.load_members(t, extra)?,
