@@ -27,7 +27,6 @@ impl<'a> Btf<'a> {
             object_name: cname.as_ptr(),
             ..Default::default()
         };
-
         let bpf_obj = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr() as *const c_void,

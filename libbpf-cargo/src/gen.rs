@@ -543,7 +543,6 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<*mut libbpf_sys::bpf_objec
         object_name: cname.as_ptr(),
         ..Default::default()
     };
-
     let object = unsafe {
         libbpf_sys::bpf_object__open_mem(
             data.as_ptr() as *const c_void,
