@@ -192,7 +192,7 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "bitflags",
  "libbpf-sys",
