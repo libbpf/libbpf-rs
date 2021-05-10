@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
@@ -33,7 +34,7 @@ pub struct UnprocessedObj {
 fn get_package(
     debug: bool,
     package: &Package,
-    workspace_target_dir: &PathBuf,
+    workspace_target_dir: &Path,
 ) -> Result<Vec<UnprocessedObj>> {
     if debug {
         println!("Metadata for package={}", package.name);
@@ -65,7 +66,7 @@ fn get_package(
     };
 
     // Respect custom target directories specified by package
-    let mut target_dir = workspace_target_dir.clone();
+    let mut target_dir = workspace_target_dir.to_path_buf();
     let out_dir = if let Some(d) = package_metadata.target_dir {
         if debug {
             println!("Custom target_dir={}", d.to_string_lossy());

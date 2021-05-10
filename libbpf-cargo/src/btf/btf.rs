@@ -22,9 +22,12 @@ pub struct Btf<'a> {
 impl<'a> Btf<'a> {
     pub fn new(name: &str, object_file: &[u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)?;
-        let mut obj_opts = libbpf_sys::bpf_object_open_opts::default();
-        obj_opts.sz = std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t;
-        obj_opts.object_name = cname.as_ptr();
+        let obj_opts = libbpf_sys::bpf_object_open_opts {
+            sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            object_name: cname.as_ptr(),
+            ..Default::default()
+        };
+
         let bpf_obj = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr() as *const c_void,
