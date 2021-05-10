@@ -165,10 +165,10 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         // Holds `CString`s alive so pointers to them stay valid
         let mut string_pool = Vec::new();
 
-        // NB: use default() to zero out struct
-        let mut s = bpf_object_skeleton::default();
-
-        s.sz = size_of::<bpf_object_skeleton>() as u64;
+        let mut s = libbpf_sys::bpf_object_skeleton {
+            sz: size_of::<bpf_object_skeleton>() as u64,
+            ..Default::default()
+        };
 
         if let Some(ref n) = self.name {
             s.name = str_to_cstring_and_pool(&n, &mut string_pool)?;
