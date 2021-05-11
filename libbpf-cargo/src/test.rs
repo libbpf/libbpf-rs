@@ -1748,6 +1748,6 @@ pub struct __anon_struct_1 {
     assert_eq!(
         foo_defn,
         btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate union Foo defn")
+            .expect("Failed to generate struct Foo defn")
     );
 }
