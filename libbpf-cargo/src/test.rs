@@ -1641,7 +1641,6 @@ pub union anon_union_1 {
     pub u: *mut u64,
 }
 "#;
-    println!("{}", btf.type_definition(struct_foo.unwrap()).unwrap());
     assert_eq!(
         foo_defn,
         btf.type_definition(struct_foo.unwrap())
