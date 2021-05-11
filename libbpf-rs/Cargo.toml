@@ -16,11 +16,11 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 thiserror = "1.0"
 bitflags = "1.2"
-libbpf-sys = { version = "0.2.0-3" }
+libbpf-sys = { version = "0.3.0-2" }
 nix = "0.17"
 num_enum = "0.5"
 strum_macros = "0.18"
-vsprintf = "1.0"
+vsprintf = "2.0"
 
 [dev-dependencies]
 libc = "0.2"
