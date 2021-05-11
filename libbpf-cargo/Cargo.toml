@@ -23,7 +23,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 cargo_metadata = "0.9"
-libbpf-sys = { version = "0.2.0-2" }
+libbpf-sys = { version = "0.3.0-2" }
 memmap = "0.7"
 num_enum = "0.5"
 regex = "1.4"
