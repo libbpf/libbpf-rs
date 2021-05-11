@@ -12,6 +12,9 @@ use scroll::Pread;
 use crate::btf::c_types::*;
 use crate::btf::*;
 
+const ANON_STRUCT_PREFIX: &str = "__anon_struct_";
+const ANON_UNION_PREFIX: &str = "__anon_union_";
+
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
@@ -584,7 +587,7 @@ impl<'a> Btf<'a> {
     fn load_struct(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                let n = format!("anon_struct_{}", self.anon_struct_count);
+                let n = format!("{}{}", ANON_STRUCT_PREFIX, self.anon_struct_count);
                 self.anon_struct_count += 1;
                 n
             }
@@ -601,7 +604,7 @@ impl<'a> Btf<'a> {
     fn load_union(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                let n = format!("anon_union_{}", self.anon_union_count);
+                let n = format!("{}{}", ANON_UNION_PREFIX, self.anon_union_count);
                 self.anon_union_count += 1;
                 n
             }
