@@ -454,6 +454,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "libbpf-cargo",
  "libbpf-rs",
  "libc",
  "plain",

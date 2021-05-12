@@ -11,3 +11,6 @@ libbpf-rs = { path = "../../libbpf-rs" }
 libc = "0.2"
 plain = "0.2"
 structopt = "0.3"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
