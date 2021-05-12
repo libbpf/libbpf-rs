@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use std::process::exit;
 
+use anyhow::Result;
 use structopt::StructOpt;
 
 mod btf;
@@ -98,10 +98,10 @@ enum Command {
 }
 
 #[doc(hidden)]
-fn main() {
+fn main() -> Result<()> {
     let opts = Opt::from_args();
 
-    let rc = match opts.wrapper {
+    match opts.wrapper {
         Wrapper::Libbpf(cmd) => match cmd {
             Command::Build {
                 debug,
@@ -143,7 +143,5 @@ fn main() {
                 rustfmt_path.as_ref(),
             ),
         },
-    };
-
-    exit(rc);
+    }
 }
