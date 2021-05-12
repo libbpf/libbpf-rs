@@ -8,7 +8,7 @@ effectively.
 To build the project:
 ```shell
 $ cd examples/runqslower
-$ cargo libbpf make
+$ cargo build
 $ sudo ../../target/debug/runqslower 1000
 Tracing run queue latency higher than 1000 us
 TIME     COMM             TID     LAT(us)
