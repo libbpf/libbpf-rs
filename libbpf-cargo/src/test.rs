@@ -6,10 +6,10 @@ use std::process::Command;
 
 use goblin::Object;
 use memmap::Mmap;
-use tempfile::{tempdir, TempDir};
+use tempfile::{tempdir, NamedTempFile, TempDir};
 
 use crate::btf;
-use crate::{btf::Btf, build::build, make::make};
+use crate::{btf::Btf, build::build, make::make, SkeletonBuilder};
 
 static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
 static BPF_HELPERS: &'static str = include_str!("../test_data/bpf_helpers.h");
@@ -646,6 +646,120 @@ fn test_skeleton_datasec() {
             let _rodata: &prog_rodata_types::rodata = skel.rodata();
         }}
         "#,
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
+#[test]
+fn test_skeleton_builder_basic() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        struct {{
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __type(key, u32);
+                __type(value, u64);
+        }} mymap SEC(".maps");
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {{
+                return 0;
+        }}
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Generate skeleton file
+    let skel = NamedTempFile::new().unwrap();
+    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("/bin/clang")
+        .generate(skel.path())
+        .unwrap();
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        #[path = "{skel_path}"]
+        mod skel;
+        use skel::*;
+
+        fn main() {{
+            let builder = ProgSkelBuilder::default();
+            let mut open_skel = builder
+                .open()
+                .expect("failed to open skel");
+
+            // Check that we can grab handles to open maps/progs
+            let _open_map = open_skel.maps().mymap();
+            let _open_prog = open_skel.progs().this_is_my_prog();
+
+            let mut skel = open_skel
+                .load()
+                .expect("failed to load skel");
+
+            // Check that we can grab handles to loaded maps/progs
+            let _map = skel.maps().mymap();
+            let _prog = skel.progs().this_is_my_prog();
+
+            // Check that attach() is generated
+            skel.attach().expect("failed to attach progs");
+
+            // Check that Option<Link> field is generated
+            let _mylink = skel.links.this_is_my_prog.unwrap();
+        }}
+        "#,
+        skel_path = skel.path().display(),
     )
     .expect("failed to write to main.rs");
 
