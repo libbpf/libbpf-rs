@@ -391,10 +391,14 @@ impl<'a> Btf<'a> {
                 BtfType::Struct(t) | BtfType::Union(t) => {
                     let packed = self.is_struct_packed(type_id, t)?;
 
-                    let mut impl_default = Vec::new();
-                    let mut type_content = String::new();
-                    let mut default_macro = true;
-                    let mut can_default_impl = true;
+                    // fields in the aggregate
+                    let mut agg_content: Vec<String> = Vec::new();
+
+                    // structs with arrays > 32 length need to impl Default
+                    // rather than #[derive(Default)]
+                    let mut impl_default: Vec<String> = Vec::new(); // output for impl Default
+                    let mut gen_impl_default = false; // whether to output impl Default or use #[derive]
+
                     let mut offset = 0; // In bytes
                     for member in &t.members {
                         ensure!(
@@ -417,60 +421,55 @@ impl<'a> Btf<'a> {
                             )?;
 
                             if padding != 0 {
-                                writeln!(
-                                    type_content,
+                                agg_content.push(format!(
                                     r#"    __pad_{offset}: [u8; {padding}],"#,
                                     offset = offset,
                                     padding = padding,
-                                )?;
+                                ));
 
                                 impl_default.push(format!(
-                                    r#"__pad_{offset}: [u8::default(); {padding}]"#,
+                                    r#"            __pad_{offset}: [u8::default(); {padding}]"#,
                                     offset = offset,
                                     padding = padding,
                                 ));
                             }
+
+                            match self.type_by_id(field_ty_id)? {
+                                BtfType::Array(ft) => {
+                                    if ft.nelems > 32 {
+                                        gen_impl_default = true
+                                    }
+                                }
+                                _ => {}
+                            }
+
+                            match self.type_default(field_ty_id) {
+                                Ok(def) => {
+                                    impl_default.push(format!(
+                                        r#"            {field_name}: {field_ty_str}"#,
+                                        field_name = member.name,
+                                        field_ty_str = def
+                                    ));
+                                }
+                                Err(_) => {
+                                    if gen_impl_default {
+                                        bail!("Could not construct a necessary Default Impl");
+                                    }
+                                }
+                            };
                         }
 
                         // Set `offset` to end of current var
                         offset = ((member.bit_offset / 8) + self.size_of(field_ty_id)?) as usize;
 
-                        if can_default_impl {
-                            let fstripped_type_id = self.skip_mods_and_typedefs(field_ty_id)?;
-                            let fty = self.type_by_id(fstripped_type_id)?;
-                            match fty {
-                                BtfType::Array(ft) => {
-                                    if ft.nelems > 32 {
-                                        default_macro = false
-                                    }
-                                }
-                                _ => {},
-                            }
-
-                            let field_ty_def = match self.type_default(field_ty_id) {
-                                Ok(def) => def,
-                                Err(_) => {
-                                    can_default_impl = false;
-                                    String::from("")
-                                }
-                            };
-
-                            impl_default.push(format!(
-                                r#"{field_name}: {field_ty_str}"#,
-                                field_name = member.name,
-                                field_ty_str = field_ty_def
-                            ));
-                        }
-
-                        writeln!(
-                            type_content,
+                        agg_content.push(format!(
                             r#"    pub {field_name}: {field_ty_str},"#,
                             field_name = member.name,
                             field_ty_str = self.type_declaration(field_ty_id)?,
-                        )?;
+                        ));
                     }
 
-                    if t.is_struct && default_macro {
+                    if !gen_impl_default && t.is_struct {
                         writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
                     } else {
                         writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
@@ -487,15 +486,22 @@ impl<'a> Btf<'a> {
                         name = t.name,
                     )?;
 
-                    writeln!(def, "{}}}", type_content)?;
+                    for field in agg_content {
+                        writeln!(def, "{}", field)?;
+                    }
+                    writeln!(def, "}}")?;
 
-                    if t.is_struct && !default_macro && can_default_impl {
-                        writeln!(def, "impl Default for {} {{", t.name)?;
-                        writeln!(def, "    fn default() -> Self {{\n        {} {{", t.name)?;
+                    // if required write a Default implementation for this struct
+                    if gen_impl_default {
+                        writeln!(def, r#"impl Default for {} {{"#, t.name)?;
+                        writeln!(def, r#"    fn default() -> Self {{"#)?;
+                        writeln!(def, r#"        {} {{"#, t.name)?;
                         for impl_def in impl_default {
-                            writeln!(def, "            {},", impl_def)?;
+                            writeln!(def, r#"{},"#, impl_def)?;
                         }
-                        writeln!(def, "        }}\n    }}\n}}")?;
+                        writeln!(def, r#"        }}"#)?;
+                        writeln!(def, r#"    }}"#)?;
+                        writeln!(def, r#"}}"#)?;
                     }
                 }
                 BtfType::Enum(t) => {
