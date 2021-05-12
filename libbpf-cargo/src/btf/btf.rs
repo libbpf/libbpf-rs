@@ -12,16 +12,14 @@ use scroll::Pread;
 use crate::btf::c_types::*;
 use crate::btf::*;
 
-const ANON_STRUCT_PREFIX: &str = "__anon_struct_";
-const ANON_UNION_PREFIX: &str = "__anon_union_";
+const ANON_AGGREGATE_PREFIX: &str = "__anon_";
 
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
     string_table: &'a [u8],
     bpf_obj: *mut libbpf_sys::bpf_object,
-    anon_union_count: u32,
-    anon_struct_count: u32,
+    anon_agg_count: u32,
 }
 
 impl<'a> Btf<'a> {
@@ -97,8 +95,7 @@ impl<'a> Btf<'a> {
             ptr_size: ptr_size as u32,
             string_table: str_data,
             bpf_obj,
-            anon_union_count: 0u32,
-            anon_struct_count: 0u32,
+            anon_agg_count: 0u32,
         };
 
         // Load all types
@@ -587,8 +584,8 @@ impl<'a> Btf<'a> {
     fn load_struct(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                let n = format!("{}{}", ANON_STRUCT_PREFIX, self.anon_struct_count);
-                self.anon_struct_count += 1;
+                let n = format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count);
+                self.anon_agg_count += 1;
                 n
             }
             n => n.to_string(),
@@ -604,8 +601,8 @@ impl<'a> Btf<'a> {
     fn load_union(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                let n = format!("{}{}", ANON_UNION_PREFIX, self.anon_union_count);
-                self.anon_union_count += 1;
+                let n = format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count);
+                self.anon_agg_count += 1;
                 n
             }
             n => n.to_string(),
