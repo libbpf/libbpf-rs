@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use anyhow::{bail, Context, Result};
+
 use crate::{build, gen};
 
 pub fn make(
@@ -11,24 +13,17 @@ pub fn make(
     quiet: bool,
     cargo_build_args: Vec<String>,
     rustfmt_path: Option<&PathBuf>,
-) -> i32 {
+) -> Result<()> {
     if !quiet {
         println!("Compiling BPF objects");
     }
-    let mut ret = build::build(debug, manifest_path, clang, skip_clang_version_checks);
-    if ret != 0 {
-        eprintln!("Failed to compile BPF objects");
-        return ret;
-    }
+    build::build(debug, manifest_path, clang, skip_clang_version_checks)
+        .context("Failed to compile BPF objects")?;
 
     if !quiet {
         println!("Generating skeletons");
     }
-    ret = gen::gen(debug, manifest_path, None, rustfmt_path);
-    if ret != 0 {
-        eprintln!("Failed to generate skeletons");
-        return ret;
-    }
+    gen::gen(debug, manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;
 
     let mut cmd = Command::new("cargo");
     cmd.arg("build");
@@ -39,23 +34,15 @@ pub fn make(
         cmd.arg(arg);
     }
 
-    let status = match cmd.status() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Failed to spawn child: {}", e);
-            return 1;
-        }
-    };
-
+    let status = cmd.status().context("Failed to spawn child")?;
     if !status.success() {
         let reason = match status.code() {
             Some(rc) => format!("exit code {}", rc),
             None => "killed by signal".to_string(),
         };
 
-        eprintln!("Failed to `cargo build`: {}", reason);
-        return 1;
+        bail!("Failed to `cargo build`: {}", reason);
     }
 
-    0
+    Ok(())
 }

@@ -143,14 +143,8 @@ pub fn build(
     manifest_path: Option<&PathBuf>,
     clang: &Path,
     skip_clang_version_checks: bool,
-) -> i32 {
-    let to_compile = match metadata::get(debug, manifest_path) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("{}", e);
-            return 1;
-        }
-    };
+) -> Result<()> {
+    let to_compile = metadata::get(debug, manifest_path)?;
 
     if debug && !to_compile.is_empty() {
         println!("Found bpf progs to compile:");
@@ -158,27 +152,20 @@ pub fn build(
             println!("\t{:?}", obj);
         }
     } else if to_compile.is_empty() {
-        eprintln!("Did not find any bpf progs to compile");
-        return 1;
+        bail!("Did not find any bpf progs to compile");
     }
 
-    if let Err(e) = check_progs(&to_compile) {
-        eprintln!("{}", e);
-        return 1;
-    }
+    check_progs(&to_compile)?;
 
     if let Err(e) = check_clang(debug, clang, skip_clang_version_checks) {
-        eprintln!("{} is invalid: {}", clang.display(), e);
-        return 1;
+        bail!("{} is invalid: {}", clang.display(), e);
     }
 
-    match compile(debug, &to_compile, clang) {
-        Ok(_) => 0,
-        Err(e) => {
-            eprintln!("Failed to compile progs: {}", e);
-            1
-        }
+    if let Err(e) = compile(debug, &to_compile, clang) {
+        bail!("Failed to compile progs: {}", e);
     }
+
+    Ok(())
 }
 
 #[test]
