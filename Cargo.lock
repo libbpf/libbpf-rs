@@ -182,6 +182,7 @@ dependencies = [
  "serde_json",
  "structopt",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]

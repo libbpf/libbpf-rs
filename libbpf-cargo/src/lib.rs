@@ -1,11 +1,20 @@
-// Dummy library, so libbpf-cargo can be registered as a dependency in tools like
-// https://github.com/facebookincubator/reindeer and so we can add docs to docs.rs.
-
-//! cargo-libbpf is a cargo subcommand that helps develop and build eBPF (BPF) programs.
+//! libbpf-cargo helps you develop and build eBPF (BPF) programs with standard rust tooling.
+//!
+//! libbpf-cargo supports two interfaces:
+//! * [`SkeletonBuilder`] API, for use with [build scripts](https://doc.rust-lang.org/cargo/reference/build-scripts.html)
+//! * `cargo-libbpf` cargo subcommand, for use with `cargo`
+//!
+//! The **build script interface is recommended** over the cargo subcommand interface because:
+//! * once set up, you cannot forget to update the generated skeletons if your source changes
+//! * build scripts are standard practice for projects that include codegen
+//! * newcomers to your project can `cargo build` and it will "just work"
+//!
+//! The following sections in this document describe the `cargo-libbpf` plugin. See the API
+//! reference for documentation on the build script interface.
 //!
 //! # Configuration
 //!
-//! libbpf-cargo provides the following Cargo.toml configuration options:
+//! cargo-libbpf consumes the following Cargo.toml configuration options:
 //!
 //! ```text
 //! [package.metadata.libbpf]
@@ -46,5 +55,144 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
-#[doc(hidden)]
-pub fn foo() {}
+use std::path::{Path, PathBuf};
+use std::result;
+
+use tempfile::tempdir;
+use thiserror::Error;
+
+// libbpf-cargo binary is the primary consumer of the following modules. As such,
+// we do not use all the symbols. Silence any unused code warnings.
+#[allow(dead_code)]
+mod btf;
+#[allow(dead_code)]
+mod build;
+#[allow(dead_code)]
+mod gen;
+#[allow(dead_code)]
+mod make;
+#[allow(dead_code)]
+mod metadata;
+
+#[cfg(test)]
+mod test;
+
+/// Canonical error type for this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Error building BPF object file: {0}")]
+    Build(String),
+    #[error("Error generating skeleton: {0}")]
+    Generate(String),
+}
+
+pub type Result<T> = result::Result<T, Error>;
+
+/// `SkeletonBuilder` builds and generates a single skeleton.
+///
+/// This interface is meant to be used in build scripts.
+///
+/// # Examples
+///
+/// ```no_run
+/// use libbpf_cargo::SkeletonBuilder;
+///
+/// SkeletonBuilder::new("myobject.bpf.c")
+///     .debug(true)
+///     .clang("/opt/clang/clang")
+///     .generate("/output/path")
+///     .unwrap();
+/// ```
+pub struct SkeletonBuilder {
+    debug: bool,
+    source: PathBuf,
+    clang: PathBuf,
+    skip_clang_version_check: bool,
+    rustfmt: PathBuf,
+}
+
+impl SkeletonBuilder {
+    /// Create a new builder instance, where `source` is the path to the BPF object source
+    /// (typically suffixed by `.bpf.c`)
+    pub fn new<P: AsRef<Path>>(source: P) -> Self {
+        SkeletonBuilder {
+            debug: false,
+            source: source.as_ref().to_path_buf(),
+            clang: "clang".into(),
+            skip_clang_version_check: false,
+            rustfmt: "rustfmt".into(),
+        }
+    }
+
+    /// Turn debug output on or off
+    ///
+    /// Default is off
+    pub fn debug(&mut self, debug: bool) -> &mut SkeletonBuilder {
+        self.debug = debug;
+        self
+    }
+
+    /// Specify which `clang` binary to use
+    ///
+    /// Default searchs `$PATH` for `clang`
+    pub fn clang<P: AsRef<Path>>(&mut self, clang: P) -> &mut SkeletonBuilder {
+        self.clang = clang.as_ref().to_path_buf();
+        self
+    }
+
+    /// Specify whether or not to skip clang version check
+    ///
+    /// Default is `false`
+    pub fn skip_clang_version_check(&mut self, skip: bool) -> &mut SkeletonBuilder {
+        self.skip_clang_version_check = skip;
+        self
+    }
+
+    /// Specify which `rustfmt` binary to use
+    ///
+    /// Default searches `$PATH` for `rustfmt`
+    pub fn rustfmt<P: AsRef<Path>>(&mut self, rustfmt: P) -> &mut SkeletonBuilder {
+        self.rustfmt = rustfmt.as_ref().to_path_buf();
+        self
+    }
+
+    /// Generate the skeleton at path `output`
+    pub fn generate<P: AsRef<Path>>(&self, output: P) -> Result<()> {
+        let filename = self
+            .source
+            .file_name()
+            .ok_or_else(|| Error::Build("Missing file name".into()))?
+            .to_str()
+            .ok_or_else(|| Error::Build("Invalid unicode in file name".into()))?;
+        if !filename.ends_with(".bpf.c") {
+            return Err(Error::Build(format!(
+                "Source file={} does not have .bpf.c suffix",
+                self.source.display()
+            )));
+        }
+
+        // Safe to unwrap b/c we already checked suffix
+        let name = filename.split('.').next().unwrap();
+        let dir = tempdir().map_err(|e| Error::Build(e.to_string()))?;
+        let objfile = dir.path().join(format!("{}.o", name));
+
+        build::build_single(
+            self.debug,
+            &self.source,
+            &objfile,
+            &self.clang,
+            self.skip_clang_version_check,
+        )
+        .map_err(|e| Error::Build(e.to_string()))?;
+
+        gen::gen_single(
+            self.debug,
+            &objfile,
+            gen::OutputDest::File(output.as_ref()),
+            Some(&self.rustfmt),
+        )
+        .map_err(|e| Error::Generate(e.to_string()))?;
+
+        Ok(())
+    }
+}

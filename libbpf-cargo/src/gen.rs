@@ -15,10 +15,14 @@ use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
-enum OutputDest<'a> {
+pub enum OutputDest<'a> {
     Stdout,
     /// Infer a filename and place file in specified directory
     Directory(&'a Path),
+    #[allow(dead_code)]
+    /// File to place output in
+    // Only constructed in libbpf-cargo library
+    File(&'a Path),
 }
 
 macro_rules! gen_bpf_object_iter {
@@ -777,6 +781,10 @@ fn gen_skel(
             let mut file = File::create(path)?;
             file.write_all(skel.as_bytes())?;
         }
+        OutputDest::File(file) => {
+            let mut file = File::create(file)?;
+            file.write_all(skel.as_bytes())?;
+        }
     };
 
     Ok(())
@@ -832,7 +840,12 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     Ok(())
 }
 
-fn gen_single(debug: bool, obj_file: &Path, rustfmt_path: Option<&PathBuf>) -> Result<()> {
+pub fn gen_single(
+    debug: bool,
+    obj_file: &Path,
+    output: OutputDest,
+    rustfmt_path: Option<&PathBuf>,
+) -> Result<()> {
     let filename = match obj_file.file_name() {
         Some(n) => n,
         None => bail!(
@@ -855,7 +868,7 @@ fn gen_single(debug: bool, obj_file: &Path, rustfmt_path: Option<&PathBuf>) -> R
         ),
     };
 
-    if let Err(e) = gen_skel(debug, name, obj_file, OutputDest::Stdout, rustfmt_path) {
+    if let Err(e) = gen_skel(debug, name, obj_file, output, rustfmt_path) {
         bail!(
             "Failed to generate skeleton for {}: {}",
             obj_file.to_string_lossy(),
@@ -934,7 +947,7 @@ pub fn gen(
     }
 
     if let Some(obj_file) = object {
-        gen_single(debug, obj_file, rustfmt_path)
+        gen_single(debug, obj_file, OutputDest::Stdout, rustfmt_path)
     } else {
         gen_project(debug, manifest_path, rustfmt_path)
     }
