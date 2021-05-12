@@ -9,8 +9,6 @@ mod build;
 mod gen;
 mod make;
 mod metadata;
-#[cfg(test)]
-mod test;
 
 #[doc(hidden)]
 #[derive(Debug, StructOpt)]

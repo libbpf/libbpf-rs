@@ -78,61 +78,65 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 
 /// We're essentially going to run:
 ///
-///     clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
+///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
+fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path) -> Result<()> {
     let arch = if std::env::consts::ARCH == "x86_64" {
         "x86"
     } else {
         std::env::consts::ARCH
     };
 
+    if debug {
+        println!("Building {}", source.display());
+    }
+
+    let output = Command::new(clang.as_os_str())
+        .arg("-g")
+        .arg("-O2")
+        .arg("-target")
+        .arg("bpf")
+        .arg("-c")
+        .arg(format!("-D__TARGET_ARCH_{}", arch))
+        .arg(source.as_os_str())
+        .arg("-o")
+        .arg(out)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to compile obj={} with status={}\n \
+            stdout=\n \
+            {}\n \
+            stderr=\n \
+            {}\n",
+            out.to_string_lossy(),
+            output.status,
+            String::from_utf8(output.stdout).unwrap(),
+            String::from_utf8(output.stderr).unwrap()
+        );
+    }
+
+    Ok(())
+}
+
+fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
     for obj in objs {
-        let dest_name = if let Some(f) = obj.path.as_path().file_stem() {
+        let dest_name = if let Some(f) = obj.path.file_stem() {
             let mut stem = f.to_os_string();
             stem.push(".o");
             stem
         } else {
             bail!(
                 "Could not calculate destination name for obj={}",
-                obj.path.as_path().display()
+                obj.path.display()
             );
         };
-        let mut dest_path = obj.out.clone();
+        let mut dest_path = obj.out.to_path_buf();
         dest_path.push(&dest_name);
-
-        fs::create_dir_all(obj.out.as_path())?;
-
-        if debug {
-            println!("Building {}", obj.path.display());
-        }
-
-        let output = Command::new(clang.as_os_str())
-            .arg("-g")
-            .arg("-O2")
-            .arg("-target")
-            .arg("bpf")
-            .arg("-c")
-            .arg(format!("-D__TARGET_ARCH_{}", arch))
-            .arg(obj.path.as_path().as_os_str())
-            .arg("-o")
-            .arg(dest_path)
-            .output()?;
-
-        if !output.status.success() {
-            bail!(
-                "Failed to compile obj={} with status={}\n \
-                stdout=\n \
-                {}\n \
-                stderr=\n \
-                {}\n",
-                dest_name.to_string_lossy(),
-                output.status,
-                String::from_utf8(output.stdout).unwrap(),
-                String::from_utf8(output.stderr).unwrap()
-            )
-        }
+        fs::create_dir_all(&obj.out)?;
+        compile_one(debug, &obj.path, &dest_path, clang)?;
     }
 
     Ok(())
@@ -164,6 +168,21 @@ pub fn build(
     if let Err(e) = compile(debug, &to_compile, clang) {
         bail!("Failed to compile progs: {}", e);
     }
+
+    Ok(())
+}
+
+// Only used in libbpf-cargo library
+#[allow(dead_code)]
+pub fn build_single(
+    debug: bool,
+    source: &Path,
+    out: &Path,
+    clang: &Path,
+    skip_clang_version_checks: bool,
+) -> Result<()> {
+    check_clang(debug, clang, skip_clang_version_checks)?;
+    compile_one(debug, source, out, clang)?;
 
     Ok(())
 }
