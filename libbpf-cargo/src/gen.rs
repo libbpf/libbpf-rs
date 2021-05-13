@@ -662,7 +662,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::System(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr()) }};
+                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
 
                 Ok(Open{name}Skel {{
                     obj,
@@ -693,7 +693,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::System(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr()) }};
+                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr())? }};
 
                 Ok({name}Skel {{
                     obj,

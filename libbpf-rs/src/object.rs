@@ -6,8 +6,6 @@ use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr;
 
-use nix::errno;
-
 use crate::util;
 use crate::*;
 
@@ -98,7 +96,7 @@ impl ObjectBuilder {
             return Err(Error::System(err as i32));
         }
 
-        Ok(OpenObject::new(obj))
+        OpenObject::new(obj)
     }
 
     pub fn open_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
@@ -126,7 +124,7 @@ impl ObjectBuilder {
             return Err(Error::System(err as i32));
         }
 
-        Ok(OpenObject::new(obj))
+        OpenObject::new(obj)
     }
 }
 
@@ -167,12 +165,53 @@ pub struct OpenObject {
 }
 
 impl OpenObject {
-    fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
-        OpenObject {
+    fn new(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
+        let mut obj = OpenObject {
             ptr,
             maps: HashMap::new(),
             progs: HashMap::new(),
+        };
+
+        // Populate obj.maps
+        let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+        loop {
+            // Get the pointer to the next BPF map
+            let next_ptr = unsafe { libbpf_sys::bpf_map__next(map, obj.ptr) };
+            if next_ptr.is_null() {
+                break;
+            }
+
+            // Get the map name
+            // bpf_map__name can return null but only if it's passed a null.
+            // We already know next_ptr is not null.
+            let name = unsafe { libbpf_sys::bpf_map__name(next_ptr) };
+            let name = util::c_ptr_to_string(name)?;
+
+            // Add the map to the hashmap
+            obj.maps.insert(name, OpenMap::new(next_ptr));
+            map = next_ptr;
         }
+
+        // Populate obj.progs
+        let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
+        loop {
+            // Get the pointer to the next BPF program
+            let next_ptr = unsafe { libbpf_sys::bpf_program__next(prog, obj.ptr) };
+            if next_ptr.is_null() {
+                break;
+            }
+
+            // Get the program name.
+            // bpf_program__name never returns NULL, so no need to check the pointer.
+            let name = unsafe { libbpf_sys::bpf_program__name(next_ptr) };
+            let name = util::c_ptr_to_string(name)?;
+
+            // Add the program to the hashmap
+            obj.progs.insert(name, OpenProgram::new(next_ptr));
+            prog = next_ptr;
+        }
+
+        Ok(obj)
     }
 
     /// Takes ownership from pointer.
@@ -183,7 +222,7 @@ impl OpenObject {
     /// undefined.
     ///
     /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Self {
+    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
         Self::new(ptr)
     }
 
@@ -208,6 +247,7 @@ impl OpenObject {
         }
     }
 
+    /// Get a mutable reference to `OpenMap` with the name `name`, if one exists.
     pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenMap>> {
         if self.maps.contains_key(name.as_ref()) {
             Ok(self.maps.get_mut(name.as_ref()))
@@ -225,6 +265,14 @@ impl OpenObject {
         self.map(name).unwrap().unwrap()
     }
 
+    /// Get an iterator over references to all `OpenMap`s.
+    /// Note that this will include automatically generated .data, .rodata, .bss, and
+    /// .kconfig maps.
+    pub fn maps_iter(&mut self) -> impl Iterator<Item = &mut OpenMap> {
+        self.maps.values_mut()
+    }
+
+    /// Get a mutable reference to `OpenProgram` with the name `name`, if one exists.
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenProgram>> {
         if self.progs.contains_key(name.as_ref()) {
             Ok(self.progs.get_mut(name.as_ref()))
@@ -242,6 +290,11 @@ impl OpenObject {
         self.prog(name).unwrap().unwrap()
     }
 
+    /// Get an iterator over references to all `OpenProgram`s.
+    pub fn progs_iter(&mut self) -> impl Iterator<Item = &mut OpenProgram> {
+        self.progs.values_mut()
+    }
+
     /// Load the maps and programs contained in this BPF object into the system.
     pub fn load(mut self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr) };
@@ -250,7 +303,7 @@ impl OpenObject {
             return Err(Error::System(-ret));
         }
 
-        let obj = Object::new(self.ptr);
+        let obj = Object::new(self.ptr)?;
 
         // Prevent object from being closed once `self` is dropped
         self.ptr = ptr::null_mut();
@@ -284,12 +337,79 @@ pub struct Object {
 }
 
 impl Object {
-    fn new(ptr: *mut libbpf_sys::bpf_object) -> Self {
-        Object {
+    fn new(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
+        let mut obj = Object {
             ptr,
             maps: HashMap::new(),
             progs: HashMap::new(),
+        };
+
+        // Populate obj.maps
+        let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+        loop {
+            // Get the pointer to the next BPF map
+            let next_ptr = unsafe { libbpf_sys::bpf_map__next(map, obj.ptr) };
+            if next_ptr.is_null() {
+                break;
+            }
+
+            // Get the map name
+            // bpf_map__name can return null but only if it's passed a null.
+            // We already know next_ptr is not null.
+            let name = unsafe { libbpf_sys::bpf_map__name(next_ptr) };
+            let name = util::c_ptr_to_string(name)?;
+
+            // Get the map def
+            // bpf_map__def can return null but only if it's passed a null.
+            // We already know next_ptr is not null.
+            let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_ptr)) };
+
+            // Get the map fd
+            let fd = unsafe { libbpf_sys::bpf_map__fd(next_ptr) };
+            if fd < 0 {
+                return Err(Error::System(-fd));
+            }
+
+            // Add the map to the hashmap
+            obj.maps.insert(
+                name.clone(),
+                Map::new(fd, name, def.type_, def.key_size, def.value_size, next_ptr),
+            );
+            map = next_ptr;
         }
+
+        // Populate obj.progs
+        let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
+        loop {
+            // Get the pointer to the next BPF program
+            let next_ptr = unsafe { libbpf_sys::bpf_program__next(prog, obj.ptr) };
+            if next_ptr.is_null() {
+                break;
+            }
+
+            // Get the program name
+            // bpf_program__name never returns NULL, so no need to check the pointer.
+            let name = unsafe { libbpf_sys::bpf_program__name(next_ptr) };
+            let name = util::c_ptr_to_string(name)?;
+
+            // Get the program section
+            // bpf_program__section_name never returns NULL, so no need to check the pointer.
+            let section = unsafe { libbpf_sys::bpf_program__section_name(next_ptr) };
+            let section = util::c_ptr_to_string(section)?;
+
+            // Get the program fd
+            let fd = unsafe { libbpf_sys::bpf_program__fd(next_ptr) };
+            if fd < 0 {
+                return Err(Error::System(-fd));
+            }
+
+            // Add the program to the hashmap
+            obj.progs
+                .insert(name.clone(), Program::new(next_ptr, name, section));
+            prog = next_ptr;
+        }
+
+        Ok(obj)
     }
 
     /// Takes ownership from pointer.
@@ -300,65 +420,40 @@ impl Object {
     /// undefined.
     ///
     /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Self {
+    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
         Self::new(ptr)
     }
 
-    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Map>> {
-        if self.maps.contains_key(name.as_ref()) {
-            Ok(self.maps.get_mut(name.as_ref()))
-        } else if let Some(ptr) = find_map_in_object(self.ptr, name.as_ref())? {
-            let owned_name = name.as_ref().to_owned();
-            let fd = unsafe { libbpf_sys::bpf_map__fd(ptr) };
-            if fd < 0 {
-                Err(Error::System(errno::errno()))
-            } else {
-                // bpf_map__def can return null but only if it's passed a null. Object::map
-                // already error checks that condition for us.
-                let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(ptr)) };
-
-                self.maps.insert(
-                    owned_name.clone(),
-                    Map::new(fd, owned_name, def.type_, def.key_size, def.value_size, ptr),
-                );
-
-                Ok(self.maps.get_mut(name.as_ref()))
-            }
-        } else {
-            Ok(None)
-        }
+    /// Get a mutable reference to `Map` with the name `name`, if one exists.
+    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Map> {
+        self.maps.get_mut(name.as_ref())
     }
 
-    /// Same as [`Object::map`] except will panic if `Err` or `None` is encountered.
+    /// Get an iterator over references to all `Map`s.
+    /// Note that this will include automatically generated .data, .rodata, .bss, and
+    /// .kconfig maps. You may wish to filter these out depending on your use case.
+    pub fn maps_iter(&mut self) -> impl Iterator<Item = &mut Map> {
+        return self.maps.values_mut().into_iter();
+    }
+
+    /// Same as [`Object::map`] except will panic if `None` is encountered.
     pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
-        self.map(name).unwrap().unwrap()
+        self.map(name).unwrap()
     }
 
-    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut Program>> {
-        if self.progs.contains_key(name.as_ref()) {
-            Ok(self.progs.get_mut(name.as_ref()))
-        } else if let Some(ptr) = find_prog_in_object(self.ptr, name.as_ref())? {
-            let owned_name = name.as_ref().to_owned();
-
-            let title = unsafe { libbpf_sys::bpf_program__title(ptr, false) };
-            let err = unsafe { libbpf_sys::libbpf_get_error(title as *const _) };
-            if err != 0 {
-                return Err(Error::System(err as i32));
-            }
-            let section = util::c_ptr_to_string(title)?;
-
-            self.progs
-                .insert(owned_name.clone(), Program::new(ptr, owned_name, section));
-
-            Ok(self.progs.get_mut(name.as_ref()))
-        } else {
-            Ok(None)
-        }
+    /// Get a mutable reference to `Program` with the name `name`, if one exists.
+    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Program> {
+        self.progs.get_mut(name.as_ref())
     }
 
-    /// Same as [`Object::prog`] except will panic if `Err` or `None` is encountered.
+    /// Same as [`Object::prog`] except will panic if `None` is encountered.
     pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
-        self.prog(name).unwrap().unwrap()
+        self.prog(name).unwrap()
+    }
+
+    /// Get an iterator over references to all `Program`s.
+    pub fn progs_iter(&mut self) -> impl Iterator<Item = &mut Program> {
+        self.progs.values_mut()
     }
 }
 
