@@ -107,6 +107,7 @@ pub struct SkeletonBuilder {
     debug: bool,
     source: PathBuf,
     clang: PathBuf,
+    clang_args: String,
     skip_clang_version_check: bool,
     rustfmt: PathBuf,
 }
@@ -119,6 +120,7 @@ impl SkeletonBuilder {
             debug: false,
             source: source.as_ref().to_path_buf(),
             clang: "clang".into(),
+            clang_args: String::new(),
             skip_clang_version_check: false,
             rustfmt: "rustfmt".into(),
         }
@@ -137,6 +139,23 @@ impl SkeletonBuilder {
     /// Default searchs `$PATH` for `clang`
     pub fn clang<P: AsRef<Path>>(&mut self, clang: P) -> &mut SkeletonBuilder {
         self.clang = clang.as_ref().to_path_buf();
+        self
+    }
+
+    /// Pass additional arguments to `clang` when buildling BPF object file
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use libbpf_cargo::SkeletonBuilder;
+    ///
+    /// SkeletonBuilder::new("myobject.bpf.c")
+    ///     .clang_args("-DMACRO=value -I/some/include/dir")
+    ///     .generate("/output/path")
+    ///     .unwrap();
+    /// ```
+    pub fn clang_args<S: AsRef<str>>(&mut self, opts: S) -> &mut SkeletonBuilder {
+        self.clang_args = opts.as_ref().to_string();
         self
     }
 
@@ -182,6 +201,7 @@ impl SkeletonBuilder {
             &objfile,
             &self.clang,
             self.skip_clang_version_check,
+            &self.clang_args,
         )
         .map_err(|e| Error::Build(e.to_string()))?;
 

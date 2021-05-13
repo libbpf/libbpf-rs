@@ -774,6 +774,48 @@ fn test_skeleton_builder_basic() {
 }
 
 #[test]
+fn test_skeleton_builder_clang_opts() {
+    let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #ifndef PURPOSE
+        #error "what is my purpose?"
+        #endif
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    let skel = NamedTempFile::new().unwrap();
+
+    // Should fail b/c `PURPOSE` not defined
+    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("/bin/clang")
+        .generate(skel.path())
+        .unwrap_err();
+
+    // Should succeed b/c we defined the macro
+    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("/bin/clang")
+        .clang_args("-DPURPOSE=you_pass_the_butter")
+        .generate(skel.path())
+        .unwrap();
+}
+
+#[test]
 fn test_btf_dump_basic() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 

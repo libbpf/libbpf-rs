@@ -81,7 +81,7 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path) -> Result<()> {
+fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &str) -> Result<()> {
     let arch = if std::env::consts::ARCH == "x86_64" {
         "x86"
     } else {
@@ -92,8 +92,11 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path) -> Result<(
         println!("Building {}", source.display());
     }
 
-    let output = Command::new(clang.as_os_str())
-        .arg("-g")
+    let mut cmd = Command::new(clang.as_os_str());
+    if !options.is_empty() {
+        cmd.args(options.split_whitespace());
+    }
+    cmd.arg("-g")
         .arg("-O2")
         .arg("-target")
         .arg("bpf")
@@ -101,9 +104,9 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path) -> Result<(
         .arg(format!("-D__TARGET_ARCH_{}", arch))
         .arg(source.as_os_str())
         .arg("-o")
-        .arg(out)
-        .output()?;
+        .arg(out);
 
+    let output = cmd.output()?;
     if !output.status.success() {
         bail!(
             "Failed to compile obj={} with status={}\n \
@@ -136,7 +139,7 @@ fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
         let mut dest_path = obj.out.to_path_buf();
         dest_path.push(&dest_name);
         fs::create_dir_all(&obj.out)?;
-        compile_one(debug, &obj.path, &dest_path, clang)?;
+        compile_one(debug, &obj.path, &dest_path, clang, "")?;
     }
 
     Ok(())
@@ -180,9 +183,10 @@ pub fn build_single(
     out: &Path,
     clang: &Path,
     skip_clang_version_checks: bool,
+    options: &str,
 ) -> Result<()> {
     check_clang(debug, clang, skip_clang_version_checks)?;
-    compile_one(debug, source, out, clang)?;
+    compile_one(debug, source, out, clang, options)?;
 
     Ok(())
 }
