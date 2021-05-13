@@ -1673,10 +1673,7 @@ fn test_btf_dump_definition_struct_inner_anon_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1776,10 +1773,7 @@ fn test_btf_dump_definition_struct_inner_anon_struct() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1887,10 +1881,7 @@ fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
