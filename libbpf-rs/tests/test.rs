@@ -85,13 +85,21 @@ fn test_object_maps() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    obj.map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
-    obj.map("events")
-        .expect("error finding map")
-        .expect("failed to find map");
-    assert!(obj.map("asdf").expect("error finding map").is_none());
+    obj.map("start").expect("failed to find map");
+    obj.map("events").expect("failed to find map");
+    assert!(obj.map("asdf").is_none());
+}
+
+#[test]
+fn test_object_maps_iter() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    for map in obj.maps_iter() {
+        eprintln!("{}", map.name());
+    }
+    // This will include .rodata, so our expected count is 3, not 2
+    assert!(obj.maps_iter().count() == 3);
 }
 
 #[test]
@@ -99,10 +107,7 @@ fn test_object_map_key_value_size() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = obj.map("start").expect("failed to find map");
 
     assert!(start.lookup(&[1, 2, 3, 4, 5], MapFlags::empty()).is_err());
     assert!(start.delete(&[1]).is_err());
@@ -117,10 +122,7 @@ fn test_object_map_empty_lookup() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = obj.map("start").expect("failed to find map");
 
     assert!(start
         .lookup(&[1, 2, 3, 4], MapFlags::empty())
@@ -133,10 +135,7 @@ fn test_object_map_mutation() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = obj.map("start").expect("failed to find map");
 
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
@@ -161,10 +160,7 @@ fn test_object_map_lookup_flags() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = obj.map("start").expect("failed to find map");
 
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::NO_EXIST)
@@ -180,10 +176,7 @@ fn test_object_map_key_iter() {
 
     let mut obj = get_test_object("runqslower.bpf.o");
 
-    let start = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = obj.map("start").expect("failed to find map");
 
     let key1 = vec![1, 2, 3, 4];
     let key2 = vec![1, 2, 3, 5];
@@ -214,10 +207,7 @@ fn test_object_map_key_iter_empty() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = obj.map("start").expect("failed to find map");
 
     let mut count = 0;
     for _ in start.keys() {
@@ -231,10 +221,7 @@ fn test_object_map_pin() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("runqslower.bpf.o");
-    let map = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let map = obj.map("start").expect("failed to find map");
 
     let path = "/sys/fs/bpf/mymap";
 
@@ -255,15 +242,20 @@ fn test_object_programs() {
 
     let mut obj = get_test_object("runqslower.bpf.o");
     obj.prog("handle__sched_wakeup")
-        .expect("error finding program")
         .expect("failed to find program");
     obj.prog("handle__sched_wakeup_new")
-        .expect("error finding program")
         .expect("failed to find program");
     obj.prog("handle__sched_switch")
-        .expect("error finding program")
         .expect("failed to find program");
-    assert!(obj.prog("asdf").expect("error finding program").is_none());
+    assert!(obj.prog("asdf").is_none());
+}
+
+#[test]
+fn test_object_programs_iter_mut() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    assert!(obj.progs_iter().count() == 3);
 }
 
 #[test]
@@ -273,7 +265,6 @@ fn test_object_program_pin() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = obj
         .prog("handle__sched_wakeup")
-        .expect("error finding program")
         .expect("failed to find program");
 
     let path = "/sys/fs/bpf/myprog";
@@ -303,7 +294,6 @@ fn test_object_link_pin() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = obj
         .prog("handle__sched_wakeup")
-        .expect("error finding program")
         .expect("failed to find program");
     let mut link = prog.attach().expect("failed to attach prog");
 
@@ -338,10 +328,7 @@ fn test_object_reuse_pined_map() {
     // Pin a map
     {
         let mut obj = get_test_object("runqslower.bpf.o");
-        let map = obj
-            .map("start")
-            .expect("error finding map")
-            .expect("failed to find map");
+        let map = obj.map("start").expect("failed to find map");
 
         map.update(&key, &val, MapFlags::empty())
             .expect("failed to write");
@@ -370,10 +357,7 @@ fn test_object_reuse_pined_map() {
     start.reuse_pinned_map(path).expect("failed to reuse map");
 
     let mut obj = open_obj.load().expect("Failed to load object");
-    let reused_map = obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let reused_map = obj.map("start").expect("failed to find map");
 
     let found_val = reused_map
         .lookup(&key, MapFlags::empty())
@@ -393,7 +377,6 @@ fn test_object_ringbuf() {
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = obj
         .prog("handle__sys_enter_getpid")
-        .expect("error finding program")
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
@@ -434,18 +417,12 @@ fn test_object_ringbuf() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = obj
-        .map("ringbuf1")
-        .expect("Error getting ringbuf1 map")
-        .expect("Failed to get ringbuf1 map");
+    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
 
     builder.add(map1, callback1).expect("Failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = obj
-        .map("ringbuf2")
-        .expect("Error getting ringbuf2 map")
-        .expect("Failed to get ringbuf2 map");
+    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
 
     builder.add(map2, callback2).expect("Failed to add ringbuf");
 
@@ -484,7 +461,6 @@ fn test_object_ringbuf_closure() {
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = obj
         .prog("handle__sys_enter_getpid")
-        .expect("error finding program")
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
@@ -520,18 +496,12 @@ fn test_object_ringbuf_closure() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = obj
-        .map("ringbuf1")
-        .expect("Error getting ringbuf1 map")
-        .expect("Failed to get ringbuf1 map");
+    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
 
     builder.add(map1, callback1).expect("Failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = obj
-        .map("ringbuf2")
-        .expect("Error getting ringbuf2 map")
-        .expect("Failed to get ringbuf2 map");
+    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
 
     builder.add(map2, callback2).expect("Failed to add ringbuf");
 
@@ -555,10 +525,7 @@ fn test_object_task_iter() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("taskiter.bpf.o");
-    let prog = obj
-        .prog("dump_pid")
-        .expect("Error finding program")
-        .expect("Failed to find program");
+    let prog = obj.prog("dump_pid").expect("Failed to find program");
     let link = prog.attach().expect("Failed to attach prog");
     let mut iter = Iter::new(&link).expect("Failed to create iterator");
 
