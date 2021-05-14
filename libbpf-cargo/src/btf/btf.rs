@@ -584,9 +584,8 @@ impl<'a> Btf<'a> {
     fn load_struct(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                let n = format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count);
                 self.anon_agg_count += 1;
-                n
+                format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count)
             }
             n => n.to_string(),
         };
@@ -601,9 +600,8 @@ impl<'a> Btf<'a> {
     fn load_union(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                let n = format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count);
                 self.anon_agg_count += 1;
-                n
+                format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count)
             }
             n => n.to_string(),
         };

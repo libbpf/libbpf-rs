@@ -1623,20 +1623,20 @@ fn test_btf_dump_definition_struct_inner_anon_union() {
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
-    pub bar: __anon_0,
+    pub bar: __anon_1,
     __pad_36: [u8; 4],
-    pub baz: __anon_1,
+    pub baz: __anon_2,
     pub w: i32,
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub union __anon_0 {
+pub union __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub union __anon_1 {
+pub union __anon_2 {
     pub w: u32,
     pub u: *mut u64,
 }
@@ -1726,19 +1726,19 @@ fn test_btf_dump_definition_struct_inner_anon_struct() {
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
-    pub bar: __anon_0,
-    pub baz: __anon_1,
+    pub bar: __anon_1,
+    pub baz: __anon_2,
     pub w: i32,
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
-pub struct __anon_0 {
+pub struct __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
-pub struct __anon_1 {
+pub struct __anon_2 {
     pub w: u32,
     __pad_4: [u8; 4],
     pub u: *mut u64,
@@ -1837,35 +1837,35 @@ fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
-    pub bar: __anon_0,
-    pub zerg: __anon_1,
-    pub baz: __anon_2,
+    pub bar: __anon_1,
+    pub zerg: __anon_2,
+    pub baz: __anon_3,
     pub w: i32,
     __pad_76: [u8; 4],
-    pub flarg: __anon_3,
+    pub flarg: __anon_4,
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
-pub struct __anon_0 {
+pub struct __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub union __anon_1 {
+pub union __anon_2 {
     pub a: *mut i8,
     pub b: i32,
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
-pub struct __anon_2 {
+pub struct __anon_3 {
     pub w: u32,
     __pad_4: [u8; 4],
     pub u: *mut u64,
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub union __anon_3 {
+pub union __anon_4 {
     pub c: u8,
     pub d: [u64; 5],
 }
