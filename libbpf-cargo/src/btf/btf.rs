@@ -186,22 +186,7 @@ impl<'a> Btf<'a> {
 
         Ok(match ty {
             BtfType::Void => "std::ffi::c_void".to_string(),
-            BtfType::Int(t) => {
-                let width = match (t.bits + 7) / 8 {
-                    1 => "8",
-                    2 => "16",
-                    4 => "32",
-                    8 => "64",
-                    16 => "128",
-                    _ => bail!("Invalid integer width"),
-                };
-
-                if t.encoding == btf::BtfIntEncoding::Signed {
-                    format!("i{}", width)
-                } else {
-                    format!("u{}", width)
-                }
-            }
+            BtfType::Int(t) => t.type_declaration()?,
             BtfType::Ptr(t) => {
                 let pointee_ty = self.type_declaration(t.pointee_type)?;
 
@@ -233,28 +218,21 @@ impl<'a> Btf<'a> {
         })
     }
 
+    /// Returns an expression that evaluates to the Default value
+    /// of a type(typeid) in string form.
+    ///
+    /// To be used when creating a impl Default for a structure
+    ///
+    /// Rule of thumb is `ty` must be a type a variable can have.
+    ///
+    /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
     pub fn type_default(&self, type_id: u32) -> Result<String> {
         let stripped_type_id = self.skip_mods_and_typedefs(type_id)?;
         let ty = self.type_by_id(stripped_type_id)?;
 
         Ok(match ty {
             BtfType::Void => "std::ffi::c_void::default()".to_string(),
-            BtfType::Int(t) => {
-                let width = match (t.bits + 7) / 8 {
-                    1 => "8",
-                    2 => "16",
-                    4 => "32",
-                    8 => "64",
-                    16 => "128",
-                    _ => bail!("Invalid integer width"),
-                };
-
-                if t.encoding == btf::BtfIntEncoding::Signed {
-                    format!("i{}::default()", width)
-                } else {
-                    format!("u{}::default()", width)
-                }
-            }
+            BtfType::Int(t) => format!("{}::default()", t.type_declaration()?),
             BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
             BtfType::Array(t) => {
                 let val_ty = self.type_declaration(t.val_type_id)?;
