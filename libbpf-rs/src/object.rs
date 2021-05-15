@@ -137,24 +137,6 @@ impl Default for ObjectBuilder {
     }
 }
 
-fn find_map_in_object(
-    obj: *const libbpf_sys::bpf_object,
-    name: &str,
-) -> Result<Option<*mut libbpf_sys::bpf_map>> {
-    let c_name = util::str_to_cstring(name)?;
-    let ptr = unsafe { libbpf_sys::bpf_object__find_map_by_name(obj, c_name.as_ptr()) };
-    Ok(util::ptr_to_option(ptr))
-}
-
-fn find_prog_in_object(
-    obj: *const libbpf_sys::bpf_object,
-    name: &str,
-) -> Result<Option<*mut libbpf_sys::bpf_program>> {
-    let c_name = util::str_to_cstring(name)?;
-    let ptr = unsafe { libbpf_sys::bpf_object__find_program_by_name(obj, c_name.as_ptr()) };
-    Ok(util::ptr_to_option(ptr))
-}
-
 /// Represents an opened (but not yet loaded) BPF object file.
 ///
 /// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
@@ -248,21 +230,13 @@ impl OpenObject {
     }
 
     /// Get a mutable reference to `OpenMap` with the name `name`, if one exists.
-    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenMap>> {
-        if self.maps.contains_key(name.as_ref()) {
-            Ok(self.maps.get_mut(name.as_ref()))
-        } else if let Some(ptr) = find_map_in_object(self.ptr, name.as_ref())? {
-            self.maps
-                .insert(name.as_ref().to_owned(), OpenMap::new(ptr));
-            Ok(self.maps.get_mut(name.as_ref()))
-        } else {
-            Ok(None)
-        }
+    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenMap> {
+        self.maps.get_mut(name.as_ref())
     }
 
     /// Same as [`OpenObject::map`] except will panic if `Err` or `None` is encountered.
     pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenMap {
-        self.map(name).unwrap().unwrap()
+        self.map(name).unwrap()
     }
 
     /// Get an iterator over references to all `OpenMap`s.
@@ -273,21 +247,13 @@ impl OpenObject {
     }
 
     /// Get a mutable reference to `OpenProgram` with the name `name`, if one exists.
-    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Result<Option<&mut OpenProgram>> {
-        if self.progs.contains_key(name.as_ref()) {
-            Ok(self.progs.get_mut(name.as_ref()))
-        } else if let Some(ptr) = find_prog_in_object(self.ptr, name.as_ref())? {
-            let owned_name = name.as_ref().to_owned();
-            self.progs.insert(owned_name, OpenProgram::new(ptr));
-            Ok(self.progs.get_mut(name.as_ref()))
-        } else {
-            Ok(None)
-        }
+    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenProgram> {
+        self.progs.get_mut(name.as_ref())
     }
 
     /// Same as [`OpenObject::prog`] except will panic if `Err` or `None` is encountered.
     pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenProgram {
-        self.prog(name).unwrap().unwrap()
+        self.prog(name).unwrap()
     }
 
     /// Get an iterator over references to all `OpenProgram`s.
