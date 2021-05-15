@@ -27,11 +27,3 @@ pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
         .map_err(|e| Error::Internal(e.to_string()))?
         .to_owned())
 }
-
-pub fn ptr_to_option<T>(p: *mut T) -> Option<*mut T> {
-    if p.is_null() {
-        None
-    } else {
-        Some(p)
-    }
-}

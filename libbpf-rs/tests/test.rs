@@ -349,10 +349,7 @@ fn test_object_reuse_pined_map() {
     builder.debug(true);
     let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
 
-    let start = open_obj
-        .map("start")
-        .expect("error finding map")
-        .expect("failed to find map");
+    let start = open_obj.map("start").expect("failed to find map");
     assert!(start.reuse_pinned_map("/asdf").is_err());
     start.reuse_pinned_map(path).expect("failed to reuse map");
 
