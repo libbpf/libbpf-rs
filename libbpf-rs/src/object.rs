@@ -229,35 +229,67 @@ impl OpenObject {
         }
     }
 
+    /// Get a reference to `OpenMap` with the name `name`, if one exists.
+    pub fn map<T: AsRef<str>>(&self, name: T) -> Option<&OpenMap> {
+        self.maps.get(name.as_ref())
+    }
+
     /// Get a mutable reference to `OpenMap` with the name `name`, if one exists.
-    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenMap> {
+    pub fn map_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenMap> {
         self.maps.get_mut(name.as_ref())
     }
 
     /// Same as [`OpenObject::map`] except will panic if `Err` or `None` is encountered.
-    pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenMap {
+    pub fn map_unwrap<T: AsRef<str>>(&self, name: T) -> &OpenMap {
         self.map(name).unwrap()
+    }
+
+    /// Same as [`OpenObject::map_mut`] except will panic if `Err` or `None` is encountered.
+    pub fn map_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut OpenMap {
+        self.map_mut(name).unwrap()
     }
 
     /// Get an iterator over references to all `OpenMap`s.
     /// Note that this will include automatically generated .data, .rodata, .bss, and
     /// .kconfig maps.
-    pub fn maps_iter(&mut self) -> impl Iterator<Item = &mut OpenMap> {
+    pub fn maps_iter(&self) -> impl Iterator<Item = &OpenMap> {
+        self.maps.values()
+    }
+
+    /// Get an iterator over mutable references to all `OpenMap`s.
+    /// Note that this will include automatically generated .data, .rodata, .bss, and
+    /// .kconfig maps.
+    pub fn maps_iter_mut(&mut self) -> impl Iterator<Item = &mut OpenMap> {
         self.maps.values_mut()
     }
 
+    /// Get a reference to `OpenProgram` with the name `name`, if one exists.
+    pub fn prog<T: AsRef<str>>(&self, name: T) -> Option<&OpenProgram> {
+        self.progs.get(name.as_ref())
+    }
+
     /// Get a mutable reference to `OpenProgram` with the name `name`, if one exists.
-    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenProgram> {
+    pub fn prog_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenProgram> {
         self.progs.get_mut(name.as_ref())
     }
 
     /// Same as [`OpenObject::prog`] except will panic if `Err` or `None` is encountered.
-    pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut OpenProgram {
+    pub fn prog_unwrap<T: AsRef<str>>(&self, name: T) -> &OpenProgram {
         self.prog(name).unwrap()
     }
 
+    /// Same as [`OpenObject::prog_mut`] except will panic if `Err` or `None` is encountered.
+    pub fn prog_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut OpenProgram {
+        self.prog_mut(name).unwrap()
+    }
+
     /// Get an iterator over references to all `OpenProgram`s.
-    pub fn progs_iter(&mut self) -> impl Iterator<Item = &mut OpenProgram> {
+    pub fn progs_iter(&self) -> impl Iterator<Item = &OpenProgram> {
+        self.progs.values()
+    }
+
+    /// Get an iterator over mutable references to all `OpenProgram`s.
+    pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut OpenProgram> {
         self.progs.values_mut()
     }
 
@@ -390,35 +422,67 @@ impl Object {
         Self::new(ptr)
     }
 
+    /// Get a reference to `Map` with the name `name`, if one exists.
+    pub fn map<T: AsRef<str>>(&self, name: T) -> Option<&Map> {
+        self.maps.get(name.as_ref())
+    }
+
     /// Get a mutable reference to `Map` with the name `name`, if one exists.
-    pub fn map<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Map> {
+    pub fn map_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Map> {
         self.maps.get_mut(name.as_ref())
+    }
+
+    /// Same as [`Object::map`] except will panic if `Err` or `None` is encountered.
+    pub fn map_unwrap<T: AsRef<str>>(&self, name: T) -> &Map {
+        self.map(name).unwrap()
+    }
+
+    /// Same as [`Object::map_mut`] except will panic if `Err` or `None` is encountered.
+    pub fn map_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
+        self.map_mut(name).unwrap()
     }
 
     /// Get an iterator over references to all `Map`s.
     /// Note that this will include automatically generated .data, .rodata, .bss, and
-    /// .kconfig maps. You may wish to filter these out depending on your use case.
-    pub fn maps_iter(&mut self) -> impl Iterator<Item = &mut Map> {
+    /// .kconfig maps. You may wish to filter this.
+    pub fn maps_iter(&self) -> impl Iterator<Item = &Map> {
+        self.maps.values()
+    }
+
+    /// Get an iterator over mutable references to all `Map`s.
+    /// Note that this will include automatically generated .data, .rodata, .bss, and
+    /// .kconfig maps. You may wish to filter this.
+    pub fn maps_iter_mut(&mut self) -> impl Iterator<Item = &mut Map> {
         self.maps.values_mut()
     }
 
-    /// Same as [`Object::map`] except will panic if `None` is encountered.
-    pub fn map_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
-        self.map(name).unwrap()
+    /// Get a reference to `Program` with the name `name`, if one exists.
+    pub fn prog<T: AsRef<str>>(&self, name: T) -> Option<&Program> {
+        self.progs.get(name.as_ref())
     }
 
     /// Get a mutable reference to `Program` with the name `name`, if one exists.
-    pub fn prog<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Program> {
+    pub fn prog_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Program> {
         self.progs.get_mut(name.as_ref())
     }
 
-    /// Same as [`Object::prog`] except will panic if `None` is encountered.
-    pub fn prog_unwrap<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
+    /// Same as [`Object::prog`] except will panic if `Err` or `None` is encountered.
+    pub fn prog_unwrap<T: AsRef<str>>(&self, name: T) -> &Program {
         self.prog(name).unwrap()
     }
 
+    /// Same as [`Object::prog_mut`] except will panic if `Err` or `None` is encountered.
+    pub fn prog_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
+        self.prog_mut(name).unwrap()
+    }
+
     /// Get an iterator over references to all `Program`s.
-    pub fn progs_iter(&mut self) -> impl Iterator<Item = &mut Program> {
+    pub fn progs_iter(&self) -> impl Iterator<Item = &Program> {
+        self.progs.values()
+    }
+
+    /// Get an iterator over mutable references to all `Program`s.
+    pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut Program> {
         self.progs.values_mut()
     }
 }
