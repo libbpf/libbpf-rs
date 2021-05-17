@@ -141,17 +141,17 @@ fn test_build_default() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // No bpf progs yet
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap_err();
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap_err();
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     // Add a prog
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -169,7 +169,7 @@ fn test_build_invalid_prog() {
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
     writeln!(prog_file, "1").expect("write to prog file failed");
 
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap_err();
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 }
 
 #[test]
@@ -188,14 +188,14 @@ fn test_build_custom() {
         .expect("write to Cargo.toml failed");
 
     // No bpf progs yet
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap_err();
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     // Add a prog
     create_dir(proj_dir.join("src/other_bpf_dir")).expect("failed to create prog dir");
     let _prog_file = File::create(proj_dir.join("src/other_bpf_dir/prog.bpf.c"))
         .expect("failed to create prog file");
 
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(
@@ -212,15 +212,15 @@ fn test_enforce_file_extension() {
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap_err();
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     let _prog_file = File::create(proj_dir.join("src/bpf/prog_BAD_EXTENSION.c"))
         .expect("failed to create prog file");
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap_err();
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     let _prog_file_again = File::create(proj_dir.join("src/bpf/prog_GOOD_EXTENSION.bpf.c"))
         .expect("failed to create prog file");
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 }
 
 #[test]
@@ -228,13 +228,7 @@ fn test_build_workspace() {
     let (_dir, _, workspace_cargo_toml, proj_one_dir, proj_two_dir) = setup_temp_workspace();
 
     // No bpf progs yet
-    build(
-        true,
-        Some(&workspace_cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-    )
-    .unwrap_err();
+    build(true, Some(&workspace_cargo_toml), None, true).unwrap_err();
 
     // Create bpf prog for project one
     create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
@@ -246,13 +240,7 @@ fn test_build_workspace() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog2.bpf.c"))
         .expect("failed to create prog file 2");
 
-    build(
-        true,
-        Some(&workspace_cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-    )
-    .unwrap();
+    build(true, Some(&workspace_cargo_toml), None, true).unwrap();
 }
 
 #[test]
@@ -269,13 +257,7 @@ fn test_build_workspace_collision() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to create prog file 2");
 
-    build(
-        true,
-        Some(&workspace_cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-    )
-    .unwrap_err();
+    build(true, Some(&workspace_cargo_toml), None, true).unwrap_err();
 }
 
 #[test]
@@ -289,16 +271,7 @@ fn test_make_basic() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    make(
-        true,
-        Some(&cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -329,7 +302,7 @@ fn test_make_workspace() {
     make(
         true,
         Some(&workspace_cargo_toml),
-        Path::new("/bin/clang"),
+        None,
         true,
         true,
         Vec::new(),
@@ -375,16 +348,7 @@ fn test_skeleton_empty_source() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    make(
-        true,
-        Some(&cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -474,16 +438,7 @@ fn test_skeleton_basic() {
     // Lay down the necessary header files
     add_bpf_headers(&proj_dir);
 
-    make(
-        true,
-        Some(&cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -585,16 +540,7 @@ fn test_skeleton_datasec() {
     // Lay down the necessary header files
     add_bpf_headers(&proj_dir);
 
-    make(
-        true,
-        Some(&cargo_toml),
-        Path::new("/bin/clang"),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -702,7 +648,6 @@ fn test_skeleton_builder_basic() {
     let skel = NamedTempFile::new().unwrap();
     SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
-        .clang("/bin/clang")
         .generate(skel.path())
         .unwrap();
 
@@ -802,14 +747,14 @@ fn test_skeleton_builder_clang_opts() {
     // Should fail b/c `PURPOSE` not defined
     SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
-        .clang("/bin/clang")
+        .clang("clang")
         .generate(skel.path())
         .unwrap_err();
 
     // Should succeed b/c we defined the macro
     SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
-        .clang("/bin/clang")
+        .clang("clang")
         .clang_args("-DPURPOSE=you_pass_the_butter")
         .generate(skel.path())
         .unwrap();
@@ -852,7 +797,7 @@ fn test_btf_dump_basic() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -973,7 +918,7 @@ fn test_btf_dump_struct_definition() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1064,7 +1009,7 @@ fn test_btf_dump_definition_packed_struct() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1142,7 +1087,7 @@ fn test_btf_dump_definition_bitfield_struct_fails() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1208,7 +1153,7 @@ fn test_btf_dump_definition_enum() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1287,7 +1232,7 @@ fn test_btf_dump_definition_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1369,7 +1314,7 @@ fn test_btf_dump_definition_shared_dependent_types() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1454,7 +1399,7 @@ fn test_btf_dump_definition_datasec() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1561,7 +1506,7 @@ fn test_btf_dump_definition_datasec_multiple() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1673,7 +1618,7 @@ fn test_btf_dump_definition_struct_inner_anon_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1773,7 +1718,7 @@ fn test_btf_dump_definition_struct_inner_anon_struct() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1881,7 +1826,7 @@ fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), Path::new("/bin/clang"), true).unwrap();
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)

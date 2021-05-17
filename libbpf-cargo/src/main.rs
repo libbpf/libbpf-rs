@@ -46,9 +46,9 @@ enum Command {
         #[structopt(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str), default_value = "clang")]
+        #[structopt(long, parse(from_os_str))]
         /// Path to clang binary
-        clang_path: PathBuf,
+        clang_path: Option<PathBuf>,
         #[structopt(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
@@ -76,9 +76,9 @@ enum Command {
         #[structopt(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str), default_value = "clang")]
+        #[structopt(long, parse(from_os_str))]
         /// Path to clang binary
-        clang_path: PathBuf,
+        clang_path: Option<PathBuf>,
         #[structopt(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
@@ -109,7 +109,7 @@ fn main() -> Result<()> {
             } => build::build(
                 debug,
                 manifest_path.as_ref(),
-                clang_path.as_path(),
+                clang_path.as_ref(),
                 skip_clang_version_checks,
             ),
             Command::Gen {
@@ -134,7 +134,7 @@ fn main() -> Result<()> {
             } => make::make(
                 debug,
                 manifest_path.as_ref(),
-                clang_path.as_path(),
+                clang_path.as_ref(),
                 skip_clang_version_checks,
                 quiet,
                 cargo_build_args,
