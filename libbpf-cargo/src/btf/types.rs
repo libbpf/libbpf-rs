@@ -1,4 +1,3 @@
-use anyhow::{bail, Result};
 use std::fmt;
 
 use num_enum::TryFromPrimitive;
@@ -39,26 +38,6 @@ pub struct BtfInt<'a> {
     pub bits: u8,
     pub offset: u8,
     pub encoding: BtfIntEncoding,
-}
-
-impl<'a> BtfInt<'a> {
-    /// Returns the rust-ified type declaration of an integer
-    pub fn type_declaration(&self) -> Result<String> {
-        let width = match (self.bits + 7) / 8 {
-            1 => "8",
-            2 => "16",
-            4 => "32",
-            8 => "64",
-            16 => "128",
-            _ => bail!("Invalid integer width"),
-        };
-
-        if self.encoding == BtfIntEncoding::Signed {
-            Ok(format!("i{}", width))
-        } else {
-            Ok(format!("u{}", width))
-        }
-    }
 }
 
 #[derive(Debug)]

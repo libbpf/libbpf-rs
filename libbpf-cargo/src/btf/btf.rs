@@ -186,7 +186,22 @@ impl<'a> Btf<'a> {
 
         Ok(match ty {
             BtfType::Void => "std::ffi::c_void".to_string(),
-            BtfType::Int(t) => t.type_declaration()?,
+            BtfType::Int(t) => {
+                let width = match (t.bits + 7) / 8 {
+                    1 => "8",
+                    2 => "16",
+                    4 => "32",
+                    8 => "64",
+                    16 => "128",
+                    _ => bail!("Invalid integer width"),
+                };
+
+                if t.encoding == btf::BtfIntEncoding::Signed {
+                    format!("i{}", width)
+                } else {
+                    format!("u{}", width)
+                }
+            }
             BtfType::Ptr(t) => {
                 let pointee_ty = self.type_declaration(t.pointee_type)?;
 
@@ -232,7 +247,7 @@ impl<'a> Btf<'a> {
 
         Ok(match ty {
             BtfType::Void => "std::ffi::c_void::default()".to_string(),
-            BtfType::Int(t) => format!("{}::default()", t.type_declaration()?),
+            BtfType::Int(_) => format!("{}::default()", self.type_declaration(type_id)?),
             BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
             BtfType::Array(t) => {
                 let val_ty = self.type_declaration(t.val_type_id)?;
