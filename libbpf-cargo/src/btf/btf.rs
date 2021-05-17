@@ -446,7 +446,10 @@ impl<'a> Btf<'a> {
                                 }
                                 Err(e) => {
                                     if gen_impl_default {
-                                        bail!("Could not construct a necessary Default Impl: {}", e);
+                                        bail!(
+                                            "Could not construct a necessary Default Impl: {}",
+                                            e
+                                        );
                                     }
                                 }
                             };
