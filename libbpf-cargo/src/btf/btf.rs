@@ -444,9 +444,9 @@ impl<'a> Btf<'a> {
                                         field_ty_str = def
                                     ));
                                 }
-                                Err(_) => {
+                                Err(e) => {
                                     if gen_impl_default {
-                                        bail!("Could not construct a necessary Default Impl");
+                                        bail!("Could not construct a necessary Default Impl: {}", e);
                                     }
                                 }
                             };
