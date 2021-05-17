@@ -284,7 +284,7 @@ fn gen_skel_map_defs(
             skel,
             r#"
             pub fn {map_name}(&mut self) -> &mut {return_ty} {{
-                self.inner.map_unwrap_mut("{raw_map_name}")
+                self.inner.map_mut("{raw_map_name}").unwrap()
             }}
             "#,
             map_name = map_name,
@@ -340,7 +340,7 @@ fn gen_skel_prog_defs(
             skel,
             r#"
             pub fn {prog_name}(&mut self) -> &mut {return_ty} {{
-                self.inner.prog_unwrap_mut("{prog_name}")
+                self.inner.prog_mut("{prog_name}").unwrap()
             }}
             "#,
             prog_name = get_prog_name(prog)?,

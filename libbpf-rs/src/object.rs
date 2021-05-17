@@ -239,16 +239,6 @@ impl OpenObject {
         self.maps.get_mut(name.as_ref())
     }
 
-    /// Same as [`OpenObject::map`] except will panic if `Err` or `None` is encountered.
-    pub fn map_unwrap<T: AsRef<str>>(&self, name: T) -> &OpenMap {
-        self.map(name).unwrap()
-    }
-
-    /// Same as [`OpenObject::map_mut`] except will panic if `Err` or `None` is encountered.
-    pub fn map_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut OpenMap {
-        self.map_mut(name).unwrap()
-    }
-
     /// Get an iterator over references to all `OpenMap`s.
     /// Note that this will include automatically generated .data, .rodata, .bss, and
     /// .kconfig maps.
@@ -271,16 +261,6 @@ impl OpenObject {
     /// Get a mutable reference to `OpenProgram` with the name `name`, if one exists.
     pub fn prog_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenProgram> {
         self.progs.get_mut(name.as_ref())
-    }
-
-    /// Same as [`OpenObject::prog`] except will panic if `Err` or `None` is encountered.
-    pub fn prog_unwrap<T: AsRef<str>>(&self, name: T) -> &OpenProgram {
-        self.prog(name).unwrap()
-    }
-
-    /// Same as [`OpenObject::prog_mut`] except will panic if `Err` or `None` is encountered.
-    pub fn prog_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut OpenProgram {
-        self.prog_mut(name).unwrap()
     }
 
     /// Get an iterator over references to all `OpenProgram`s.
@@ -432,16 +412,6 @@ impl Object {
         self.maps.get_mut(name.as_ref())
     }
 
-    /// Same as [`Object::map`] except will panic if `Err` or `None` is encountered.
-    pub fn map_unwrap<T: AsRef<str>>(&self, name: T) -> &Map {
-        self.map(name).unwrap()
-    }
-
-    /// Same as [`Object::map_mut`] except will panic if `Err` or `None` is encountered.
-    pub fn map_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut Map {
-        self.map_mut(name).unwrap()
-    }
-
     /// Get an iterator over references to all `Map`s.
     /// Note that this will include automatically generated .data, .rodata, .bss, and
     /// .kconfig maps. You may wish to filter this.
@@ -464,16 +434,6 @@ impl Object {
     /// Get a mutable reference to `Program` with the name `name`, if one exists.
     pub fn prog_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Program> {
         self.progs.get_mut(name.as_ref())
-    }
-
-    /// Same as [`Object::prog`] except will panic if `Err` or `None` is encountered.
-    pub fn prog_unwrap<T: AsRef<str>>(&self, name: T) -> &Program {
-        self.prog(name).unwrap()
-    }
-
-    /// Same as [`Object::prog_mut`] except will panic if `Err` or `None` is encountered.
-    pub fn prog_unwrap_mut<T: AsRef<str>>(&mut self, name: T) -> &mut Program {
-        self.prog_mut(name).unwrap()
     }
 
     /// Get an iterator over references to all `Program`s.
