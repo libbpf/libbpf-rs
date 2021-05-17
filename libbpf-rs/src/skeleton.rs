@@ -3,7 +3,7 @@ use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::boxed::Box;
 use std::ffi::CString;
 use std::mem::size_of;
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_ulong};
 use std::ptr;
 
 use libbpf_sys::{
@@ -165,10 +165,10 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         // Holds `CString`s alive so pointers to them stay valid
         let mut string_pool = Vec::new();
 
-        // NB: use default() to zero out struct
-        let mut s = bpf_object_skeleton::default();
-
-        s.sz = size_of::<bpf_object_skeleton>() as u64;
+        let mut s = libbpf_sys::bpf_object_skeleton {
+            sz: size_of::<bpf_object_skeleton>() as c_ulong,
+            ..Default::default()
+        };
 
         if let Some(ref n) = self.name {
             s.name = str_to_cstring_and_pool(&n, &mut string_pool)?;
@@ -176,7 +176,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
 
         // libbpf_sys will use it as const despite the signature
         s.data = self.data.as_ptr() as *mut c_void;
-        s.data_sz = self.data.len() as u64;
+        s.data_sz = self.data.len() as c_ulong;
 
         s.obj = &mut *self.p;
 

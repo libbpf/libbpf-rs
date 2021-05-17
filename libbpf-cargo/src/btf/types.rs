@@ -62,7 +62,7 @@ pub struct BtfMember<'a> {
 
 #[derive(Debug)]
 pub struct BtfComposite<'a> {
-    pub name: &'a str,
+    pub name: String,
     pub is_struct: bool,
     pub size: u32,
     pub members: Vec<BtfMember<'a>>,

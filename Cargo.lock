@@ -113,12 +113,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gcc"
-version = "0.3.55"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
-
-[[package]]
 name = "getrandom"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -172,7 +166,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libbpf-cargo"
-version = "0.6.0"
+version = "0.6.3"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -192,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.9.0"
+version = "0.9.3"
 dependencies = [
  "bitflags",
  "libbpf-sys",
@@ -208,11 +202,12 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "0.2.0-3"
+version = "0.3.0-2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e413aed6381465c0165e601ef65e4ec18a98b88d3f1b8dceeb7795eff0d1cb14"
+checksum = "7ea97271177ecf6ebbf6b3ef4e5b702a9fac41d526e5253e600c2a30cfad2bfe"
 dependencies = [
  "cc",
+ "pkg-config",
 ]
 
 [[package]]
@@ -299,6 +294,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
 
 [[package]]
 name = "plain"
@@ -700,11 +701,11 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "vsprintf"
-version = "1.0.3"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f8d33cf7da7b0bed1f6f33fa07125f61f76ac0d792a0916f59b38f90f7a272a"
+checksum = "aec2f81b75ca063294776b4f7e8da71d1d5ae81c2b1b149c8d89969230265d63"
 dependencies = [
- "gcc",
+ "cc",
  "libc",
 ]
 

@@ -12,19 +12,24 @@ use scroll::Pread;
 use crate::btf::c_types::*;
 use crate::btf::*;
 
+const ANON_AGGREGATE_PREFIX: &str = "__anon_";
+
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
     string_table: &'a [u8],
     bpf_obj: *mut libbpf_sys::bpf_object,
+    anon_agg_count: u32,
 }
 
 impl<'a> Btf<'a> {
     pub fn new(name: &str, object_file: &[u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)?;
-        let mut obj_opts = libbpf_sys::bpf_object_open_opts::default();
-        obj_opts.sz = std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t;
-        obj_opts.object_name = cname.as_ptr();
+        let obj_opts = libbpf_sys::bpf_object_open_opts {
+            sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            object_name: cname.as_ptr(),
+            ..Default::default()
+        };
         let bpf_obj = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr() as *const c_void,
@@ -92,6 +97,7 @@ impl<'a> Btf<'a> {
             ptr_size: ptr_size as u32,
             string_table: str_data,
             bpf_obj,
+            anon_agg_count: 0u32,
         };
 
         // Load all types
@@ -608,7 +614,7 @@ impl<'a> Btf<'a> {
         }
     }
 
-    fn load_type(&self, data: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_type(&mut self, data: &'a [u8]) -> Result<BtfType<'a>> {
         let t = data.pread::<btf_type>(0)?;
         let extra = &data[size_of::<btf_type>()..];
         let kind = (t.info >> 24) & 0xf;
@@ -666,18 +672,32 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_struct(&self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_struct(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+        let name = match self.get_btf_str(t.name_off as usize)? {
+            "" => {
+                self.anon_agg_count += 1;
+                format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count)
+            }
+            n => n.to_string(),
+        };
         Ok(BtfType::Struct(BtfComposite {
-            name: self.get_btf_str(t.name_off as usize)?,
+            name: name,
             is_struct: true,
             size: t.type_id,
             members: self.load_members(t, extra)?,
         }))
     }
 
-    fn load_union(&self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_union(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+        let name = match self.get_btf_str(t.name_off as usize)? {
+            "" => {
+                self.anon_agg_count += 1;
+                format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count)
+            }
+            n => n.to_string(),
+        };
         Ok(BtfType::Union(BtfComposite {
-            name: self.get_btf_str(t.name_off as usize)?,
+            name: name,
             is_struct: false,
             size: t.type_id,
             members: self.load_members(t, extra)?,
