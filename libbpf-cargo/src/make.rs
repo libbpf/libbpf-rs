@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 use anyhow::{bail, Context, Result};
@@ -8,7 +8,7 @@ use crate::{build, gen};
 pub fn make(
     debug: bool,
     manifest_path: Option<&PathBuf>,
-    clang: &Path,
+    clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
     quiet: bool,
     cargo_build_args: Vec<String>,

@@ -106,7 +106,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub struct SkeletonBuilder {
     debug: bool,
     source: PathBuf,
-    clang: PathBuf,
+    clang: Option<PathBuf>,
     clang_args: String,
     skip_clang_version_check: bool,
     rustfmt: PathBuf,
@@ -119,7 +119,7 @@ impl SkeletonBuilder {
         SkeletonBuilder {
             debug: false,
             source: source.as_ref().to_path_buf(),
-            clang: "clang".into(),
+            clang: None,
             clang_args: String::new(),
             skip_clang_version_check: false,
             rustfmt: "rustfmt".into(),
@@ -138,7 +138,7 @@ impl SkeletonBuilder {
     ///
     /// Default searchs `$PATH` for `clang`
     pub fn clang<P: AsRef<Path>>(&mut self, clang: P) -> &mut SkeletonBuilder {
-        self.clang = clang.as_ref().to_path_buf();
+        self.clang = Some(clang.as_ref().to_path_buf());
         self
     }
 
@@ -199,7 +199,7 @@ impl SkeletonBuilder {
             self.debug,
             &self.source,
             &objfile,
-            &self.clang,
+            self.clang.as_ref(),
             self.skip_clang_version_check,
             &self.clang_args,
         )

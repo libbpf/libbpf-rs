@@ -145,10 +145,18 @@ fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
     Ok(())
 }
 
+fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
+    match clang {
+        Some(c) => c.into(),
+        // Searches $PATH
+        None => "clang".into(),
+    }
+}
+
 pub fn build(
     debug: bool,
     manifest_path: Option<&PathBuf>,
-    clang: &Path,
+    clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
 ) -> Result<()> {
     let to_compile = metadata::get(debug, manifest_path)?;
@@ -164,11 +172,12 @@ pub fn build(
 
     check_progs(&to_compile)?;
 
-    if let Err(e) = check_clang(debug, clang, skip_clang_version_checks) {
+    let clang = extract_clang_or_default(clang);
+    if let Err(e) = check_clang(debug, &clang, skip_clang_version_checks) {
         bail!("{} is invalid: {}", clang.display(), e);
     }
 
-    if let Err(e) = compile(debug, &to_compile, clang) {
+    if let Err(e) = compile(debug, &to_compile, &clang) {
         bail!("Failed to compile progs: {}", e);
     }
 
@@ -181,12 +190,13 @@ pub fn build_single(
     debug: bool,
     source: &Path,
     out: &Path,
-    clang: &Path,
+    clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
     options: &str,
 ) -> Result<()> {
-    check_clang(debug, clang, skip_clang_version_checks)?;
-    compile_one(debug, source, out, clang, options)?;
+    let clang = extract_clang_or_default(clang);
+    check_clang(debug, &clang, skip_clang_version_checks)?;
+    compile_one(debug, source, out, &clang, options)?;
 
     Ok(())
 }
