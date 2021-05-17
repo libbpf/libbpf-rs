@@ -247,7 +247,7 @@ impl<'a> Btf<'a> {
 
         Ok(match ty {
             BtfType::Void => "std::ffi::c_void::default()".to_string(),
-            BtfType::Int(_) => format!("{}::default()", self.type_declaration(type_id)?),
+            BtfType::Int(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
             BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
             BtfType::Array(t) => {
                 let val_ty = self.type_declaration(t.val_type_id)?;
