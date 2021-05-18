@@ -532,12 +532,12 @@ fn gen_skel_map_getter(
     write!(
         skel,
         r#"
-    pub fn maps(&self) -> {return_ty} {{
-        {return_ty} {{
-            inner: &self.obj,
+        pub fn maps(&self) -> {return_ty} {{
+            {return_ty} {{
+                inner: &self.obj,
+            }}
         }}
-    }}
-    "#,
+        "#,
         return_ty = return_ty
     )?;
 
@@ -568,12 +568,12 @@ fn gen_skel_map_getter_mut(
     write!(
         skel,
         r#"
-    pub fn maps_mut(&mut self) -> {return_ty} {{
-        {return_ty} {{
-            inner: &mut self.obj,
+        pub fn maps_mut(&mut self) -> {return_ty} {{
+            {return_ty} {{
+                inner: &mut self.obj,
+            }}
         }}
-    }}
-    "#,
+        "#,
         return_ty = return_ty
     )?;
 
