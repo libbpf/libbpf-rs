@@ -8,8 +8,9 @@ use libbpf_rs::PerfBufferBuilder;
 use plain::Plain;
 use structopt::StructOpt;
 
-mod bpf;
-use bpf::*;
+#[path = "bpf/.output/runqslower.skel.rs"]
+mod runqslower;
+use runqslower::*;
 
 /// Trace high run queue latency
 #[derive(Debug, StructOpt)]
