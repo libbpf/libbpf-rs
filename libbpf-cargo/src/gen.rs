@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use memmap::Mmap;
 
 use crate::btf;
@@ -75,10 +75,19 @@ fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
     .stdout(Stdio::piped())
     .spawn()
     .context("Failed to spawn rustfmt")?;
+
+    // Send input in via stdin
     write!(cmd.stdin.take().unwrap(), "{}", s)?;
+
+    // Extract output
     let output = cmd
         .wait_with_output()
         .context("Failed to execute rustfmt")?;
+    ensure!(
+        output.status.success(),
+        "Failed to rustfmt: {}",
+        output.status
+    );
 
     Ok(String::from_utf8(output.stdout)?)
 }
