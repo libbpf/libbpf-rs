@@ -399,7 +399,7 @@ impl Object {
     /// Note that this will include automatically generated .data, .rodata, .bss, and
     /// .kconfig maps. You may wish to filter these out depending on your use case.
     pub fn maps_iter(&mut self) -> impl Iterator<Item = &mut Map> {
-        return self.maps.values_mut().into_iter();
+        self.maps.values_mut()
     }
 
     /// Same as [`Object::map`] except will panic if `None` is encountered.

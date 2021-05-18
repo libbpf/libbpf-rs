@@ -592,7 +592,7 @@ impl<'a> Btf<'a> {
             n => n.to_string(),
         };
         Ok(BtfType::Struct(BtfComposite {
-            name: name,
+            name,
             is_struct: true,
             size: t.type_id,
             members: self.load_members(t, extra)?,
@@ -608,7 +608,7 @@ impl<'a> Btf<'a> {
             n => n.to_string(),
         };
         Ok(BtfType::Union(BtfComposite {
-            name: name,
+            name,
             is_struct: false,
             size: t.type_id,
             members: self.load_members(t, extra)?,
