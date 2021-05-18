@@ -86,7 +86,7 @@ fn main() -> Result<()> {
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");
 
-    let perf = PerfBufferBuilder::new(skel.maps().events())
+    let perf = PerfBufferBuilder::new(skel.maps_mut().events())
         .sample_cb(handle_event)
         .lost_cb(handle_lost_events)
         .build()?;
