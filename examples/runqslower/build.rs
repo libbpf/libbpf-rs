@@ -1,3 +1,4 @@
+use std::fs::create_dir_all;
 use std::path::Path;
 
 use libbpf_cargo::SkeletonBuilder;
@@ -13,7 +14,8 @@ fn main() {
     //
     // However, there is hope! When the above feature stabilizes we can clean this
     // all up.
-    let skel = Path::new("./src/bpf/mod.rs");
+    create_dir_all("./src/bpf/.output").unwrap();
+    let skel = Path::new("./src/bpf/.output/runqslower.skel.rs");
     SkeletonBuilder::new(SRC).generate(&skel).unwrap();
     println!("cargo:rerun-if-changed={}", SRC);
 }
