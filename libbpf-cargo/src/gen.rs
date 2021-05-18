@@ -152,12 +152,19 @@ fn get_prog_name(prog: *const libbpf_sys::bpf_program) -> Result<String> {
 }
 
 fn map_is_mmapable(map: *const libbpf_sys::bpf_map) -> bool {
-    let internal = unsafe { libbpf_sys::bpf_map__is_internal(map) };
     let def = unsafe { libbpf_sys::bpf_map__def(map) };
-    let mmapable = unsafe { (*def).map_flags } & libbpf_sys::BPF_F_MMAPABLE;
-    let name = get_map_name(map);
+    (unsafe { (*def).map_flags } & libbpf_sys::BPF_F_MMAPABLE) > 0
+}
 
-    internal && (mmapable > 0) && (name.is_ok() && name.unwrap().is_some())
+fn map_is_datasec(map: *const libbpf_sys::bpf_map) -> bool {
+    let internal = unsafe { libbpf_sys::bpf_map__is_internal(map) };
+    let mmapable = map_is_mmapable(map);
+    let has_datasec_name = match get_map_name(map).unwrap().as_ref().map(String::as_str) {
+        Some("rodata") | Some("data") | Some("bss") | Some("kconfig") => true,
+        _ => false,
+    };
+
+    internal && mmapable && has_datasec_name
 }
 
 fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
@@ -234,15 +241,6 @@ fn gen_skel_map_defs(
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
-    // If no non-datasec maps, return early
-    if MapIter::new(object)
-        .filter(|map| !map_is_mmapable(*map))
-        .count()
-        == 0
-    {
-        return Ok(());
-    }
-
     let (struct_name, inner_ty, return_ty) = if open {
         (
             format!("Open{}Maps", obj_name),
@@ -271,10 +269,6 @@ fn gen_skel_map_defs(
     )?;
 
     for map in MapIter::new(object) {
-        if map_is_mmapable(map) {
-            continue;
-        }
-
         let map_name = match get_map_name(map)? {
             Some(n) => n,
             None => continue,
@@ -304,15 +298,6 @@ fn gen_skel_map_defs_mut(
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
-    // If no non-datasec maps, return early
-    if MapIter::new(object)
-        .filter(|map| !map_is_mmapable(*map))
-        .count()
-        == 0
-    {
-        return Ok(());
-    }
-
     let (struct_name, inner_ty, return_ty) = if open {
         (
             format!("Open{}MapsMut", obj_name),
@@ -341,10 +326,6 @@ fn gen_skel_map_defs_mut(
     )?;
 
     for map in MapIter::new(object) {
-        if map_is_mmapable(map) {
-            continue;
-        }
-
         let map_name = match get_map_name(map)? {
             Some(n) => n,
             None => continue,
@@ -508,21 +489,7 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
     Ok(())
 }
 
-fn gen_skel_map_getter(
-    skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
-    obj_name: &str,
-    open: bool,
-) -> Result<()> {
-    // If no non-datasec maps, return early
-    if MapIter::new(object)
-        .filter(|map| !map_is_mmapable(*map))
-        .count()
-        == 0
-    {
-        return Ok(());
-    }
-
+fn gen_skel_map_getter(skel: &mut String, obj_name: &str, open: bool) -> Result<()> {
     let return_ty = if open {
         format!("Open{}Maps", obj_name)
     } else {
@@ -544,21 +511,7 @@ fn gen_skel_map_getter(
     Ok(())
 }
 
-fn gen_skel_map_getter_mut(
-    skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
-    obj_name: &str,
-    open: bool,
-) -> Result<()> {
-    // If no non-datasec maps, return early
-    if MapIter::new(object)
-        .filter(|map| !map_is_mmapable(*map))
-        .count()
-        == 0
-    {
-        return Ok(());
-    }
-
+fn gen_skel_map_getter_mut(skel: &mut String, obj_name: &str, open: bool) -> Result<()> {
     let return_ty = if open {
         format!("Open{}MapsMut", obj_name)
     } else {
@@ -649,7 +602,7 @@ fn gen_skel_datasec_getters(
     loaded: bool,
 ) -> Result<()> {
     for (idx, map) in MapIter::new(object).enumerate() {
-        if !map_is_mmapable(map) {
+        if !map_is_datasec(map) {
             continue;
         }
 
@@ -917,8 +870,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, true)?;
     gen_skel_prog_getter_mut(&mut skel, object, &obj_name, true)?;
-    gen_skel_map_getter(&mut skel, object, &obj_name, true)?;
-    gen_skel_map_getter_mut(&mut skel, object, &obj_name, true)?;
+    gen_skel_map_getter(&mut skel, &obj_name, true)?;
+    gen_skel_map_getter_mut(&mut skel, &obj_name, true)?;
     gen_skel_datasec_getters(&mut skel, object, raw_obj_name, false)?;
     writeln!(skel, "}}")?;
 
@@ -949,8 +902,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     )?;
     gen_skel_prog_getter(&mut skel, object, &obj_name, false)?;
     gen_skel_prog_getter_mut(&mut skel, object, &obj_name, false)?;
-    gen_skel_map_getter(&mut skel, object, &obj_name, false)?;
-    gen_skel_map_getter_mut(&mut skel, object, &obj_name, false)?;
+    gen_skel_map_getter(&mut skel, &obj_name, false)?;
+    gen_skel_map_getter_mut(&mut skel, &obj_name, false)?;
     gen_skel_datasec_getters(&mut skel, object, raw_obj_name, true)?;
     gen_skel_attach(&mut skel, object, &obj_name)?;
     writeln!(skel, "}}")?;
