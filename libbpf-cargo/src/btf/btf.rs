@@ -12,14 +12,14 @@ use scroll::Pread;
 use crate::btf::c_types::*;
 use crate::btf::*;
 
-const ANON_AGGREGATE_PREFIX: &str = "__anon_";
+const ANON_PREFIX: &str = "__anon_";
 
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
     string_table: &'a [u8],
     bpf_obj: *mut libbpf_sys::bpf_object,
-    anon_agg_count: u32,
+    anon_count: u32,
 }
 
 impl<'a> Btf<'a> {
@@ -97,7 +97,7 @@ impl<'a> Btf<'a> {
             ptr_size: ptr_size as u32,
             string_table: str_data,
             bpf_obj,
-            anon_agg_count: 0u32,
+            anon_count: 0u32,
         };
 
         // Load all types
@@ -586,8 +586,8 @@ impl<'a> Btf<'a> {
     fn load_struct(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                self.anon_agg_count += 1;
-                format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count)
+                self.anon_count += 1;
+                format!("{}{}", ANON_PREFIX, self.anon_count)
             }
             n => n.to_string(),
         };
@@ -602,8 +602,8 @@ impl<'a> Btf<'a> {
     fn load_union(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
         let name = match self.get_btf_str(t.name_off as usize)? {
             "" => {
-                self.anon_agg_count += 1;
-                format!("{}{}", ANON_AGGREGATE_PREFIX, self.anon_agg_count)
+                self.anon_count += 1;
+                format!("{}{}", ANON_PREFIX, self.anon_count)
             }
             n => n.to_string(),
         };
@@ -635,10 +635,17 @@ impl<'a> Btf<'a> {
         Ok(res)
     }
 
-    fn load_enum(&self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_enum(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+        let name = match self.get_btf_str(t.name_off as usize)? {
+            "" => {
+                self.anon_count += 1;
+                format!("{}{}", ANON_PREFIX, self.anon_count)
+            }
+            n => n.to_string(),
+        };
+
         let mut vals = Vec::new();
         let mut off: usize = 0;
-
         for _ in 0..Btf::get_vlen(t.info) {
             let v = extra.pread::<btf_enum>(off)?;
             vals.push(BtfEnumValue {
@@ -650,7 +657,7 @@ impl<'a> Btf<'a> {
         }
 
         Ok(BtfType::Enum(BtfEnum {
-            name: self.get_btf_str(t.name_off as usize)?,
+            name,
             size: t.type_id,
             values: vals,
         }))
