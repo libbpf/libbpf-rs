@@ -238,6 +238,10 @@ fn gen_skel_map_defs(
     open: bool,
     mutable: bool,
 ) -> Result<()> {
+    if MapIter::new(object).next().is_none() {
+        return Ok(());
+    }
+
     let (struct_suffix, mut_prefix, map_fn) = if mutable {
         ("Mut", "mut ", "map_mut")
     } else {
