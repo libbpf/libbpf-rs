@@ -159,12 +159,8 @@ fn map_is_mmapable(map: *const libbpf_sys::bpf_map) -> bool {
 fn map_is_datasec(map: *const libbpf_sys::bpf_map) -> bool {
     let internal = unsafe { libbpf_sys::bpf_map__is_internal(map) };
     let mmapable = map_is_mmapable(map);
-    let has_datasec_name = match get_map_name(map).unwrap().as_ref().map(String::as_str) {
-        Some("rodata") | Some("data") | Some("bss") | Some("kconfig") => true,
-        _ => false,
-    };
 
-    internal && mmapable && has_datasec_name
+    internal && mmapable
 }
 
 fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
