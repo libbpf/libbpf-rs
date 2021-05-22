@@ -912,10 +912,7 @@ fn test_btf_dump_basic_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1144,10 +1141,7 @@ fn test_btf_dump_struct_definition_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1247,10 +1241,7 @@ fn test_btf_dump_definition_packed_struct() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1831,10 +1822,7 @@ fn test_btf_dump_definition_datasec_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -2061,10 +2049,7 @@ fn test_btf_dump_definition_datasec_multiple_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
