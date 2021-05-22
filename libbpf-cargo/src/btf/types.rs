@@ -76,7 +76,7 @@ pub struct BtfEnumValue<'a> {
 
 #[derive(Debug)]
 pub struct BtfEnum<'a> {
-    pub name: &'a str,
+    pub name: String,
     pub size: u32,
     pub values: Vec<BtfEnumValue<'a>>,
 }

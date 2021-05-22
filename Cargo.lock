@@ -182,6 +182,7 @@ dependencies = [
  "serde_json",
  "structopt",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -453,6 +454,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "libbpf-cargo",
  "libbpf-rs",
  "libc",
  "plain",

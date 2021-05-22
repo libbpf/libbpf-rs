@@ -1,5 +1,4 @@
 use std::convert::TryFrom;
-use std::os::raw::c_char;
 use std::path::Path;
 
 use nix::errno;
@@ -229,20 +228,21 @@ impl Program {
 
     /// Attach this program to a [userspace
     /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html).
-    pub fn attach_uprobe<T: AsRef<str>>(
+    pub fn attach_uprobe<T: AsRef<Path>>(
         &mut self,
         retprobe: bool,
         pid: i32,
         binary_path: T,
         func_offset: usize,
     ) -> Result<Link> {
-        let path = binary_path.as_ref().as_ptr() as *const c_char;
+        let path = util::path_to_cstring(binary_path.as_ref())?;
+        let path_ptr = path.as_ptr();
         let ptr = unsafe {
             libbpf_sys::bpf_program__attach_uprobe(
                 self.ptr,
                 retprobe,
                 pid,
-                path,
+                path_ptr,
                 func_offset as libbpf_sys::size_t,
             )
         };
@@ -257,13 +257,10 @@ impl Program {
     /// Attach this program to a [kernel
     /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html).
     pub fn attach_kprobe<T: AsRef<str>>(&mut self, retprobe: bool, func_name: T) -> Result<Link> {
-        let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_kprobe(
-                self.ptr,
-                retprobe,
-                func_name.as_ref().as_ptr() as *const c_char,
-            )
-        };
+        let func_name = util::str_to_cstring(func_name.as_ref())?;
+        let func_name_ptr = func_name.as_ptr();
+        let ptr =
+            unsafe { libbpf_sys::bpf_program__attach_kprobe(self.ptr, retprobe, func_name_ptr) };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
             Err(Error::System(err as i32))
@@ -275,12 +272,12 @@ impl Program {
     /// Attach this program to a [kernel
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
     pub fn attach_tracepoint<T: AsRef<str>>(&mut self, tp_category: T, tp_name: T) -> Result<Link> {
+        let tp_category = util::str_to_cstring(tp_category.as_ref())?;
+        let tp_category_ptr = tp_category.as_ptr();
+        let tp_name = util::str_to_cstring(tp_name.as_ref())?;
+        let tp_name_ptr = tp_name.as_ptr();
         let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_tracepoint(
-                self.ptr,
-                tp_category.as_ref().as_ptr() as *const c_char,
-                tp_name.as_ref().as_ptr() as *const c_char,
-            )
+            libbpf_sys::bpf_program__attach_tracepoint(self.ptr, tp_category_ptr, tp_name_ptr)
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
@@ -293,12 +290,9 @@ impl Program {
     /// Attach this program to a [raw kernel
     /// tracepoint](https://lwn.net/Articles/748352/).
     pub fn attach_raw_tracepoint<T: AsRef<str>>(&mut self, tp_name: T) -> Result<Link> {
-        let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_raw_tracepoint(
-                self.ptr,
-                tp_name.as_ref().as_ptr() as *const c_char,
-            )
-        };
+        let tp_name = util::str_to_cstring(tp_name.as_ref())?;
+        let tp_name_ptr = tp_name.as_ptr();
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr, tp_name_ptr) };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
             Err(Error::System(err as i32))

@@ -20,6 +20,9 @@ maintenance = { status = "actively-developed" }
 name = "cargo-libbpf"
 path = "src/main.rs"
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 anyhow = "1.0"
 cargo_metadata = "0.9"
@@ -33,7 +36,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 structopt = "0.3"
 semver = "0.9"
+tempfile = "3.1"
+thiserror = "1.0"
 
 [dev-dependencies]
-tempfile = "3.1"
 goblin = "0.2"

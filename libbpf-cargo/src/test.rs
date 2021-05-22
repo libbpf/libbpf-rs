@@ -6,10 +6,10 @@ use std::process::Command;
 
 use goblin::Object;
 use memmap::Mmap;
-use tempfile::{tempdir, TempDir};
+use tempfile::{tempdir, NamedTempFile, TempDir};
 
 use crate::btf;
-use crate::{btf::Btf, build::build, make::make};
+use crate::{btf::Btf, build::build, make::make, SkeletonBuilder};
 
 static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
 static BPF_HELPERS: &'static str = include_str!("../test_data/bpf_helpers.h");
@@ -141,26 +141,17 @@ fn test_build_default() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // No bpf progs yet
-    assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     // Add a prog
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -178,10 +169,7 @@ fn test_build_invalid_prog() {
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
     writeln!(prog_file, "1").expect("write to prog file failed");
 
-    assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 }
 
 #[test]
@@ -200,20 +188,14 @@ fn test_build_custom() {
         .expect("write to Cargo.toml failed");
 
     // No bpf progs yet
-    assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     // Add a prog
     create_dir(proj_dir.join("src/other_bpf_dir")).expect("failed to create prog dir");
     let _prog_file = File::create(proj_dir.join("src/other_bpf_dir/prog.bpf.c"))
         .expect("failed to create prog file");
 
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(
@@ -230,24 +212,15 @@ fn test_enforce_file_extension() {
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     let _prog_file = File::create(proj_dir.join("src/bpf/prog_BAD_EXTENSION.c"))
         .expect("failed to create prog file");
-    assert_ne!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
 
     let _prog_file_again = File::create(proj_dir.join("src/bpf/prog_GOOD_EXTENSION.bpf.c"))
         .expect("failed to create prog file");
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 }
 
 #[test]
@@ -255,15 +228,7 @@ fn test_build_workspace() {
     let (_dir, _, workspace_cargo_toml, proj_one_dir, proj_two_dir) = setup_temp_workspace();
 
     // No bpf progs yet
-    assert_ne!(
-        build(
-            true,
-            Some(&workspace_cargo_toml),
-            Path::new("/bin/clang"),
-            true
-        ),
-        0
-    );
+    build(true, Some(&workspace_cargo_toml), None, true).unwrap_err();
 
     // Create bpf prog for project one
     create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
@@ -275,15 +240,7 @@ fn test_build_workspace() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog2.bpf.c"))
         .expect("failed to create prog file 2");
 
-    assert_eq!(
-        build(
-            true,
-            Some(&workspace_cargo_toml),
-            Path::new("/bin/clang"),
-            true
-        ),
-        0
-    );
+    build(true, Some(&workspace_cargo_toml), None, true).unwrap();
 }
 
 #[test]
@@ -300,15 +257,7 @@ fn test_build_workspace_collision() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to create prog file 2");
 
-    assert_ne!(
-        build(
-            true,
-            Some(&workspace_cargo_toml),
-            Path::new("/bin/clang"),
-            true
-        ),
-        0
-    );
+    build(true, Some(&workspace_cargo_toml), None, true).unwrap_err();
 }
 
 #[test]
@@ -322,18 +271,7 @@ fn test_make_basic() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    assert_eq!(
-        make(
-            true,
-            Some(&cargo_toml),
-            Path::new("/bin/clang"),
-            true,
-            true,
-            Vec::new(),
-            None,
-        ),
-        0
-    );
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -361,18 +299,16 @@ fn test_make_workspace() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog2.bpf.c"))
         .expect("failed to create prog file 2");
 
-    assert_eq!(
-        make(
-            true,
-            Some(&workspace_cargo_toml),
-            Path::new("/bin/clang"),
-            true,
-            true,
-            Vec::new(),
-            None
-        ),
-        0
-    );
+    make(
+        true,
+        Some(&workspace_cargo_toml),
+        None,
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     // Validate generated object files
     validate_bpf_o(
@@ -412,18 +348,7 @@ fn test_skeleton_empty_source() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    assert_eq!(
-        make(
-            true,
-            Some(&cargo_toml),
-            Path::new("/bin/clang"),
-            true,
-            true,
-            Vec::new(),
-            None
-        ),
-        0
-    );
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -513,18 +438,7 @@ fn test_skeleton_basic() {
     // Lay down the necessary header files
     add_bpf_headers(&proj_dir);
 
-    assert_eq!(
-        make(
-            true,
-            Some(&cargo_toml),
-            Path::new("/bin/clang"),
-            true,
-            true,
-            Vec::new(),
-            None
-        ),
-        0
-    );
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -626,18 +540,7 @@ fn test_skeleton_datasec() {
     // Lay down the necessary header files
     add_bpf_headers(&proj_dir);
 
-    assert_eq!(
-        make(
-            true,
-            Some(&cargo_toml),
-            Path::new("/bin/clang"),
-            true,
-            true,
-            Vec::new(),
-            None
-        ),
-        0
-    );
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -703,6 +606,161 @@ fn test_skeleton_datasec() {
 }
 
 #[test]
+fn test_skeleton_builder_basic() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        struct {{
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __type(key, u32);
+                __type(value, u64);
+        }} mymap SEC(".maps");
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {{
+                return 0;
+        }}
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Generate skeleton file
+    let skel = NamedTempFile::new().unwrap();
+    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .generate(skel.path())
+        .unwrap();
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        #[path = "{skel_path}"]
+        mod skel;
+        use skel::*;
+
+        fn main() {{
+            let builder = ProgSkelBuilder::default();
+            let mut open_skel = builder
+                .open()
+                .expect("failed to open skel");
+
+            // Check that we can grab handles to open maps/progs
+            let _open_map = open_skel.maps().mymap();
+            let _open_prog = open_skel.progs().this_is_my_prog();
+
+            let mut skel = open_skel
+                .load()
+                .expect("failed to load skel");
+
+            // Check that we can grab handles to loaded maps/progs
+            let _map = skel.maps().mymap();
+            let _prog = skel.progs().this_is_my_prog();
+
+            // Check that attach() is generated
+            skel.attach().expect("failed to attach progs");
+
+            // Check that Option<Link> field is generated
+            let _mylink = skel.links.this_is_my_prog.unwrap();
+        }}
+        "#,
+        skel_path = skel.path().display(),
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
+#[test]
+fn test_skeleton_builder_clang_opts() {
+    let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #ifndef PURPOSE
+        #error "what is my purpose?"
+        #endif
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    let skel = NamedTempFile::new().unwrap();
+
+    // Should fail b/c `PURPOSE` not defined
+    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("clang")
+        .generate(skel.path())
+        .unwrap_err();
+
+    // Should succeed b/c we defined the macro
+    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("clang")
+        .clang_args("-DPURPOSE=you_pass_the_butter")
+        .generate(skel.path())
+        .unwrap();
+}
+
+#[test]
 fn test_btf_dump_basic() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
@@ -739,10 +797,7 @@ fn test_btf_dump_basic() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -989,10 +1044,7 @@ fn test_btf_dump_struct_definition() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1277,10 +1329,7 @@ fn test_btf_dump_definition_packed_struct_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1367,10 +1416,7 @@ fn test_btf_dump_definition_bitfield_struct_fails() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1436,10 +1482,7 @@ fn test_btf_dump_definition_enum() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1518,10 +1561,7 @@ fn test_btf_dump_definition_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1603,10 +1643,7 @@ fn test_btf_dump_definition_shared_dependent_types() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1691,10 +1728,7 @@ fn test_btf_dump_definition_datasec() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1916,10 +1950,7 @@ fn test_btf_dump_definition_datasec_multiple() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -2156,10 +2187,7 @@ fn test_btf_dump_definition_struct_inner_anon_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -2259,10 +2287,7 @@ fn test_btf_dump_definition_struct_inner_anon_struct() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -2370,10 +2395,7 @@ fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -2443,5 +2465,89 @@ pub union __anon_4 {
         foo_defn,
         btf.type_definition(struct_foo.unwrap())
             .expect("Failed to generate struct Foo defn")
+    );
+}
+
+#[test]
+fn test_btf_dump_definition_anon_enum() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+
+        typedef enum {{
+            FOO = 1,
+        }} test_t;
+
+        struct Foo {{
+            test_t test;
+        }};
+
+        struct Foo foo;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Build the .bpf.o
+    build(true, Some(&cargo_toml), None, true).unwrap();
+
+    let obj = OpenOptions::new()
+        .read(true)
+        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .expect("failed to open object file");
+    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
+    let btf = Btf::new("prog", &*mmap)
+        .expect("Failed to initialize Btf")
+        .expect("Did not find .BTF section");
+
+    assert!(btf.types().len() > 0);
+
+    // Find our struct
+    let mut struct_foo: Option<u32> = None;
+    for (idx, ty) in btf.types().iter().enumerate() {
+        match ty {
+            btf::BtfType::Struct(t) => {
+                if t.name == "Foo" {
+                    assert!(struct_foo.is_none()); // No duplicates
+                    struct_foo = Some(idx.try_into().unwrap());
+                }
+            }
+            _ => (),
+        }
+    }
+
+    assert!(struct_foo.is_some());
+
+    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub test: __anon_1,
+}
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(u32)]
+pub enum __anon_1 {
+    FOO = 1,
+}
+"#;
+    assert_eq!(
+        foo_defn,
+        btf.type_definition(struct_foo.unwrap())
+            .expect("Failed to generate union Foo defn")
     );
 }

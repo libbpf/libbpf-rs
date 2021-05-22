@@ -78,79 +78,88 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 
 /// We're essentially going to run:
 ///
-///     clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
+///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
+fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &str) -> Result<()> {
     let arch = if std::env::consts::ARCH == "x86_64" {
         "x86"
     } else {
         std::env::consts::ARCH
     };
 
+    if debug {
+        println!("Building {}", source.display());
+    }
+
+    let mut cmd = Command::new(clang.as_os_str());
+    if !options.is_empty() {
+        cmd.args(options.split_whitespace());
+    }
+    cmd.arg("-g")
+        .arg("-O2")
+        .arg("-target")
+        .arg("bpf")
+        .arg("-c")
+        .arg(format!("-D__TARGET_ARCH_{}", arch))
+        .arg(source.as_os_str())
+        .arg("-o")
+        .arg(out);
+
+    let output = cmd.output()?;
+    if !output.status.success() {
+        bail!(
+            "Failed to compile obj={} with status={}\n \
+            stdout=\n \
+            {}\n \
+            stderr=\n \
+            {}\n",
+            out.to_string_lossy(),
+            output.status,
+            String::from_utf8(output.stdout).unwrap(),
+            String::from_utf8(output.stderr).unwrap()
+        );
+    }
+
+    Ok(())
+}
+
+fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
     for obj in objs {
-        let dest_name = if let Some(f) = obj.path.as_path().file_stem() {
+        let dest_name = if let Some(f) = obj.path.file_stem() {
             let mut stem = f.to_os_string();
             stem.push(".o");
             stem
         } else {
             bail!(
                 "Could not calculate destination name for obj={}",
-                obj.path.as_path().display()
+                obj.path.display()
             );
         };
-        let mut dest_path = obj.out.clone();
+        let mut dest_path = obj.out.to_path_buf();
         dest_path.push(&dest_name);
-
-        fs::create_dir_all(obj.out.as_path())?;
-
-        if debug {
-            println!("Building {}", obj.path.display());
-        }
-
-        let output = Command::new(clang.as_os_str())
-            .arg("-g")
-            .arg("-O2")
-            .arg("-target")
-            .arg("bpf")
-            .arg("-c")
-            .arg(format!("-D__TARGET_ARCH_{}", arch))
-            .arg(obj.path.as_path().as_os_str())
-            .arg("-o")
-            .arg(dest_path)
-            .output()?;
-
-        if !output.status.success() {
-            bail!(
-                "Failed to compile obj={} with status={}\n \
-                stdout=\n \
-                {}\n \
-                stderr=\n \
-                {}\n",
-                dest_name.to_string_lossy(),
-                output.status,
-                String::from_utf8(output.stdout).unwrap(),
-                String::from_utf8(output.stderr).unwrap()
-            )
-        }
+        fs::create_dir_all(&obj.out)?;
+        compile_one(debug, &obj.path, &dest_path, clang, "")?;
     }
 
     Ok(())
 }
 
+fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
+    match clang {
+        Some(c) => c.into(),
+        // Searches $PATH
+        None => "clang".into(),
+    }
+}
+
 pub fn build(
     debug: bool,
     manifest_path: Option<&PathBuf>,
-    clang: &Path,
+    clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
-) -> i32 {
-    let to_compile = match metadata::get(debug, manifest_path) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("{}", e);
-            return 1;
-        }
-    };
+) -> Result<()> {
+    let to_compile = metadata::get(debug, manifest_path)?;
 
     if debug && !to_compile.is_empty() {
         println!("Found bpf progs to compile:");
@@ -158,27 +167,38 @@ pub fn build(
             println!("\t{:?}", obj);
         }
     } else if to_compile.is_empty() {
-        eprintln!("Did not find any bpf progs to compile");
-        return 1;
+        bail!("Did not find any bpf progs to compile");
     }
 
-    if let Err(e) = check_progs(&to_compile) {
-        eprintln!("{}", e);
-        return 1;
+    check_progs(&to_compile)?;
+
+    let clang = extract_clang_or_default(clang);
+    if let Err(e) = check_clang(debug, &clang, skip_clang_version_checks) {
+        bail!("{} is invalid: {}", clang.display(), e);
     }
 
-    if let Err(e) = check_clang(debug, clang, skip_clang_version_checks) {
-        eprintln!("{} is invalid: {}", clang.display(), e);
-        return 1;
+    if let Err(e) = compile(debug, &to_compile, &clang) {
+        bail!("Failed to compile progs: {}", e);
     }
 
-    match compile(debug, &to_compile, clang) {
-        Ok(_) => 0,
-        Err(e) => {
-            eprintln!("Failed to compile progs: {}", e);
-            1
-        }
-    }
+    Ok(())
+}
+
+// Only used in libbpf-cargo library
+#[allow(dead_code)]
+pub fn build_single(
+    debug: bool,
+    source: &Path,
+    out: &Path,
+    clang: Option<&PathBuf>,
+    skip_clang_version_checks: bool,
+    options: &str,
+) -> Result<()> {
+    let clang = extract_clang_or_default(clang);
+    check_clang(debug, &clang, skip_clang_version_checks)?;
+    compile_one(debug, source, out, &clang, options)?;
+
+    Ok(())
 }
 
 #[test]

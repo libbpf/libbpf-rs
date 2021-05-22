@@ -8,17 +8,21 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use memmap::Mmap;
 
 use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
-enum OutputDest<'a> {
+pub enum OutputDest<'a> {
     Stdout,
     /// Infer a filename and place file in specified directory
     Directory(&'a Path),
+    #[allow(dead_code)]
+    /// File to place output in
+    // Only constructed in libbpf-cargo library
+    File(&'a Path),
 }
 
 macro_rules! gen_bpf_object_iter {
@@ -71,10 +75,19 @@ fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
     .stdout(Stdio::piped())
     .spawn()
     .context("Failed to spawn rustfmt")?;
+
+    // Send input in via stdin
     write!(cmd.stdin.take().unwrap(), "{}", s)?;
+
+    // Extract output
     let output = cmd
         .wait_with_output()
         .context("Failed to execute rustfmt")?;
+    ensure!(
+        output.status.success(),
+        "Failed to rustfmt: {}",
+        output.status
+    );
 
     Ok(String::from_utf8(output.stdout)?)
 }
@@ -662,7 +675,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::System(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr()) }};
+                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
 
                 Ok(Open{name}Skel {{
                     obj,
@@ -693,7 +706,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::System(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr()) }};
+                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr())? }};
 
                 Ok({name}Skel {{
                     obj,
@@ -777,6 +790,10 @@ fn gen_skel(
             let mut file = File::create(path)?;
             file.write_all(skel.as_bytes())?;
         }
+        OutputDest::File(file) => {
+            let mut file = File::create(file)?;
+            file.write_all(skel.as_bytes())?;
+        }
     };
 
     Ok(())
@@ -832,71 +849,58 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     Ok(())
 }
 
-fn gen_single(debug: bool, obj_file: &Path, rustfmt_path: Option<&PathBuf>) -> i32 {
+pub fn gen_single(
+    debug: bool,
+    obj_file: &Path,
+    output: OutputDest,
+    rustfmt_path: Option<&PathBuf>,
+) -> Result<()> {
     let filename = match obj_file.file_name() {
         Some(n) => n,
-        None => {
-            eprintln!(
-                "Could not determine file name for object file: {}",
-                obj_file.to_string_lossy()
-            );
-            return 1;
-        }
+        None => bail!(
+            "Could not determine file name for object file: {}",
+            obj_file.to_string_lossy()
+        ),
     };
 
     let name = match filename.to_str() {
         Some(n) => {
             if !n.ends_with(".o") {
-                eprintln!("Object file does not have `.o` suffix: {}", n);
-                return 1;
+                bail!("Object file does not have `.o` suffix: {}", n);
             }
 
             n.split('.').next().unwrap()
         }
-        None => {
-            eprintln!(
-                "Object file name is not valid unicode: {}",
-                filename.to_string_lossy()
-            );
-            return 1;
-        }
+        None => bail!(
+            "Object file name is not valid unicode: {}",
+            filename.to_string_lossy()
+        ),
     };
 
-    match gen_skel(debug, name, obj_file, OutputDest::Stdout, rustfmt_path) {
-        Ok(_) => 0,
-        Err(e) => {
-            eprintln!(
-                "Failed to generate skeleton for {}: {}",
-                obj_file.to_string_lossy(),
-                e
-            );
-
-            1
-        }
+    if let Err(e) = gen_skel(debug, name, obj_file, output, rustfmt_path) {
+        bail!(
+            "Failed to generate skeleton for {}: {}",
+            obj_file.to_string_lossy(),
+            e
+        );
     }
+
+    Ok(())
 }
 
 fn gen_project(
     debug: bool,
     manifest_path: Option<&PathBuf>,
     rustfmt_path: Option<&PathBuf>,
-) -> i32 {
-    let to_gen = match metadata::get(debug, manifest_path) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("{}", e);
-            return 1;
-        }
-    };
-
+) -> Result<()> {
+    let to_gen = metadata::get(debug, manifest_path)?;
     if debug && !to_gen.is_empty() {
         println!("Found bpf objs to gen skel:");
         for obj in &to_gen {
             println!("\t{:?}", obj);
         }
     } else if to_gen.is_empty() {
-        eprintln!("Did not find any bpf objects to generate skeleton");
-        return 1;
+        bail!("Did not find any bpf objects to generate skeleton");
     }
 
     // Map to store package_name -> [UnprocessedObj]
@@ -917,14 +921,11 @@ fn gen_project(
             rustfmt_path,
         ) {
             Ok(_) => (),
-            Err(e) => {
-                eprintln!(
-                    "Failed to generate skeleton for {}: {}",
-                    obj.path.as_path().display(),
-                    e
-                );
-                return 1;
-            }
+            Err(e) => bail!(
+                "Failed to generate skeleton for {}: {}",
+                obj.path.as_path().display(),
+                e
+            ),
         }
 
         match package_objs.get_mut(&obj.package) {
@@ -936,16 +937,12 @@ fn gen_project(
     }
 
     for (package, objs) in package_objs {
-        match gen_mods(&objs, rustfmt_path) {
-            Ok(_) => (),
-            Err(e) => {
-                eprintln!("Failed to generate mod.rs for package={}: {}", package, e);
-                return 1;
-            }
+        if let Err(e) = gen_mods(&objs, rustfmt_path) {
+            bail!("Failed to generate mod.rs for package={}: {}", package, e);
         }
     }
 
-    0
+    Ok(())
 }
 
 pub fn gen(
@@ -953,14 +950,13 @@ pub fn gen(
     manifest_path: Option<&PathBuf>,
     rustfmt_path: Option<&PathBuf>,
     object: Option<&PathBuf>,
-) -> i32 {
+) -> Result<()> {
     if manifest_path.is_some() && object.is_some() {
-        eprintln!("--manifest-path and --object cannot be used together");
-        return 1;
+        bail!("--manifest-path and --object cannot be used together");
     }
 
     if let Some(obj_file) = object {
-        gen_single(debug, obj_file, rustfmt_path)
+        gen_single(debug, obj_file, OutputDest::Stdout, rustfmt_path)
     } else {
         gen_project(debug, manifest_path, rustfmt_path)
     }
