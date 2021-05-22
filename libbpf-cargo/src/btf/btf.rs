@@ -445,6 +445,12 @@ impl<'a> Btf<'a> {
                     }
 
                     writeln!(def, "}}")?;
+
+                    writeln!(def, r#"impl Default for {name} {{"#, name = t.name)?;
+                    writeln!(def, r#"    fn default() -> Self {{"#)?;
+                    writeln!(def, r#"        {name}::{value}"#, name = t.name, value = t.values[0].name)?;
+                    writeln!(def, r#"    }}"#)?;
+                    writeln!(def, r#"}}"#)?;
                 }
                 BtfType::Datasec(t) => {
                     let mut sec_name = t.name.to_string();
