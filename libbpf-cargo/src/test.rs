@@ -1189,6 +1189,11 @@ pub enum Foo {
     One = 1,
     seven = 7,
 }
+impl Default for Foo {
+    fn default() -> Self {
+        Foo::Zero
+    }
+}
 "#;
     assert_eq!(
         foo_defn,
@@ -1974,6 +1979,11 @@ pub struct Foo {
 #[repr(u32)]
 pub enum __anon_1 {
     FOO = 1,
+}
+impl Default for __anon_1 {
+    fn default() -> Self {
+        __anon_1::FOO
+    }
 }
 "#;
     assert_eq!(
