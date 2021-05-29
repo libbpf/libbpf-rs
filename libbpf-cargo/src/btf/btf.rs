@@ -233,6 +233,43 @@ impl<'a> Btf<'a> {
         })
     }
 
+    /// Returns an expression that evaluates to the Default value
+    /// of a type(typeid) in string form.
+    ///
+    /// To be used when creating a impl Default for a structure
+    ///
+    /// Rule of thumb is `ty` must be a type a variable can have.
+    ///
+    /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
+    pub fn type_default(&self, type_id: u32) -> Result<String> {
+        let stripped_type_id = self.skip_mods_and_typedefs(type_id)?;
+        let ty = self.type_by_id(stripped_type_id)?;
+
+        Ok(match ty {
+            BtfType::Void => "std::ffi::c_void::default()".to_string(),
+            BtfType::Int(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
+            BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
+            BtfType::Array(t) => {
+                let val_ty = self.type_declaration(t.val_type_id)?;
+
+                format!("[{}::default(); {}]", val_ty, t.nelems)
+            }
+            BtfType::Struct(t) | BtfType::Union(t) => format!("{}::default()", t.name),
+            BtfType::Enum(t) => format!("{}::default()", t.name),
+            BtfType::Var(t) => format!("{}::default()", self.type_declaration(t.type_id)?),
+            BtfType::Func(_)
+            | BtfType::Fwd(_)
+            | BtfType::FuncProto(_)
+            | BtfType::Datasec(_)
+            | BtfType::Typedef(_)
+            | BtfType::Volatile(_)
+            | BtfType::Const(_)
+            | BtfType::Restrict(_) => {
+                bail!("Invalid type: {}", ty)
+            }
+        })
+    }
+
     fn is_struct_packed(&self, struct_type_id: u32, t: &BtfComposite) -> Result<bool> {
         if !t.is_struct {
             return Ok(false);
@@ -347,22 +384,13 @@ impl<'a> Btf<'a> {
                 BtfType::Struct(t) | BtfType::Union(t) => {
                     let packed = self.is_struct_packed(type_id, t)?;
 
-                    let aggregate_type = if t.is_struct { "struct" } else { "union" };
-                    let packed_repr = if packed { ", packed" } else { "" };
+                    // fields in the aggregate
+                    let mut agg_content: Vec<String> = Vec::new();
 
-                    if t.is_struct {
-                        writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
-                    } else {
-                        writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
-                    }
-
-                    writeln!(def, r#"#[repr(C{})]"#, packed_repr)?;
-                    writeln!(
-                        def,
-                        r#"pub {agg_type} {name} {{"#,
-                        agg_type = aggregate_type,
-                        name = t.name,
-                    )?;
+                    // structs with arrays > 32 length need to impl Default
+                    // rather than #[derive(Default)]
+                    let mut impl_default: Vec<String> = Vec::new(); // output for impl Default
+                    let mut gen_impl_default = false; // whether to output impl Default or use #[derive]
 
                     let mut offset = 0; // In bytes
                     for member in &t.members {
@@ -386,27 +414,91 @@ impl<'a> Btf<'a> {
                             )?;
 
                             if padding != 0 {
-                                writeln!(
-                                    def,
+                                agg_content.push(format!(
                                     r#"    __pad_{offset}: [u8; {padding}],"#,
                                     offset = offset,
                                     padding = padding,
-                                )?;
+                                ));
+
+                                impl_default.push(format!(
+                                    r#"            __pad_{offset}: [u8::default(); {padding}]"#,
+                                    offset = offset,
+                                    padding = padding,
+                                ));
                             }
+
+                            match self.type_by_id(field_ty_id)? {
+                                BtfType::Array(ft) => {
+                                    if ft.nelems > 32 {
+                                        gen_impl_default = true
+                                    }
+                                }
+                                _ => {}
+                            }
+
+                            match self.type_default(field_ty_id) {
+                                Ok(def) => {
+                                    impl_default.push(format!(
+                                        r#"            {field_name}: {field_ty_str}"#,
+                                        field_name = member.name,
+                                        field_ty_str = def
+                                    ));
+                                }
+                                Err(e) => {
+                                    if gen_impl_default {
+                                        bail!(
+                                            "Could not construct a necessary Default Impl: {}",
+                                            e
+                                        );
+                                    }
+                                }
+                            };
                         }
 
                         // Set `offset` to end of current var
                         offset = ((member.bit_offset / 8) + self.size_of(field_ty_id)?) as usize;
 
-                        writeln!(
-                            def,
+                        agg_content.push(format!(
                             r#"    pub {field_name}: {field_ty_str},"#,
                             field_name = member.name,
                             field_ty_str = self.type_declaration(field_ty_id)?,
-                        )?;
+                        ));
                     }
 
+                    if !gen_impl_default && t.is_struct {
+                        writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
+                    } else {
+                        writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                    }
+
+                    let aggregate_type = if t.is_struct { "struct" } else { "union" };
+                    let packed_repr = if packed { ", packed" } else { "" };
+
+                    writeln!(def, r#"#[repr(C{})]"#, packed_repr)?;
+                    writeln!(
+                        def,
+                        r#"pub {agg_type} {name} {{"#,
+                        agg_type = aggregate_type,
+                        name = t.name,
+                    )?;
+
+                    for field in agg_content {
+                        writeln!(def, "{}", field)?;
+                    }
                     writeln!(def, "}}")?;
+
+                    // if required write a Default implementation for this struct
+                    if gen_impl_default {
+                        writeln!(def, r#"impl Default for {} {{"#, t.name)?;
+                        writeln!(def, r#"    fn default() -> Self {{"#)?;
+                        writeln!(def, r#"        {} {{"#, t.name)?;
+                        for impl_def in impl_default {
+                            writeln!(def, r#"{},"#, impl_def)?;
+                        }
+                        writeln!(def, r#"        }}"#)?;
+                        writeln!(def, r#"    }}"#)?;
+                        writeln!(def, r#"}}"#)?;
+                    }
                 }
                 BtfType::Enum(t) => {
                     let repr_size = match t.size {
