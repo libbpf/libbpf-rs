@@ -1804,22 +1804,15 @@ fn test_btf_dump_definition_datasec_long_array() {
         r#"
         #include "vmlinux.h"
         #include "bpf_helpers.h"
-<<<<<<< HEAD
-=======
 
->>>>>>> 9bf3168b67500cc2cd750b848e8dc8c884365444
         struct Foo {{
             int x;
             char y[33];
             void *z;
         }};
-<<<<<<< HEAD
-        struct Foo foo = {{0}};
-=======
 
         struct Foo foo = {{0}};
 
->>>>>>> 9bf3168b67500cc2cd750b848e8dc8c884365444
         const int myconstglobal = 0;
         "#,
     )
@@ -2034,26 +2027,17 @@ fn test_btf_dump_definition_datasec_multiple_long_array() {
         r#"
         #include "vmlinux.h"
         #include "bpf_helpers.h"
-<<<<<<< HEAD
-=======
 
->>>>>>> 9bf3168b67500cc2cd750b848e8dc8c884365444
         struct Foo {{
             int x;
             char y[33];
             void *z;
         }};
-<<<<<<< HEAD
-        struct Foo foo = {{0}};
-        struct Foo foo2 = {{0}};
-        struct Foo foo3 = {{0}};
-=======
 
         struct Foo foo = {{0}};
         struct Foo foo2 = {{0}};
         struct Foo foo3 = {{0}};
 
->>>>>>> 9bf3168b67500cc2cd750b848e8dc8c884365444
         const int ci = 0;
         const int ci2 = 0;
         const int ci3 = 0;
