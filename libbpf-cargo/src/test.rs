@@ -912,10 +912,7 @@ fn test_btf_dump_basic_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1144,10 +1141,7 @@ fn test_btf_dump_struct_definition_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1326,10 +1320,7 @@ fn test_btf_dump_definition_packed_struct_long_array() {
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    assert_eq!(
-        build(true, Some(&cargo_toml), Path::new("/bin/clang"), true),
-        0
-    );
+    build(true, Some(&cargo_toml), None, true).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
@@ -1795,6 +1786,115 @@ pub struct rodata {
 }
 
 #[test]
+fn test_btf_dump_definition_datasec_long_array() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+        struct Foo {{
+            int x;
+            char y[33];
+            void *z;
+        }};
+        struct Foo foo = {{0}};
+        const int myconstglobal = 0;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Build the .bpf.o
+    build(true, Some(&cargo_toml), None, true).unwrap();
+
+    let obj = OpenOptions::new()
+        .read(true)
+        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .expect("failed to open object file");
+    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
+    let btf = Btf::new("prog", &*mmap)
+        .expect("Failed to initialize Btf")
+        .expect("Did not find .BTF section");
+
+    assert!(btf.types().len() > 0);
+
+    // Find our types
+    let mut bss: Option<u32> = None;
+    let mut rodata: Option<u32> = None;
+    for (idx, ty) in btf.types().iter().enumerate() {
+        match ty {
+            btf::BtfType::Datasec(t) => {
+                if t.name.contains("bss") {
+                    assert!(bss.is_none()); // No duplicates
+                    bss = Some(idx.try_into().unwrap());
+                } else if t.name.contains("rodata") {
+                    assert!(rodata.is_none()); // No duplicates
+                    rodata = Some(idx.try_into().unwrap());
+                }
+            }
+            _ => (),
+        }
+    }
+
+    assert!(bss.is_some());
+    assert!(rodata.is_some());
+
+    let bss_defn = r#"#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct bss {
+    pub foo: Foo,
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub x: i32,
+    pub y: [i8; 33],
+    pub z: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: [i8::default(); 33],
+            z: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+    assert_eq!(
+        bss_defn,
+        btf.type_definition(bss.unwrap())
+            .expect("Failed to generate bss")
+    );
+
+    let rodata_defn = r#"#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct rodata {
+    pub myconstglobal: i32,
+}
+"#;
+    assert_eq!(
+        rodata_defn,
+        btf.type_definition(rodata.unwrap())
+            .expect("Failed to generate rodata")
+    );
+}
+
+#[test]
 fn test_btf_dump_definition_datasec_multiple() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
@@ -1898,6 +1998,125 @@ pub struct rodata {
     pub ci3: i32,
 }
 "#;
+    assert_eq!(
+        rodata_defn,
+        btf.type_definition(rodata.unwrap())
+            .expect("Failed to generate rodata")
+    );
+}
+
+#[test]
+fn test_btf_dump_definition_datasec_multiple_long_array() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include "bpf_helpers.h"
+        struct Foo {{
+            int x;
+            char y[33];
+            void *z;
+        }};
+        struct Foo foo = {{0}};
+        struct Foo foo2 = {{0}};
+        struct Foo foo3 = {{0}};
+        const int ci = 0;
+        const int ci2 = 0;
+        const int ci3 = 0;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_bpf_headers(&proj_dir);
+
+    // Build the .bpf.o
+    build(true, Some(&cargo_toml), None, true).unwrap();
+
+    let obj = OpenOptions::new()
+        .read(true)
+        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .expect("failed to open object file");
+    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
+    let btf = Btf::new("prog", &*mmap)
+        .expect("Failed to initialize Btf")
+        .expect("Did not find .BTF section");
+
+    assert!(btf.types().len() > 0);
+
+    // Find our types
+    let mut bss: Option<u32> = None;
+    let mut rodata: Option<u32> = None;
+    for (idx, ty) in btf.types().iter().enumerate() {
+        match ty {
+            btf::BtfType::Datasec(t) => {
+                if t.name.contains("bss") {
+                    assert!(bss.is_none()); // No duplicates
+                    bss = Some(idx.try_into().unwrap());
+                } else if t.name.contains("rodata") {
+                    assert!(rodata.is_none()); // No duplicates
+                    rodata = Some(idx.try_into().unwrap());
+                }
+            }
+            _ => (),
+        }
+    }
+
+    assert!(bss.is_some());
+    assert!(rodata.is_some());
+
+    let bss_defn = r#"#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct bss {
+    pub foo: Foo,
+    pub foo2: Foo,
+    pub foo3: Foo,
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub x: i32,
+    pub y: [i8; 33],
+    pub z: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: [i8::default(); 33],
+            z: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+    println!("{}", btf.type_definition(bss.unwrap()).unwrap());
+    assert_eq!(
+        bss_defn,
+        btf.type_definition(bss.unwrap())
+            .expect("Failed to generate bss")
+    );
+
+    let rodata_defn = r#"#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct rodata {
+    pub ci: i32,
+    pub ci2: i32,
+    pub ci3: i32,
+}
+"#;
+    println!("{}", btf.type_definition(rodata.unwrap()).unwrap());
     assert_eq!(
         rodata_defn,
         btf.type_definition(rodata.unwrap())
