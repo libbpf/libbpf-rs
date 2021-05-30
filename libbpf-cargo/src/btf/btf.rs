@@ -427,13 +427,10 @@ impl<'a> Btf<'a> {
                                 ));
                             }
 
-                            match self.type_by_id(field_ty_id)? {
-                                BtfType::Array(ft) => {
-                                    if ft.nelems > 32 {
-                                        gen_impl_default = true
-                                    }
+                            if let BtfType::Array(ft) = self.type_by_id(field_ty_id)? {
+                                if ft.nelems > 32 {
+                                    gen_impl_default = true
                                 }
-                                _ => {}
                             }
 
                             match self.type_default(field_ty_id) {
@@ -539,7 +536,7 @@ impl<'a> Btf<'a> {
                     writeln!(def, "}}")?;
 
                     // write an impl Default for this enum
-                    if t.values.len() > 0 {
+                    if !t.values.is_empty() {
                         writeln!(def, r#"impl Default for {name} {{"#, name = t.name)?;
                         writeln!(def, r#"    fn default() -> Self {{"#)?;
                         writeln!(
