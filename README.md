@@ -24,7 +24,7 @@ See [full documentation here](https://docs.rs/libbpf-rs).
 
 [![crates.io badge](https://img.shields.io/crates/v/libbpf-cargo.svg)](https://crates.io/crates/libbpf-cargo)
 
-Cargo subcommand to build bpf programs
+Helps you build and develop eBPF programs with standard rust tooling
 
 To use:
 
