@@ -30,7 +30,7 @@ To use in your project, add into your `Cargo.toml`:
 
 ```toml
 [build-dependencies]
-libbpf-cargo = "0.7.0"
+libbpf-cargo = "0.7"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-cargo).
