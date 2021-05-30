@@ -26,11 +26,11 @@ See [full documentation here](https://docs.rs/libbpf-rs).
 
 Helps you build and develop eBPF programs with standard rust tooling
 
-To use:
+To use in your project, add into your `Cargo.toml`:
 
-```
-$ cargo install libbpf-cargo
-$ cargo libbpf --help
+```toml
+[build-dependencies]
+libbpf-cargo = "0.6.3"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-cargo).
