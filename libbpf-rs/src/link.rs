@@ -35,6 +35,19 @@ impl Link {
         }
     }
 
+    /// Release "ownership" of underlying BPF resource (typically, a BPF program
+    /// attached to some BPF hook, e.g., tracepoint, kprobe, etc). Disconnected
+    /// links, when destructed through bpf_link__destroy() call won't attempt to
+    /// detach/unregisted that BPF resource. This is useful in situations where,
+    /// say, attached BPF program has to outlive userspace program that attached it
+    /// in the system. Depending on type of BPF program, though, there might be
+    /// additional steps (like pinning BPF program in BPF FS) necessary to ensure
+    /// exit of userspace program doesn't trigger automatic detachment and clean up
+    /// inside the kernel.
+    pub fn disconnect(&mut self) {
+        unsafe { libbpf_sys::bpf_link__disconnect(self.ptr) }
+    }
+
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this link to bpffs.
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
