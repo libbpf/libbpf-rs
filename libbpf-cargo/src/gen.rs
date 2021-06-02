@@ -4,6 +4,7 @@ use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::Write;
+use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
@@ -586,7 +587,7 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<*mut libbpf_sys::bpf_objec
     let object = unsafe {
         libbpf_sys::bpf_object__open_mem(
             data.as_ptr() as *const c_void,
-            data.len() as u64,
+            data.len() as c_ulong,
             &obj_opts,
         )
     };

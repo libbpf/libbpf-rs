@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write;
 use std::mem::size_of;
+use std::os::raw::{c_char, c_ulong};
 use std::slice;
 
 use anyhow::{bail, ensure, Result};
@@ -33,7 +34,7 @@ impl<'a> Btf<'a> {
         let bpf_obj = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr() as *const c_void,
-                object_file.len() as u64,
+                object_file.len() as c_ulong,
                 &obj_opts,
             )
         };
@@ -859,7 +860,8 @@ impl<'a> Btf<'a> {
     }
 
     fn get_btf_str(&self, offset: usize) -> Result<&'a str> {
-        let c_str = unsafe { CStr::from_ptr(&self.string_table[offset] as *const u8 as *const i8) };
+        let c_str =
+            unsafe { CStr::from_ptr(&self.string_table[offset] as *const u8 as *const c_char) };
         Ok(c_str.to_str()?)
     }
 }
