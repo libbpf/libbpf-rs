@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "bitflags",
  "libbpf-sys",
