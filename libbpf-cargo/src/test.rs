@@ -771,22 +771,22 @@ fn test_skeleton_builder_clang_opts() {
 
 // -- TEST RUST GENERATION OF BTF PROGRAMS --
 
-// Searches the Btf struct for a BtfType
-// returns type identifier <u32> if found
-// fails calling test if not found, or if duplicates
-//
-// usage: -- search for basic struct/union/enum with exact match to name
-//        assert_type!(<Btf to search in>, <BtfType to search for>, <&str search name>);
-//        eg:
-//        let my_type = assert_type!(btf, Struct, "name")
-//    or: -- search for basic struct/union/enum/var containing name
-//        assert_type!(<Btf to search in>, <BtfType to search for>, <&str search name>, true);
-//        eg:
-//        let my_type = assert_type!(btf, Datasec, "bss", true);
-//    or: -- search for a Variable name in a Datasec -- exact match
-//        assert_type!(<Btf to search in>, Var, <&str search name>);)
-//        eg
-//        let let my_type = assert_type!(btf, Var, "name")
+/// Searches the Btf struct for a BtfType
+/// returns type identifier <u32> if found
+/// fails calling test if not found, or if duplicates
+///
+/// usage: -- search for basic struct/union/enum with exact match to name
+///        assert_type!(<Btf to search in>, <BtfType to search for>, <&str search name>);
+///        eg:
+///        let my_type = assert_type!(btf, Struct, "name")
+///    or: -- search for basic struct/union/enum/var containing name
+///        assert_type!(<Btf to search in>, <BtfType to search for>, <&str search name>, true);
+///        eg:
+///        let my_type = assert_type!(btf, Datasec, "bss", true);
+///    or: -- search for a Variable name in a Datasec -- exact match
+///        assert_type!(<Btf to search in>, Var, <&str search name>);)
+///        eg
+///        let let my_type = assert_type!(btf, Var, "name")
 macro_rules! assert_type {
 
     // match for a named BtfType::Var inside all vars in a Datasec
@@ -853,9 +853,9 @@ macro_rules! assert_type {
     }};
 }
 
-// Boiler plate code to build a struct Btf from a raw string
-// returns struct Btf if able to compile
-// fails calling test if unable to compile
+/// Boiler plate code to build a struct Btf from a raw string
+/// returns struct Btf if able to compile
+/// fails calling test if unable to compile
 fn build_btf_prog(prog_text: &str) -> Btf {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
@@ -891,10 +891,10 @@ fn build_btf_prog(prog_text: &str) -> Btf {
     btf
 }
 
-// Tests the type_definition output of a type_id against a given expected output
-// Will trim leading and trailing whitespace from both expected output and from
-// the generated type_definition
-// fails calling text if type_definition does not match expected_output
+/// Tests the type_definition output of a type_id against a given expected output
+/// Will trim leading and trailing whitespace from both expected output and from
+/// the generated type_definition
+/// fails calling text if type_definition does not match expected_output
 fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
     let actual_output = btf
         .type_definition(btf_item)
