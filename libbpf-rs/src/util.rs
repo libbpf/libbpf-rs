@@ -27,3 +27,8 @@ pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
         .map_err(|e| Error::Internal(e.to_string()))?
         .to_owned())
 }
+
+/// Round up a number to the next multiple of `r`
+pub fn roundup(num: usize, r: usize) -> usize {
+    ((num + (r - 1)) / r) * r
+}

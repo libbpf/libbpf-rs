@@ -143,14 +143,25 @@ impl Map {
         self.value_size
     }
 
-    fn all_values_size(&self) -> Result<u32> {
-        let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
-        if ret < 0 {
-            // Error code is returned negative, flip to positive to match errno
-            Err(Error::System(-ret))
+    /// Size of the value for lookups in bytes. Respects the space needed when looking up values in
+    /// per-cpu maps.
+    fn lookup_value_size(&self) -> Result<usize> {
+        let val_size = self.value_size() as usize;
+        if self.map_type() == MapType::PercpuArray
+            || self.map_type() == MapType::PercpuHash
+            || self.map_type() == MapType::LruPercpuHash
+            || self.map_type() == MapType::PercpuCgroupStorage
+        {
+            let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
+            if ret < 0 {
+                // Error code is returned negative, flip to positive to match errno
+                Err(Error::System(-ret))
+            } else {
+                let ncpu = ret as usize;
+                Ok(ncpu * util::roundup(val_size, 8))
+            }
         } else {
-            let ncpu = ret as u32;
-            Ok(ncpu * self.value_size())
+            Ok(val_size)
         }
     }
 
@@ -187,6 +198,9 @@ impl Map {
     /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
+    ///
+    /// If the map is one of the per-cpu data structures, the returned `Vec` contains one value per
+    /// CPU in the system. The size of each value is rounded to the next multiple of 8 bytes.
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
@@ -196,12 +210,7 @@ impl Map {
             )));
         };
 
-        let out_size =
-            if self.map_type() == MapType::PercpuArray || self.map_type() == MapType::PercpuHash {
-                self.all_values_size()?
-            } else {
-                self.value_size()
-            } as usize;
+        let out_size = self.lookup_value_size()?;
         let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
         let ret = unsafe {
