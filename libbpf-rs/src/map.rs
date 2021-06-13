@@ -143,6 +143,17 @@ impl Map {
         self.value_size
     }
 
+    fn all_values_size(&self) -> Result<u32> {
+        let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
+        if ret < 0 {
+            // Error code is returned negative, flip to positive to match errno
+            Err(Error::System(-ret))
+        } else {
+            let ncpu = ret as u32;
+            Ok(ncpu * self.value_size())
+        }
+    }
+
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map to bpffs.
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
@@ -185,7 +196,13 @@ impl Map {
             )));
         };
 
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+        let out_size =
+            if self.map_type() == MapType::PercpuArray || self.map_type() == MapType::PercpuHash {
+                self.all_values_size()?
+            } else {
+                self.value_size()
+            } as usize;
+        let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
@@ -198,7 +215,7 @@ impl Map {
 
         if ret == 0 {
             unsafe {
-                out.set_len(self.value_size() as usize);
+                out.set_len(out_size);
             }
             Ok(Some(out))
         } else {
