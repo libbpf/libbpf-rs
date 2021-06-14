@@ -359,6 +359,7 @@ bitflags! {
 }
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
+// If you add a new per-cpu map, also update `lookup_value_size` to make lookups return all values.
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, PartialEq, Display)]
