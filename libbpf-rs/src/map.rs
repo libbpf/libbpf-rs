@@ -143,9 +143,10 @@ impl Map {
         self.value_size
     }
 
-    /// Size of the value for lookups in bytes. Respects the space needed when looking up values in
-    /// per-cpu maps.
-    fn lookup_value_size(&self) -> Result<usize> {
+    /// Size of the value buffer for lookups and updates in bytes. Respects the space needed when
+    /// handling values in per-cpu maps. With per-cpu maps, the buffer contains one value per cpu
+    /// and the values are aligned to 8 bytes.
+    pub fn value_buffer_size(&self) -> Result<usize> {
         let val_size = self.value_size() as usize;
         if self.map_type() == MapType::PercpuArray
             || self.map_type() == MapType::PercpuHash
@@ -210,7 +211,7 @@ impl Map {
             )));
         };
 
-        let out_size = self.lookup_value_size()?;
+        let out_size = self.value_buffer_size()?;
         let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
         let ret = unsafe {
@@ -302,8 +303,8 @@ impl Map {
 
     /// Update an element.
     ///
-    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
-    /// [`Map::value_size()`] elements.
+    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exactly
+    /// [`Map::value_buffer_size()`] elements.
     pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
@@ -313,11 +314,11 @@ impl Map {
             )));
         };
 
-        if value.len() != self.value_size() as usize {
+        if value.len() != self.value_buffer_size()? {
             return Err(Error::InvalidInput(format!(
                 "value_size {} != {}",
                 value.len(),
-                self.value_size()
+                self.value_buffer_size()?
             )));
         };
 
@@ -359,7 +360,7 @@ bitflags! {
 }
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
-// If you add a new per-cpu map, also update `lookup_value_size` to make lookups return all values.
+// If you add a new per-cpu map, also update `value_buffer_size` to make lookups return all values.
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, PartialEq, Display)]
