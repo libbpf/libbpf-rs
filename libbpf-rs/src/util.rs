@@ -32,3 +32,25 @@ pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
 pub fn roundup(num: usize, r: usize) -> usize {
     ((num + (r - 1)) / r) * r
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_roundup() {
+        for i in 1..=256 {
+            let up = roundup(i, 8);
+            assert!(up % 8 == 0);
+            assert!(i <= up);
+            assert!(up - i < 8);
+        }
+    }
+
+    #[test]
+    fn test_roundup_multiples() {
+        for i in (8..=256).step_by(8) {
+            assert_eq!(roundup(i, 8), i);
+        }
+    }
+}
