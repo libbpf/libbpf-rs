@@ -773,22 +773,28 @@ fn test_skeleton_builder_clang_opts() {
 
 /// Searches the Btf struct for a BtfType
 /// returns type identifier <u32> if found
-/// fails calling test if not found, or if duplicates
+/// fails calling test if not found, or if duplicates exist
 ///
 /// usage: -- search for basic struct/union/enum with exact match to name
-///        assert_type!(<Btf to search in>, <BtfType to search for>, <&str search name>);
+///        find_type_in_btf!(<Btf to search in>,
+///                          <BtfType to search for>,
+///                          <&str search name>);
 ///        eg:
-///        let my_type = assert_type!(btf, Struct, "name")
-///    or: -- search for basic struct/union/enum/var containing name
-///        assert_type!(<Btf to search in>, <BtfType to search for>, <&str search name>, true);
+///        let my_type = find_type_in_btf!(btf, Struct, "name");
+///    or: -- search for basic struct/union/enum/var containing name substring
+///        find_type_in_btf!(<Btf to search in>,
+///                          <BtfType to search for>,
+///                          <&str search name>,
+///                          true);
 ///        eg:
-///        let my_type = assert_type!(btf, Datasec, "bss", true);
+///        let my_type = find_type_in_btf!(btf, Datasec, "bss", true);
 ///    or: -- search for a Variable name in a Datasec -- exact match
-///        assert_type!(<Btf to search in>, Var, <&str search name>);)
+///        find_type_in_btf!(<Btf to search in>,
+///                          Var,
+///                          <&str search name>);
 ///        eg
-///        let let my_type = assert_type!(btf, Var, "name")
-macro_rules! assert_type {
-
+///        let let my_type = find_type_in_btf!(btf, Var, "name");
+macro_rules! find_type_in_btf {
     // match for a named BtfType::Var inside all vars in a Datasec
     ($btf:ident, Var, $name:literal) => {{
         let mut asserted_type: Option<u32> = None;
@@ -796,12 +802,13 @@ macro_rules! assert_type {
             match ty {
                 btf::BtfType::Datasec(t) => {
                     for var in &t.vars {
-                        let var_ty = $btf.type_by_id(var.type_id)
+                        let var_ty = $btf
+                            .type_by_id(var.type_id)
                             .expect("Failed to lookup datasec var");
                         match var_ty {
                             btf::BtfType::Var(t) => {
                                 if t.name == $name {
-                                    assert!(asserted_type.is_none());
+                                    assert!(asserted_type.is_none()); // No duplicates
                                     asserted_type = Some(var.type_id);
                                 }
                             }
@@ -812,32 +819,26 @@ macro_rules! assert_type {
                 _ => (),
             }
         }
-        assert!(asserted_type.is_some());
         asserted_type.unwrap()
     }};
 
-    // match for a named BtfType.  If contains == true then do not match for exact name
-    ($btf:ident, $btf_type:ident, $name:literal $(, $contains:expr)?) => {{
-        #[allow(unused_mut, unused_assignments)]
-        let mut c: Option<bool> = None;
-        let mut asserted_type: Option<u32> = None;
+    // match for a named BtfType.
+    ($btf:ident, $btf_type:ident, $name:literal) => {{
+        find_type_in_btf!($btf, $btf_type, $name, false)
+    }};
 
-        $(
-            c = Some($contains);
-        );*
+    // match for a named BtfType.
+    // If substr == true then test for substring rather than exact match
+    ($btf:ident, $btf_type:ident, $name:literal, $substr:expr) => {{
+        let mut asserted_type: Option<u32> = None;
 
         for (idx, ty) in $btf.types().iter().enumerate() {
             match ty {
                 btf::BtfType::$btf_type(t) => {
-                    let found = match c {
-                        Some(c) => {
-                            if c {
-                                t.name.contains($name)
-                            } else {
-                                t.name == $name
-                            }
-                        }
-                        None => t.name == $name,
+                    let found = if $substr {
+                        t.name.contains($name)
+                    } else {
+                        t.name == $name
                     };
 
                     if found {
@@ -848,7 +849,6 @@ macro_rules! assert_type {
                 _ => (),
             }
         }
-        assert!(asserted_type.is_some());
         asserted_type.unwrap()
     }};
 }
@@ -934,9 +934,9 @@ pub struct Foo {
 
     let btf = build_btf_prog(prog_text);
 
-    let struct_foo = assert_type!(btf, Struct, "Foo");
-    let foo = assert_type!(btf, Var, "foo");
-    let myglobal = assert_type!(btf, Var, "myglobal");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+    let foo = find_type_in_btf!(btf, Var, "foo");
+    let myglobal = find_type_in_btf!(btf, Var, "myglobal");
 
     assert_eq!(
         "Foo",
@@ -991,9 +991,9 @@ impl Default for Foo {
     let btf = build_btf_prog(prog_text);
 
     // Find our types
-    let struct_foo = assert_type!(btf, Struct, "Foo");
-    let foo = assert_type!(btf, Var, "foo");
-    let myglobal = assert_type!(btf, Var, "myglobal");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+    let foo = find_type_in_btf!(btf, Var, "foo");
+    let myglobal = find_type_in_btf!(btf, Var, "myglobal");
 
     assert_eq!(
         "Foo",
@@ -1057,7 +1057,7 @@ pub struct Bar {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1120,7 +1120,7 @@ impl Default for Bar {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1153,7 +1153,7 @@ pub struct Foo {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1195,7 +1195,7 @@ impl Default for Foo {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1216,7 +1216,7 @@ struct Foo foo;
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert!(btf.type_definition(struct_foo).is_err());
 }
@@ -1254,7 +1254,7 @@ impl Default for Foo {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let enum_foo = assert_type!(btf, Enum, "Foo");
+    let enum_foo = find_type_in_btf!(btf, Enum, "Foo");
 
     assert_definition(&btf, enum_foo, expected_output);
 }
@@ -1287,7 +1287,7 @@ pub union Foo {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let union_foo = assert_type!(btf, Union, "Foo");
+    let union_foo = find_type_in_btf!(btf, Union, "Foo");
 
     assert_definition(&btf, union_foo, expected_output);
 }
@@ -1327,7 +1327,7 @@ pub struct Bar {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1375,8 +1375,8 @@ pub struct rodata {
     let btf = build_btf_prog(prog_text);
 
     // Find out types
-    let bss = assert_type!(btf, Datasec, "bss", true);
-    let rodata = assert_type!(btf, Datasec, "rodata", true);
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
 
     assert_definition(&btf, bss, bss_output);
     assert_definition(&btf, rodata, rodata_output);
@@ -1434,8 +1434,8 @@ pub struct rodata {
     let btf = build_btf_prog(prog_text);
 
     // Find our types
-    let bss = assert_type!(btf, Datasec, "bss", true);
-    let rodata = assert_type!(btf, Datasec, "rodata", true);
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
 
     assert_definition(&btf, bss, bss_output);
     assert_definition(&btf, rodata, rodata_output);
@@ -1492,8 +1492,8 @@ pub struct rodata {
     let btf = build_btf_prog(prog_text);
 
     // Find our types
-    let bss = assert_type!(btf, Datasec, "bss", true);
-    let rodata = assert_type!(btf, Datasec, "rodata", true);
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
 
     assert_definition(&btf, bss, bss_output);
     assert_definition(&btf, rodata, rodata_output);
@@ -1559,8 +1559,8 @@ pub struct rodata {
     let btf = build_btf_prog(prog_text);
 
     // Find our types
-    let bss = assert_type!(btf, Datasec, "bss", true);
-    let rodata = assert_type!(btf, Datasec, "rodata", true);
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
 
     assert_definition(&btf, bss, bss_output);
     assert_definition(&btf, rodata, rodata_output);
@@ -1615,7 +1615,7 @@ pub union __anon_2 {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1669,7 +1669,7 @@ pub struct __anon_2 {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1746,7 +1746,7 @@ pub union __anon_4 {
     let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
@@ -1819,7 +1819,7 @@ pub union __anon_4 {
 }"#;
     let btf = build_btf_prog(prog_text);
 
-    let struct_foo = assert_type!(btf, Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
 }
