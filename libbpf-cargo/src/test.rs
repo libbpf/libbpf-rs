@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use goblin::Object;
-use memmap::Mmap;
+use memmap2::Mmap;
 use tempfile::{tempdir, NamedTempFile, TempDir};
 
 use crate::btf;
