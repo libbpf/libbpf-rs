@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 use std::ptr;
 
 use anyhow::{bail, ensure, Context, Result};
-use memmap::Mmap;
+use memmap2::Mmap;
 
 use crate::btf;
 use crate::metadata;
