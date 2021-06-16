@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use regex::Regex;
 use semver::Version;
 
@@ -42,7 +42,10 @@ fn extract_version(output: &str) -> Result<&str> {
 }
 
 fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
-    let output = Command::new(clang.as_os_str()).arg("--version").output()?;
+    let output = Command::new(clang.as_os_str())
+        .arg("--version")
+        .output()
+        .context("Failed to execute clang")?;
 
     if !output.status.success() {
         bail!("Failed to execute clang binary");
@@ -106,7 +109,7 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
         .arg("-o")
         .arg(out);
 
-    let output = cmd.output()?;
+    let output = cmd.output().context("Failed to execute clang")?;
     if !output.status.success() {
         bail!(
             "Failed to compile obj={} with status={}\n \
