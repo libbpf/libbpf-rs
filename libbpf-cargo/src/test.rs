@@ -769,8 +769,94 @@ fn test_skeleton_builder_clang_opts() {
         .unwrap();
 }
 
-#[test]
-fn test_btf_dump_basic() {
+// -- TEST RUST GENERATION OF BTF PROGRAMS --
+
+/// Searches the Btf struct for a BtfType
+/// returns type identifier <u32> if found
+/// fails calling test if not found, or if duplicates exist
+///
+/// usage: -- search for basic struct/union/enum with exact match to name
+///        find_type_in_btf!(<Btf to search in>,
+///                          <BtfType to search for>,
+///                          <&str search name>);
+///        eg:
+///        let my_type = find_type_in_btf!(btf, Struct, "name");
+///    or: -- search for basic struct/union/enum/var containing name substring
+///        find_type_in_btf!(<Btf to search in>,
+///                          <BtfType to search for>,
+///                          <&str search name>,
+///                          true);
+///        eg:
+///        let my_type = find_type_in_btf!(btf, Datasec, "bss", true);
+///    or: -- search for a Variable name in a Datasec -- exact match
+///        find_type_in_btf!(<Btf to search in>,
+///                          Var,
+///                          <&str search name>);
+///        eg
+///        let let my_type = find_type_in_btf!(btf, Var, "name");
+macro_rules! find_type_in_btf {
+    // match for a named BtfType::Var inside all vars in a Datasec
+    ($btf:ident, Var, $name:literal) => {{
+        let mut asserted_type: Option<u32> = None;
+        for ty in $btf.types().iter() {
+            match ty {
+                btf::BtfType::Datasec(t) => {
+                    for var in &t.vars {
+                        let var_ty = $btf
+                            .type_by_id(var.type_id)
+                            .expect("Failed to lookup datasec var");
+                        match var_ty {
+                            btf::BtfType::Var(t) => {
+                                if t.name == $name {
+                                    assert!(asserted_type.is_none()); // No duplicates
+                                    asserted_type = Some(var.type_id);
+                                }
+                            }
+                            _ => panic!("Datasec var didn't point to a var. Instead: {}", var_ty),
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+        asserted_type.unwrap()
+    }};
+
+    // match for a named BtfType.
+    ($btf:ident, $btf_type:ident, $name:literal) => {{
+        find_type_in_btf!($btf, $btf_type, $name, false)
+    }};
+
+    // match for a named BtfType.
+    // If substr == true then test for substring rather than exact match
+    ($btf:ident, $btf_type:ident, $name:literal, $substr:expr) => {{
+        let mut asserted_type: Option<u32> = None;
+
+        for (idx, ty) in $btf.types().iter().enumerate() {
+            match ty {
+                btf::BtfType::$btf_type(t) => {
+                    let found = if $substr {
+                        t.name.contains($name)
+                    } else {
+                        t.name == $name
+                    };
+
+                    if found {
+                        assert!(asserted_type.is_none()); // No duplicates
+                        asserted_type = Some(idx.try_into().unwrap());
+                    }
+                }
+                _ => (),
+            }
+        }
+        asserted_type.unwrap()
+    }};
+}
+
+/// Boiler plate code to build a struct Btf from a raw string
+/// returns struct Btf if able to compile
+/// fails calling test if unable to compile
+fn build_btf_prog(prog_text: &str) -> Btf {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // Add prog dir
@@ -783,30 +869,13 @@ fn test_btf_dump_basic() {
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        int myglobal = 1;
-
-        struct Foo {{
-            int x;
-            char y[10];
-            void *z;
-        }};
-
-        struct Foo foo = {{0}};
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+    write!(prog, "{}", prog_text).expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
     add_bpf_headers(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
+    build(true, Some(&cargo_toml), None, true).expect("failed to compile");
 
     let obj = OpenOptions::new()
         .read(true)
@@ -819,57 +888,42 @@ fn test_btf_dump_basic() {
 
     assert!(btf.types().len() > 0);
 
-    // Find our types
-    let mut struct_foo: Option<u32> = None;
-    let mut foo: Option<u32> = None;
-    let mut myglobal: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            btf::BtfType::Datasec(t) => {
-                for var in &t.vars {
-                    let var_ty = btf
-                        .type_by_id(var.type_id)
-                        .expect("Failed to lookup datasec var");
-                    match var_ty {
-                        btf::BtfType::Var(t) => {
-                            if t.name == "foo" {
-                                assert!(foo.is_none());
-                                foo = Some(var.type_id);
-                            } else if t.name == "myglobal" {
-                                assert!(myglobal.is_none());
-                                myglobal = Some(var.type_id);
-                            }
-                        }
-                        _ => panic!("Datasec var didn't point to a var. Instead: {}", var_ty),
-                    }
-                }
-            }
-            _ => (),
-        }
-    }
+    btf
+}
 
-    assert!(struct_foo.is_some());
-    assert!(foo.is_some());
-    assert!(myglobal.is_some());
+/// Tests the type_definition output of a type_id against a given expected output
+/// Will trim leading and trailing whitespace from both expected output and from
+/// the generated type_definition
+/// fails calling text if type_definition does not match expected_output
+fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
+    let actual_output = btf
+        .type_definition(btf_item)
+        .expect("Failed to generate struct Foo defn");
+    let ao = actual_output.trim_end().trim_start();
+    let eo = expected_output.trim_end().trim_start();
 
-    assert_eq!(
-        "Foo",
-        btf.type_declaration(foo.unwrap())
-            .expect("Failed to generate foo decl")
-    );
-    assert_eq!(
-        "i32",
-        btf.type_declaration(myglobal.unwrap())
-            .expect("Failed to generate myglobal decl")
-    );
+    assert_eq!(eo, ao);
+}
 
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+#[test]
+fn test_btf_dump_basic() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
+
+int myglobal = 1;
+
+struct Foo {
+    int x;
+    char y[10];
+    void *z;
+};
+
+struct Foo foo = {{0}};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -877,113 +931,46 @@ pub struct Foo {
     pub z: *mut std::ffi::c_void,
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
-}
 
-#[test]
-fn test_btf_dump_basic_long_array() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let btf = build_btf_prog(prog_text);
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        int myglobal = 1;
-
-        struct Foo {{
-            int x;
-            char y[33];
-            void *z;
-        }};
-
-        struct Foo foo = {{0}};
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-    // Find our types
-    let mut struct_foo: Option<u32> = None;
-    let mut foo: Option<u32> = None;
-    let mut myglobal: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            btf::BtfType::Datasec(t) => {
-                for var in &t.vars {
-                    let var_ty = btf
-                        .type_by_id(var.type_id)
-                        .expect("Failed to lookup datasec var");
-                    match var_ty {
-                        btf::BtfType::Var(t) => {
-                            if t.name == "foo" {
-                                assert!(foo.is_none());
-                                foo = Some(var.type_id);
-                            } else if t.name == "myglobal" {
-                                assert!(myglobal.is_none());
-                                myglobal = Some(var.type_id);
-                            }
-                        }
-                        _ => panic!("Datasec var didn't point to a var. Instead: {}", var_ty),
-                    }
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-    assert!(foo.is_some());
-    assert!(myglobal.is_some());
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+    let foo = find_type_in_btf!(btf, Var, "foo");
+    let myglobal = find_type_in_btf!(btf, Var, "myglobal");
 
     assert_eq!(
         "Foo",
-        btf.type_declaration(foo.unwrap())
+        btf.type_declaration(foo)
             .expect("Failed to generate foo decl")
     );
     assert_eq!(
         "i32",
-        btf.type_declaration(myglobal.unwrap())
+        btf.type_declaration(myglobal)
             .expect("Failed to generate myglobal decl")
     );
 
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    assert_definition(&btf, struct_foo, expected_output);
+}
+
+#[test]
+fn test_btf_dump_basic_long_array() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
+
+int myglobal = 1;
+
+struct Foo {
+    int x;
+    char y[33];
+    void *z;
+};
+
+struct Foo foo = {{0}};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -1000,88 +987,55 @@ impl Default for Foo {
     }
 }
 "#;
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our types
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+    let foo = find_type_in_btf!(btf, Var, "foo");
+    let myglobal = find_type_in_btf!(btf, Var, "myglobal");
+
     assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
+        "Foo",
+        btf.type_declaration(foo)
+            .expect("Failed to generate foo decl")
     );
+    assert_eq!(
+        "i32",
+        btf.type_declaration(myglobal)
+            .expect("Failed to generate myglobal decl")
+    );
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_struct_definition() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Bar {
+    u16 x;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo {
+    int *ip;
+    int **ipp;
+    struct Bar bar;
+    struct Bar *pb;
+    volatile u64 v;
+    const volatile s64 cv;
+    char * restrict r;
+};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Bar {{
-            u16 x;
-        }};
-
-        struct Foo {{
-            int *ip;
-            int **ipp;
-            struct Bar bar;
-            struct Bar *pb;
-            volatile u64 v;
-            const volatile s64 cv;
-            char * restrict r;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
+struct Foo foo;
+"#;
 
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub ip: *mut i32,
@@ -1099,89 +1053,43 @@ pub struct Bar {
     pub x: u16,
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_struct_definition_long_array() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Bar {
+    u16 x;
+    u16 y[33];
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo {
+    int *ip;
+    int **ipp;
+    struct Bar bar;
+    struct Bar *pb;
+    volatile u64 v;
+    const volatile s64 cv;
+    char * restrict r;
+};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Bar {{
-            u16 x;
-            u16 y[33];
-        }};
-
-        struct Foo {{
-            int *ip;
-            int **ipp;
-            struct Bar bar;
-            struct Bar *pb;
-            volatile u64 v;
-            const volatile s64 cv;
-            char * restrict r;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
+struct Foo foo;
+"#;
 
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub ip: *mut i32,
@@ -1208,78 +1116,32 @@ impl Default for Bar {
     }
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_packed_struct() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    char y;
+    __s32 z[2];
+} __attribute__((packed));
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Foo {{
-            int x;
-            char y;
-            __s32 z[2];
-        }} __attribute__((packed));
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C, packed)]
 pub struct Foo {
     pub x: i32,
@@ -1287,78 +1149,32 @@ pub struct Foo {
     pub z: [i32; 2],
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_packed_struct_long_array() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    char y;
+    __s32 z[33];
+} __attribute__((packed));
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Foo {{
-            int x;
-            char y;
-            __s32 z[33];
-        }} __attribute__((packed));
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
 pub struct Foo {
     pub x: i32,
@@ -1375,143 +1191,53 @@ impl Default for Foo {
     }
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_bitfield_struct_fails() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    unsigned int x: 2;
+    unsigned int y: 3;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Foo {{
-            unsigned int x: 2;
-            unsigned int y: 3;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
+struct Foo foo;
+"#;
+    let btf = build_btf_prog(prog_text);
 
     // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
-    assert!(struct_foo.is_some());
-    assert!(btf.type_definition(struct_foo.unwrap()).is_err());
+    assert!(btf.type_definition(struct_foo).is_err());
 }
 
 #[test]
 fn test_btf_dump_definition_enum() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+enum Foo {
+    Zero = 0,
+    One,
+    seven = 7,
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+enum Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        enum Foo {{
-            Zero = 0,
-            One,
-            seven = 7,
-        }};
-
-        enum Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut enum_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Enum(t) => {
-                if t.name == "Foo" {
-                    assert!(enum_foo.is_none()); // No duplicates
-                    enum_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(enum_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Copy, Clone, PartialEq)]
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u32)]
 pub enum Foo {
     Zero = 0,
@@ -1524,78 +1250,32 @@ impl Default for Foo {
     }
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(enum_foo.unwrap())
-            .expect("Failed to generate enum Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let enum_foo = find_type_in_btf!(btf, Enum, "Foo");
+
+    assert_definition(&btf, enum_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_union() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+union Foo {
+    int x;
+    __u32 y;
+    char z[128];
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+union Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        union Foo {{
-            int x;
-            __u32 y;
-            char z[128];
-        }};
-
-        union Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut union_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Union(t) => {
-                if t.name == "Foo" {
-                    assert!(union_foo.is_none()); // No duplicates
-                    union_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(union_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub union Foo {
     pub x: i32,
@@ -1603,81 +1283,35 @@ pub union Foo {
     pub z: [i8; 128],
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(union_foo.unwrap())
-            .expect("Failed to generate union Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let union_foo = find_type_in_btf!(btf, Union, "Foo");
+
+    assert_definition(&btf, union_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_shared_dependent_types() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Bar {
+    u16 x;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo {
+    struct Bar bar;
+    struct Bar bartwo;
+};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
+struct Foo foo;
+"#;
 
-        struct Bar {{
-            u16 x;
-        }};
-
-        struct Foo {{
-            struct Bar bar;
-            struct Bar bartwo;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub bar: Bar,
@@ -1689,85 +1323,34 @@ pub struct Bar {
     pub x: u16,
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_datasec() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    char y[10];
+    void *z;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo = {0};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
+const int myconstglobal = 0;
+"#;
 
-        struct Foo {{
-            int x;
-            char y[10];
-            void *z;
-        }};
-
-        struct Foo foo = {{0}};
-
-        const int myconstglobal = 0;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our types
-    let mut bss: Option<u32> = None;
-    let mut rodata: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Datasec(t) => {
-                if t.name.contains("bss") {
-                    assert!(bss.is_none()); // No duplicates
-                    bss = Some(idx.try_into().unwrap());
-                } else if t.name.contains("rodata") {
-                    assert!(rodata.is_none()); // No duplicates
-                    rodata = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(bss.is_some());
-    assert!(rodata.is_some());
-
-    let bss_defn = r#"#[derive(Debug, Copy, Clone)]
+    let bss_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bss {
     pub foo: Foo,
@@ -1780,97 +1363,44 @@ pub struct Foo {
     pub z: *mut std::ffi::c_void,
 }
 "#;
-    assert_eq!(
-        bss_defn,
-        btf.type_definition(bss.unwrap())
-            .expect("Failed to generate bss")
-    );
 
-    let rodata_defn = r#"#[derive(Debug, Copy, Clone)]
+    let rodata_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct rodata {
     pub myconstglobal: i32,
 }
 "#;
-    assert_eq!(
-        rodata_defn,
-        btf.type_definition(rodata.unwrap())
-            .expect("Failed to generate rodata")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find out types
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
+
+    assert_definition(&btf, bss, bss_output);
+    assert_definition(&btf, rodata, rodata_output);
 }
 
 #[test]
 fn test_btf_dump_definition_datasec_long_array() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    char y[33];
+    void *z;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo = {0};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
+const int myconstglobal = 0;
+"#;
 
-        struct Foo {{
-            int x;
-            char y[33];
-            void *z;
-        }};
-
-        struct Foo foo = {{0}};
-
-        const int myconstglobal = 0;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our types
-    let mut bss: Option<u32> = None;
-    let mut rodata: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Datasec(t) => {
-                if t.name.contains("bss") {
-                    assert!(bss.is_none()); // No duplicates
-                    bss = Some(idx.try_into().unwrap());
-                } else if t.name.contains("rodata") {
-                    assert!(rodata.is_none()); // No duplicates
-                    rodata = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(bss.is_some());
-    assert!(rodata.is_some());
-
-    let bss_defn = r#"#[derive(Debug, Copy, Clone)]
+    let bss_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bss {
     pub foo: Foo,
@@ -1892,101 +1422,48 @@ impl Default for Foo {
     }
 }
 "#;
-    assert_eq!(
-        bss_defn,
-        btf.type_definition(bss.unwrap())
-            .expect("Failed to generate bss")
-    );
 
-    let rodata_defn = r#"#[derive(Debug, Copy, Clone)]
+    let rodata_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct rodata {
     pub myconstglobal: i32,
 }
 "#;
-    assert_eq!(
-        rodata_defn,
-        btf.type_definition(rodata.unwrap())
-            .expect("Failed to generate rodata")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our types
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
+
+    assert_definition(&btf, bss, bss_output);
+    assert_definition(&btf, rodata, rodata_output);
 }
 
 #[test]
 fn test_btf_dump_definition_datasec_multiple() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    char y[10];
+    void *z;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo = {0};
+struct Foo foo2 = {0};
+struct Foo foo3 = {0};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
+const int ci = 0;
+const int ci2 = 0;
+const int ci3 = 0;
+"#;
 
-        struct Foo {{
-            int x;
-            char y[10];
-            void *z;
-        }};
-
-        struct Foo foo = {{0}};
-        struct Foo foo2 = {{0}};
-        struct Foo foo3 = {{0}};
-
-        const int ci = 0;
-        const int ci2 = 0;
-        const int ci3 = 0;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our types
-    let mut bss: Option<u32> = None;
-    let mut rodata: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Datasec(t) => {
-                if t.name.contains("bss") {
-                    assert!(bss.is_none()); // No duplicates
-                    bss = Some(idx.try_into().unwrap());
-                } else if t.name.contains("rodata") {
-                    assert!(rodata.is_none()); // No duplicates
-                    rodata = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(bss.is_some());
-    assert!(rodata.is_some());
-
-    let bss_defn = r#"#[derive(Debug, Copy, Clone)]
+    let bss_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bss {
     pub foo: Foo,
@@ -2001,13 +1478,9 @@ pub struct Foo {
     pub z: *mut std::ffi::c_void,
 }
 "#;
-    assert_eq!(
-        bss_defn,
-        btf.type_definition(bss.unwrap())
-            .expect("Failed to generate bss")
-    );
 
-    let rodata_defn = r#"#[derive(Debug, Copy, Clone)]
+    let rodata_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct rodata {
     pub ci: i32,
@@ -2015,89 +1488,40 @@ pub struct rodata {
     pub ci3: i32,
 }
 "#;
-    assert_eq!(
-        rodata_defn,
-        btf.type_definition(rodata.unwrap())
-            .expect("Failed to generate rodata")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our types
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
+
+    assert_definition(&btf, bss, bss_output);
+    assert_definition(&btf, rodata, rodata_output);
 }
 
 #[test]
 fn test_btf_dump_definition_datasec_multiple_long_array() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    char y[33];
+    void *z;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo = {0};
+struct Foo foo2 = {0};
+struct Foo foo3 = {0};
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
+const int ci = 0;
+const int ci2 = 0;
+const int ci3 = 0;
+"#;
 
-        struct Foo {{
-            int x;
-            char y[33];
-            void *z;
-        }};
-
-        struct Foo foo = {{0}};
-        struct Foo foo2 = {{0}};
-        struct Foo foo3 = {{0}};
-
-        const int ci = 0;
-        const int ci2 = 0;
-        const int ci3 = 0;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our types
-    let mut bss: Option<u32> = None;
-    let mut rodata: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Datasec(t) => {
-                if t.name.contains("bss") {
-                    assert!(bss.is_none()); // No duplicates
-                    bss = Some(idx.try_into().unwrap());
-                } else if t.name.contains("rodata") {
-                    assert!(rodata.is_none()); // No duplicates
-                    rodata = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(bss.is_some());
-    assert!(rodata.is_some());
-
-    let bss_defn = r#"#[derive(Debug, Copy, Clone)]
+    let bss_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bss {
     pub foo: Foo,
@@ -2121,14 +1545,9 @@ impl Default for Foo {
     }
 }
 "#;
-    println!("{}", btf.type_definition(bss.unwrap()).unwrap());
-    assert_eq!(
-        bss_defn,
-        btf.type_definition(bss.unwrap())
-            .expect("Failed to generate bss")
-    );
 
-    let rodata_defn = r#"#[derive(Debug, Copy, Clone)]
+    let rodata_output = r#"
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct rodata {
     pub ci: i32,
@@ -2136,86 +1555,41 @@ pub struct rodata {
     pub ci3: i32,
 }
 "#;
-    println!("{}", btf.type_definition(rodata.unwrap()).unwrap());
-    assert_eq!(
-        rodata_defn,
-        btf.type_definition(rodata.unwrap())
-            .expect("Failed to generate rodata")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our types
+    let bss = find_type_in_btf!(btf, Datasec, "bss", true);
+    let rodata = find_type_in_btf!(btf, Datasec, "rodata", true);
+
+    assert_definition(&btf, bss, bss_output);
+    assert_definition(&btf, rodata, rodata_output);
 }
 
 #[test]
 fn test_btf_dump_definition_struct_inner_anon_union() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    union {
+        u8 y[10];
+        u16 z[16];
+    } bar;
+    union {
+        u32 w;
+        u64 *u;
+    } baz;
+    int w;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Foo {{
-            int x;
-            union {{
-                u8 y[10];
-                u16 z[16];
-            }} bar;
-            union {{
-                u32 w;
-                u64 *u;
-            }} baz;
-            int w;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -2237,85 +1611,39 @@ pub union __anon_2 {
     pub u: *mut u64,
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate union Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_struct_inner_anon_struct() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    struct {
+        u8 y[10];
+        u16 z[16];
+    } bar;
+    struct {
+        u32 w;
+        u64 *u;
+    } baz;
+    int w;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Foo {{
-            int x;
-            struct {{
-                u8 y[10];
-                u16 z[16];
-            }} bar;
-            struct {{
-                u32 w;
-                u64 *u;
-            }} baz;
-            int w;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -2337,93 +1665,47 @@ pub struct __anon_2 {
     pub u: *mut u64,
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    struct {
+        u8 y[10];
+        u16 z[16];
+    } bar;
+    union {
+        char *a;
+        int b;
+    } zerg;
+    struct {
+        u32 w;
+        u64 *u;
+    } baz;
+    int w;
+    union {
+        u8 c;
+        u64 d[5];
+    } flarg;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo;
+"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        struct Foo {{
-            int x;
-            struct {{
-                u8 y[10];
-                u16 z[16];
-            }} bar;
-            union {{
-                char *a;
-                int b;
-            }} zerg;
-            struct {{
-                u32 w;
-                u64 *u;
-            }} baz;
-            int w;
-            union {{
-                u8 c;
-                u64 d[5];
-            }} flarg;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
@@ -2460,98 +1742,84 @@ pub union __anon_4 {
     pub d: [u64; 5],
 }
 "#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate struct Foo defn")
-    );
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
 
 #[test]
 fn test_btf_dump_definition_anon_enum() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+    let prog_text = r#"
+#include "vmlinux.h"
+#include "bpf_helpers.h"
 
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+struct Foo {
+    int x;
+    struct {
+        u8 y[10];
+        u16 z[16];
+    } bar;
+    union {
+        char *a;
+        int b;
+    } zerg;
+    struct {
+        u32 w;
+        u64 *u;
+    } baz;
+    int w;
+    union {
+        u8 c;
+        u64 d[5];
+    } flarg;
+};
 
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
+struct Foo foo;"#;
 
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include "bpf_helpers.h"
-
-        typedef enum {{
-            FOO = 1,
-        }} test_t;
-
-        struct Foo {{
-            test_t test;
-        }};
-
-        struct Foo foo;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
-
-    // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
-
-    // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).unwrap();
-
-    let obj = OpenOptions::new()
-        .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
-        .expect("failed to open object file");
-    let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
-        .expect("Failed to initialize Btf")
-        .expect("Did not find .BTF section");
-
-    assert!(btf.types().len() > 0);
-
-    // Find our struct
-    let mut struct_foo: Option<u32> = None;
-    for (idx, ty) in btf.types().iter().enumerate() {
-        match ty {
-            btf::BtfType::Struct(t) => {
-                if t.name == "Foo" {
-                    assert!(struct_foo.is_none()); // No duplicates
-                    struct_foo = Some(idx.try_into().unwrap());
-                }
-            }
-            _ => (),
-        }
-    }
-
-    assert!(struct_foo.is_some());
-
-    let foo_defn = r#"#[derive(Debug, Default, Copy, Clone)]
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
-    pub test: __anon_1,
+    pub x: i32,
+    pub bar: __anon_1,
+    pub zerg: __anon_2,
+    pub baz: __anon_3,
+    pub w: i32,
+    __pad_76: [u8; 4],
+    pub flarg: __anon_4,
 }
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[repr(u32)]
-pub enum __anon_1 {
-    FOO = 1,
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct __anon_1 {
+    pub y: [u8; 10],
+    pub z: [u16; 16],
 }
-impl Default for __anon_1 {
-    fn default() -> Self {
-        __anon_1::FOO
-    }
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub union __anon_2 {
+    pub a: *mut i8,
+    pub b: i32,
 }
-"#;
-    assert_eq!(
-        foo_defn,
-        btf.type_definition(struct_foo.unwrap())
-            .expect("Failed to generate union Foo defn")
-    );
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct __anon_3 {
+    pub w: u32,
+    __pad_4: [u8; 4],
+    pub u: *mut u64,
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub union __anon_4 {
+    pub c: u8,
+    pub d: [u64; 5],
+}"#;
+    let btf = build_btf_prog(prog_text);
+
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
 }
