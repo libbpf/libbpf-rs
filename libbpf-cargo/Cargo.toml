@@ -34,7 +34,7 @@ scroll_derive = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 structopt = "0.3"
-semver = "0.9"
+semver = "1.0"
 tempfile = "3.1"
 thiserror = "1.0"
 memmap2 = "0.3.0"
