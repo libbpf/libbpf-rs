@@ -1,11 +1,14 @@
 use std::collections::HashSet;
 use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{anyhow, bail, Context, Result};
 use regex::Regex;
 use semver::Version;
+use tempfile::TempDir;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
@@ -39,6 +42,22 @@ fn extract_version(output: &str) -> Result<&str> {
         || Err(anyhow!("Failed to find version capture group")),
         |v| Ok(v.as_str()),
     )
+}
+
+/// Extract vendored libbpf header files to a temporary directory.
+///
+/// Directory and enclosed contents will be removed when return object is dropped.
+fn extract_libbpf_headers_to_disk() -> Result<TempDir> {
+    let tempdir = TempDir::new()?;
+    let dir = tempdir.path().join("bpf");
+    fs::create_dir_all(&dir)?;
+    for (filename, contents) in libbpf_sys::API_HEADERS {
+        let path = dir.as_path().join(filename);
+        let mut file = OpenOptions::new().write(true).create(true).open(path)?;
+        file.write_all(contents.as_bytes())?;
+    }
+
+    Ok(tempdir)
 }
 
 fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
@@ -128,6 +147,9 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
 }
 
 fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
+    let header_dir = extract_libbpf_headers_to_disk()?;
+    let compiler_options = format!("-I{}", header_dir.path().to_str().unwrap());
+
     for obj in objs {
         let dest_name = if let Some(f) = obj.path.file_stem() {
             let mut stem = f.to_os_string();
@@ -142,7 +164,7 @@ fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
         let mut dest_path = obj.out.to_path_buf();
         dest_path.push(&dest_name);
         fs::create_dir_all(&obj.out)?;
-        compile_one(debug, &obj.path, &dest_path, clang, "")?;
+        compile_one(debug, &obj.path, &dest_path, clang, &compiler_options)?;
     }
 
     Ok(())
@@ -199,7 +221,9 @@ pub fn build_single(
 ) -> Result<()> {
     let clang = extract_clang_or_default(clang);
     check_clang(debug, &clang, skip_clang_version_checks)?;
-    compile_one(debug, source, out, &clang, options)?;
+    let header_dir = extract_libbpf_headers_to_disk()?;
+    let compiler_options = format!("{} -I{}", options, header_dir.path().to_str().unwrap());
+    compile_one(debug, source, out, &clang, &compiler_options)?;
 
     Ok(())
 }
