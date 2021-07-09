@@ -12,8 +12,6 @@ use crate::btf;
 use crate::{btf::Btf, build::build, make::make, SkeletonBuilder};
 
 static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
-static BPF_HELPERS: &'static str = include_str!("../test_data/bpf_helpers.h");
-static BPF_HELPER_DEFS: &'static str = include_str!("../test_data/bpf_helper_defs.h");
 
 /// Creates a temporary directory and initializes a default cargo project inside.
 ///
@@ -112,28 +110,14 @@ fn get_libbpf_rs_path() -> PathBuf {
         .expect("failed to canonicalize libbpf-rs")
 }
 
-/// Add bpf headers (eg vmlinux.h and bpf_helpers.h) into `project`'s src/bpf dir
-fn add_bpf_headers(project: &Path) {
+/// Add vmlinux header into `project`'s src/bpf dir
+fn add_vmlinux_header(project: &Path) {
     let mut vmlinux = OpenOptions::new()
         .create(true)
         .write(true)
         .open(project.join("src/bpf/vmlinux.h"))
         .expect("failed to open vmlinux.h");
     write!(vmlinux, "{}", VMLINUX).expect("failed to write vmlinux.h");
-
-    let mut bpf_helpers = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(project.join("src/bpf/bpf_helpers.h"))
-        .expect("failed to open bpf_helpers.h");
-    write!(bpf_helpers, "{}", BPF_HELPERS).expect("failed to write bpf_helpers.h");
-
-    let mut bpf_helper_defs = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(project.join("src/bpf/bpf_helper_defs.h"))
-        .expect("failed to open bpf_helper_defs.h");
-    write!(bpf_helper_defs, "{}", BPF_HELPER_DEFS).expect("failed to write bpf_helper_defs.h");
 }
 
 #[test]
@@ -417,7 +401,7 @@ fn test_skeleton_basic() {
         prog,
         r#"
         #include "vmlinux.h"
-        #include "bpf_helpers.h"
+        #include <bpf/bpf_helpers.h>
 
         struct {{
                 __uint(type, BPF_MAP_TYPE_HASH);
@@ -436,7 +420,7 @@ fn test_skeleton_basic() {
     .expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
+    add_vmlinux_header(&proj_dir);
 
     make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
@@ -527,7 +511,7 @@ fn test_skeleton_datasec() {
         prog,
         r#"
         #include "vmlinux.h"
-        #include "bpf_helpers.h"
+        #include <bpf/bpf_helpers.h>
 
         int myglobal = 0;
         void * const myconst = 0;
@@ -542,7 +526,7 @@ fn test_skeleton_datasec() {
     .expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
+    add_vmlinux_header(&proj_dir);
 
     make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
 
@@ -627,7 +611,7 @@ fn test_skeleton_builder_basic() {
         prog,
         r#"
         #include "vmlinux.h"
-        #include "bpf_helpers.h"
+        #include <bpf/bpf_helpers.h>
 
         struct {{
                 __uint(type, BPF_MAP_TYPE_HASH);
@@ -646,7 +630,7 @@ fn test_skeleton_builder_basic() {
     .expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
+    add_vmlinux_header(&proj_dir);
 
     // Generate skeleton file
     let skel = NamedTempFile::new().unwrap();
@@ -872,7 +856,7 @@ fn build_btf_prog(prog_text: &str) -> Btf {
     write!(prog, "{}", prog_text).expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
-    add_bpf_headers(&proj_dir);
+    add_vmlinux_header(&proj_dir);
 
     // Build the .bpf.o
     build(true, Some(&cargo_toml), None, true).expect("failed to compile");
@@ -909,7 +893,7 @@ fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
 fn test_btf_dump_basic() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 int myglobal = 1;
 
@@ -956,7 +940,7 @@ pub struct Foo {
 fn test_btf_dump_basic_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 int myglobal = 1;
 
@@ -1013,7 +997,7 @@ impl Default for Foo {
 fn test_btf_dump_struct_definition() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Bar {
     u16 x;
@@ -1066,7 +1050,7 @@ pub struct Bar {
 fn test_btf_dump_struct_definition_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Bar {
     u16 x;
@@ -1129,7 +1113,7 @@ impl Default for Bar {
 fn test_btf_dump_definition_packed_struct() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1162,7 +1146,7 @@ pub struct Foo {
 fn test_btf_dump_definition_packed_struct_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1204,7 +1188,7 @@ impl Default for Foo {
 fn test_btf_dump_definition_bitfield_struct_fails() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     unsigned int x: 2;
@@ -1225,7 +1209,7 @@ struct Foo foo;
 fn test_btf_dump_definition_enum() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 enum Foo {
     Zero = 0,
@@ -1263,7 +1247,7 @@ impl Default for Foo {
 fn test_btf_dump_definition_union() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 union Foo {
     int x;
@@ -1296,7 +1280,7 @@ pub union Foo {
 fn test_btf_dump_definition_shared_dependent_types() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Bar {
     u16 x;
@@ -1336,7 +1320,7 @@ pub struct Bar {
 fn test_btf_dump_definition_datasec() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1386,7 +1370,7 @@ pub struct rodata {
 fn test_btf_dump_definition_datasec_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1445,7 +1429,7 @@ pub struct rodata {
 fn test_btf_dump_definition_datasec_multiple() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1503,7 +1487,7 @@ pub struct rodata {
 fn test_btf_dump_definition_datasec_multiple_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1570,7 +1554,7 @@ pub struct rodata {
 fn test_btf_dump_definition_struct_inner_anon_union() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1624,7 +1608,7 @@ pub union __anon_2 {
 fn test_btf_dump_definition_struct_inner_anon_struct() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1678,7 +1662,7 @@ pub struct __anon_2 {
 fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
@@ -1755,7 +1739,7 @@ pub union __anon_4 {
 fn test_btf_dump_definition_anon_enum() {
     let prog_text = r#"
 #include "vmlinux.h"
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 struct Foo {
     int x;
