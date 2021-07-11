@@ -902,6 +902,15 @@ fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
     let ao = actual_output.trim_end().trim_start();
     let eo = expected_output.trim_end().trim_start();
 
+    println!("---------------");
+    println!("expected output");
+    println!("---------------");
+    println!("{}", eo);
+    println!("-------------");
+    println!("actual output");
+    println!("-------------");
+    println!("{}", ao);
+
     assert_eq!(eo, ao);
 }
 
@@ -1275,12 +1284,17 @@ union Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union Foo {
     pub x: i32,
     pub y: u32,
     pub z: [i8; 128],
+}
+impl std::fmt::Debug for Foo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
 }
 "#;
 
@@ -1598,17 +1612,27 @@ pub struct Foo {
     pub baz: __anon_2,
     pub w: i32,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
-#[derive(Debug, Copy, Clone)]
+impl std::fmt::Debug for __anon_1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_2 {
     pub w: u32,
     pub u: *mut u64,
+}
+impl std::fmt::Debug for __anon_2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
 }
 "#;
 
@@ -1722,11 +1746,16 @@ pub struct __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_2 {
     pub a: *mut i8,
     pub b: i32,
+}
+impl std::fmt::Debug for __anon_2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
@@ -1735,11 +1764,16 @@ pub struct __anon_3 {
     __pad_4: [u8; 4],
     pub u: *mut u64,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_4 {
     pub c: u8,
     pub d: [u64; 5],
+}
+impl std::fmt::Debug for __anon_4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
 }
 "#;
 
@@ -1798,11 +1832,16 @@ pub struct __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_2 {
     pub a: *mut i8,
     pub b: i32,
+}
+impl std::fmt::Debug for __anon_2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
@@ -1811,12 +1850,18 @@ pub struct __anon_3 {
     __pad_4: [u8; 4],
     pub u: *mut u64,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_4 {
     pub c: u8,
     pub d: [u64; 5],
-}"#;
+}
+impl std::fmt::Debug for __anon_4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+"#;
     let btf = build_btf_prog(prog_text);
 
     let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
