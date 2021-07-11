@@ -488,6 +488,7 @@ impl<'a> Btf<'a> {
                     writeln!(def, "}}")?;
 
                     // if required write a Default implementation for this struct
+                    #[rustfmt::skip]
                     if gen_impl_default {
                         writeln!(def, r#"impl Default for {} {{"#, t.name)?;
                         writeln!(def, r#"    fn default() -> Self {{"#)?;
