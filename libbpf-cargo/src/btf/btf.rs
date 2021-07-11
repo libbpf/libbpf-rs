@@ -501,11 +501,8 @@ impl<'a> Btf<'a> {
                     } else if !t.is_struct {
                         // write a Debug implementation for a union
                         writeln!(def, r#"impl std::fmt::Debug for {} {{"#, t.name)?;
-                        writeln!(
-                            def,
-                            r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#
-                        )?;
-                        writeln!(def, r#"        write!(f, "(???)")"#)?;
+                        writeln!(def, r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#)?;
+                        writeln!(def, r#"        write!(f, "unimplemented debug for union")"#)?;
                         writeln!(def, r#"    }}"#)?;
                         writeln!(def, r#"}}"#)?;
                     }
