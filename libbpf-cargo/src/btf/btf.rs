@@ -488,7 +488,6 @@ impl<'a> Btf<'a> {
                     writeln!(def, "}}")?;
 
                     // if required write a Default implementation for this struct
-                    #[rustfmt::skip]
                     if gen_impl_default {
                         writeln!(def, r#"impl Default for {} {{"#, t.name)?;
                         writeln!(def, r#"    fn default() -> Self {{"#)?;
@@ -502,7 +501,10 @@ impl<'a> Btf<'a> {
                     } else if !t.is_struct {
                         // write a Debug implementation for a union
                         writeln!(def, r#"impl std::fmt::Debug for {} {{"#, t.name)?;
-                        writeln!(def, r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#)?;
+                        writeln!(
+                            def,
+                            r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#
+                        )?;
                         writeln!(def, r#"        write!(f, "unimplemented debug for union")"#)?;
                         writeln!(def, r#"    }}"#)?;
                         writeln!(def, r#"}}"#)?;
