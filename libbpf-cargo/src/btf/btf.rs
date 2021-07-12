@@ -433,25 +433,22 @@ impl<'a> Btf<'a> {
                                     gen_impl_default = true
                                 }
                             }
-
-                            match self.type_default(field_ty_id) {
-                                Ok(def) => {
-                                    impl_default.push(format!(
-                                        r#"            {field_name}: {field_ty_str}"#,
-                                        field_name = member.name,
-                                        field_ty_str = def
-                                    ));
-                                }
-                                Err(e) => {
-                                    if gen_impl_default {
-                                        bail!(
-                                            "Could not construct a necessary Default Impl: {}",
-                                            e
-                                        );
-                                    }
-                                }
-                            };
                         }
+
+                        match self.type_default(field_ty_id) {
+                            Ok(def) => {
+                                impl_default.push(format!(
+                                    r#"            {field_name}: {field_ty_str}"#,
+                                    field_name = member.name,
+                                    field_ty_str = def
+                                ));
+                            }
+                            Err(e) => {
+                                if gen_impl_default || !t.is_struct {
+                                    bail!("Could not construct a necessary Default Impl: {}", e);
+                                }
+                            }
+                        };
 
                         // Set `offset` to end of current var
                         offset = ((member.bit_offset / 8) + self.size_of(field_ty_id)?) as usize;
@@ -506,6 +503,15 @@ impl<'a> Btf<'a> {
                             r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#
                         )?;
                         writeln!(def, r#"        write!(f, "unimplemented debug for union")"#)?;
+                        writeln!(def, r#"    }}"#)?;
+                        writeln!(def, r#"}}"#)?;
+
+                        // write a Default implementation for a union
+                        writeln!(def, r#"impl Default for {} {{"#, t.name)?;
+                        writeln!(def, r#"    fn default() -> Self {{"#)?;
+                        writeln!(def, r#"        {} {{"#, t.name)?;
+                        writeln!(def, r#"{},"#, impl_default[0])?;
+                        writeln!(def, r#"        }}"#)?;
                         writeln!(def, r#"    }}"#)?;
                         writeln!(def, r#"}}"#)?;
                     }
