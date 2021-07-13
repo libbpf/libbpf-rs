@@ -886,6 +886,15 @@ fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
     let ao = actual_output.trim_end().trim_start();
     let eo = expected_output.trim_end().trim_start();
 
+    println!("---------------");
+    println!("expected output");
+    println!("---------------");
+    println!("{}", eo);
+    println!("-------------");
+    println!("actual output");
+    println!("-------------");
+    println!("{}", ao);
+
     assert_eq!(eo, ao);
 }
 
@@ -1259,12 +1268,24 @@ union Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union Foo {
     pub x: i32,
     pub y: u32,
     pub z: [i8; 128],
+}
+impl std::fmt::Debug for Foo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+        }
+    }
 }
 "#;
 
@@ -1582,17 +1603,41 @@ pub struct Foo {
     pub baz: __anon_2,
     pub w: i32,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
-#[derive(Debug, Copy, Clone)]
+impl std::fmt::Debug for __anon_1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+impl Default for __anon_1 {
+    fn default() -> Self {
+        __anon_1 {
+            y: [u8::default(); 10],
+        }
+    }
+}
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_2 {
     pub w: u32,
     pub u: *mut u64,
+}
+impl std::fmt::Debug for __anon_2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+impl Default for __anon_2 {
+    fn default() -> Self {
+        __anon_2 {
+            w: u32::default(),
+        }
+    }
 }
 "#;
 
@@ -1706,11 +1751,23 @@ pub struct __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_2 {
     pub a: *mut i8,
     pub b: i32,
+}
+impl std::fmt::Debug for __anon_2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+impl Default for __anon_2 {
+    fn default() -> Self {
+        __anon_2 {
+            a: std::ptr::null_mut(),
+        }
+    }
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
@@ -1719,11 +1776,23 @@ pub struct __anon_3 {
     __pad_4: [u8; 4],
     pub u: *mut u64,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union __anon_4 {
     pub c: u8,
     pub d: [u64; 5],
+}
+impl std::fmt::Debug for __anon_4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unimplemented debug for union")
+    }
+}
+impl Default for __anon_4 {
+    fn default() -> Self {
+        __anon_4 {
+            c: u8::default(),
+        }
+    }
 }
 "#;
 
@@ -1741,68 +1810,36 @@ fn test_btf_dump_definition_anon_enum() {
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
+typedef enum {
+    FOO = 1,
+} test_t;
 struct Foo {
-    int x;
-    struct {
-        u8 y[10];
-        u16 z[16];
-    } bar;
-    union {
-        char *a;
-        int b;
-    } zerg;
-    struct {
-        u32 w;
-        u64 *u;
-    } baz;
-    int w;
-    union {
-        u8 c;
-        u64 d[5];
-    } flarg;
+    test_t test;
 };
-
-struct Foo foo;"#;
+struct Foo foo;
+"#;
 
     let expected_output = r#"
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
-    pub x: i32,
-    pub bar: __anon_1,
-    pub zerg: __anon_2,
-    pub baz: __anon_3,
-    pub w: i32,
-    __pad_76: [u8; 4],
-    pub flarg: __anon_4,
+    pub test: __anon_1,
 }
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_1 {
-    pub y: [u8; 10],
-    pub z: [u16; 16],
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(u32)]
+pub enum __anon_1 {
+    FOO = 1,
 }
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub union __anon_2 {
-    pub a: *mut i8,
-    pub b: i32,
+impl Default for __anon_1 {
+    fn default() -> Self {
+        __anon_1::FOO
+    }
 }
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_3 {
-    pub w: u32,
-    __pad_4: [u8; 4],
-    pub u: *mut u64,
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub union __anon_4 {
-    pub c: u8,
-    pub d: [u64; 5],
-}"#;
+"#;
+
     let btf = build_btf_prog(prog_text);
 
+    // Find the struct
     let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
 
     assert_definition(&btf, struct_foo, expected_output);
