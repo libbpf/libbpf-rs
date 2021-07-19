@@ -1293,7 +1293,7 @@ pub union Foo {
 }
 impl std::fmt::Debug for Foo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 "#;
@@ -1620,7 +1620,7 @@ pub union __anon_1 {
 }
 impl std::fmt::Debug for __anon_1 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 #[derive(Copy, Clone)]
@@ -1631,7 +1631,7 @@ pub union __anon_2 {
 }
 impl std::fmt::Debug for __anon_2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 "#;
@@ -1754,7 +1754,7 @@ pub union __anon_2 {
 }
 impl std::fmt::Debug for __anon_2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 #[derive(Debug, Default, Copy, Clone)]
@@ -1772,7 +1772,7 @@ pub union __anon_4 {
 }
 impl std::fmt::Debug for __anon_4 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 "#;
@@ -1840,7 +1840,7 @@ pub union __anon_2 {
 }
 impl std::fmt::Debug for __anon_2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 #[derive(Debug, Default, Copy, Clone)]
@@ -1858,7 +1858,7 @@ pub union __anon_4 {
 }
 impl std::fmt::Debug for __anon_4 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unimplemented debug for union")
+        write!(f, "(???)")
     }
 }
 "#;
