@@ -465,8 +465,10 @@ impl<'a> Btf<'a> {
 
                     if !gen_impl_default && t.is_struct {
                         writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
-                    } else {
+                    } else if t.is_struct {
                         writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                    } else {
+                        writeln!(def, r#"#[derive(Copy, Clone)]"#)?;
                     }
 
                     let aggregate_type = if t.is_struct { "struct" } else { "union" };
@@ -494,6 +496,16 @@ impl<'a> Btf<'a> {
                             writeln!(def, r#"{},"#, impl_def)?;
                         }
                         writeln!(def, r#"        }}"#)?;
+                        writeln!(def, r#"    }}"#)?;
+                        writeln!(def, r#"}}"#)?;
+                    } else if !t.is_struct {
+                        // write a Debug implementation for a union
+                        writeln!(def, r#"impl std::fmt::Debug for {} {{"#, t.name)?;
+                        writeln!(
+                            def,
+                            r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#
+                        )?;
+                        writeln!(def, r#"        write!(f, "(???)")"#)?;
                         writeln!(def, r#"    }}"#)?;
                         writeln!(def, r#"}}"#)?;
                     }
