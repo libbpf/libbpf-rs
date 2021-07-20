@@ -143,6 +143,29 @@ impl Map {
         self.value_size
     }
 
+    /// Size of the value buffer for lookups and updates in bytes. Respects the space needed when
+    /// handling values in per-cpu maps. With per-cpu maps, the buffer contains one value per cpu
+    /// and the values are aligned to 8 bytes.
+    pub fn value_buffer_size(&self) -> Result<usize> {
+        let val_size = self.value_size() as usize;
+        if self.map_type() == MapType::PercpuArray
+            || self.map_type() == MapType::PercpuHash
+            || self.map_type() == MapType::LruPercpuHash
+            || self.map_type() == MapType::PercpuCgroupStorage
+        {
+            let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
+            if ret < 0 {
+                // Error code is returned negative, flip to positive to match errno
+                Err(Error::System(-ret))
+            } else {
+                let ncpu = ret as usize;
+                Ok(ncpu * util::roundup(val_size, 8))
+            }
+        } else {
+            Ok(val_size)
+        }
+    }
+
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map to bpffs.
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
@@ -176,6 +199,9 @@ impl Map {
     /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
+    ///
+    /// If the map is one of the per-cpu data structures, the returned `Vec` contains one value per
+    /// CPU in the system. The size of each value is rounded to the next multiple of 8 bytes.
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
@@ -185,7 +211,8 @@ impl Map {
             )));
         };
 
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+        let out_size = self.value_buffer_size()?;
+        let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
@@ -198,7 +225,7 @@ impl Map {
 
         if ret == 0 {
             unsafe {
-                out.set_len(self.value_size() as usize);
+                out.set_len(out_size);
             }
             Ok(Some(out))
         } else {
@@ -276,8 +303,8 @@ impl Map {
 
     /// Update an element.
     ///
-    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
-    /// [`Map::value_size()`] elements.
+    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exactly
+    /// [`Map::value_buffer_size()`] elements.
     pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
@@ -287,11 +314,11 @@ impl Map {
             )));
         };
 
-        if value.len() != self.value_size() as usize {
+        if value.len() != self.value_buffer_size()? {
             return Err(Error::InvalidInput(format!(
                 "value_size {} != {}",
                 value.len(),
-                self.value_size()
+                self.value_buffer_size()?
             )));
         };
 
@@ -333,6 +360,7 @@ bitflags! {
 }
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
+// If you add a new per-cpu map, also update `value_buffer_size` to make lookups return all values.
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, PartialEq, Display)]

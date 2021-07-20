@@ -118,6 +118,45 @@ fn test_object_map_key_value_size() {
 }
 
 #[test]
+fn test_object_percpu_map() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = obj.map_mut("percpu_map").expect("failed to find map");
+
+    let buf_size = map
+        .value_buffer_size()
+        .expect("failed to get value buffer size");
+    let mut buf = vec![0; buf_size];
+    for i in (0..buf_size).step_by(8) {
+        buf[i] = 2;
+    }
+
+    assert!(map
+        .update(&(0 as u32).to_ne_bytes(), &buf, MapFlags::ANY)
+        .is_ok());
+    assert_eq!(
+        map.lookup(&(0 as u32).to_ne_bytes(), MapFlags::ANY)
+            .expect("failed to lookup")
+            .expect("failed to find value for key"),
+        buf
+    );
+}
+
+#[test]
+fn test_object_percpu_map_value_size() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = obj.map_mut("percpu_map").expect("failed to find map");
+
+    let buf = vec![0; 4];
+    assert!(map
+        .update(&(0 as u32).to_ne_bytes(), &buf, MapFlags::ANY)
+        .is_err());
+}
+
+#[test]
 fn test_object_map_empty_lookup() {
     bump_rlimit_mlock();
 
