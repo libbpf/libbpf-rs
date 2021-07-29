@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 use std::fs;
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -47,7 +45,11 @@ fn extract_version(output: &str) -> Result<&str> {
 /// Extract vendored libbpf header files to a temporary directory.
 ///
 /// Directory and enclosed contents will be removed when return object is dropped.
-fn extract_libbpf_headers_to_disk() -> Result<TempDir> {
+#[cfg(not(feature = "novendor"))]
+fn extract_libbpf_headers_to_disk() -> Result<Option<TempDir>> {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
     let tempdir = TempDir::new()?;
     let dir = tempdir.path().join("bpf");
     fs::create_dir_all(&dir)?;
@@ -57,7 +59,12 @@ fn extract_libbpf_headers_to_disk() -> Result<TempDir> {
         file.write_all(contents.as_bytes())?;
     }
 
-    Ok(tempdir)
+    Ok(Some(tempdir))
+}
+
+#[cfg(feature = "novendor")]
+fn extract_libbpf_headers_to_disk() -> Result<Option<TempDir>> {
+    return Ok(None);
 }
 
 fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
@@ -148,7 +155,11 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
 
 fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
     let header_dir = extract_libbpf_headers_to_disk()?;
-    let compiler_options = format!("-I{}", header_dir.path().to_str().unwrap());
+    let compiler_options = if let Some(dir) = &header_dir {
+        format!("-I{}", dir.path().to_str().unwrap())
+    } else {
+        "".to_string()
+    };
 
     for obj in objs {
         let dest_name = if let Some(f) = obj.path.file_stem() {
@@ -222,7 +233,11 @@ pub fn build_single(
     let clang = extract_clang_or_default(clang);
     check_clang(debug, &clang, skip_clang_version_checks)?;
     let header_dir = extract_libbpf_headers_to_disk()?;
-    let compiler_options = format!("{} -I{}", options, header_dir.path().to_str().unwrap());
+    let compiler_options = if let Some(dir) = &header_dir {
+        format!("{} -I{}", options, dir.path().to_str().unwrap())
+    } else {
+        options.to_string()
+    };
     compile_one(debug, source, out, &clang, &compiler_options)?;
 
     Ok(())
