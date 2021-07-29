@@ -1,6 +1,6 @@
 [package]
 name = "libbpf-rs"
-description= "libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys"
+description = "libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys"
 repository = "https://github.com/libbpf/libbpf-rs"
 homepage = "https://github.com/libbpf/libbpf-rs"
 readme = "../README.md"
