@@ -197,10 +197,13 @@ impl<'a> Btf<'a> {
                     _ => bail!("Invalid integer width"),
                 };
 
-                if t.encoding == btf::BtfIntEncoding::Signed {
-                    format!("i{}", width)
-                } else {
-                    format!("u{}", width)
+                match t.encoding {
+                    btf::BtfIntEncoding::Signed => format!("i{}", width),
+                    btf::BtfIntEncoding::Bool => {
+                        assert!(t.bits as usize == (std::mem::size_of::<bool>() * 8));
+                        format!("bool")
+                    }
+                    btf::BtfIntEncoding::Char | btf::BtfIntEncoding::None => format!("u{}", width),
                 }
             }
             BtfType::Ptr(t) => {

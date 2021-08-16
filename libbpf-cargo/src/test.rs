@@ -1844,3 +1844,39 @@ impl Default for __anon_1 {
 
     assert_definition(&btf, struct_foo, expected_output);
 }
+
+#[test]
+fn test_btf_dump_definition_int_encodings() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    s32 a;
+    u16 b;
+    s16 c;
+    bool d;
+    char e;
+};
+struct Foo foo;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub a: i32,
+    pub b: u16,
+    pub c: i16,
+    pub d: bool,
+    pub e: i8,
+}
+"#;
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find the struct
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
+}
