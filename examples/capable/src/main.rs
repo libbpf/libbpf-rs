@@ -91,10 +91,10 @@ struct Command {
     #[structopt(short, long, default_value = "0")]
     pid: u32,
     /// add kernel stacks to trace
-    #[structopt(short, long)]
+    #[structopt(short = "K", long)]
     kernel_stack: bool,
     /// add user-space stacks to trace
-    #[structopt(short, long)]
+    #[structopt(short = "U", long)]
     user_stack: bool,
     /// extra fields: Show TID and INSETID columns
     #[structopt(short = "x", long = "extra")]
@@ -108,7 +108,7 @@ struct Command {
     // only trace mount namespaces in this BPF map
     #[structopt(long = "mntnsmap", parse(from_os_str))]
     mntns_map_path: Path,*/
-    /// debug output
+    /// debug output for libbpf-rs
     #[structopt(long)]
     debug: bool,
 }
