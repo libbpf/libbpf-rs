@@ -13,23 +13,17 @@ extern int LINUX_KERNEL_VERSION __kconfig;
 const volatile struct {
     gid_t tgid; //PID to filter
     bool verbose; // Include non audit logs
-    bool k_stacks; // Include kernel stacks to trace
-    bool u_stacks; // Include user stacks to trace
-    enum Unique unique_type; // Only Unique stack traces for same pid or cgroup
-    //bool only_mnt_ns; // Only trace Unique mnt ns
-    bool cap_opts; // linux >= v5.1 check for insetid
+    enum Unique unique_type; // Only unique info traces for same pid or cgroup
 
 } tool_config = {0};
 
 
 struct event _event = {0}; //Dummy instance for skeleton to generate definition
 
-struct unique_stack_key {
+struct unique_key {
     int cap;
     u32 tgid;
     u64 cgroupid;
-    int kernel_stack_id;
-    int user_stack_id;
 };
 
 struct {
@@ -42,19 +36,10 @@ SEC(".maps");
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 10240);
-    __type(key, struct unique_stack_key);
+    __type(key, struct unique_key);
     __type(value, u64);
 } seen
 SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_STACK_TRACE);
-    __uint(max_entries, 2048);
-    __uint(key_size, sizeof(u32));
-    __uint(value_size, sizeof(u64)*BPF_MAX_STACK_DEPTH);
-} stacks
-SEC(".maps");
-
 
 static __always_inline int record_cap(void *ctx, const struct cred *cred,
                                       struct user_namespace *targ_ns, int cap, int cap_opt) {
@@ -85,15 +70,9 @@ static __always_inline int record_cap(void *ctx, const struct cred *cred,
 
     struct event event = {.tgid = tgid, .pid = pid, .uid = uid, .cap = cap, .audit = audit,
             .insetid = insetid};
-    if (tool_config.k_stacks) {
-        event.kernel_stack_id = bpf_get_stackid(ctx, &stacks, 0);
-    }
-    if (tool_config.u_stacks) {
-        event.user_stack_id = bpf_get_stackid(ctx, &stacks, BPF_F_USER_STACK);
-    }
 
     if (tool_config.unique_type) {
-        struct unique_stack_key key = {0};
+        struct unique_key key = {0};
         key.cap = cap;
         if (tool_config.unique_type == UnqCgroup) {
             key.cgroupid = bpf_get_current_cgroup_id();
@@ -120,14 +99,5 @@ int BPF_KPROBE(kprobe__cap_capable, const struct cred *cred,
     return record_cap(ctx, cred, targ_ns, cap, cap_opt);
 
 }
-
-/*SEC("fentry/cap_capable")
-
-int BPF_PROG(fentry__cap_capable, const struct cred *cred,
-                        struct user_namespace *targ_ns, int cap, int cap_opt) {
-    return record_cap(ctx, cred, targ_ns, cap, cap_opt);
-
-}*/
-
 
 char LICENSE[] SEC("license") = "GPL";

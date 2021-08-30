@@ -9,15 +9,15 @@ use std::str::FromStr;
 use anyhow::{bail, Result};
 use chrono::Local;
 use libbpf_rs::PerfBufferBuilder;
-use phf::{phf_map};
+use phf::phf_map;
 use plain::Plain;
 use structopt::StructOpt;
 
 #[path = "bpf/.output/capable.skel.rs"]
 mod capable;
 
-use capable::*;
 use capable::capable_rodata_types::Unique;
+use capable::*;
 
 static CAPS: phf::Map<i32, &'static str> = phf_map! {
     0i32 => "CAP_CHOWN",
@@ -63,11 +63,6 @@ static CAPS: phf::Map<i32, &'static str> = phf_map! {
     40i32 => "CAP_CHECKPOINT_RESTORE",
 };
 
-/*enum StackType {
-    Kernel,
-    User
-}*/
-
 impl FromStr for Unique {
     type Err = &'static str;
     fn from_str(unq_type: &str) -> Result<Self, Self::Err> {
@@ -90,24 +85,12 @@ struct Command {
     /// only trace <pid>
     #[structopt(short, long, default_value = "0")]
     pid: u32,
-    /// add kernel stacks to trace
-    #[structopt(short = "K", long)]
-    kernel_stack: bool,
-    /// add user-space stacks to trace
-    #[structopt(short = "U", long)]
-    user_stack: bool,
     /// extra fields: Show TID and INSETID columns
     #[structopt(short = "x", long = "extra")]
     extra_fields: bool,
-    /// don't repeat stacks for the same pid<1> or cgroup<2>
+    /// don't repeat same info for the same pid<1> or cgroup<2>
     #[structopt(long = "unique", default_value = "0")]
     unique_type: Unique,
-    /*// only trace cgroups in this BPF map
-    #[structopt(long = "cgroupmap", parse(from_os_str))]
-    cgroup_map_path: Path,
-    // only trace mount namespaces in this BPF map
-    #[structopt(long = "mntnsmap", parse(from_os_str))]
-    mntns_map_path: Path,*/
     /// debug output for libbpf-rs
     #[structopt(long)]
     debug: bool,
@@ -130,33 +113,45 @@ fn bump_memlock_rlimit() -> Result<()> {
 
 fn print_banner(extra_fields: bool) {
     if extra_fields {
-        println!("{:9} {:6} {:6} {:6} {:16} {:4} {:20} {:6} {}",
-                 "TIME", "UID", "PID", "TID", "COMM", "CAP", "NAME", "AUDIT", "INSETID");
+        println!(
+            "{:9} {:6} {:6} {:6} {:16} {:4} {:20} {:6} {}",
+            "TIME", "UID", "PID", "TID", "COMM", "CAP", "NAME", "AUDIT", "INSETID"
+        );
     } else {
-        println!("{:9} {:6} {:6} {:16} {:4} {:20} {:6}",
-                 "TIME", "UID", "PID", "COMM", "CAP", "NAME", "AUDIT");
+        println!(
+            "{:9} {:6} {:6} {:16} {:4} {:20} {:6}",
+            "TIME", "UID", "PID", "COMM", "CAP", "NAME", "AUDIT"
+        );
     }
 }
 
-fn print_stack() {
-
-}
-
 fn _handle_event(opts: Command, event: capable_bss_types::event) {
-
     let now = Local::now().format("%H:%M:%S");
-    let comm_str = std::str::from_utf8(&event.comm).unwrap().trim_end_matches(char::from(0));
-    let cap_name = match CAPS.get(&event.cap){
+    let comm_str = std::str::from_utf8(&event.comm)
+        .unwrap()
+        .trim_end_matches(char::from(0));
+    let cap_name = match CAPS.get(&event.cap) {
         Some(&x) => x,
         None => "?",
     };
     if opts.extra_fields {
-        println!("{:9} {:6} {:<6} {:<6} {:<16} {:<4} {:<20} {:<6} {}",
-                 now, event.uid, event.tgid, event.pid, comm_str, event.cap, cap_name, event.audit,
-                 event.insetid);
+        println!(
+            "{:9} {:6} {:<6} {:<6} {:<16} {:<4} {:<20} {:<6} {}",
+            now,
+            event.uid,
+            event.tgid,
+            event.pid,
+            comm_str,
+            event.cap,
+            cap_name,
+            event.audit,
+            event.insetid
+        );
     } else {
-        println!("{:9} {:6} {:<6} {:<16} {:<4} {:<20} {:<6}",
-                 now, event.uid, event.tgid, comm_str, event.cap, cap_name, event.audit);
+        println!(
+            "{:9} {:6} {:<6} {:<16} {:<4} {:<20} {:<6}",
+            now, event.uid, event.tgid, comm_str, event.cap, cap_name, event.audit
+        );
     }
 }
 
@@ -178,25 +173,16 @@ fn main() -> Result<()> {
     //Pass configuration to BPF
     open_skel.rodata().tool_config.tgid = opts.pid; //tgid in kernel is pid in userland
     open_skel.rodata().tool_config.verbose = opts.verbose;
-    open_skel.rodata().tool_config.k_stacks = opts.kernel_stack;
-    open_skel.rodata().tool_config.u_stacks = opts.user_stack;
     open_skel.rodata().tool_config.unique_type = opts.unique_type;
 
     let mut skel = open_skel.load()?;
     skel.attach()?;
 
     print_banner(opts.extra_fields);
-    let  handle_event =  move |_cpu: i32, data: &[u8]| {
+    let handle_event = move |_cpu: i32, data: &[u8]| {
         let mut event = capable_bss_types::event::default();
         plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
         _handle_event(opts, event);
-        if opts.kernel_stack {
-
-            print_stack()
-        }
-        if opts.user_stack {
-            print_stack()
-        }
     };
     let perf = PerfBufferBuilder::new(skel.maps_mut().events())
         .sample_cb(handle_event)
