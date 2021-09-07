@@ -16,7 +16,7 @@ use structopt::StructOpt;
 #[path = "bpf/.output/capable.skel.rs"]
 mod capable;
 
-use capable::capable_rodata_types::Unique;
+use capable::capable_rodata_types::uniqueness;
 use capable::*;
 
 static CAPS: phf::Map<i32, &'static str> = phf_map! {
@@ -63,13 +63,14 @@ static CAPS: phf::Map<i32, &'static str> = phf_map! {
     40i32 => "CAP_CHECKPOINT_RESTORE",
 };
 
-impl FromStr for Unique {
+impl FromStr for uniqueness {
     type Err = &'static str;
     fn from_str(unq_type: &str) -> Result<Self, Self::Err> {
-        match unq_type {
-            "0" => Ok(Unique::UnqOff),
-            "1" => Ok(Unique::UnqPid),
-            "2" => Ok(Unique::UnqCgroup),
+        let unq_type_lower: &str = &unq_type.to_lowercase();
+        match unq_type_lower {
+            "off" => Ok(uniqueness::UNQ_OFF),
+            "pid" => Ok(uniqueness::UNQ_PID),
+            "cgroup" => Ok(uniqueness::UNQ_CGROUP),
             _ => Err("Use 1 for pid (default), 2 for cgroups"),
         }
     }
@@ -88,9 +89,9 @@ struct Command {
     /// extra fields: Show TID and INSETID columns
     #[structopt(short = "x", long = "extra")]
     extra_fields: bool,
-    /// don't repeat same info for the same pid<1> or cgroup<2>
-    #[structopt(long = "unique", default_value = "0")]
-    unique_type: Unique,
+    /// don't repeat same info for the same <pid> or <cgroup>
+    #[structopt(long = "unique", default_value = "off")]
+    unique_type: uniqueness,
     /// debug output for libbpf-rs
     #[structopt(long)]
     debug: bool,
