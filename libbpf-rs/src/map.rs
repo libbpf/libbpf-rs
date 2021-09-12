@@ -133,6 +133,17 @@ impl Map {
         }
     }
 
+    /// Returns if the map is of one of the per-cpu types.
+    pub fn is_percpu(&self) -> bool {
+        match self.map_type() {
+            MapType::PercpuArray
+            | MapType::PercpuHash
+            | MapType::LruPercpuHash
+            | MapType::PercpuCgroupStorage => true,
+            _ => false,
+        }
+    }
+
     /// Key size in bytes
     pub fn key_size(&self) -> u32 {
         self.key_size
@@ -153,14 +164,8 @@ impl Map {
             || self.map_type() == MapType::LruPercpuHash
             || self.map_type() == MapType::PercpuCgroupStorage
         {
-            let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
-            if ret < 0 {
-                // Error code is returned negative, flip to positive to match errno
-                Err(Error::System(-ret))
-            } else {
-                let ncpu = ret as usize;
-                Ok(ncpu * util::roundup(val_size, 8))
-            }
+            let ncpu = util::num_possible_cpus()?;
+            Ok(ncpu * util::roundup(val_size, 8))
         } else {
             Ok(val_size)
         }
@@ -200,9 +205,50 @@ impl Map {
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
     ///
-    /// If the map is one of the per-cpu data structures, the returned `Vec` contains one value per
-    /// CPU in the system. The size of each value is rounded to the next multiple of 8 bytes.
+    /// If the map is one of the per-cpu data structures, the function [`Map::lookup_percpu()`]
+    /// must be used.
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
+        if self.is_percpu() {
+            return Err(Error::InvalidInput(format!(
+                "lookup_percpu() must be used for per-cpu maps (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        let out_size = self.value_size() as usize;
+        self.lookup_raw(key, flags, out_size)
+    }
+
+    /// Returns one value per cpu as `Vec` of `Vec` of `u8` for per per-cpu maps.
+    ///
+    /// For normal maps, [`Map::lookup()`] must be used.
+    pub fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
+        if !self.is_percpu() && self.map_type() != MapType::Unknown {
+            return Err(Error::InvalidInput(format!(
+                "lookup() must be used for maps that are not per-cpu (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        let val_size = self.value_size() as usize;
+        let aligned_val_size = util::roundup(val_size, 8);
+        let ncpu = util::num_possible_cpus()?;
+        let out_size = ncpu * aligned_val_size;
+
+        let raw_res = self.lookup_raw(key, flags, out_size)?;
+        if let Some(raw_vals) = raw_res {
+            let mut out = Vec::new();
+            for chunk in raw_vals.chunks_exact(aligned_val_size) {
+                out.push(chunk[..val_size].to_vec());
+            }
+            return Ok(Some(out));
+        } else {
+            return Ok(None);
+        }
+    }
+
+    /// Internal function to return a value from a map into a buffer of the given size.
+    fn lookup_raw(&self, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "key_size {} != {}",
@@ -211,7 +257,6 @@ impl Map {
             )));
         };
 
-        let out_size = self.value_buffer_size()?;
         let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
         let ret = unsafe {
@@ -360,7 +405,7 @@ bitflags! {
 }
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
-// If you add a new per-cpu map, also update `value_buffer_size` to make lookups return all values.
+// If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, PartialEq, Display)]

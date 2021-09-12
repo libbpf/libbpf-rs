@@ -9,7 +9,7 @@ use nix::errno;
 use plain::Plain;
 use scopeguard::defer;
 
-use libbpf_rs::{Iter, MapFlags, Object, ObjectBuilder};
+use libbpf_rs::{num_possible_cpus, Iter, MapFlags, Object, ObjectBuilder};
 
 fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -118,41 +118,33 @@ fn test_object_map_key_value_size() {
 }
 
 #[test]
-fn test_object_percpu_map() {
+fn test_object_percpu_lookup() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = obj.map_mut("percpu_map").expect("failed to find map");
 
-    let buf_size = map
-        .value_buffer_size()
-        .expect("failed to get value buffer size");
-    let mut buf = vec![0; buf_size];
-    for i in (0..buf_size).step_by(8) {
-        buf[i] = 2;
-    }
+    let res = map
+        .lookup_percpu(&(0 as u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
 
-    assert!(map
-        .update(&(0 as u32).to_ne_bytes(), &buf, MapFlags::ANY)
-        .is_ok());
     assert_eq!(
-        map.lookup(&(0 as u32).to_ne_bytes(), MapFlags::ANY)
-            .expect("failed to lookup")
-            .expect("failed to find value for key"),
-        buf
+        res.len(),
+        num_possible_cpus().expect("must be one value per cpu")
     );
+    assert_eq!(res[0].len(), std::mem::size_of::<u32>());
 }
 
 #[test]
-fn test_object_percpu_map_value_size() {
+fn test_object_percpu_invalid_lookup_fn() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = obj.map_mut("percpu_map").expect("failed to find map");
 
-    let buf = vec![0; 4];
     assert!(map
-        .update(&(0 as u32).to_ne_bytes(), &buf, MapFlags::ANY)
+        .lookup(&(0 as u32).to_ne_bytes(), MapFlags::ANY)
         .is_err());
 }
 
