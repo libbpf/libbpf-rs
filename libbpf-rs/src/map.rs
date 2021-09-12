@@ -154,21 +154,18 @@ impl Map {
         self.value_size
     }
 
-    /// Size of the value buffer for lookups and updates in bytes. Respects the space needed when
-    /// handling values in per-cpu maps. With per-cpu maps, the buffer contains one value per cpu
-    /// and the values are aligned to 8 bytes.
-    pub fn value_buffer_size(&self) -> Result<usize> {
+    /// Return the size of one value including padding for interacting with per-cpu
+    /// maps. The values are aligned to 8 bytes.
+    fn percpu_aligned_value_size(&self) -> usize {
         let val_size = self.value_size() as usize;
-        if self.map_type() == MapType::PercpuArray
-            || self.map_type() == MapType::PercpuHash
-            || self.map_type() == MapType::LruPercpuHash
-            || self.map_type() == MapType::PercpuCgroupStorage
-        {
-            let ncpu = util::num_possible_cpus()?;
-            Ok(ncpu * util::roundup(val_size, 8))
-        } else {
-            Ok(val_size)
-        }
+        return util::roundup(val_size, 8);
+    }
+
+    /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
+    fn percpu_buffer_size(&self) -> Result<usize> {
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let ncpu = util::num_possible_cpus()?;
+        return Ok(ncpu * aligned_val_size);
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -231,9 +228,8 @@ impl Map {
         }
 
         let val_size = self.value_size() as usize;
-        let aligned_val_size = util::roundup(val_size, 8);
-        let ncpu = util::num_possible_cpus()?;
-        let out_size = ncpu * aligned_val_size;
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let out_size = self.percpu_buffer_size()?;
 
         let raw_res = self.lookup_raw(key, flags, out_size)?;
         if let Some(raw_vals) = raw_res {
@@ -349,21 +345,88 @@ impl Map {
     /// Update an element.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exactly
-    /// [`Map::value_buffer_size()`] elements.
+    /// [`Map::value_size()`] elements.
+    ///
+    /// For per-cpu maps, [`Map::update_percpu()`] must be used.
     pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+        if self.is_percpu() {
+            return Err(Error::InvalidInput(format!(
+                "update_percpu() must be used for per-cpu maps (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        if value.len() != self.value_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "value_size {} != {}",
+                value.len(),
+                self.value_size()
+            )));
+        };
+
+        self.update_raw(key, value, flags)
+    }
+
+    /// Update an element in an per-cpu map with one value per cpu.
+    ///
+    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have one
+    /// element per cpu (see [`num_possible_cpus()`]) with exactly [`Map::value_size()`]
+    /// elements each.
+    ///
+    /// For per-cpu maps, [`Map::update_percpu()`] must be used.
+    pub fn update_percpu(
+        &mut self,
+        key: &[u8],
+        values: &Vec<Vec<u8>>,
+        flags: MapFlags,
+    ) -> Result<()> {
+        if !self.is_percpu() && self.map_type() != MapType::Unknown {
+            return Err(Error::InvalidInput(format!(
+                "update() must be used for maps that are not per-cpu (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        if values.len() != num_possible_cpus()? {
+            return Err(Error::InvalidInput(format!(
+                "number of values {} != number of cpus {}",
+                values.len(),
+                num_possible_cpus()?
+            )));
+        };
+
+        let val_size = self.value_size() as usize;
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let buf_size = self.percpu_buffer_size()?;
+
+        let mut value_buf = Vec::new();
+        value_buf.resize(buf_size, 0);
+
+        for (i, val) in values.iter().enumerate() {
+            if val.len() != val_size {
+                return Err(Error::InvalidInput(format!(
+                    "value size for cpu {} is {} != {}",
+                    i,
+                    val.len(),
+                    val_size
+                )));
+            }
+
+            value_buf[(i * aligned_val_size)..(i * aligned_val_size + val_size)]
+                .copy_from_slice(val);
+        }
+
+        self.update_raw(key, &value_buf, flags)
+    }
+
+    /// Internal function to update a map. This does not check the length of the
+    /// supplied value.
+    fn update_raw(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "key_size {} != {}",
                 key.len(),
                 self.key_size()
-            )));
-        };
-
-        if value.len() != self.value_buffer_size()? {
-            return Err(Error::InvalidInput(format!(
-                "value_size {} != {}",
-                value.len(),
-                self.value_buffer_size()?
             )));
         };
 

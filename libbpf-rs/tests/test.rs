@@ -149,6 +149,71 @@ fn test_object_percpu_invalid_lookup_fn() {
 }
 
 #[test]
+fn test_object_percpu_update() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let key = (0 as u32).to_ne_bytes();
+
+    let mut vals: Vec<Vec<u8>> = Vec::new();
+    for i in 0..num_possible_cpus().unwrap() {
+        vals.push((i as u32).to_ne_bytes().to_vec());
+    }
+
+    map.update_percpu(&key, &vals, MapFlags::ANY)
+        .expect("failed to update map");
+
+    let res = map
+        .lookup_percpu(&key, MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    assert_eq!(vals, res);
+}
+
+#[test]
+fn test_object_percpu_invalid_update_fn() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let key = (0 as u32).to_ne_bytes();
+
+    let val = (1 as u32).to_ne_bytes().to_vec();
+
+    assert!(map.update(&key, &val, MapFlags::ANY).is_err());
+}
+
+#[test]
+fn test_object_percpu_lookup_update() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let key = (0 as u32).to_ne_bytes();
+
+    let mut res = map
+        .lookup_percpu(&key, MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    for e in res.iter_mut() {
+        e[0] &= 0xf0;
+    }
+
+    map.update_percpu(&key, &res, MapFlags::ANY)
+        .expect("failed to update after first lookup");
+
+    let res2 = map
+        .lookup_percpu(&key, MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    assert_eq!(res, res2);
+}
+
+#[test]
 fn test_object_map_empty_lookup() {
     bump_rlimit_mlock();
 
