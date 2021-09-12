@@ -90,3 +90,4 @@ pub use crate::object::{Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
 pub use crate::program::{OpenProgram, Program, ProgramAttachType, ProgramType};
 pub use crate::ringbuf::{RingBuffer, RingBufferBuilder};
+pub use crate::util::num_possible_cpus;

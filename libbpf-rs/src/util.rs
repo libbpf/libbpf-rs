@@ -33,6 +33,17 @@ pub fn roundup(num: usize, r: usize) -> usize {
     ((num + (r - 1)) / r) * r
 }
 
+/// Get the number of CPUs in the system, e.g., to interact with per-cpu maps.
+pub fn num_possible_cpus() -> Result<usize> {
+    let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
+    if ret < 0 {
+        // Error code is returned negative, flip to positive to match errno
+        Err(Error::System(-ret))
+    } else {
+        Ok(ret as usize)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -52,5 +63,11 @@ mod tests {
         for i in (8..=256).step_by(8) {
             assert_eq!(roundup(i, 8), i);
         }
+    }
+
+    #[test]
+    fn test_num_possible_cpus() {
+        let num = num_possible_cpus().unwrap();
+        assert!(num > 0);
     }
 }
