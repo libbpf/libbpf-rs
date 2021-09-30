@@ -1,0 +1,17 @@
+[package]
+name = "capable"
+version = "0.1.0"
+authors = ["Devasia Thomas <https://www.linkedin.com/in/devasiathomas>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0"
+chrono = "0.4"
+libbpf-rs = { path = "../../libbpf-rs" }
+libc = "0.2"
+phf = { version = "0.10", features = ["macros"] }
+plain = "0.2"
+structopt = "0.3"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
