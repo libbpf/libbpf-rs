@@ -133,17 +133,6 @@ impl Map {
         }
     }
 
-    /// Returns if the map is of one of the per-cpu types.
-    pub fn is_percpu(&self) -> bool {
-        match self.map_type() {
-            MapType::PercpuArray
-            | MapType::PercpuHash
-            | MapType::LruPercpuHash
-            | MapType::PercpuCgroupStorage => true,
-            _ => false,
-        }
-    }
-
     /// Key size in bytes
     pub fn key_size(&self) -> u32 {
         self.key_size
@@ -205,7 +194,7 @@ impl Map {
     /// If the map is one of the per-cpu data structures, the function [`Map::lookup_percpu()`]
     /// must be used.
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
-        if self.is_percpu() {
+        if self.map_type().is_percpu() {
             return Err(Error::InvalidInput(format!(
                 "lookup_percpu() must be used for per-cpu maps (type of the map is {})",
                 self.map_type(),
@@ -220,7 +209,7 @@ impl Map {
     ///
     /// For normal maps, [`Map::lookup()`] must be used.
     pub fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
-        if !self.is_percpu() && self.map_type() != MapType::Unknown {
+        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::InvalidInput(format!(
                 "lookup() must be used for maps that are not per-cpu (type of the map is {})",
                 self.map_type(),
@@ -349,7 +338,7 @@ impl Map {
     ///
     /// For per-cpu maps, [`Map::update_percpu()`] must be used.
     pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
-        if self.is_percpu() {
+        if self.map_type().is_percpu() {
             return Err(Error::InvalidInput(format!(
                 "update_percpu() must be used for per-cpu maps (type of the map is {})",
                 self.map_type(),
@@ -380,7 +369,7 @@ impl Map {
         values: &Vec<Vec<u8>>,
         flags: MapFlags,
     ) -> Result<()> {
-        if !self.is_percpu() && self.map_type() != MapType::Unknown {
+        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::InvalidInput(format!(
                 "update() must be used for maps that are not per-cpu (type of the map is {})",
                 self.map_type(),
@@ -505,6 +494,19 @@ pub enum MapType {
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
     /// using this library is a bit out of date.
     Unknown = u32::MAX,
+}
+
+impl MapType {
+    /// Returns if the map is of one of the per-cpu types.
+    pub fn is_percpu(&self) -> bool {
+        match self {
+            MapType::PercpuArray
+            | MapType::PercpuHash
+            | MapType::LruPercpuHash
+            | MapType::PercpuCgroupStorage => true,
+            _ => false,
+        }
+    }
 }
 
 pub struct MapKeyIter<'a> {
