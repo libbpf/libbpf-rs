@@ -67,6 +67,7 @@ impl ObjectBuilder {
             pin_root_path: ptr::null(),
             attach_prog_fd: 0,
             kconfig: ptr::null(),
+            btf_custom_path: ptr::null(),
         }
     }
 
