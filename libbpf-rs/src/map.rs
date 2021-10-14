@@ -143,6 +143,20 @@ impl Map {
         self.value_size
     }
 
+    /// Return the size of one value including padding for interacting with per-cpu
+    /// maps. The values are aligned to 8 bytes.
+    fn percpu_aligned_value_size(&self) -> usize {
+        let val_size = self.value_size() as usize;
+        return util::roundup(val_size, 8);
+    }
+
+    /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
+    fn percpu_buffer_size(&self) -> Result<usize> {
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let ncpu = util::num_possible_cpus()?;
+        return Ok(ncpu * aligned_val_size);
+    }
+
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map to bpffs.
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
@@ -176,7 +190,50 @@ impl Map {
     /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
+    ///
+    /// If the map is one of the per-cpu data structures, the function [`Map::lookup_percpu()`]
+    /// must be used.
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
+        if self.map_type().is_percpu() {
+            return Err(Error::InvalidInput(format!(
+                "lookup_percpu() must be used for per-cpu maps (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        let out_size = self.value_size() as usize;
+        self.lookup_raw(key, flags, out_size)
+    }
+
+    /// Returns one value per cpu as `Vec` of `Vec` of `u8` for per per-cpu maps.
+    ///
+    /// For normal maps, [`Map::lookup()`] must be used.
+    pub fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
+        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
+            return Err(Error::InvalidInput(format!(
+                "lookup() must be used for maps that are not per-cpu (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        let val_size = self.value_size() as usize;
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let out_size = self.percpu_buffer_size()?;
+
+        let raw_res = self.lookup_raw(key, flags, out_size)?;
+        if let Some(raw_vals) = raw_res {
+            let mut out = Vec::new();
+            for chunk in raw_vals.chunks_exact(aligned_val_size) {
+                out.push(chunk[..val_size].to_vec());
+            }
+            return Ok(Some(out));
+        } else {
+            return Ok(None);
+        }
+    }
+
+    /// Internal function to return a value from a map into a buffer of the given size.
+    fn lookup_raw(&self, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "key_size {} != {}",
@@ -185,7 +242,7 @@ impl Map {
             )));
         };
 
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+        let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
@@ -198,7 +255,7 @@ impl Map {
 
         if ret == 0 {
             unsafe {
-                out.set_len(self.value_size() as usize);
+                out.set_len(out_size);
             }
             Ok(Some(out))
         } else {
@@ -276,22 +333,89 @@ impl Map {
 
     /// Update an element.
     ///
-    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
+    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exactly
     /// [`Map::value_size()`] elements.
+    ///
+    /// For per-cpu maps, [`Map::update_percpu()`] must be used.
     pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
-        if key.len() != self.key_size() as usize {
+        if self.map_type().is_percpu() {
             return Err(Error::InvalidInput(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
+                "update_percpu() must be used for per-cpu maps (type of the map is {})",
+                self.map_type(),
             )));
-        };
+        }
 
         if value.len() != self.value_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "value_size {} != {}",
                 value.len(),
                 self.value_size()
+            )));
+        };
+
+        self.update_raw(key, value, flags)
+    }
+
+    /// Update an element in an per-cpu map with one value per cpu.
+    ///
+    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have one
+    /// element per cpu (see [`num_possible_cpus()`]) with exactly [`Map::value_size()`]
+    /// elements each.
+    ///
+    /// For per-cpu maps, [`Map::update_percpu()`] must be used.
+    pub fn update_percpu(
+        &mut self,
+        key: &[u8],
+        values: &Vec<Vec<u8>>,
+        flags: MapFlags,
+    ) -> Result<()> {
+        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
+            return Err(Error::InvalidInput(format!(
+                "update() must be used for maps that are not per-cpu (type of the map is {})",
+                self.map_type(),
+            )));
+        }
+
+        if values.len() != num_possible_cpus()? {
+            return Err(Error::InvalidInput(format!(
+                "number of values {} != number of cpus {}",
+                values.len(),
+                num_possible_cpus()?
+            )));
+        };
+
+        let val_size = self.value_size() as usize;
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let buf_size = self.percpu_buffer_size()?;
+
+        let mut value_buf = Vec::new();
+        value_buf.resize(buf_size, 0);
+
+        for (i, val) in values.iter().enumerate() {
+            if val.len() != val_size {
+                return Err(Error::InvalidInput(format!(
+                    "value size for cpu {} is {} != {}",
+                    i,
+                    val.len(),
+                    val_size
+                )));
+            }
+
+            value_buf[(i * aligned_val_size)..(i * aligned_val_size + val_size)]
+                .copy_from_slice(val);
+        }
+
+        self.update_raw(key, &value_buf, flags)
+    }
+
+    /// Internal function to update a map. This does not check the length of the
+    /// supplied value.
+    fn update_raw(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
             )));
         };
 
@@ -333,6 +457,7 @@ bitflags! {
 }
 
 /// Type of a [`Map`]. Maps to `enum bpf_map_type` in kernel uapi.
+// If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, PartialEq, Display)]
@@ -369,6 +494,19 @@ pub enum MapType {
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
     /// using this library is a bit out of date.
     Unknown = u32::MAX,
+}
+
+impl MapType {
+    /// Returns if the map is of one of the per-cpu types.
+    pub fn is_percpu(&self) -> bool {
+        match self {
+            MapType::PercpuArray
+            | MapType::PercpuHash
+            | MapType::LruPercpuHash
+            | MapType::PercpuCgroupStorage => true,
+            _ => false,
+        }
+    }
 }
 
 pub struct MapKeyIter<'a> {
