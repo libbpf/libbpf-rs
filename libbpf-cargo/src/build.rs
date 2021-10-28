@@ -111,10 +111,10 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 ///
 /// for each prog.
 fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &str) -> Result<()> {
-    let arch = if std::env::consts::ARCH == "x86_64" {
-        "x86"
-    } else {
-        std::env::consts::ARCH
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x86",
+        "aarch64" => "arm64",
+        _ => std::env::consts::ARCH,
     };
 
     if debug {
