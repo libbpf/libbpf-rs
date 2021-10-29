@@ -29,30 +29,15 @@ impl ObjectBuilder {
     }
 
     /// Option to print debug output to stderr.
+    ///
+    /// Note: This function uses [`set_print`] internally and will overwrite any callbacks
+    /// currently in use.
     pub fn debug(&mut self, dbg: bool) -> &mut Self {
-        extern "C" fn cb(
-            _level: libbpf_sys::libbpf_print_level,
-            fmtstr: *const c_char,
-            va_list: *mut libbpf_sys::__va_list_tag,
-        ) -> i32 {
-            match unsafe { vsprintf::vsprintf(fmtstr, va_list) } {
-                Ok(s) => {
-                    print!("{}", s);
-                    0
-                }
-                Err(e) => {
-                    eprintln!("Failed to parse libbpf output: {}", e);
-                    1
-                }
-            }
-        }
-
         if dbg {
-            unsafe { libbpf_sys::libbpf_set_print(Some(cb)) };
+            set_print(Some((PrintLevel::Debug, |_, s| print!("{}", s))));
         } else {
-            unsafe { libbpf_sys::libbpf_set_print(None) };
+            set_print(None);
         }
-
         self
     }
 

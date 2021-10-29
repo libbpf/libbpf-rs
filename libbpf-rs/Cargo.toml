@@ -26,8 +26,11 @@ nix = "0.22"
 num_enum = "0.5"
 strum_macros = "0.21"
 vsprintf = "2.0"
+lazy_static = "1.4"
 
 [dev-dependencies]
 libc = "0.2"
 plain = "0.2.3"
 scopeguard = "1.1"
+serial_test = "0.5"
+log = "0.4"
