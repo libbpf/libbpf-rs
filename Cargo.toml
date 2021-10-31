@@ -5,4 +5,5 @@ members = [
   "examples/runqslower",
   "examples/query",
   "examples/capable",
+  "examples/tc_port_whitelist",
 ]

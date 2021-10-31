@@ -1,0 +1,17 @@
+[package]
+name = "tc_whitelist_ports"
+version = "0.1.0"
+authors = ["Michael Mullin <mimullin@blackberry.com>"]
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+# chrono = "0.4"
+libbpf-rs = { path = "../../libbpf-rs" }
+libc = "0.2"
+plain = "0.2"
+structopt = "0.3"
+nix = "0.22"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }

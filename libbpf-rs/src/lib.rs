@@ -78,6 +78,7 @@ mod ringbuf;
 /// Used for skeleton -- an end user may not consider this API stable
 #[doc(hidden)]
 pub mod skeleton;
+mod tc;
 mod util;
 
 pub use libbpf_sys;
@@ -90,4 +91,8 @@ pub use crate::object::{Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
 pub use crate::program::{OpenProgram, Program, ProgramAttachType, ProgramType};
 pub use crate::ringbuf::{RingBuffer, RingBufferBuilder};
+pub use crate::tc::{
+    TcAttachPoint, TcHook, TcHookBuilder, CUSTOM, EGRESS, INGRESS, TC_H_CLSACT, TC_H_INGRESS,
+    TC_H_MIN_EGRESS, TC_H_MIN_INGRESS,
+};
 pub use crate::util::num_possible_cpus;
