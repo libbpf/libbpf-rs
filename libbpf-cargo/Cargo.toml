@@ -31,7 +31,7 @@ novendor = ["libbpf-sys/novendor"]
 [dependencies]
 anyhow = "1.0"
 cargo_metadata = "0.12"
-libbpf-sys = { version = "0.5.0-1" }
+libbpf-sys = { version = "0.5.0-2" }
 num_enum = "0.5"
 regex = "1.5"
 scroll = "0.10"
