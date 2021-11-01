@@ -68,6 +68,8 @@ impl ObjectBuilder {
             attach_prog_fd: 0,
             kconfig: ptr::null(),
             btf_custom_path: ptr::null(),
+            __bindgen_padding_0: <[u8; 6]>::default(),
+            __bindgen_padding_1: <[u8; 4]>::default(),
         }
     }
 
