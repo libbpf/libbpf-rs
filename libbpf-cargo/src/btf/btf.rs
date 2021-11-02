@@ -355,6 +355,24 @@ impl<'a> Btf<'a> {
     ///
     /// `ty` must be a struct, union, enum, or datasec type.
     pub fn type_definition(&self, type_id: u32) -> Result<String> {
+        let next_type = |mut id| -> Result<Option<u32>> {
+            loop {
+                match self.type_by_id(id)? {
+                    BtfType::Struct(_)
+                    | BtfType::Union(_)
+                    | BtfType::Enum(_)
+                    | BtfType::Datasec(_) => return Ok(Some(id)),
+                    BtfType::Ptr(t) => id = t.pointee_type,
+                    BtfType::Array(t) => id = t.val_type_id,
+                    BtfType::Volatile(t) => id = t.type_id,
+                    BtfType::Const(t) => id = t.type_id,
+                    BtfType::Restrict(t) => id = t.type_id,
+                    BtfType::Typedef(t) => id = t.type_id,
+                    _ => return Ok(None),
+                }
+            }
+        };
+
         let is_terminal = |id| -> Result<bool> {
             match self.type_by_id(id)?.kind() {
                 BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Datasec => Ok(false),
@@ -404,8 +422,8 @@ impl<'a> Btf<'a> {
                         );
 
                         let field_ty_id = self.skip_mods_and_typedefs(member.type_id)?;
-                        if !is_terminal(field_ty_id)? {
-                            dependent_types.push(field_ty_id);
+                        if let Some(next_ty_id) = next_type(field_ty_id)? {
+                            dependent_types.push(next_ty_id);
                         }
 
                         // Add padding as necessary
@@ -586,10 +604,8 @@ impl<'a> Btf<'a> {
                     for datasec_var in &t.vars {
                         let var = match self.type_by_id(datasec_var.type_id)? {
                             BtfType::Var(v) => {
-                                let stripped_var_type_id =
-                                    self.skip_mods_and_typedefs(v.type_id)?;
-                                if !is_terminal(stripped_var_type_id)? {
-                                    dependent_types.push(stripped_var_type_id);
+                                if let Some(next_ty_id) = next_type(v.type_id)? {
+                                    dependent_types.push(next_ty_id);
                                 }
 
                                 v

@@ -753,6 +753,102 @@ fn test_skeleton_builder_clang_opts() {
         .unwrap();
 }
 
+#[test]
+fn test_skeleton_builder_arrays_ptrs() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct inner {{
+            int a;
+        }};
+
+        struct mystruct {{
+            int x;
+            struct {{
+                int b;
+            }} y[2];
+            struct inner z[2];
+        }};
+
+        const volatile struct mystruct my_array[1] = {{ {{0}} }};
+        struct mystruct * const my_ptr = NULL;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_vmlinux_header(&proj_dir);
+
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        mod bpf;
+        use bpf::*;
+
+        fn main() {{
+            let builder = ProgSkelBuilder::default();
+            let mut open_skel = builder
+                .open()
+                .expect("failed to open skel");
+
+            // That everything exists and compiled okay
+            let _ = open_skel.rodata().my_array[0].x;
+            let _ = open_skel.rodata().my_array[0].y[1].b;
+            let _ = open_skel.rodata().my_array[0].z[0].a;
+            let _ = open_skel.rodata().my_ptr;
+        }}
+        "#,
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
 // -- TEST RUST GENERATION OF BTF PROGRAMS --
 
 /// Searches the Btf struct for a BtfType
