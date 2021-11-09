@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Facebook
+
+#include <linux/version.h>
+// NOTE: As of Nov 8, 2021 Arch linux's linux-api-header version is
+// out of date.  As such LINUX_KERNEL_VERSION will point to 5.12.3
+// Other distros might have /usr/include/linux/version.h out of date as well
+// check that file to ensure is contains correct info on your running kernel
+//
+// You may need to uncomment the following line
+// if you run into verifier issues
+//#define LINUX_KERNEL_VERSION KERNEL_VERSION(5, 14, 16)
+
+#if LINUX_KERNEL_VERSION < KERNEL_VERSION(5,14,0)
 #include "vmlinux.h"
+#else
+#include "vmlinux_new.h"
+#endif
 #include <bpf/bpf_helpers.h>
 #include "runqslower.h"
 
@@ -76,7 +91,14 @@ int handle__sched_switch(u64 *ctx)
 	u32 pid;
 
 	/* ivcsw: treat like an enqueue event and store timestamp */
+
+#if LINUX_KERNEL_VERSION < KERNEL_VERSION(5,14,0)
+    /* state was renamed to __state in kernel 5.14 */
+    /* see: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/include/linux/sched.h?h=v5.14.17&id=2f064a59a11ff9bc22e52e9678bc601404c7cb34 */
 	if (prev->state == TASK_RUNNING)
+#else
+    if (prev->__state == TASK_RUNNING)
+#endif
 		trace_enqueue(prev->tgid, prev->pid);
 
 	pid = next->pid;
