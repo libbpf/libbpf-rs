@@ -66,14 +66,14 @@ int handle__sched_wakeup_new(u64 *ctx)
 	return trace_enqueue(p->tgid, p->pid);
 }
 
-static inline get_task_state(struct task_struct *ts)
+static inline long get_task_state(struct task_struct *ts)
 {
-    if (LINUX_KERNEL_VERSION < KERNEL_VERSION(5, 14, 0)) {
-        struct task_struct_505 *ts_505 = (struct task_struct_505*)ts;
-        return ts_505->state;
-    } else {
-        return ts->__state;
-    }
+	if (LINUX_KERNEL_VERSION < KERNEL_VERSION(5, 14, 0)) {
+		struct task_struct_505 *ts_505 = (struct task_struct_505*)ts;
+		return ts_505->state;
+	} else {
+		return (long)ts->__state;
+	}
 }
 
 SEC("tp_btf/sched_switch")
@@ -89,10 +89,10 @@ int handle__sched_switch(u64 *ctx)
 	long state;
 	u32 pid;
 
-    state = get_task_state(prev);
+	state = get_task_state(prev);
 
 	/* ivcsw: treat like an enqueue event and store timestamp */
-    if (state == TASK_RUNNING)
+	if (state == TASK_RUNNING)
 		trace_enqueue(prev->tgid, prev->pid);
 
 	pid = next->pid;
