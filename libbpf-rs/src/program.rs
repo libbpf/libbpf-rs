@@ -73,6 +73,8 @@ pub enum ProgramType {
     StructOps,
     Ext,
     Lsm,
+    SkLookup,
+    Syscall,
     /// See [`MapType::Unknown`]
     Unknown = u32::MAX,
 }
@@ -110,6 +112,20 @@ pub enum ProgramAttachType {
     TraceFexit,
     ModifyReturn,
     LsmMac,
+    TraceIter,
+    CgroupInet4Getpeername,
+    CgroupInet6Getpeername,
+    CgroupInet4Getsockname,
+    CgroupInet6Getsockname,
+    XdpDevmap,
+    CgroupInetSockRelease,
+    XdpCpumap,
+    SkLookup,
+    Xdp,
+    SkSkbVerdict,
+    SkReuseportSelect,
+    SkReuseportSelectOrMigrate,
+    PerfEvent,
     /// See [`MapType::Unknown`]
     Unknown = u32::MAX,
 }
@@ -337,6 +353,17 @@ impl Program {
     /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
     pub fn attach_xdp(&mut self, ifindex: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_xdp(self.ptr, ifindex) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
+    pub fn attach_netns(&mut self, netns_fd: i32) -> Result<Link> {
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_netns(self.ptr, netns_fd) };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
             Err(Error::System(err as i32))
