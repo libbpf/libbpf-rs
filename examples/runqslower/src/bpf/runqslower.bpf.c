@@ -2,11 +2,13 @@
 // Copyright (c) 2019 Facebook
 
 #include "vmlinux.h"
-#include "vmlinux_505_structs.h"
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 #include "runqslower.h"
 
-extern int LINUX_KERNEL_VERSION __kconfig;
+struct task_struct_pre_5_14 {
+	volatile long int state;
+};
 
 #define TASK_RUNNING	0
 
@@ -66,14 +68,13 @@ int handle__sched_wakeup_new(u64 *ctx)
 	return trace_enqueue(p->tgid, p->pid);
 }
 
-static inline long get_task_state(struct task_struct *ts)
+static inline
+long get_task_state(struct task_struct *t)
 {
-	if (LINUX_KERNEL_VERSION < KERNEL_VERSION(5, 14, 0)) {
-		struct task_struct_505 *ts_505 = (struct task_struct_505*)ts;
-		return ts_505->state;
-	} else {
-		return (long)ts->__state;
-	}
+	if (bpf_core_field_exists(t->__state))
+		return t->__state;
+
+	return ((struct task_struct_pre_5_14*)t)->state;
 }
 
 SEC("tp_btf/sched_switch")
