@@ -196,7 +196,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libbpf-cargo"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "bitflags",
  "libbpf-sys",
