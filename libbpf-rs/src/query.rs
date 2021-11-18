@@ -101,6 +101,7 @@ fn name_arr_to_string(a: &[c_char], default: &str) -> String {
 /// Information about a BPF program
 pub struct ProgramInfo {
     pub name: String,
+    pub fd: i32,
     pub ty: ProgramType,
     pub tag: [u8; 8],
     pub id: u32,
@@ -147,6 +148,7 @@ impl ProgramInfo {
 
         Some(ProgramInfo {
             name,
+            fd: _fd,
             ty,
             tag: s.tag,
             id: s.id,
