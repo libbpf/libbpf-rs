@@ -12,26 +12,26 @@ fn is_power_of_two(i: usize) -> bool {
 // Workaround for `trait_alias`
 // (https://doc.rust-lang.org/unstable-book/language-features/trait-alias.html)
 // not being available yet. This is just a custom trait plus a blanket implementation.
-pub trait SampleCb: FnMut(i32, &[u8]) + 'static {}
-impl<T> SampleCb for T where T: FnMut(i32, &[u8]) + 'static {}
+pub trait SampleCb: FnMut(i32, &[u8]) {}
+impl<T> SampleCb for T where T: FnMut(i32, &[u8]) {}
 
-pub trait LostCb: FnMut(i32, u64) + 'static {}
-impl<T> LostCb for T where T: FnMut(i32, u64) + 'static {}
+pub trait LostCb: FnMut(i32, u64) {}
+impl<T> LostCb for T where T: FnMut(i32, u64) {}
 
-struct CbStruct {
-    sample_cb: Option<Box<dyn SampleCb>>,
-    lost_cb: Option<Box<dyn LostCb>>,
+struct CbStruct<'b> {
+    sample_cb: Option<Box<dyn SampleCb + 'b>>,
+    lost_cb: Option<Box<dyn LostCb + 'b>>,
 }
 
 /// Builds [`PerfBuffer`] instances.
-pub struct PerfBufferBuilder<'a> {
+pub struct PerfBufferBuilder<'a, 'b> {
     map: &'a Map,
     pages: usize,
-    sample_cb: Option<Box<dyn SampleCb>>,
-    lost_cb: Option<Box<dyn LostCb>>,
+    sample_cb: Option<Box<dyn SampleCb + 'b>>,
+    lost_cb: Option<Box<dyn LostCb + 'b>>,
 }
 
-impl<'a> PerfBufferBuilder<'a> {
+impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     pub fn new(map: &'a Map) -> Self {
         Self {
             map,
@@ -42,14 +42,14 @@ impl<'a> PerfBufferBuilder<'a> {
     }
 }
 
-impl<'a> PerfBufferBuilder<'a> {
+impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     /// Callback to run when a sample is received.
     ///
     /// This callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn sample_cb<NewCb: SampleCb>(self, cb: NewCb) -> PerfBufferBuilder<'a> {
+    pub fn sample_cb<NewCb: SampleCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -61,7 +61,7 @@ impl<'a> PerfBufferBuilder<'a> {
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn lost_cb<NewCb: LostCb>(self, cb: NewCb) -> PerfBufferBuilder<'a> {
+    pub fn lost_cb<NewCb: LostCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -76,7 +76,7 @@ impl<'a> PerfBufferBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> Result<PerfBuffer> {
+    pub fn build(self) -> Result<PerfBuffer<'b>> {
         if self.map.map_type() != MapType::PerfEventArray {
             return Err(Error::InvalidInput(
                 "Must use a PerfEventArray map".to_string(),
@@ -145,13 +145,13 @@ impl<'a> PerfBufferBuilder<'a> {
 
 /// Represents a special kind of [`Map`]. Typically used to transfer data between
 /// [`Program`]s and userspace.
-pub struct PerfBuffer {
+pub struct PerfBuffer<'b> {
     ptr: *mut libbpf_sys::perf_buffer,
     // Hold onto the box so it'll get dropped when PerfBuffer is dropped
-    _cb_struct: Box<CbStruct>,
+    _cb_struct: Box<CbStruct<'b>>,
 }
 
-impl PerfBuffer {
+impl<'b> PerfBuffer<'b> {
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret = unsafe { libbpf_sys::perf_buffer__poll(self.ptr, timeout.as_millis() as i32) };
         if ret < 0 {
@@ -162,7 +162,7 @@ impl PerfBuffer {
     }
 }
 
-impl Drop for PerfBuffer {
+impl<'b> Drop for PerfBuffer<'b> {
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::perf_buffer__free(self.ptr);
