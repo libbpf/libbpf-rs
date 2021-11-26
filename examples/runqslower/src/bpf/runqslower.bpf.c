@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Facebook
 #include "vmlinux.h"
+#include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include "runqslower.h"
 
@@ -12,6 +13,11 @@ const volatile pid_t targ_tgid = 0;
 
 // Dummy instance to get skeleton to generate definition for `struct event`
 struct event _event = {0};
+
+// Kernel 5.14 changed the state field to __state
+struct task_struct___pre_5_14 {
+	long int state;
+};
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -62,6 +68,14 @@ int handle__sched_wakeup_new(u64 *ctx)
 	return trace_enqueue(p->tgid, p->pid);
 }
 
+static inline long get_task_state(struct task_struct *t)
+{
+	if (bpf_core_field_exists(t->__state))
+		return t->__state;
+
+	return ((struct task_struct___pre_5_14*)t)->state;
+}
+
 SEC("tp_btf/sched_switch")
 int handle__sched_switch(u64 *ctx)
 {
@@ -72,11 +86,11 @@ int handle__sched_switch(u64 *ctx)
 	struct task_struct *next = (struct task_struct *)ctx[2];
 	struct event event = {};
 	u64 *tsp, delta_us;
-	long state;
+	long state = get_task_state(prev);
 	u32 pid;
 
 	/* ivcsw: treat like an enqueue event and store timestamp */
-	if (prev->state == TASK_RUNNING)
+	if (state == TASK_RUNNING)
 		trace_enqueue(prev->tgid, prev->pid);
 
 	pid = next->pid;
