@@ -106,14 +106,15 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
             lost_cb: self.lost_cb,
         }));
 
-        let opts = libbpf_sys::perf_buffer_opts {
-            sample_cb: c_sample_cb,
-            lost_cb: c_lost_cb,
-            ctx: callback_struct_ptr as *mut _,
-        };
-
         let ptr = unsafe {
-            libbpf_sys::perf_buffer__new(self.map.fd(), self.pages as libbpf_sys::size_t, &opts)
+            libbpf_sys::perf_buffer__new(
+                self.map.fd(),
+                self.pages as libbpf_sys::size_t,
+                c_sample_cb,
+                c_lost_cb,
+                callback_struct_ptr as *mut _,
+                std::ptr::null(),
+            )
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
