@@ -494,6 +494,42 @@ fn test_skeleton_basic() {
 }
 
 #[test]
+fn test_skeleton_generate_datasec_static() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {{
+                bpf_printk("this should not cause an error");
+                return 0;
+        }}
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_vmlinux_header(&proj_dir);
+
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+}
+
+#[test]
 fn test_skeleton_datasec() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 

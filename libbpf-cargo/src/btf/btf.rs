@@ -604,6 +604,11 @@ impl<'a> Btf<'a> {
                     for datasec_var in &t.vars {
                         let var = match self.type_by_id(datasec_var.type_id)? {
                             BtfType::Var(v) => {
+                                if v.linkage == BtfVarLinkage::Static {
+                                    // do not output Static Var
+                                    continue;
+                                }
+
                                 if let Some(next_ty_id) = next_type(v.type_id)? {
                                     dependent_types.push(next_ty_id);
                                 }
