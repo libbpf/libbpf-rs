@@ -98,8 +98,8 @@ fn test_object_maps_iter() {
     for map in obj.maps_iter() {
         eprintln!("{}", map.name());
     }
-    // This will include .rodata, so our expected count is 3, not 2
-    assert!(obj.maps_iter().count() == 3);
+    // This will include .rodata and .bss, so our expected count is 4, not 2
+    assert!(obj.maps_iter().count() == 4);
 }
 
 #[test]
