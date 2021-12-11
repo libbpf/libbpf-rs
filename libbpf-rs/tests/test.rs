@@ -319,7 +319,7 @@ fn test_object_map_pin() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let map = obj.map_mut("start").expect("failed to find map");
 
-    let path = "/sys/fs/bpf/mymap";
+    let path = "/sys/fs/bpf/mymap_test_object_map_pin";
 
     // Unpinning a unpinned map should be an error
     assert!(map.unpin(path).is_err());
@@ -417,7 +417,7 @@ fn test_object_link_pin() {
 fn test_object_reuse_pined_map() {
     bump_rlimit_mlock();
 
-    let path = "/sys/fs/bpf/mymap";
+    let path = "/sys/fs/bpf/mymap_test_object_reuse_pined_map";
     let key = vec![1, 2, 3, 4];
     let val = vec![1, 2, 3, 4, 5, 6, 7, 8];
 
