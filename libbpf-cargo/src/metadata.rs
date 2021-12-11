@@ -52,38 +52,34 @@ fn get_package(
     let mut package_root = package.manifest_path.clone();
     // Remove "Cargo.toml"
     package_root.pop();
-    let in_dir = if let Some(d) = package_metadata.prog_dir {
+    if let Some(d) = package_metadata.prog_dir {
         if debug {
             println!("Custom prog_dir={}", d.to_string_lossy());
         }
         // Add requested path
         package_root.push(d);
-        package_root
     } else {
         // Add default path
         package_root.push("src/bpf");
-        package_root
     };
 
     // Respect custom target directories specified by package
     let mut target_dir = workspace_target_dir.to_path_buf();
-    let out_dir = if let Some(d) = package_metadata.target_dir {
+    if let Some(d) = package_metadata.target_dir {
         if debug {
             println!("Custom target_dir={}", d.to_string_lossy());
         }
 
         // Add requested path
         target_dir.push(d);
-        target_dir
     } else {
         // Add default path
         target_dir.push("bpf");
-        target_dir
     };
 
     // Get an iterator to the input directory. If directory is missing,
     // skip the current project
-    let dir_iter = match fs::read_dir(&in_dir) {
+    let dir_iter = match fs::read_dir(&package_root) {
         Ok(d) => d,
         Err(e) => {
             if let Some(ec) = e.raw_os_error() {
@@ -91,7 +87,11 @@ fn get_package(
                 if ec == 2 {
                     return Ok(vec![]);
                 } else {
-                    bail!("Invalid directory: {}: {}", in_dir.to_string_lossy(), e);
+                    bail!(
+                        "Invalid directory: {}: {}",
+                        package_root.to_string_lossy(),
+                        e
+                    );
                 }
             } else {
                 bail!(e);
@@ -101,31 +101,33 @@ fn get_package(
 
     Ok(dir_iter
         .filter_map(|file| {
-            let file_path = match file {
+            let path = match file {
                 Ok(f) => f.path(),
                 Err(_) => return None,
             };
 
-            if !file_path.is_file() {
+            if !path.is_file() {
                 return None;
             }
 
             // Only take files with extension ".bpf.c"
-            if let Some(file_name) = file_path.as_path().file_name() {
+            if let Some(file_name) = path.as_path().file_name() {
                 if file_name.to_string_lossy().ends_with(".bpf.c") {
+                    let name = path
+                        .as_path()
+                        .file_stem() // remove ".c" suffix
+                        .unwrap() // we already know it's a file
+                        .to_string_lossy()
+                        .rsplit_once('.')
+                        .map(|f| f.0) // take portion of string prior to .bpf
+                        .unwrap() // Already know it has enough '.'s
+                        .to_string();
+
                     return Some(UnprocessedObj {
                         package: package.name.clone(),
-                        name: file_path
-                            .as_path()
-                            .file_stem() // Remove `.c` suffix
-                            .unwrap() // We already know it's a file
-                            .to_string_lossy()
-                            .rsplitn(2, '.') // Remove `.bpf` suffix
-                            .nth(1)
-                            .unwrap() // Already know it has enough `.`s
-                            .to_string(),
-                        out: out_dir.clone(),
-                        path: file_path,
+                        out: target_dir.clone(),
+                        path,
+                        name,
                     });
                 }
             }
@@ -155,7 +157,7 @@ pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<Vec<Unprocess
     for id in &metadata.workspace_members {
         for package in &metadata.packages {
             if id == &package.id {
-                match &mut get_package(debug, &package, &metadata.target_directory) {
+                match &mut get_package(debug, package, &metadata.target_directory) {
                     Ok(vv) => v.append(vv),
                     Err(e) => bail!("Failed to process package={}, error={}", package.name, e),
                 }
