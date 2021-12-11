@@ -201,7 +201,7 @@ impl<'a> Btf<'a> {
                     btf::BtfIntEncoding::Signed => format!("i{}", width),
                     btf::BtfIntEncoding::Bool => {
                         assert!(t.bits as usize == (std::mem::size_of::<bool>() * 8));
-                        format!("bool")
+                        "bool".to_string()
                     }
                     btf::BtfIntEncoding::Char | btf::BtfIntEncoding::None => format!("u{}", width),
                 }
