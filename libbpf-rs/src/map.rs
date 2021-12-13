@@ -147,14 +147,14 @@ impl Map {
     /// maps. The values are aligned to 8 bytes.
     fn percpu_aligned_value_size(&self) -> usize {
         let val_size = self.value_size() as usize;
-        return util::roundup(val_size, 8);
+        util::roundup(val_size, 8)
     }
 
     /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
     fn percpu_buffer_size(&self) -> Result<usize> {
         let aligned_val_size = self.percpu_aligned_value_size();
         let ncpu = util::num_possible_cpus()?;
-        return Ok(ncpu * aligned_val_size);
+        Ok(ncpu * aligned_val_size)
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -226,9 +226,9 @@ impl Map {
             for chunk in raw_vals.chunks_exact(aligned_val_size) {
                 out.push(chunk[..val_size].to_vec());
             }
-            return Ok(Some(out));
+            Ok(Some(out))
         } else {
-            return Ok(None);
+            Ok(None)
         }
     }
 
@@ -363,12 +363,7 @@ impl Map {
     /// elements each.
     ///
     /// For per-cpu maps, [`Map::update_percpu()`] must be used.
-    pub fn update_percpu(
-        &mut self,
-        key: &[u8],
-        values: &Vec<Vec<u8>>,
-        flags: MapFlags,
-    ) -> Result<()> {
+    pub fn update_percpu(&mut self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::InvalidInput(format!(
                 "update() must be used for maps that are not per-cpu (type of the map is {})",
@@ -499,13 +494,13 @@ pub enum MapType {
 impl MapType {
     /// Returns if the map is of one of the per-cpu types.
     pub fn is_percpu(&self) -> bool {
-        match self {
+        matches!(
+            self,
             MapType::PercpuArray
-            | MapType::PercpuHash
-            | MapType::LruPercpuHash
-            | MapType::PercpuCgroupStorage => true,
-            _ => false,
-        }
+                | MapType::PercpuHash
+                | MapType::LruPercpuHash
+                | MapType::PercpuCgroupStorage
+        )
     }
 }
 
