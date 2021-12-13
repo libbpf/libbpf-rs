@@ -10,6 +10,7 @@ use crate::util;
 use crate::*;
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
+#[derive(Default)]
 pub struct ObjectBuilder {
     name: String,
     relaxed_maps: bool,
@@ -113,15 +114,6 @@ impl ObjectBuilder {
         }
 
         OpenObject::new(obj)
-    }
-}
-
-impl Default for ObjectBuilder {
-    fn default() -> Self {
-        ObjectBuilder {
-            name: String::new(),
-            relaxed_maps: false,
-        }
     }
 }
 

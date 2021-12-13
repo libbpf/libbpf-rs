@@ -22,3 +22,5 @@ jobs:
       run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object
     - name: Run rustfmt
       run: cargo fmt --package libbpf-cargo libbpf-rs -- --check
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
