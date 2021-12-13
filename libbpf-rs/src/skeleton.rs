@@ -171,7 +171,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         };
 
         if let Some(ref n) = self.name {
-            s.name = str_to_cstring_and_pool(&n, &mut string_pool)?;
+            s.name = str_to_cstring_and_pool(n, &mut string_pool)?;
         }
 
         // libbpf_sys will use it as const despite the signature
