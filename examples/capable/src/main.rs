@@ -113,6 +113,7 @@ fn bump_memlock_rlimit() -> Result<()> {
 }
 
 fn print_banner(extra_fields: bool) {
+    #[allow(clippy::print_literal)]
     if extra_fields {
         println!(
             "{:9} {:6} {:6} {:6} {:16} {:4} {:20} {:6} {}",
