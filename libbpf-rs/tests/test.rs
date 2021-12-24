@@ -20,7 +20,7 @@ fn get_test_object_path(filename: &str) -> PathBuf {
     path
 }
 
-fn get_test_object(filename: &str) -> Object {
+pub fn get_test_object(filename: &str) -> Object {
     let obj_path = get_test_object_path(filename);
     let mut builder = ObjectBuilder::default();
     // Invoke cargo with:
@@ -36,7 +36,7 @@ fn get_test_object(filename: &str) -> Object {
         .expect("failed to load object")
 }
 
-fn bump_rlimit_mlock() {
+pub fn bump_rlimit_mlock() {
     let rlimit = libc::rlimit {
         rlim_cur: 128 << 20,
         rlim_max: 128 << 20,
