@@ -308,6 +308,6 @@ fn test_tc_double_create() {
 
     assert!(ingress.create().is_ok());
     assert!(egress.create().is_ok());
-    
+
     assert!(clear_clsact(fd).is_ok());
 }
