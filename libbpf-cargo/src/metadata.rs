@@ -15,8 +15,9 @@ struct LibbpfPackageMetadata {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum PackageMetadata {
-    Libbpf(LibbpfPackageMetadata),
+struct PackageMetadata {
+    #[serde(default)]
+    libbpf: LibbpfPackageMetadata,
 }
 
 #[derive(Debug, Clone)]
@@ -42,8 +43,8 @@ fn get_package(
     }
 
     let package_metadata = if package.metadata != Value::Null {
-        let PackageMetadata::Libbpf(lpm) = serde_json::from_value(package.metadata.clone())?;
-        lpm
+        let PackageMetadata { libbpf } = serde_json::from_value(package.metadata.clone())?;
+        libbpf
     } else {
         LibbpfPackageMetadata::default()
     };
