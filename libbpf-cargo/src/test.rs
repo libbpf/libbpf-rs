@@ -191,6 +191,35 @@ fn test_build_custom() {
 }
 
 #[test]
+fn test_unknown_metadata_section() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add a metadata section that isn't for libbpf.
+    let mut cargo_toml_file = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+    let deb_metadata = r#"[package.metadata.deb]
+    prog_dir = "some value that should be ignored"
+    some_other_val = true
+    "#;
+    cargo_toml_file.write_all(deb_metadata.as_bytes()).expect("write to Cargo.toml failed");
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+    build(true, Some(&cargo_toml), None, true).unwrap_err();
+
+    // Add a prog
+    let _prog_file =
+        File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
+
+    build(true, Some(&cargo_toml), None, true).unwrap();
+
+    // Validate generated object file
+    validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
+}
+
+#[test]
 fn test_enforce_file_extension() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
