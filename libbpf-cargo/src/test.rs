@@ -203,7 +203,9 @@ fn test_unknown_metadata_section() {
     prog_dir = "some value that should be ignored"
     some_other_val = true
     "#;
-    cargo_toml_file.write_all(deb_metadata.as_bytes()).expect("write to Cargo.toml failed");
+    cargo_toml_file
+        .write_all(deb_metadata.as_bytes())
+        .expect("write to Cargo.toml failed");
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
