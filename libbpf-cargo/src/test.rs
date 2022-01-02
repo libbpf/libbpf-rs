@@ -2043,3 +2043,105 @@ pub struct Foo {
 
     assert_definition(&btf, struct_foo, expected_output);
 }
+
+#[test]
+fn test_btf_dump_definition_unnamed_union() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+// re-typed 'struct bpf_sock_tuple tup' from vmlinux as of kernel 5.15
+// with a little bit added for additional complexity testing
+struct bpf_sock_tuple_5_15 {
+	union {
+		struct {
+			__be32 saddr;
+			__be32 daddr;
+			__be16 sport;
+			__be16 dport;
+		} ipv4;
+		struct {
+			__be32 saddr[4];
+			__be32 daddr[4];
+			__be16 sport;
+			__be16 dport;
+		} ipv6;
+	};
+
+    union {
+        int a;
+        char *b;
+    };
+};
+struct bpf_sock_tuple_5_15 tup;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct bpf_sock_tuple_5_15 {
+    pub __unnamed___anon_1: __anon_1,
+    __pad_36: [u8; 4],
+    pub __unnamed___anon_4: __anon_4,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union __anon_1 {
+    pub ipv4: __anon_2,
+    pub ipv6: __anon_3,
+}
+impl std::fmt::Debug for __anon_1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(???)")
+    }
+}
+impl Default for __anon_1 {
+    fn default() -> Self {
+        __anon_1 {
+            ipv4: __anon_2::default(),
+        }
+    }
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union __anon_4 {
+    pub a: i32,
+    pub b: *mut i8,
+}
+impl std::fmt::Debug for __anon_4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(???)")
+    }
+}
+impl Default for __anon_4 {
+    fn default() -> Self {
+        __anon_4 {
+            a: i32::default(),
+        }
+    }
+}
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct __anon_2 {
+    pub saddr: u32,
+    pub daddr: u32,
+    pub sport: u16,
+    pub dport: u16,
+}
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct __anon_3 {
+    pub saddr: [u32; 4],
+    pub daddr: [u32; 4],
+    pub sport: u16,
+    pub dport: u16,
+}
+"#;
+
+    let btf = build_btf_prog(prog_text);
+
+    // Find the struct
+    let struct_bpf_sock_tuple = find_type_in_btf!(btf, Struct, "bpf_sock_tuple_5_15");
+
+    assert_definition(&btf, struct_bpf_sock_tuple, expected_output);
+}
