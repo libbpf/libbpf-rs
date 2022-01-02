@@ -14,6 +14,7 @@ use crate::btf::c_types::*;
 use crate::btf::*;
 
 const ANON_PREFIX: &str = "__anon_";
+const UNNAMED_PREFIX: &str = "__unnamed_";
 
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
@@ -474,11 +475,14 @@ impl<'a> Btf<'a> {
                         // Set `offset` to end of current var
                         offset = ((member.bit_offset / 8) + self.size_of(field_ty_id)?) as usize;
 
-                        agg_content.push(format!(
-                            r#"    pub {field_name}: {field_ty_str},"#,
-                            field_name = member.name,
-                            field_ty_str = self.type_declaration(field_ty_id)?,
-                        ));
+                        let field_ty_str = self.type_declaration(field_ty_id)?;
+                        let field_name = if !member.name.is_empty() {
+                            member.name.to_string()
+                        } else {
+                            format!("{}{}", UNNAMED_PREFIX, field_ty_str)
+                        };
+
+                        agg_content.push(format!(r#"    pub {}: {},"#, field_name, field_ty_str));
                     }
 
                     if !gen_impl_default && t.is_struct {
