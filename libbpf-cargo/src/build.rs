@@ -110,7 +110,15 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &str) -> Result<()> {
+fn compile_one(
+    debug: bool,
+    source: &Path,
+    out: &Path,
+    clang: &Path,
+    header_dir: &Option<PathBuf>,
+    manifest_path: Option<&PathBuf>,
+    options: &str,
+) -> Result<()> {
     if debug {
         println!("Building {}", source.display());
     }
@@ -139,6 +147,25 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
         .arg("-o")
         .arg(out);
 
+    // Ensure the generated object file is deterministic.
+    if let Some(path) = header_dir {
+        let path = path.to_str().unwrap();
+        cmd.arg(format!("-I{}", path));
+        cmd.arg(format!(
+            "-ffile-prefix-map={}=/LIBBPF_INCLUDE_HEADERS",
+            path
+        ));
+    }
+    let manifest_parent = manifest_path.map(|p| p.parent().unwrap_or_else(|| Path::new("/")));
+    let project_dir = match manifest_parent {
+        Some(path) => path.to_owned(),
+        None => std::env::current_dir().unwrap(),
+    };
+    cmd.arg(format!(
+        "-ffile-prefix-map={}=/RUST_SRC",
+        project_dir.to_str().unwrap()
+    ));
+
     let output = cmd.output().context("Failed to execute clang")?;
     if !output.status.success() {
         bail!(
@@ -157,13 +184,14 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
     Ok(())
 }
 
-fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path, target_dir: &Path) -> Result<()> {
+fn compile(
+    debug: bool,
+    objs: &[UnprocessedObj],
+    clang: &Path,
+    manifest_path: Option<&PathBuf>,
+    target_dir: &Path,
+) -> Result<()> {
     let header_dir = extract_libbpf_headers_to_disk(target_dir)?;
-    let compiler_options = if let Some(dir) = &header_dir {
-        format!("-I{}", dir.to_str().unwrap())
-    } else {
-        "".to_string()
-    };
 
     for obj in objs {
         let dest_name = if let Some(f) = obj.path.file_stem() {
@@ -179,7 +207,15 @@ fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path, target_dir: &Path
         let mut dest_path = obj.out.to_path_buf();
         dest_path.push(&dest_name);
         fs::create_dir_all(&obj.out)?;
-        compile_one(debug, &obj.path, &dest_path, clang, &compiler_options)?;
+        compile_one(
+            debug,
+            &obj.path,
+            &dest_path,
+            clang,
+            &header_dir,
+            manifest_path,
+            "",
+        )?;
     }
 
     Ok(())
@@ -217,7 +253,7 @@ pub fn build(
         bail!("{} is invalid: {}", clang.display(), e);
     }
 
-    if let Err(e) = compile(debug, &to_compile, &clang, &target_dir) {
+    if let Err(e) = compile(debug, &to_compile, &clang, manifest_path, &target_dir) {
         bail!("Failed to compile progs: {}", e);
     }
 
@@ -238,12 +274,7 @@ pub fn build_single(
     check_clang(debug, &clang, skip_clang_version_checks)?;
     let header_parent_dir = tempdir()?;
     let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())?;
-    let compiler_options = if let Some(dir) = &header_dir {
-        format!("{} -I{}", options, dir.to_str().unwrap())
-    } else {
-        options.to_string()
-    };
-    compile_one(debug, source, out, &clang, &compiler_options)?;
+    compile_one(debug, source, out, &clang, &header_dir, None, options)?;
 
     Ok(())
 }
