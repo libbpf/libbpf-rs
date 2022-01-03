@@ -138,7 +138,8 @@ fn get_package(
         .collect())
 }
 
-pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<Vec<UnprocessedObj>> {
+/// Returns the `target_directory` and a list of objects to compile.
+pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {
@@ -166,5 +167,5 @@ pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<Vec<Unprocess
         }
     }
 
-    Ok(v)
+    Ok((metadata.target_directory, v))
 }

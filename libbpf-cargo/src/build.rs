@@ -6,7 +6,7 @@ use std::process::Command;
 use anyhow::{anyhow, bail, Context, Result};
 use regex::Regex;
 use semver::Version;
-use tempfile::TempDir;
+use tempfile::tempdir;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
@@ -46,12 +46,12 @@ fn extract_version(output: &str) -> Result<&str> {
 ///
 /// Directory and enclosed contents will be removed when return object is dropped.
 #[cfg(not(feature = "novendor"))]
-fn extract_libbpf_headers_to_disk() -> Result<Option<TempDir>> {
+fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> {
     use std::fs::OpenOptions;
     use std::io::Write;
 
-    let tempdir = TempDir::new()?;
-    let dir = tempdir.path().join("bpf");
+    let parent_dir = target_dir.join("bpf").join("src");
+    let dir = parent_dir.join("bpf");
     fs::create_dir_all(&dir)?;
     for (filename, contents) in libbpf_sys::API_HEADERS.iter() {
         let path = dir.as_path().join(filename);
@@ -59,11 +59,11 @@ fn extract_libbpf_headers_to_disk() -> Result<Option<TempDir>> {
         file.write_all(contents.as_bytes())?;
     }
 
-    Ok(Some(tempdir))
+    Ok(Some(parent_dir))
 }
 
 #[cfg(feature = "novendor")]
-fn extract_libbpf_headers_to_disk() -> Result<Option<TempDir>> {
+fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> {
     return Ok(None);
 }
 
@@ -153,10 +153,10 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
     Ok(())
 }
 
-fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path) -> Result<()> {
-    let header_dir = extract_libbpf_headers_to_disk()?;
+fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path, target_dir: &Path) -> Result<()> {
+    let header_dir = extract_libbpf_headers_to_disk(target_dir)?;
     let compiler_options = if let Some(dir) = &header_dir {
-        format!("-I{}", dir.path().to_str().unwrap())
+        format!("-I{}", dir.to_str().unwrap())
     } else {
         "".to_string()
     };
@@ -195,7 +195,7 @@ pub fn build(
     clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
 ) -> Result<()> {
-    let to_compile = metadata::get(debug, manifest_path)?;
+    let (target_dir, to_compile) = metadata::get(debug, manifest_path)?;
 
     if debug && !to_compile.is_empty() {
         println!("Found bpf progs to compile:");
@@ -213,7 +213,7 @@ pub fn build(
         bail!("{} is invalid: {}", clang.display(), e);
     }
 
-    if let Err(e) = compile(debug, &to_compile, &clang) {
+    if let Err(e) = compile(debug, &to_compile, &clang, &target_dir) {
         bail!("Failed to compile progs: {}", e);
     }
 
@@ -232,9 +232,10 @@ pub fn build_single(
 ) -> Result<()> {
     let clang = extract_clang_or_default(clang);
     check_clang(debug, &clang, skip_clang_version_checks)?;
-    let header_dir = extract_libbpf_headers_to_disk()?;
+    let header_parent_dir = tempdir()?;
+    let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())?;
     let compiler_options = if let Some(dir) = &header_dir {
-        format!("{} -I{}", options, dir.path().to_str().unwrap())
+        format!("{} -I{}", options, dir.to_str().unwrap())
     } else {
         options.to_string()
     };
