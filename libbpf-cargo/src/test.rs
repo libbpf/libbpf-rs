@@ -2080,9 +2080,9 @@ struct bpf_sock_tuple_5_15 tup;
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct bpf_sock_tuple_5_15 {
-    pub __unnamed___anon_1: __anon_1,
+    pub __anon_1: __anon_1,
     __pad_36: [u8; 4],
-    pub __unnamed___anon_4: __anon_4,
+    pub __anon_4: __anon_4,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
