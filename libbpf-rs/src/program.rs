@@ -12,11 +12,12 @@ use crate::*;
 /// This object exposes operations that need to happen before the program is loaded.
 pub struct OpenProgram {
     ptr: *mut libbpf_sys::bpf_program,
+    section: String,
 }
 
 impl OpenProgram {
-    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_program) -> Self {
-        OpenProgram { ptr }
+    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_program, section: String) -> Self {
+        Self { ptr, section }
     }
 
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
@@ -35,6 +36,11 @@ impl OpenProgram {
         unsafe {
             libbpf_sys::bpf_program__set_ifindex(self.ptr, idx);
         }
+    }
+
+    /// Name of the section this `Program` belongs to.
+    pub fn section(&self) -> &str {
+        &self.section
     }
 }
 
