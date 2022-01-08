@@ -168,8 +168,13 @@ impl OpenObject {
             let name = unsafe { libbpf_sys::bpf_program__name(next_ptr) };
             let name = util::c_ptr_to_string(name)?;
 
+            // Get the program section
+            // bpf_program__section_name never returns NULL, so no need to check the pointer.
+            let section = unsafe { libbpf_sys::bpf_program__section_name(next_ptr) };
+            let section = util::c_ptr_to_string(section)?;
+
             // Add the program to the hashmap
-            obj.progs.insert(name, OpenProgram::new(next_ptr));
+            obj.progs.insert(name, OpenProgram::new(next_ptr, section));
             prog = next_ptr;
         }
 
