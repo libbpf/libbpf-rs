@@ -226,7 +226,7 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "bitflags",
  "lazy_static",
