@@ -14,7 +14,6 @@ use crate::btf::c_types::*;
 use crate::btf::*;
 
 const ANON_PREFIX: &str = "__anon_";
-const UNNAMED_PREFIX: &str = "__unnamed_";
 
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
@@ -479,7 +478,7 @@ impl<'a> Btf<'a> {
                         let field_name = if !member.name.is_empty() {
                             member.name.to_string()
                         } else {
-                            format!("{}{}", UNNAMED_PREFIX, field_ty_str)
+                            field_ty_str.clone()
                         };
 
                         agg_content.push(format!(r#"    pub {}: {},"#, field_name, field_ty_str));

@@ -931,7 +931,7 @@ fn gen_project(
     manifest_path: Option<&PathBuf>,
     rustfmt_path: Option<&PathBuf>,
 ) -> Result<()> {
-    let to_gen = metadata::get(debug, manifest_path)?;
+    let (_target_dir, to_gen) = metadata::get(debug, manifest_path)?;
     if debug && !to_gen.is_empty() {
         println!("Found bpf objs to gen skel:");
         for obj in &to_gen {
