@@ -71,9 +71,13 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     }
 
     /// The number of pages to size the ring buffer.
-    pub fn pages(&mut self, pages: usize) -> &mut Self {
-        self.pages = pages;
-        self
+    pub fn pages(self, pages: usize) -> PerfBufferBuilder<'a, 'b> {
+        PerfBufferBuilder {
+            map: self.map,
+            pages,
+            sample_cb: self.sample_cb,
+            lost_cb: self.lost_cb,
+        }
     }
 
     pub fn build(self) -> Result<PerfBuffer<'b>> {
