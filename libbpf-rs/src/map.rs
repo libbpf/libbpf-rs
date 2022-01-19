@@ -61,6 +61,17 @@ impl OpenMap {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
     }
 
+    /// Reuse an fd for a BPF map
+    pub fn reuse_fd(&self, fd: i32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr, fd) };
+
+        if ret != 0 {
+            return Err(Error::System(-ret));
+        }
+
+        Ok(())
+    }
+
     /// Reuse an already-pinned map for `self`.
     pub fn reuse_pinned_map<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let cstring = util::path_to_cstring(path)?;
@@ -69,19 +80,14 @@ impl OpenMap {
         if fd < 0 {
             return Err(Error::System(errno::errno()));
         }
+        let reuse_result = self.reuse_fd(fd);
 
-        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr, fd) };
-
-        // Always close `fd` regardless of if `bpf_map__reuse_fd` succeeded or failed
+        // Always close `fd` regardless of if `reuse_fd` succeeded or failed
         //
         // Ignore errors b/c can't really recover from failure
         let _ = unistd::close(fd);
 
-        if ret != 0 {
-            return Err(Error::System(-ret));
-        }
-
-        Ok(())
+        reuse_result
     }
 }
 
