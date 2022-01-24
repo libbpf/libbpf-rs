@@ -31,7 +31,7 @@ fn prog() {
 
 fn map() {
     for map in query::MapInfoIter::default() {
-        println!("name={:<16} type={}", map.name, map.ty.to_string(),);
+        println!("name={:<16} type={}", map.name, map.ty);
     }
 }
 
