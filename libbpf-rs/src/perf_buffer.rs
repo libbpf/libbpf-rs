@@ -157,9 +157,35 @@ pub struct PerfBuffer<'b> {
 }
 
 impl<'b> PerfBuffer<'b> {
+    pub fn epoll_fd(&self) -> i32 {
+        unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr) }
+    }
+
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret = unsafe { libbpf_sys::perf_buffer__poll(self.ptr, timeout.as_millis() as i32) };
         util::parse_ret(ret)
+    }
+
+    pub fn consume(&self) -> Result<()> {
+        let ret = unsafe { libbpf_sys::perf_buffer__consume(self.ptr) };
+        util::parse_ret(ret)
+    }
+
+    pub fn consume_buffer(&self, buf_idx: usize) -> Result<()> {
+        let ret = unsafe {
+            libbpf_sys::perf_buffer__consume_buffer(self.ptr, buf_idx as libbpf_sys::size_t)
+        };
+        util::parse_ret(ret)
+    }
+
+    pub fn buffer_cnt(&self) -> usize {
+        unsafe { libbpf_sys::perf_buffer__buffer_cnt(self.ptr) as usize }
+    }
+
+    pub fn buffer_fd(&self, buf_idx: usize) -> Result<i32> {
+        let ret =
+            unsafe { libbpf_sys::perf_buffer__buffer_fd(self.ptr, buf_idx as libbpf_sys::size_t) };
+        util::parse_ret_i32(ret)
     }
 }
 
