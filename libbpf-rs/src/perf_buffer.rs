@@ -159,11 +159,7 @@ pub struct PerfBuffer<'b> {
 impl<'b> PerfBuffer<'b> {
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret = unsafe { libbpf_sys::perf_buffer__poll(self.ptr, timeout.as_millis() as i32) };
-        if ret < 0 {
-            Err(Error::System(-ret))
-        } else {
-            Ok(())
-        }
+        util::parse_ret(ret)
     }
 }
 

@@ -133,11 +133,7 @@ impl RingBuffer {
 
         let ret = unsafe { libbpf_sys::ring_buffer__poll(self.ptr, timeout.as_millis() as i32) };
 
-        if ret < 0 {
-            Err(Error::System(-ret))
-        } else {
-            Ok(())
-        }
+        util::parse_ret(ret)
     }
 
     /// Greedily consume from all open ring buffers, calling the registered
@@ -148,11 +144,7 @@ impl RingBuffer {
 
         let ret = unsafe { libbpf_sys::ring_buffer__consume(self.ptr) };
 
-        if ret < 0 {
-            Err(Error::System(-ret))
-        } else {
-            Ok(())
-        }
+        util::parse_ret(ret)
     }
 }
 
