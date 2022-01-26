@@ -48,6 +48,15 @@ pub fn parse_ret(ret: i32) -> Result<()> {
     }
 }
 
+pub fn parse_ret_i32(ret: i32) -> Result<i32> {
+    if ret < 0 {
+        // Error code is returned negative, flip to positive to match errno
+        Err(Error::System(-ret))
+    } else {
+        Ok(ret)
+    }
+}
+
 pub fn parse_ret_usize(ret: i32) -> Result<usize> {
     if ret < 0 {
         // Error code is returned negative, flip to positive to match errno
