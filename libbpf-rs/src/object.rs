@@ -138,7 +138,7 @@ impl OpenObject {
         let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
-            let next_ptr = unsafe { libbpf_sys::bpf_map__next(map, obj.ptr) };
+            let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr, map) };
             if next_ptr.is_null() {
                 break;
             }
@@ -158,7 +158,7 @@ impl OpenObject {
         let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF program
-            let next_ptr = unsafe { libbpf_sys::bpf_program__next(prog, obj.ptr) };
+            let next_ptr = unsafe { libbpf_sys::bpf_object__next_program(obj.ptr, prog) };
             if next_ptr.is_null() {
                 break;
             }
@@ -311,7 +311,7 @@ impl Object {
         let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
-            let next_ptr = unsafe { libbpf_sys::bpf_map__next(map, obj.ptr) };
+            let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr, map) };
             if next_ptr.is_null() {
                 break;
             }
@@ -345,7 +345,7 @@ impl Object {
         let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF program
-            let next_ptr = unsafe { libbpf_sys::bpf_program__next(prog, obj.ptr) };
+            let next_ptr = unsafe { libbpf_sys::bpf_object__next_program(obj.ptr, prog) };
             if next_ptr.is_null() {
                 break;
             }
