@@ -46,7 +46,7 @@ macro_rules! gen_bpf_object_iter {
             type Item = *mut $iter_ty;
 
             fn next(&mut self) -> Option<Self::Item> {
-                self.last = unsafe { $next_fn(self.last, self.obj) };
+                self.last = unsafe { $next_fn(self.obj, self.last) };
 
                 if self.last.is_null() {
                     None
@@ -58,11 +58,15 @@ macro_rules! gen_bpf_object_iter {
     };
 }
 
-gen_bpf_object_iter!(MapIter, libbpf_sys::bpf_map, libbpf_sys::bpf_map__next);
+gen_bpf_object_iter!(
+    MapIter,
+    libbpf_sys::bpf_map,
+    libbpf_sys::bpf_object__next_map
+);
 gen_bpf_object_iter!(
     ProgIter,
     libbpf_sys::bpf_program,
-    libbpf_sys::bpf_program__next
+    libbpf_sys::bpf_object__next_program
 );
 
 /// Run `rustfmt` over `s` and return result
