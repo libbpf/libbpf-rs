@@ -36,6 +36,19 @@ pub fn roundup(num: usize, r: usize) -> usize {
 /// Get the number of CPUs in the system, e.g., to interact with per-cpu maps.
 pub fn num_possible_cpus() -> Result<usize> {
     let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
+    parse_ret_usize(ret)
+}
+
+pub fn parse_ret(ret: i32) -> Result<()> {
+    if ret < 0 {
+        // Error code is returned negative, flip to positive to match errno
+        Err(Error::System(-ret))
+    } else {
+        Ok(())
+    }
+}
+
+pub fn parse_ret_usize(ret: i32) -> Result<usize> {
     if ret < 0 {
         // Error code is returned negative, flip to positive to match errno
         Err(Error::System(-ret))

@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 use std::path::Path;
 
-use nix::errno;
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
@@ -191,12 +190,7 @@ impl Program {
         let path_ptr = path_c.as_ptr();
 
         let ret = unsafe { libbpf_sys::bpf_program__pin(self.ptr, path_ptr) };
-        if ret != 0 {
-            // Error code is returned negative, flip to positive to match errno
-            Err(Error::System(-ret))
-        } else {
-            Ok(())
-        }
+        util::parse_ret(ret)
     }
 
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -206,12 +200,7 @@ impl Program {
         let path_ptr = path_c.as_ptr();
 
         let ret = unsafe { libbpf_sys::bpf_program__unpin(self.ptr, path_ptr) };
-        if ret != 0 {
-            // Error code is returned negative, flip to positive to match errno
-            Err(Error::System(-ret))
-        } else {
-            Ok(())
-        }
+        util::parse_ret(ret)
     }
 
     /// Auto-attach based on prog section
@@ -349,11 +338,7 @@ impl Program {
     pub fn attach_sockmap(&self, map_fd: i32) -> Result<()> {
         let err =
             unsafe { libbpf_sys::bpf_prog_attach(self.fd(), map_fd, self.attach_type() as u32, 0) };
-        if err != 0 {
-            Err(Error::System(errno::errno()))
-        } else {
-            Ok(())
-        }
+        util::parse_ret(err)
     }
 
     /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
