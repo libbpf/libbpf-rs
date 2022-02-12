@@ -31,18 +31,18 @@ novendor = ["libbpf-sys/novendor"]
 [dependencies]
 anyhow = "1.0"
 cargo_metadata = "0.12"
-libbpf-sys = { version = "0.6.0-1" }
-memmap2 = "0.3"
+libbpf-sys = { version = "0.6.1-2" }
+memmap2 = "0.5"
 num_enum = "0.5"
 regex = "1.5"
-scroll = "0.10"
-scroll_derive = "0.10"
+scroll = "0.11"
+scroll_derive = "0.11"
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 structopt = "0.3"
-tempfile = "3.2"
+tempfile = "3.3"
 thiserror = "1.0"
 
 [dev-dependencies]
-goblin = "0.2"
+goblin = "0.4"
