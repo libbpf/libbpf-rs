@@ -3,6 +3,6 @@ members = [
   "libbpf-cargo",
   "libbpf-rs",
   "examples/runqslower",
-  "examples/query",
+  "examples/bpf_query",
   "examples/capable",
 ]
