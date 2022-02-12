@@ -6,11 +6,11 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
-chrono = "0.4"
 libbpf-rs = { path = "../../libbpf-rs" }
 libc = "0.2"
 plain = "0.2"
 structopt = "0.3"
+time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
 
 [build-dependencies]
 libbpf-cargo = { path = "../../libbpf-cargo" }

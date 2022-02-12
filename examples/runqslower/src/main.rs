@@ -3,10 +3,11 @@
 use core::time::Duration;
 
 use anyhow::{bail, Result};
-use chrono::Local;
 use libbpf_rs::PerfBufferBuilder;
 use plain::Plain;
 use structopt::StructOpt;
+use time::macros::format_description;
+use time::OffsetDateTime;
 
 #[path = "bpf/.output/runqslower.skel.rs"]
 mod runqslower;
@@ -48,12 +49,19 @@ fn handle_event(_cpu: i32, data: &[u8]) {
     let mut event = runqslower_bss_types::event::default();
     plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
 
-    let now = Local::now();
+    let now = if let Ok(now) = OffsetDateTime::now_local() {
+        let format = format_description!("[hour]:[minute]:[second]");
+        now.format(&format)
+            .unwrap_or_else(|_| "00:00:00".to_string())
+    } else {
+        "00:00:00".to_string()
+    };
+
     let task = std::str::from_utf8(&event.task).unwrap();
 
     println!(
         "{:8} {:16} {:<7} {:<14}",
-        now.format("%H:%M:%S"),
+        now,
         task.trim_end_matches(char::from(0)),
         event.pid,
         event.delta_us

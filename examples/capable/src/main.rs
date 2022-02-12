@@ -7,11 +7,12 @@ use core::time::Duration;
 use std::str::FromStr;
 
 use anyhow::{bail, Result};
-use chrono::Local;
 use libbpf_rs::PerfBufferBuilder;
 use phf::phf_map;
 use plain::Plain;
 use structopt::StructOpt;
+use time::macros::format_description;
+use time::OffsetDateTime;
 
 #[path = "bpf/.output/capable.skel.rs"]
 mod capable;
@@ -128,7 +129,14 @@ fn print_banner(extra_fields: bool) {
 }
 
 fn _handle_event(opts: Command, event: capable_bss_types::event) {
-    let now = Local::now().format("%H:%M:%S");
+    let now = if let Ok(now) = OffsetDateTime::now_local() {
+        let format = format_description!("[hour]:[minute]:[second]");
+        now.format(&format)
+            .unwrap_or_else(|_| "00:00:00".to_string())
+    } else {
+        "00:00:00".to_string()
+    };
+
     let comm_str = std::str::from_utf8(&event.comm)
         .unwrap()
         .trim_end_matches(char::from(0));
