@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 libbpf-rs = { path = "../../libbpf-rs" }
-nix = "0.17"
+nix = "0.23"
 structopt = "0.3"
