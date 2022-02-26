@@ -360,12 +360,6 @@ impl Object {
             let section = unsafe { libbpf_sys::bpf_program__section_name(next_ptr) };
             let section = util::c_ptr_to_string(section)?;
 
-            // Get the program fd
-            let fd = unsafe { libbpf_sys::bpf_program__fd(next_ptr) };
-            if fd < 0 {
-                return Err(Error::System(-fd));
-            }
-
             // Add the program to the hashmap
             obj.progs
                 .insert(name.clone(), Program::new(next_ptr, name, section));
