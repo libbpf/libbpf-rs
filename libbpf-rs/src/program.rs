@@ -41,6 +41,11 @@ impl OpenProgram {
     pub fn section(&self) -> &str {
         &self.section
     }
+
+    pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr, autoload) };
+        util::parse_ret(ret)
+    }
 }
 
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
