@@ -111,8 +111,7 @@ extern "C" fn outer_print_cb(
 pub fn set_print(
     mut callback: Option<(PrintLevel, PrintCallback)>,
 ) -> Option<(PrintLevel, PrintCallback)> {
-    let real_cb: libbpf_sys::libbpf_print_fn_t;
-    real_cb = callback.as_ref().and(Some(outer_print_cb));
+    let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(Some(outer_print_cb));
     std::mem::swap(&mut callback, &mut *PRINT_CB.lock().unwrap());
     unsafe { libbpf_sys::libbpf_set_print(real_cb) };
     callback
