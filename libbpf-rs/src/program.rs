@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::path::Path;
+use std::ptr;
 
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
@@ -44,6 +45,29 @@ impl OpenProgram {
 
     pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr, autoload) };
+        util::parse_ret(ret)
+    }
+
+    pub fn set_attach_target(
+        &mut self,
+        attach_prog_fd: i32,
+        attach_func_name: Option<String>,
+    ) -> Result<()> {
+        let ret = if let Some(name) = attach_func_name {
+            // NB: we must hold onto a CString otherwise our pointer dangles
+            let name_c = util::str_to_cstring(&name)?;
+            unsafe {
+                libbpf_sys::bpf_program__set_attach_target(
+                    self.ptr,
+                    attach_prog_fd,
+                    name_c.as_ptr(),
+                )
+            }
+        } else {
+            unsafe {
+                libbpf_sys::bpf_program__set_attach_target(self.ptr, attach_prog_fd, ptr::null())
+            }
+        };
         util::parse_ret(ret)
     }
 }
