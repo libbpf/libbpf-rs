@@ -15,7 +15,7 @@ pub struct Iter {
 
 impl Iter {
     pub fn new(link: &Link) -> Result<Self> {
-        let link_fd = link.get_fd();
+        let link_fd = link.fd();
         let fd = unsafe { libbpf_sys::bpf_iter_create(link_fd) };
         if fd < 0 {
             return Err(Error::System(errno::errno()));

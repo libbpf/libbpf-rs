@@ -33,7 +33,7 @@ macro_rules! gen_info_impl {
 
         impl $name {
             // Returns Some(next_valid_fd), None on none left
-            fn get_next_valid_fd(&mut self) -> Option<i32> {
+            fn next_valid_fd(&mut self) -> Option<i32> {
                 loop {
                     if unsafe { $next_id(self.cur_id, &mut self.cur_id) } != 0 {
                         return None;
@@ -57,7 +57,7 @@ macro_rules! gen_info_impl {
             type Item = $info_ty;
 
             fn next(&mut self) -> Option<Self::Item> {
-                let fd = match self.get_next_valid_fd() {
+                let fd = match self.next_valid_fd() {
                     Some(fd) => fd,
                     None => return None,
                 };
