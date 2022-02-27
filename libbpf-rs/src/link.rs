@@ -61,7 +61,13 @@ impl Link {
     }
 
     /// Returns the file descriptor of the link.
+    #[deprecated(since = "0.17.0", note = "please use `fd` instead")]
     pub fn get_fd(&self) -> i32 {
+        unsafe { libbpf_sys::bpf_link__fd(self.ptr) }
+    }
+
+    /// Returns the file descriptor of the link.
+    pub fn fd(&self) -> i32 {
         unsafe { libbpf_sys::bpf_link__fd(self.ptr) }
     }
 }
