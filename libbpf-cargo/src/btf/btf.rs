@@ -368,7 +368,12 @@ impl<'a> Btf<'a> {
                     BtfType::Const(t) => id = t.type_id,
                     BtfType::Restrict(t) => id = t.type_id,
                     BtfType::Typedef(t) => id = t.type_id,
-                    _ => return Ok(None),
+                    BtfType::Void
+                    | BtfType::Int(_)
+                    | BtfType::Fwd(_)
+                    | BtfType::Func(_)
+                    | BtfType::FuncProto(_)
+                    | BtfType::Var(_) => return Ok(None),
                 }
             }
         };
@@ -376,7 +381,18 @@ impl<'a> Btf<'a> {
         let is_terminal = |id| -> Result<bool> {
             match self.type_by_id(id)?.kind() {
                 BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Datasec => Ok(false),
-                _ => Ok(true),
+                BtfKind::Void
+                | BtfKind::Int
+                | BtfKind::Ptr
+                | BtfKind::Array
+                | BtfKind::Fwd
+                | BtfKind::Typedef
+                | BtfKind::Volatile
+                | BtfKind::Const
+                | BtfKind::Restrict
+                | BtfKind::Func
+                | BtfKind::FuncProto
+                | BtfKind::Var => Ok(true),
             }
         };
 
@@ -669,7 +685,18 @@ impl<'a> Btf<'a> {
                 BtfType::Const(t) => type_id = t.type_id,
                 BtfType::Restrict(t) => type_id = t.type_id,
                 BtfType::Typedef(t) => type_id = t.type_id,
-                _ => return Ok(type_id),
+                BtfType::Void
+                | BtfType::Int(_)
+                | BtfType::Ptr(_)
+                | BtfType::Array(_)
+                | BtfType::Struct(_)
+                | BtfType::Union(_)
+                | BtfType::Enum(_)
+                | BtfType::Fwd(_)
+                | BtfType::Func(_)
+                | BtfType::FuncProto(_)
+                | BtfType::Var(_)
+                | BtfType::Datasec(_) => return Ok(type_id),
             };
         }
     }
