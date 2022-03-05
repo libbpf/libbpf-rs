@@ -136,6 +136,7 @@ impl<'a> Btf<'a> {
             BtfType::Enum(t) => t.size,
             BtfType::Var(t) => self.size_of(t.type_id)?,
             BtfType::Datasec(t) => t.size,
+            BtfType::Float(t) => t.size,
             BtfType::Void
             | BtfType::Volatile(_)
             | BtfType::Const(_)
@@ -143,7 +144,8 @@ impl<'a> Btf<'a> {
             | BtfType::Typedef(_)
             | BtfType::FuncProto(_)
             | BtfType::Fwd(_)
-            | BtfType::Func(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
+            | BtfType::Func(_)
+            | BtfType::DeclTag(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
         })
     }
 
@@ -165,6 +167,7 @@ impl<'a> Btf<'a> {
             BtfType::Enum(t) => min(self.ptr_size, t.size),
             BtfType::Var(t) => self.align_of(t.type_id)?,
             BtfType::Datasec(t) => t.size,
+            BtfType::Float(t) => min(self.ptr_size, t.size),
             BtfType::Void
             | BtfType::Volatile(_)
             | BtfType::Const(_)
@@ -172,7 +175,8 @@ impl<'a> Btf<'a> {
             | BtfType::Typedef(_)
             | BtfType::FuncProto(_)
             | BtfType::Fwd(_)
-            | BtfType::Func(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
+            | BtfType::Func(_)
+            | BtfType::DeclTag(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
         })
     }
 
@@ -206,6 +210,18 @@ impl<'a> Btf<'a> {
                     btf::BtfIntEncoding::Char | btf::BtfIntEncoding::None => format!("u{}", width),
                 }
             }
+            BtfType::Float(t) => {
+                let width = match t.size {
+                    2 => bail!("Unsupported float width"),
+                    4 => "32",
+                    8 => "64",
+                    12 => bail!("Unsupported float width"),
+                    16 => bail!("Unsupported float width"),
+                    _ => bail!("Invalid float width"),
+                };
+
+                format!("f{}", width)
+            }
             BtfType::Ptr(t) => {
                 let pointee_ty = self.type_declaration(t.pointee_type)?;
 
@@ -231,7 +247,8 @@ impl<'a> Btf<'a> {
             | BtfType::Typedef(_)
             | BtfType::Volatile(_)
             | BtfType::Const(_)
-            | BtfType::Restrict(_) => {
+            | BtfType::Restrict(_)
+            | BtfType::DeclTag(_) => {
                 bail!("Invalid type: {}", ty)
             }
         })
@@ -252,6 +269,7 @@ impl<'a> Btf<'a> {
         Ok(match ty {
             BtfType::Void => "std::ffi::c_void::default()".to_string(),
             BtfType::Int(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
+            BtfType::Float(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
             BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
             BtfType::Array(t) => {
                 let val_ty = self.type_declaration(t.val_type_id)?;
@@ -268,7 +286,8 @@ impl<'a> Btf<'a> {
             | BtfType::Typedef(_)
             | BtfType::Volatile(_)
             | BtfType::Const(_)
-            | BtfType::Restrict(_) => {
+            | BtfType::Restrict(_)
+            | BtfType::DeclTag(_) => {
                 bail!("Invalid type: {}", ty)
             }
         })
@@ -368,8 +387,10 @@ impl<'a> Btf<'a> {
                     BtfType::Const(t) => id = t.type_id,
                     BtfType::Restrict(t) => id = t.type_id,
                     BtfType::Typedef(t) => id = t.type_id,
+                    BtfType::DeclTag(t) => id = t.type_id,
                     BtfType::Void
                     | BtfType::Int(_)
+                    | BtfType::Float(_)
                     | BtfType::Fwd(_)
                     | BtfType::Func(_)
                     | BtfType::FuncProto(_)
@@ -383,6 +404,7 @@ impl<'a> Btf<'a> {
                 BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Datasec => Ok(false),
                 BtfKind::Void
                 | BtfKind::Int
+                | BtfKind::Float
                 | BtfKind::Ptr
                 | BtfKind::Array
                 | BtfKind::Fwd
@@ -392,7 +414,8 @@ impl<'a> Btf<'a> {
                 | BtfKind::Restrict
                 | BtfKind::Func
                 | BtfKind::FuncProto
-                | BtfKind::Var => Ok(true),
+                | BtfKind::Var
+                | BtfKind::DeclTag => Ok(true),
             }
         };
 
@@ -664,6 +687,7 @@ impl<'a> Btf<'a> {
                 | BtfType::Ptr(_)
                 | BtfType::Func(_)
                 | BtfType::Int(_)
+                | BtfType::Float(_)
                 | BtfType::Array(_)
                 | BtfType::Fwd(_)
                 | BtfType::Typedef(_)
@@ -671,7 +695,8 @@ impl<'a> Btf<'a> {
                 | BtfType::Var(_)
                 | BtfType::Volatile(_)
                 | BtfType::Const(_)
-                | BtfType::Restrict(_) => bail!("Invalid type: {}", ty),
+                | BtfType::Restrict(_)
+                | BtfType::DeclTag(_) => bail!("Invalid type: {}", ty),
             }
         }
 
@@ -687,6 +712,7 @@ impl<'a> Btf<'a> {
                 BtfType::Typedef(t) => type_id = t.type_id,
                 BtfType::Void
                 | BtfType::Int(_)
+                | BtfType::Float(_)
                 | BtfType::Ptr(_)
                 | BtfType::Array(_)
                 | BtfType::Struct(_)
@@ -696,7 +722,8 @@ impl<'a> Btf<'a> {
                 | BtfType::Func(_)
                 | BtfType::FuncProto(_)
                 | BtfType::Var(_)
-                | BtfType::Datasec(_) => return Ok(type_id),
+                | BtfType::Datasec(_)
+                | BtfType::DeclTag(_) => return Ok(type_id),
             };
         }
     }
@@ -712,6 +739,7 @@ impl<'a> Btf<'a> {
                 bail!("Cannot load Void type");
             }
             BtfKind::Int => self.load_int(&t, extra),
+            BtfKind::Float => self.load_float(&t),
             BtfKind::Ptr => Ok(BtfType::Ptr(BtfPtr {
                 pointee_type: t.type_id,
             })),
@@ -734,6 +762,7 @@ impl<'a> Btf<'a> {
             BtfKind::FuncProto => self.load_func_proto(&t, extra),
             BtfKind::Var => self.load_var(&t, extra),
             BtfKind::Datasec => self.load_datasec(&t, extra),
+            BtfKind::DeclTag => self.load_decl_tag(&t, extra),
         }
     }
 
@@ -747,6 +776,13 @@ impl<'a> Btf<'a> {
             bits,
             offset: off,
             encoding: BtfIntEncoding::try_from(enc)?,
+        }))
+    }
+
+    fn load_float(&self, t: &btf_type) -> Result<BtfType<'a>> {
+        Ok(BtfType::Float(BtfFloat {
+            name: self.get_btf_str(t.name_off as usize)?,
+            size: t.type_id,
         }))
     }
 
@@ -901,6 +937,15 @@ impl<'a> Btf<'a> {
         }))
     }
 
+    fn load_decl_tag(&self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+        let decl_tag = extra.pread::<btf_decl_tag>(0)?;
+        Ok(BtfType::DeclTag(BtfDeclTag {
+            name: self.get_btf_str(t.name_off as usize)?,
+            type_id: t.type_id,
+            component_idx: decl_tag.component_idx,
+        }))
+    }
+
     /// Returns size of type on disk in .BTF section
     fn type_size(t: &BtfType) -> usize {
         let common = size_of::<btf_type>();
@@ -912,7 +957,8 @@ impl<'a> Btf<'a> {
             | BtfType::Volatile(_)
             | BtfType::Const(_)
             | BtfType::Restrict(_)
-            | BtfType::Func(_) => common,
+            | BtfType::Func(_)
+            | BtfType::Float(_) => common,
             BtfType::Int(_) | BtfType::Var(_) => common + size_of::<u32>(),
             BtfType::Array(_) => common + size_of::<btf_array>(),
             BtfType::Struct(t) => common + t.members.len() * size_of::<btf_member>(),
@@ -920,6 +966,7 @@ impl<'a> Btf<'a> {
             BtfType::Enum(t) => common + t.values.len() * size_of::<btf_enum>(),
             BtfType::FuncProto(t) => common + t.params.len() * size_of::<btf_param>(),
             BtfType::Datasec(t) => common + t.vars.len() * size_of::<btf_datasec_var>(),
+            BtfType::DeclTag(_) => common + size_of::<btf_decl_tag>(),
         }
     }
 

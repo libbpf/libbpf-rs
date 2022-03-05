@@ -62,3 +62,9 @@ pub struct btf_datasec_var {
     pub offset: u32,
     pub size: u32,
 }
+
+#[repr(C)]
+#[derive(Debug, Clone, DerivePread, Pwrite, IOread, SizeWith)]
+pub struct btf_decl_tag {
+    pub component_idx: i32,
+}

@@ -21,6 +21,8 @@ pub enum BtfKind {
     FuncProto = 13,
     Var = 14,
     Datasec = 15,
+    Float = 16,
+    DeclTag = 17,
 }
 
 #[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
@@ -161,6 +163,19 @@ pub struct BtfDatasec<'a> {
     pub vars: Vec<BtfDatasecVar>,
 }
 
+#[derive(Debug)]
+pub struct BtfFloat<'a> {
+    pub name: &'a str,
+    pub size: u32,
+}
+
+#[derive(Debug)]
+pub struct BtfDeclTag<'a> {
+    pub name: &'a str,
+    pub type_id: u32,
+    pub component_idx: i32,
+}
+
 pub enum BtfType<'a> {
     Void,
     Int(BtfInt<'a>),
@@ -178,6 +193,8 @@ pub enum BtfType<'a> {
     FuncProto(BtfFuncProto<'a>),
     Var(BtfVar<'a>),
     Datasec(BtfDatasec<'a>),
+    Float(BtfFloat<'a>),
+    DeclTag(BtfDeclTag<'a>),
 }
 
 impl<'a> BtfType<'a> {
@@ -199,6 +216,8 @@ impl<'a> BtfType<'a> {
             BtfType::Enum(_) => BtfKind::Enum,
             BtfType::FuncProto(_) => BtfKind::FuncProto,
             BtfType::Datasec(_) => BtfKind::Datasec,
+            BtfType::Float(_) => BtfKind::Float,
+            BtfType::DeclTag(_) => BtfKind::DeclTag,
         }
     }
 }
@@ -222,6 +241,8 @@ impl<'a> fmt::Display for BtfType<'a> {
             BtfType::Enum(_) => write!(f, "enum"),
             BtfType::FuncProto(_) => write!(f, "funcproto"),
             BtfType::Datasec(_) => write!(f, "datasec"),
+            BtfType::Float(_) => write!(f, "float"),
+            BtfType::DeclTag(_) => write!(f, "decltag"),
         }
     }
 }
