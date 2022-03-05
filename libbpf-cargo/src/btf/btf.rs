@@ -61,7 +61,7 @@ impl<'a> Btf<'a> {
         ensure!(ptr_size != 0, "Could not determine BTF pointer size");
 
         let mut raw_data_size = 0;
-        let raw_data = unsafe { libbpf_sys::btf__get_raw_data(bpf_obj_btf, &mut raw_data_size) };
+        let raw_data = unsafe { libbpf_sys::btf__raw_data(bpf_obj_btf, &mut raw_data_size) };
         ensure!(
             !raw_data.is_null() && raw_data_size > 0,
             "Could not get raw BTF data"
