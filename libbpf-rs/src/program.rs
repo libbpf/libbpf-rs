@@ -70,6 +70,11 @@ impl OpenProgram {
         };
         util::parse_ret(ret)
     }
+
+    pub fn set_flags(&self, flags: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr, flags) };
+        util::parse_ret(ret)
+    }
 }
 
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
@@ -201,6 +206,11 @@ impl Program {
     /// Returns a file descriptor to the underlying program.
     pub fn fd(&self) -> i32 {
         unsafe { libbpf_sys::bpf_program__fd(self.ptr) }
+    }
+
+    /// Returns flags that have been set for the program.
+    pub fn flags(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_program__flags(self.ptr) }
     }
 
     pub fn attach_type(&self) -> ProgramAttachType {
