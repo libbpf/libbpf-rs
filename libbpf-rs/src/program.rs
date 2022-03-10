@@ -75,6 +75,16 @@ impl OpenProgram {
         let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr, flags) };
         util::parse_ret(ret)
     }
+
+    /// Returns the number of instructions that form the program.
+    ///
+    /// Note: Keep in mind, libbpf can modify the program's instructions
+    /// and consequently its instruction count, as it processes the BPF object file.
+    /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
+    ///
+    pub fn insn_cnt(&self) -> usize {
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+    }
 }
 
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
@@ -400,5 +410,13 @@ impl Program {
         } else {
             Ok(Link::new(ptr))
         }
+    }
+
+    /// Returns the number of instructions that form the program.
+    ///
+    /// Please see note in [`OpenProgram::insn_cnt`].
+    ///
+    pub fn insn_cnt(&self) -> usize {
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
     }
 }
