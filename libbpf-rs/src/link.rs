@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::*;
 
@@ -13,6 +13,20 @@ pub struct Link {
 impl Link {
     pub(crate) fn new(ptr: *mut libbpf_sys::bpf_link) -> Self {
         Link { ptr }
+    }
+
+    /// Create link from BPF FS file.
+    pub fn open<P: AsRef<Path>>(&mut self, path: P) -> Result<Self> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+        let ptr = unsafe { libbpf_sys::bpf_link__open(path_ptr) };
+
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            return Err(Error::System(err as i32));
+        }
+
+        Ok(Link::new(ptr))
     }
 
     /// Takes ownership from pointer.
@@ -69,6 +83,26 @@ impl Link {
     /// Returns the file descriptor of the link.
     pub fn fd(&self) -> i32 {
         unsafe { libbpf_sys::bpf_link__fd(self.ptr) }
+    }
+
+    /// Returns path to BPF FS file or `None` if not pinned.
+    pub fn pin_path(&self) -> Option<PathBuf> {
+        let path_ptr = unsafe { libbpf_sys::bpf_link__pin_path(self.ptr) };
+        if path_ptr.is_null() {
+            return None;
+        }
+
+        let path = match util::c_ptr_to_string(path_ptr) {
+            Ok(p) => p,
+            Err(_) => return None,
+        };
+
+        Some(PathBuf::from(path.as_str()))
+    }
+
+    pub fn detach(&self) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr) };
+        util::parse_ret(ret)
     }
 }
 
