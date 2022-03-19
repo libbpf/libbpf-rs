@@ -731,7 +731,7 @@ impl<'a> Btf<'a> {
     fn load_type(&mut self, data: &'a [u8]) -> Result<BtfType<'a>> {
         let t = data.pread::<btf_type>(0)?;
         let extra = &data[size_of::<btf_type>()..];
-        let kind = (t.info >> 24) & 0xf;
+        let kind = (t.info >> 24) & 0x1f;
 
         match BtfKind::try_from(kind)? {
             BtfKind::Void => {
