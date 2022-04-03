@@ -9,7 +9,7 @@ use nix::errno;
 use plain::Plain;
 use scopeguard::defer;
 
-use libbpf_rs::{num_possible_cpus, Iter, MapFlags, Object, ObjectBuilder};
+use libbpf_rs::{num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder};
 
 fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -646,4 +646,89 @@ fn test_object_task_iter() {
     assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
     // Check for init
     assert!(items.iter().any(|&item| item.pid == 1));
+}
+
+#[test]
+fn test_object_map_create_and_pin() {
+    bump_rlimit_mlock();
+
+    let opts = libbpf_sys::bpf_map_create_opts {
+        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        map_flags: libbpf_sys::BPF_F_NO_PREALLOC as i32,
+        btf_fd: 0,
+        btf_key_type_id: 0,
+        btf_value_type_id: 0,
+        btf_vmlinux_value_type_id: 0,
+        inner_map_fd: 0,
+        map_extra: 0,
+        numa_node: 0,
+        map_ifindex: 0,
+    };
+
+    let mut map = Map::create(
+        MapType::Hash,
+        Some("mymap_test_object_map_create_and_pin"),
+        4,
+        8,
+        8,
+        &opts,
+    )
+    .expect("failed to create map");
+
+    assert_eq!(map.name(), "mymap_test_object_map_create_and_pin");
+
+    let key = vec![1, 2, 3, 4];
+    let val = vec![1, 2, 3, 4, 5, 6, 7, 8];
+    map.update(&key, &val, MapFlags::empty())
+        .expect("failed to write");
+    let res = map
+        .lookup(&key, MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+    assert_eq!(val, res);
+
+    let path = "/sys/fs/bpf/mymap_test_object_map_create_and_pin";
+
+    // Unpinning a unpinned map should be an error
+    assert!(map.unpin(path).is_err());
+    assert!(!Path::new(path).exists());
+
+    // Pin and unpin should be successful
+    map.pin(path).expect("failed to pin map");
+    assert!(Path::new(path).exists());
+    map.unpin(path).expect("failed to unpin map");
+    assert!(!Path::new(path).exists());
+}
+
+#[test]
+fn test_object_map_create_without_name() {
+    bump_rlimit_mlock();
+
+    let opts = libbpf_sys::bpf_map_create_opts {
+        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        map_flags: libbpf_sys::BPF_F_NO_PREALLOC as i32,
+        btf_fd: 0,
+        btf_key_type_id: 0,
+        btf_value_type_id: 0,
+        btf_vmlinux_value_type_id: 0,
+        inner_map_fd: 0,
+        map_extra: 0,
+        numa_node: 0,
+        map_ifindex: 0,
+    };
+
+    let mut map = Map::create(MapType::Hash, Option::<&str>::None, 4, 8, 8, &opts)
+        .expect("failed to create map");
+
+    assert!(map.name().is_empty());
+
+    let key = vec![1, 2, 3, 4];
+    let val = vec![1, 2, 3, 4, 5, 6, 7, 8];
+    map.update(&key, &val, MapFlags::empty())
+        .expect("failed to write");
+    let res = map
+        .lookup(&key, MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+    assert_eq!(val, res);
 }

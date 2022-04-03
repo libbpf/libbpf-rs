@@ -2,10 +2,11 @@ use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::path::Path;
 use std::ptr;
+use std::ptr::null;
 
 use bitflags::bitflags;
 use nix::{errno, unistd};
-use num_enum::TryFromPrimitive;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use strum_macros::Display;
 
 use crate::*;
@@ -85,6 +86,8 @@ pub struct Map {
     ty: libbpf_sys::bpf_map_type,
     key_size: u32,
     value_size: u32,
+
+    // The ptr will be null if we use Map::create to create the map from the userspace side directly.
     ptr: *mut libbpf_sys::bpf_map,
 }
 
@@ -153,18 +156,29 @@ impl Map {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        let ret = unsafe { libbpf_sys::bpf_map__pin(self.ptr, path_ptr) };
+        let ret = if self.ptr.is_null() {
+            unsafe { libbpf_sys::bpf_obj_pin(self.fd, path_ptr) }
+        } else {
+            unsafe { libbpf_sys::bpf_map__pin(self.ptr, path_ptr) }
+        };
+
         util::parse_ret(ret)
     }
 
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// from bpffs
     pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        let path_c = util::path_to_cstring(path)?;
-        let path_ptr = path_c.as_ptr();
-
-        let ret = unsafe { libbpf_sys::bpf_map__unpin(self.ptr, path_ptr) };
-        util::parse_ret(ret)
+        if self.ptr.is_null() {
+            match std::fs::remove_file(path) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(Error::Internal(format!("remove pin map failed: {}", e))),
+            }
+        } else {
+            let path_c = util::path_to_cstring(path)?;
+            let path_ptr = path_c.as_ptr();
+            let ret = unsafe { libbpf_sys::bpf_map__unpin(self.ptr, path_ptr) };
+            util::parse_ret(ret)
+        }
     }
 
     /// Returns map value as `Vec` of `u8`.
@@ -409,6 +423,59 @@ impl Map {
     pub fn keys(&self) -> MapKeyIter {
         MapKeyIter::new(self, self.key_size())
     }
+
+    /// Create the bpf map standalone.
+    pub fn create<T: AsRef<str>>(
+        map_type: MapType,
+        name: Option<T>,
+        key_size: u32,
+        value_size: u32,
+        max_entries: u32,
+        opts: &libbpf_sys::bpf_map_create_opts,
+    ) -> Result<Map> {
+        let (map_name_str, map_name) = match name {
+            Some(name) => (
+                util::str_to_cstring(name.as_ref())?,
+                name.as_ref().to_string(),
+            ),
+
+            // The old version kernel don't support specifying map name, we can use 'Option::<&str>::None' for the name argument.
+            None => (util::str_to_cstring("")?, "".to_string()),
+        };
+
+        let map_type = map_type.into();
+        let map_name_ptr = {
+            if map_name_str.as_bytes().is_empty() {
+                null()
+            } else {
+                map_name_str.as_ptr()
+            }
+        };
+
+        let fd = unsafe {
+            libbpf_sys::bpf_map_create(
+                map_type,
+                map_name_ptr,
+                key_size,
+                value_size,
+                max_entries,
+                opts,
+            )
+        };
+
+        if fd < 0 {
+            return Err(Error::System(fd));
+        }
+
+        Ok(Map {
+            fd,
+            name: map_name,
+            ty: map_type,
+            key_size,
+            value_size,
+            ptr: std::ptr::null_mut(),
+        })
+    }
 }
 
 #[rustfmt::skip]
@@ -426,7 +493,7 @@ bitflags! {
 // If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, PartialEq, Display)]
+#[derive(Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Display)]
 pub enum MapType {
     Unspec = 0,
     Hash,
