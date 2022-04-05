@@ -2145,3 +2145,25 @@ pub struct __anon_3 {
 
     assert_definition(&btf, struct_bpf_sock_tuple, expected_output);
 }
+
+#[test]
+fn test_btf_dump_float() {
+    let prog_text = r#"
+float f = 2.16;
+double d = 12.15;
+"#;
+
+    let btf = build_btf_prog(prog_text);
+
+    let f = find_type_in_btf!(btf, Var, "f");
+    let d = find_type_in_btf!(btf, Var, "d");
+
+    assert_eq!(
+        "f32",
+        btf.type_declaration(f).expect("Failed to generate f decl")
+    );
+    assert_eq!(
+        "f64",
+        btf.type_declaration(d).expect("Failed to generate d decl")
+    );
+}
