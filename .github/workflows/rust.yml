@@ -19,9 +19,9 @@ jobs:
         components: rustfmt, clippy
         override: true
     - name: Install deps
-      run: sudo apt-get install -y clang-10 libelf-dev
+      run: sudo apt-get install -y clang-12 libelf-dev
     - name: Symlink clang
-      run: sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-10 /bin/clang
+      run: sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-12 /bin/clang
     - name: Build
       run: cargo build --verbose --workspace --exclude runqslower
     - name: Run tests
