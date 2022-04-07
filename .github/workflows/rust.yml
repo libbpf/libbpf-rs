@@ -25,8 +25,9 @@ jobs:
     - name: Build
       run: cargo build --verbose --workspace --exclude runqslower
     - name: Run tests
-      # Skip BTF tests which require sudo 
-      run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object
+      # Skip BTF tests which require sudo
+      # Skip BTF dump float test for now, we can enable it when we have access to clang 13+
+      run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object --skip test_btf_dump_float
     - name: Run BTF tests
       run: cd libbpf-rs && cargo test --verbose -- test_object
     - name: Run rustfmt
