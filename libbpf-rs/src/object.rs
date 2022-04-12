@@ -266,12 +266,10 @@ impl OpenObject {
             return Err(Error::System(-ret));
         }
 
-        let obj = Object::new(self.ptr)?;
-
+        let ptr = self.ptr;
         // Prevent object from being closed once `self` is dropped
         self.ptr = ptr::null_mut();
-
-        Ok(obj)
+        Object::new(ptr)
     }
 }
 
