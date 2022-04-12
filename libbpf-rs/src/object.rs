@@ -327,7 +327,9 @@ impl Object {
 
             // Get the map fd
             let fd = unsafe { libbpf_sys::bpf_map__fd(next_ptr) };
-            if fd < 0 {
+            // Old kernels can have uninitialized internal maps:
+            // https://github.com/libbpf/libbpf/blob/5c31bcf220f66e70f39fd141f5b0c55c6ab65e8e/src/libbpf.c#L5009-L5022
+            if fd < 0 && !unsafe { libbpf_sys::bpf_map__is_internal(next_ptr) } {
                 return Err(Error::System(-fd));
             }
 
