@@ -22,7 +22,7 @@ fn prog() {
         println!(
             "name={:<16} type={:<15} run_count={:<2} runtime_ns={}",
             prog.name,
-            prog.ty.to_string(),
+            prog.ty,
             prog.run_cnt,
             prog.run_time_ns
         );
