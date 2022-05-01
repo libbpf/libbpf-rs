@@ -22,7 +22,7 @@ novendor = ["libbpf-sys/novendor"]
 bitflags = "1.3"
 lazy_static = "1.4"
 libbpf-sys = { version = "0.7.1" }
-nix = "0.23"
+nix = { version = "0.24", default-features = false, features = ["net", "user"] }
 num_enum = "0.5"
 strum_macros = "0.23"
 thiserror = "1.0"
