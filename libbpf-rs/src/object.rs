@@ -1,13 +1,7 @@
 use core::ffi::c_void;
-use std::collections::HashMap;
-use std::ffi::CStr;
-use std::mem;
-use std::os::raw::c_char;
-use std::path::Path;
-use std::ptr;
+use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char, path::Path, ptr};
 
-use crate::util;
-use crate::*;
+use crate::{util, *};
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
 #[derive(Default)]
@@ -56,6 +50,10 @@ impl ObjectBuilder {
             btf_custom_path: ptr::null(),
             __bindgen_padding_0: <[u8; 6]>::default(),
             __bindgen_padding_1: <[u8; 4]>::default(),
+            kernel_log_buf: ptr::null_mut(),
+            kernel_log_size: 0,
+            kernel_log_level: 0,
+            __bindgen_padding_2: <[u8; 4]>::default(),
         }
     }
 

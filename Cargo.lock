@@ -54,7 +54,7 @@ name = "bpf_query"
 version = "0.1.0"
 dependencies = [
  "libbpf-rs",
- "nix",
+ "nix 0.23.1",
  "structopt",
 ]
 
@@ -230,7 +230,7 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "log",
- "nix",
+ "nix 0.23.1",
  "num_enum",
  "plain",
  "scopeguard",
@@ -242,9 +242,9 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "0.6.1-2"
+version = "0.7.1+v0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df746ec055dfd68b3d0e8ea8dd12882157529132652d0df2e001305ba4803f0c"
+checksum = "58f827f39ef9181560ee49c82bbdc8e8441c56404f62dc6eef1384113fd4c268"
 dependencies = [
  "cc",
  "pkg-config",
@@ -296,6 +296,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "nix"
+version = "0.22.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4916f159ed8e5de0082076562152a76b7a1f64a01fd9d1e0fea002c37624faf"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if",
+ "libc",
+ "memoffset",
 ]
 
 [[package]]
@@ -755,6 +768,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "tc_whitelist_ports"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libbpf-cargo",
+ "libbpf-rs",
+ "libc",
+ "nix 0.22.3",
+ "plain",
+ "structopt",
 ]
 
 [[package]]

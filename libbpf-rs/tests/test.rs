@@ -1,9 +1,11 @@
-use std::collections::HashSet;
-use std::fs;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::channel;
-use std::time::Duration;
+use std::{
+    collections::HashSet,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::mpsc::channel,
+    time::Duration,
+};
 
 use nix::errno;
 use plain::Plain;
@@ -654,7 +656,7 @@ fn test_object_map_create_and_pin() {
 
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
-        map_flags: libbpf_sys::BPF_F_NO_PREALLOC as i32,
+        map_flags: libbpf_sys::BPF_F_NO_PREALLOC as u32,
         btf_fd: 0,
         btf_key_type_id: 0,
         btf_value_type_id: 0,
@@ -706,7 +708,7 @@ fn test_object_map_create_without_name() {
 
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
-        map_flags: libbpf_sys::BPF_F_NO_PREALLOC as i32,
+        map_flags: libbpf_sys::BPF_F_NO_PREALLOC as u32,
         btf_fd: 0,
         btf_key_type_id: 0,
         btf_value_type_id: 0,
