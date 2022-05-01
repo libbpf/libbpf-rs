@@ -10,7 +10,7 @@ libbpf-rs = { path = "../../libbpf-rs" }
 libc = "0.2"
 plain = "0.2"
 structopt = "0.3"
-nix = "0.22"
+nix = { version = "0.24", default-features = false, features = ["net", "user"] }
 
 [build-dependencies]
 libbpf-cargo = { path = "../../libbpf-cargo" }
