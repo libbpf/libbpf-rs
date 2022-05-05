@@ -476,6 +476,26 @@ impl Map {
             ptr: std::ptr::null_mut(),
         })
     }
+
+    /// Attach a struct ops map
+    pub fn attach_struct_ops(&mut self) -> Result<Link> {
+        if self.map_type() != MapType::StructOps {
+            return Err(Error::InvalidInput(format!(
+                "Invalid map type ({}) for attach_struct_ops()",
+                self.map_type(),
+            )));
+        }
+
+        let ret = unsafe {
+            let p = libbpf_sys::bpf_map__attach_struct_ops(self.ptr);
+            let rc = libbpf_sys::libbpf_get_error(p as *const c_void);
+            if rc != 0 {
+                return Err(Error::System(rc as i32));
+            }
+            p
+        };
+        Ok(Link::new(ret))
+    }
 }
 
 #[rustfmt::skip]
