@@ -486,7 +486,13 @@ impl Map {
             )));
         }
 
-        let ret = unsafe {
+        if self.ptr.is_null() {
+            return Err(Error::InvalidInput(
+                "Cannot attach a user-created struct_ops map".to_string(),
+            ));
+        }
+
+        let ptr = unsafe {
             let p = libbpf_sys::bpf_map__attach_struct_ops(self.ptr);
             let rc = libbpf_sys::libbpf_get_error(p as *const c_void);
             if rc != 0 {
@@ -494,7 +500,7 @@ impl Map {
             }
             p
         };
-        Ok(Link::new(ret))
+        Ok(Link::new(ptr))
     }
 }
 
