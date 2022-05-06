@@ -1,15 +1,16 @@
-use std::convert::TryInto;
-use std::fs::{create_dir, read, File, OpenOptions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::{
+    convert::TryInto,
+    fs::{create_dir, read, File, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use goblin::Object;
 use memmap2::Mmap;
 use tempfile::{tempdir, NamedTempFile, TempDir};
 
-use crate::btf;
-use crate::{btf::Btf, build::build, make::make, SkeletonBuilder};
+use crate::{btf, btf::Btf, build::build, make::make, SkeletonBuilder};
 
 static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
 
@@ -701,9 +702,10 @@ fn test_skeleton_builder_basic() {
 
     // Generate skeleton file
     let skel = NamedTempFile::new().unwrap();
-    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
-        .generate(skel.path())
+        .build_and_generate(skel.path())
         .unwrap();
 
     let mut cargo = OpenOptions::new()
@@ -805,18 +807,20 @@ fn test_skeleton_builder_clang_opts() {
     let skel = NamedTempFile::new().unwrap();
 
     // Should fail b/c `PURPOSE` not defined
-    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
         .clang("clang")
-        .generate(skel.path())
+        .build_and_generate(skel.path())
         .unwrap_err();
 
     // Should succeed b/c we defined the macro
-    SkeletonBuilder::new(proj_dir.join("src/bpf/prog.bpf.c"))
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
         .clang("clang")
         .clang_args("-DPURPOSE=you_pass_the_butter")
-        .generate(skel.path())
+        .build_and_generate(skel.path())
         .unwrap();
 }
 
