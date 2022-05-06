@@ -55,10 +55,12 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
-use std::path::{Path, PathBuf};
-use std::result;
+use std::{
+    path::{Path, PathBuf},
+    result,
+};
 
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 use thiserror::Error;
 
 // libbpf-cargo binary is the primary consumer of the following modules. As such,
@@ -97,33 +99,58 @@ pub type Result<T> = result::Result<T, Error>;
 /// ```no_run
 /// use libbpf_cargo::SkeletonBuilder;
 ///
-/// SkeletonBuilder::new("myobject.bpf.c")
+/// SkeletonBuilder::new()
+///     .source("myobject.bpf.c")
 ///     .debug(true)
 ///     .clang("/opt/clang/clang")
-///     .generate("/output/path")
+///     .build_and_generate("/output/path")
 ///     .unwrap();
 /// ```
 pub struct SkeletonBuilder {
     debug: bool,
-    source: PathBuf,
+    source: Option<PathBuf>,
+    obj: Option<PathBuf>,
     clang: Option<PathBuf>,
     clang_args: String,
     skip_clang_version_check: bool,
     rustfmt: PathBuf,
+    dir: Option<TempDir>,
+}
+
+impl Default for SkeletonBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SkeletonBuilder {
-    /// Create a new builder instance, where `source` is the path to the BPF object source
-    /// (typically suffixed by `.bpf.c`)
-    pub fn new<P: AsRef<Path>>(source: P) -> Self {
+    pub fn new() -> Self {
         SkeletonBuilder {
             debug: false,
-            source: source.as_ref().to_path_buf(),
+            source: None,
+            obj: None,
             clang: None,
             clang_args: String::new(),
             skip_clang_version_check: false,
             rustfmt: "rustfmt".into(),
+            dir: None,
         }
+    }
+
+    /// Point the [`SkeletonBuilder`] to a source file for compilation
+    ///
+    /// Default is None
+    pub fn source<P: AsRef<Path>>(&mut self, source: P) -> &mut SkeletonBuilder {
+        self.source = Some(source.as_ref().to_path_buf());
+        self
+    }
+
+    /// Point the [`SkeletonBuilder`] to an object file for generation
+    ///
+    /// Default is None
+    pub fn obj<P: AsRef<Path>>(&mut self, obj: P) -> &mut SkeletonBuilder {
+        self.obj = Some(obj.as_ref().to_path_buf());
+        self
     }
 
     /// Turn debug output on or off
@@ -149,9 +176,10 @@ impl SkeletonBuilder {
     /// ```no_run
     /// use libbpf_cargo::SkeletonBuilder;
     ///
-    /// SkeletonBuilder::new("myobject.bpf.c")
+    /// SkeletonBuilder::new()
+    ///     .source("myobject.bpf.c")
     ///     .clang_args("-DMACRO=value -I/some/include/dir")
-    ///     .generate("/output/path")
+    ///     .build_and_generate("/output/path")
     ///     .unwrap();
     /// ```
     pub fn clang_args<S: AsRef<str>>(&mut self, opts: S) -> &mut SkeletonBuilder {
@@ -175,39 +203,71 @@ impl SkeletonBuilder {
         self
     }
 
-    /// Generate the skeleton at path `output`
-    pub fn generate<P: AsRef<Path>>(&self, output: P) -> Result<()> {
-        let filename = self
+    /// Build BPF programs and generate the skeleton at path `output`
+    pub fn build_and_generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
+        self.build()?;
+        self.generate(output)?;
+
+        Ok(())
+    }
+
+    // Build BPF programs without generating a skeleton.
+    //
+    // [`SkeletonBuilder::source`] must be set for this to succeed.
+    pub fn build(&mut self) -> Result<()> {
+        let source = self
             .source
+            .as_ref()
+            .ok_or_else(|| Error::Build("No source file".into()))?;
+
+        let filename = source
             .file_name()
             .ok_or_else(|| Error::Build("Missing file name".into()))?
             .to_str()
             .ok_or_else(|| Error::Build("Invalid unicode in file name".into()))?;
+
         if !filename.ends_with(".bpf.c") {
             return Err(Error::Build(format!(
                 "Source file={} does not have .bpf.c suffix",
-                self.source.display()
+                source.display()
             )));
         }
 
-        // Safe to unwrap b/c we already checked suffix
-        let name = filename.split('.').next().unwrap();
-        let dir = tempdir().map_err(|e| Error::Build(e.to_string()))?;
-        let objfile = dir.path().join(format!("{}.o", name));
+        if self.obj.is_none() {
+            let name = filename.split('.').next().unwrap();
+            let dir = tempdir().map_err(|e| Error::Build(e.to_string()))?;
+            let objfile = dir.path().join(format!("{}.o", name));
+            self.obj = Some(objfile);
+            // Hold onto tempdir so that it doesn't get deleted early
+            self.dir = Some(dir);
+        }
 
         build::build_single(
             self.debug,
-            &self.source,
-            &objfile,
+            source,
+            // Unwrap is safe here since we guarantee that obj.is_some() above
+            self.obj.as_ref().unwrap(),
             self.clang.as_ref(),
             self.skip_clang_version_check,
             &self.clang_args,
         )
         .map_err(|e| Error::Build(e.to_string()))?;
 
+        Ok(())
+    }
+
+    // Generate a skeleton at path `output` without building BPF programs.
+    //
+    // [`SkeletonBuilder::obj`] must be set for this to succeed.
+    pub fn generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
+        let objfile = self
+            .obj
+            .as_ref()
+            .ok_or_else(|| Error::Generate("No object file".into()))?;
+
         gen::gen_single(
             self.debug,
-            &objfile,
+            objfile,
             gen::OutputDest::File(output.as_ref()),
             Some(&self.rustfmt),
         )
