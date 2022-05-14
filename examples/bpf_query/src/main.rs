@@ -1,11 +1,11 @@
 use std::process::exit;
 
+use clap::Parser;
 use libbpf_rs::query;
 use nix::unistd::Uid;
-use structopt::StructOpt;
 
 /// Query the system about BPF-related information
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 enum Command {
     /// Display information about progs
     Prog,
@@ -21,10 +21,7 @@ fn prog() {
     for prog in query::ProgInfoIter::default() {
         println!(
             "name={:<16} type={:<15} run_count={:<2} runtime_ns={}",
-            prog.name,
-            prog.ty,
-            prog.run_cnt,
-            prog.run_time_ns
+            prog.name, prog.ty, prog.run_cnt, prog.run_time_ns
         );
     }
 }
@@ -65,7 +62,7 @@ fn main() {
         exit(1);
     }
 
-    let opts = Command::from_args();
+    let opts = Command::parse();
 
     match opts {
         Command::Prog => prog(),

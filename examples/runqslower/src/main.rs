@@ -3,9 +3,9 @@
 use core::time::Duration;
 
 use anyhow::{bail, Result};
+use clap::Parser;
 use libbpf_rs::PerfBufferBuilder;
 use plain::Plain;
-use structopt::StructOpt;
 use time::macros::format_description;
 use time::OffsetDateTime;
 
@@ -14,19 +14,19 @@ mod runqslower;
 use runqslower::*;
 
 /// Trace high run queue latency
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 struct Command {
     /// Trace latency higher than this value
-    #[structopt(default_value = "10000")]
+    #[clap(default_value = "10000")]
     latency: u64,
     /// Process PID to trace
-    #[structopt(default_value = "0")]
+    #[clap(default_value = "0")]
     pid: i32,
     /// Thread TID to trace
-    #[structopt(default_value = "0")]
+    #[clap(default_value = "0")]
     tid: i32,
     /// Verbose debug output
-    #[structopt(short, long)]
+    #[clap(short, long)]
     verbose: bool,
 }
 
@@ -73,7 +73,7 @@ fn handle_lost_events(cpu: i32, count: u64) {
 }
 
 fn main() -> Result<()> {
-    let opts = Command::from_args();
+    let opts = Command::parse();
 
     let mut skel_builder = RunqslowerSkelBuilder::default();
     if opts.verbose {
