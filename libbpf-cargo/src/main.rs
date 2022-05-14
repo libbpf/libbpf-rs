@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::{AppSettings, Parser, Subcommand};
 
 mod btf;
 #[doc(hidden)]
@@ -11,9 +11,12 @@ mod make;
 mod metadata;
 
 #[doc(hidden)]
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
+#[clap(version, about)]
+#[clap(propagate_version = true)]
+#[clap(global_setting(AppSettings::DeriveDisplayOrder))]
 struct Opt {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     wrapper: Wrapper,
 }
 
@@ -28,42 +31,41 @@ struct Opt {
 //
 // so we must have a dummy subcommand here to eat the arg.
 #[doc(hidden)]
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Subcommand)]
 enum Wrapper {
+    #[clap(subcommand)]
     Libbpf(Command),
 }
 
-#[doc(hidden)]
-#[derive(Debug, StructOpt)]
-#[structopt(verbatim_doc_comment)]
-///
 /// cargo-libbpf is a cargo subcommand that helps develop and build eBPF (BPF) programs.
+#[doc(hidden)]
+#[derive(Debug, Subcommand)]
 enum Command {
     /// Build bpf programs
     Build {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         debug: bool,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to clang binary
         clang_path: Option<PathBuf>,
-        #[structopt(long)]
+        #[clap(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
     },
     /// Generate skeleton files
     Gen {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         debug: bool,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Generate skeleton for the specified object file and print results to stdout
         ///
         /// When specified, skeletons for the rest of the project will not be generated
@@ -71,25 +73,25 @@ enum Command {
     },
     /// Build project
     Make {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         debug: bool,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to clang binary
         clang_path: Option<PathBuf>,
-        #[structopt(long)]
+        #[clap(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         /// Quiet output
         quiet: bool,
         /// Arguments to pass to `cargo build`
         ///
         /// Example: cargo libbpf build -- --package mypackage
         cargo_build_args: Vec<String>,
-        #[structopt(long, parse(from_os_str))]
+        #[clap(long, parse(from_os_str))]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
     },
@@ -97,7 +99,7 @@ enum Command {
 
 #[doc(hidden)]
 fn main() -> Result<()> {
-    let opts = Opt::from_args();
+    let opts = Opt::parse();
 
     match opts.wrapper {
         Wrapper::Libbpf(cmd) => match cmd {

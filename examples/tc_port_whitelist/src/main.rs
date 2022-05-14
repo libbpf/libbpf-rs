@@ -1,37 +1,37 @@
 use anyhow::{bail, Result};
+use clap::Parser;
 use libbpf_rs::{
     MapFlags, TcHookBuilder, TC_CUSTOM, TC_EGRESS, TC_H_CLSACT, TC_H_MIN_INGRESS, TC_INGRESS,
 };
-use structopt::StructOpt;
 
 #[path = "bpf/.output/tc.skel.rs"]
 mod tc;
 use tc::*;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 struct Command {
     /// list of ports to whitelist
-    #[structopt(short = "p", long = "ports")]
+    #[clap(short, long)]
     ports: Vec<u16>,
 
     /// attach a hook
-    #[structopt(short = "a", long = "attach")]
+    #[clap(short, long)]
     attach: bool,
 
     /// detach existing hook
-    #[structopt(short = "d", long = "detach")]
+    #[clap(short, long)]
     detach: bool,
 
     /// destroy all hooks on clsact
-    #[structopt(short = "D", long = "destroy")]
+    #[clap(short = 'D', long = "destroy")]
     destroy: bool,
 
     /// query existing hook
-    #[structopt(short = "q", long = "query")]
+    #[clap(short, long)]
     query: bool,
 
     /// interface to attach to
-    #[structopt(short = "i", long = "interface")]
+    #[clap(short = 'i', long = "interface")]
     iface: String,
 }
 
@@ -48,7 +48,7 @@ fn bump_memlock_rlimit() -> Result<()> {
     Ok(())
 }
 fn main() -> Result<()> {
-    let opts = Command::from_args();
+    let opts = Command::parse();
 
     bump_memlock_rlimit()?;
 

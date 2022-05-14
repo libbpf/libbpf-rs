@@ -7,10 +7,10 @@ use core::time::Duration;
 use std::str::FromStr;
 
 use anyhow::{bail, Result};
+use clap::Parser;
 use libbpf_rs::PerfBufferBuilder;
 use phf::phf_map;
 use plain::Plain;
-use structopt::StructOpt;
 use time::macros::format_description;
 use time::OffsetDateTime;
 
@@ -78,23 +78,23 @@ impl FromStr for uniqueness {
 }
 
 /// Trace capabilities
-#[derive(Debug, Copy, Clone, StructOpt)]
-#[structopt(name = "examples", about = "Usage instructions")]
+#[derive(Debug, Copy, Clone, Parser)]
+#[clap(name = "examples", about = "Usage instructions")]
 struct Command {
     /// verbose: include non-audit checks
-    #[structopt(short, long)]
+    #[clap(short, long)]
     verbose: bool,
     /// only trace <pid>
-    #[structopt(short, long, default_value = "0")]
+    #[clap(short, long, default_value = "0")]
     pid: u32,
     /// extra fields: Show TID and INSETID columns
-    #[structopt(short = "x", long = "extra")]
+    #[clap(short = 'x', long = "extra")]
     extra_fields: bool,
     /// don't repeat same info for the same <pid> or <cgroup>
-    #[structopt(long = "unique", default_value = "off")]
+    #[clap(long = "unique", default_value = "off")]
     unique_type: uniqueness,
     /// debug output for libbpf-rs
-    #[structopt(long)]
+    #[clap(long)]
     debug: bool,
 }
 
@@ -170,7 +170,7 @@ fn handle_lost_events(cpu: i32, count: u64) {
 }
 
 fn main() -> Result<()> {
-    let opts = Command::from_args();
+    let opts = Command::parse();
 
     let mut skel_builder = CapableSkelBuilder::default();
     if opts.debug {
