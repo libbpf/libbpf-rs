@@ -33,4 +33,4 @@ jobs:
     - name: Run rustfmt
       run: cargo fmt --package libbpf-cargo libbpf-rs -- --check
     - name: Run clippy
-      run: cargo clippy -- -D warnings
+      run: cargo clippy --tests -- -D warnings

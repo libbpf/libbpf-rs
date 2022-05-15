@@ -12,7 +12,7 @@ use tempfile::{tempdir, NamedTempFile, TempDir};
 
 use crate::{btf, btf::Btf, build::build, make::make, SkeletonBuilder};
 
-static VMLINUX: &'static str = include_str!("../test_data/vmlinux.h");
+static VMLINUX: &str = include_str!("../test_data/vmlinux.h");
 
 /// Creates a temporary directory and initializes a default cargo project inside.
 ///
@@ -27,7 +27,7 @@ fn setup_temp_project() -> (TempDir, PathBuf, PathBuf) {
         .arg("new")
         .arg("--quiet")
         .arg("--bin")
-        .arg(proj_dir.clone().into_os_string())
+        .arg(proj_dir.into_os_string())
         .status()
         .expect("failed to create new cargo project");
     assert!(status.success());
@@ -88,7 +88,7 @@ fn setup_temp_workspace() -> (TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
 /// Validate if bpf object file at `path` is a valid bpf object file
 fn validate_bpf_o(path: &Path) {
     let buffer = read(path)
-        .expect(format!("failed to read object file at path={}", path.display()).as_str());
+        .unwrap_or_else(|_| panic!("failed to read object file at path={}", path.display()));
     match Object::parse(&buffer).expect("failed to parse object file") {
         Object::Elf(_) => (),
         _ => panic!("wrong object file format"),
@@ -1037,7 +1037,7 @@ fn build_btf_prog(prog_text: &str) -> Btf {
         .expect("Failed to initialize Btf")
         .expect("Did not find .BTF section");
 
-    assert!(btf.types().len() > 0);
+    assert!(!btf.types().is_empty());
 
     btf
 }
