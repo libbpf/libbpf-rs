@@ -208,7 +208,7 @@ mod tests {
 
         let mut n = i;
         while n > 1 {
-            if n & 0x01 as usize == 1 {
+            if n & 0x01_usize == 1 {
                 return false;
             }
             n >>= 1;
