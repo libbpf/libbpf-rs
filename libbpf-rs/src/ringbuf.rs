@@ -7,14 +7,14 @@ use std::time::Duration;
 
 use crate::*;
 
-struct RingBufferCallback {
-    cb: Box<dyn FnMut(&[u8]) -> i32>,
+struct RingBufferCallback<'a> {
+    cb: Box<dyn FnMut(&[u8]) -> i32 + 'a>,
 }
 
-impl RingBufferCallback {
+impl<'a> RingBufferCallback<'a> {
     fn new<F>(cb: F) -> Self
     where
-        F: FnMut(&[u8]) -> i32 + 'static,
+        F: FnMut(&[u8]) -> i32 + 'a,
     {
         RingBufferCallback { cb: Box::new(cb) }
     }
@@ -26,11 +26,11 @@ impl RingBufferCallback {
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
 #[derive(Default)]
-pub struct RingBufferBuilder {
-    fd_callbacks: Vec<(i32, RingBufferCallback)>,
+pub struct RingBufferBuilder<'a> {
+    fd_callbacks: Vec<(i32, RingBufferCallback<'a>)>,
 }
 
-impl RingBufferBuilder {
+impl<'a> RingBufferBuilder<'a> {
     pub fn new() -> Self {
         RingBufferBuilder {
             fd_callbacks: vec![],
@@ -47,7 +47,7 @@ impl RingBufferBuilder {
     /// [`plain`](https://crates.io/crates/plain) helpful.
     pub fn add<NewF>(&mut self, map: &Map, callback: NewF) -> Result<&mut Self>
     where
-        NewF: FnMut(&[u8]) -> i32 + 'static,
+        NewF: FnMut(&[u8]) -> i32 + 'a,
     {
         if map.map_type() != MapType::RingBuf {
             return Err(Error::InvalidInput("Must use a RingBuf map".into()));
@@ -58,7 +58,7 @@ impl RingBufferBuilder {
     }
 
     /// Build a new [`RingBuffer`]. Must have added at least one ringbuf.
-    pub fn build(self) -> Result<RingBuffer> {
+    pub fn build(self) -> Result<RingBuffer<'a>> {
         let mut cbs = vec![];
         let mut ptr: *mut libbpf_sys::ring_buffer = ptr::null_mut();
         let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
@@ -118,13 +118,13 @@ impl RingBufferBuilder {
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
-pub struct RingBuffer {
+pub struct RingBuffer<'a> {
     ptr: *mut libbpf_sys::ring_buffer,
     #[allow(clippy::vec_box)]
-    _cbs: Vec<Box<RingBufferCallback>>,
+    _cbs: Vec<Box<RingBufferCallback<'a>>>,
 }
 
-impl RingBuffer {
+impl<'a> RingBuffer<'a> {
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
     /// or `timeout` is reached.
@@ -148,7 +148,7 @@ impl RingBuffer {
     }
 }
 
-impl Drop for RingBuffer {
+impl<'a> Drop for RingBuffer<'a> {
     fn drop(&mut self) {
         unsafe {
             if !self.ptr.is_null() {
