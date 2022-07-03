@@ -731,7 +731,7 @@ impl<'a> Btf<'a> {
     fn load_type(&mut self, data: &'a [u8]) -> Result<BtfType<'a>> {
         let t = data.pread::<btf_type>(0)?;
         let extra = &data[size_of::<btf_type>()..];
-        let kind = (t.info >> 24) & 0x1f;
+        let kind = Self::get_kind(t.info);
 
         match BtfKind::try_from(kind)? {
             BtfKind::Void => {
@@ -830,7 +830,7 @@ impl<'a> Btf<'a> {
     fn load_members(&self, t: &btf_type, extra: &'a [u8]) -> Result<Vec<BtfMember<'a>>> {
         let mut res = Vec::new();
         let mut off: usize = 0;
-        let bits = Self::get_kind(t.info);
+        let bits = Self::get_kind_flag(t.info);
 
         for _ in 0..Btf::get_vlen(t.info) {
             let m = extra.pread::<btf_member>(off)?;
@@ -878,7 +878,7 @@ impl<'a> Btf<'a> {
     fn load_fwd(&self, t: &btf_type) -> Result<BtfType<'a>> {
         Ok(BtfType::Fwd(BtfFwd {
             name: self.get_btf_str(t.name_off as usize)?,
-            kind: if Self::get_kind(t.info) {
+            kind: if Self::get_kind_flag(t.info) {
                 BtfFwdKind::Union
             } else {
                 BtfFwdKind::Struct
@@ -974,8 +974,12 @@ impl<'a> Btf<'a> {
         info & 0xffff
     }
 
-    fn get_kind(info: u32) -> bool {
+    fn get_kind_flag(info: u32) -> bool {
         (info >> 31) == 1
+    }
+
+    fn get_kind(info: u32) -> u32 {
+        (info >> 24) & 0x1f
     }
 
     fn get_btf_str(&self, offset: usize) -> Result<&'a str> {
