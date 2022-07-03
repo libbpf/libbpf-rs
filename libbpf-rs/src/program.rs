@@ -207,7 +207,7 @@ impl Program {
     }
 
     pub fn prog_type(&self) -> ProgramType {
-        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__get_type(self.ptr) }) {
+        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr) }) {
             Ok(ty) => ty,
             Err(_) => ProgramType::Unknown,
         }
@@ -225,7 +225,7 @@ impl Program {
 
     pub fn attach_type(&self) -> ProgramAttachType {
         match ProgramAttachType::try_from(unsafe {
-            libbpf_sys::bpf_program__get_expected_attach_type(self.ptr)
+            libbpf_sys::bpf_program__expected_attach_type(self.ptr)
         }) {
             Ok(ty) => ty,
             Err(_) => ProgramAttachType::Unknown,
