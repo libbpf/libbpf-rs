@@ -145,7 +145,8 @@ impl<'a> Btf<'a> {
             | BtfType::FuncProto(_)
             | BtfType::Fwd(_)
             | BtfType::Func(_)
-            | BtfType::DeclTag(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
+            | BtfType::DeclTag(_)
+            | BtfType::TypeTag(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
         })
     }
 
@@ -176,7 +177,8 @@ impl<'a> Btf<'a> {
             | BtfType::FuncProto(_)
             | BtfType::Fwd(_)
             | BtfType::Func(_)
-            | BtfType::DeclTag(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
+            | BtfType::DeclTag(_)
+            | BtfType::TypeTag(_) => bail!("Cannot get alignment of type_id: {}", skipped_type_id),
         })
     }
 
@@ -248,7 +250,8 @@ impl<'a> Btf<'a> {
             | BtfType::Volatile(_)
             | BtfType::Const(_)
             | BtfType::Restrict(_)
-            | BtfType::DeclTag(_) => {
+            | BtfType::DeclTag(_)
+            | BtfType::TypeTag(_) => {
                 bail!("Invalid type: {}", ty)
             }
         })
@@ -287,7 +290,8 @@ impl<'a> Btf<'a> {
             | BtfType::Volatile(_)
             | BtfType::Const(_)
             | BtfType::Restrict(_)
-            | BtfType::DeclTag(_) => {
+            | BtfType::DeclTag(_)
+            | BtfType::TypeTag(_) => {
                 bail!("Invalid type: {}", ty)
             }
         })
@@ -388,6 +392,7 @@ impl<'a> Btf<'a> {
                     BtfType::Restrict(t) => id = t.type_id,
                     BtfType::Typedef(t) => id = t.type_id,
                     BtfType::DeclTag(t) => id = t.type_id,
+                    BtfType::TypeTag(t) => id = t.type_id,
                     BtfType::Void
                     | BtfType::Int(_)
                     | BtfType::Float(_)
@@ -415,7 +420,8 @@ impl<'a> Btf<'a> {
                 | BtfKind::Func
                 | BtfKind::FuncProto
                 | BtfKind::Var
-                | BtfKind::DeclTag => Ok(true),
+                | BtfKind::DeclTag
+                | BtfKind::TypeTag => Ok(true),
             }
         };
 
@@ -696,7 +702,8 @@ impl<'a> Btf<'a> {
                 | BtfType::Volatile(_)
                 | BtfType::Const(_)
                 | BtfType::Restrict(_)
-                | BtfType::DeclTag(_) => bail!("Invalid type: {}", ty),
+                | BtfType::DeclTag(_)
+                | BtfType::TypeTag(_) => bail!("Invalid type: {}", ty),
             }
         }
 
@@ -710,6 +717,7 @@ impl<'a> Btf<'a> {
                 BtfType::Const(t) => type_id = t.type_id,
                 BtfType::Restrict(t) => type_id = t.type_id,
                 BtfType::Typedef(t) => type_id = t.type_id,
+                BtfType::TypeTag(t) => type_id = t.type_id,
                 BtfType::Void
                 | BtfType::Int(_)
                 | BtfType::Float(_)
@@ -763,6 +771,10 @@ impl<'a> Btf<'a> {
             BtfKind::Var => self.load_var(&t, extra),
             BtfKind::Datasec => self.load_datasec(&t, extra),
             BtfKind::DeclTag => self.load_decl_tag(&t, extra),
+            BtfKind::TypeTag => Ok(BtfType::TypeTag(BtfTypeTag {
+                name: self.get_btf_str(t.name_off as usize)?,
+                type_id: t.type_id,
+            })),
         }
     }
 
@@ -958,7 +970,8 @@ impl<'a> Btf<'a> {
             | BtfType::Const(_)
             | BtfType::Restrict(_)
             | BtfType::Func(_)
-            | BtfType::Float(_) => common,
+            | BtfType::Float(_)
+            | BtfType::TypeTag(_) => common,
             BtfType::Int(_) | BtfType::Var(_) => common + size_of::<u32>(),
             BtfType::Array(_) => common + size_of::<btf_array>(),
             BtfType::Struct(t) => common + t.members.len() * size_of::<btf_member>(),
