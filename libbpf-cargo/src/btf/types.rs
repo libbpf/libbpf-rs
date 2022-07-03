@@ -23,6 +23,7 @@ pub enum BtfKind {
     Datasec = 15,
     Float = 16,
     DeclTag = 17,
+    TypeTag = 18,
 }
 
 #[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
@@ -176,6 +177,12 @@ pub struct BtfDeclTag<'a> {
     pub component_idx: i32,
 }
 
+#[derive(Debug)]
+pub struct BtfTypeTag<'a> {
+    pub name: &'a str,
+    pub type_id: u32,
+}
+
 pub enum BtfType<'a> {
     Void,
     Int(BtfInt<'a>),
@@ -195,6 +202,7 @@ pub enum BtfType<'a> {
     Datasec(BtfDatasec<'a>),
     Float(BtfFloat<'a>),
     DeclTag(BtfDeclTag<'a>),
+    TypeTag(BtfTypeTag<'a>),
 }
 
 impl<'a> BtfType<'a> {
@@ -218,6 +226,7 @@ impl<'a> BtfType<'a> {
             BtfType::Datasec(_) => BtfKind::Datasec,
             BtfType::Float(_) => BtfKind::Float,
             BtfType::DeclTag(_) => BtfKind::DeclTag,
+            BtfType::TypeTag(_) => BtfKind::TypeTag,
         }
     }
 }
@@ -243,6 +252,7 @@ impl<'a> fmt::Display for BtfType<'a> {
             BtfType::Datasec(_) => write!(f, "datasec"),
             BtfType::Float(_) => write!(f, "float"),
             BtfType::DeclTag(_) => write!(f, "decltag"),
+            BtfType::TypeTag(_) => write!(f, "typetag"),
         }
     }
 }
