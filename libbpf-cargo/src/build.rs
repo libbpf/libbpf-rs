@@ -111,26 +111,30 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
 ///
 /// for each prog.
 fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &str) -> Result<()> {
-    let arch = match std::env::consts::ARCH {
-        "x86_64" => "x86",
-        "aarch64" => "arm64",
-        _ => std::env::consts::ARCH,
-    };
-
     if debug {
         println!("Building {}", source.display());
     }
 
     let mut cmd = Command::new(clang.as_os_str());
+
     if !options.is_empty() {
         cmd.args(options.split_whitespace());
     }
+
+    if !options.contains("-D__TARGET_ARCH_") {
+        let arch = match std::env::consts::ARCH {
+            "x86_64" => "x86",
+            "aarch64" => "arm64",
+            _ => std::env::consts::ARCH,
+        };
+        cmd.arg(format!("-D__TARGET_ARCH_{}", arch));
+    }
+
     cmd.arg("-g")
         .arg("-O2")
         .arg("-target")
         .arg("bpf")
         .arg("-c")
-        .arg(format!("-D__TARGET_ARCH_{}", arch))
         .arg(source.as_os_str())
         .arg("-o")
         .arg(out);
