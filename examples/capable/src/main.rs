@@ -14,8 +14,9 @@ use plain::Plain;
 use time::macros::format_description;
 use time::OffsetDateTime;
 
-#[path = "bpf/.output/capable.skel.rs"]
-mod capable;
+mod capable {
+    include!(concat!(env!("OUT_DIR"), "/capable.skel.rs"));
+}
 
 use capable::capable_rodata_types::uniqueness;
 use capable::*;

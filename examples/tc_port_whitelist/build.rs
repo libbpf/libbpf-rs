@@ -1,23 +1,14 @@
-use std::{fs::create_dir_all, path::Path};
-
+use std::{env, path::PathBuf};
 use libbpf_cargo::SkeletonBuilder;
 
-const SRC: &str = "./src/bpf/tc.bpf.c";
+const SRC: &str = "src/bpf/tc.bpf.c";
 
 fn main() {
-    // It's unfortunate we cannot use `OUT_DIR` to store the generated skeleton.
-    // Reasons are because the generated skeleton contains compiler attributes
-    // that cannot be `include!()`ed via macro. And we cannot use the `#[path = "..."]`
-    // trick either because you cannot yet `concat!(env!("OUT_DIR"), "/skel.rs")` inside
-    // the path attribute either (see https://github.com/rust-lang/rust/pull/83366).
-    //
-    // However, there is hope! When the above feature stabilizes we can clean this
-    // all up.
-    create_dir_all("./src/bpf/.output").unwrap();
-    let skel = Path::new("./src/bpf/.output/tc.skel.rs");
+    let mut out = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR must be set in build script"));
+    out.push("tc.skel.rs");
     SkeletonBuilder::new()
         .source(SRC)
-        .build_and_generate(&skel)
+        .build_and_generate(&out)
         .unwrap();
     println!("cargo:rerun-if-changed={}", SRC);
 }
