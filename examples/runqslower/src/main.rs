@@ -9,8 +9,10 @@ use plain::Plain;
 use time::macros::format_description;
 use time::OffsetDateTime;
 
-#[path = "bpf/.output/runqslower.skel.rs"]
-mod runqslower;
+mod runqslower {
+    include!(concat!(env!("OUT_DIR"), "/runqslower.skel.rs"));
+}
+
 use runqslower::*;
 
 /// Trace high run queue latency
