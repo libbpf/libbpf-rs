@@ -19,11 +19,13 @@ jobs:
         components: rustfmt, clippy
         override: true
     - name: Install deps
-      run: sudo apt-get install -y clang-12 libelf-dev
+      run: sudo apt-get install -y clang-12 libelf-dev zlib1g-dev
     - name: Symlink clang
       run: sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-12 /bin/clang
     - name: Build
       run: cargo build --verbose --workspace --exclude runqslower
+    - name: Build capable example with static libelf and libz
+      run: RUSTFLAGS='-L /usr/lib/x86_64-linux-gnu' cargo b --package capable --features=static
     - name: Run tests
       # Skip BTF tests which require sudo
       # Skip BTF dump float test for now, we can enable it when we have access to clang 13+
