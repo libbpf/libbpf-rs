@@ -42,6 +42,21 @@ impl OpenMap {
         util::parse_ret(ret)
     }
 
+    pub fn set_type(&mut self, ty: MapType) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_type(self.ptr, ty as u32) };
+        util::parse_ret(ret)
+    }
+
+    pub fn set_key_size(&mut self, size: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_key_size(self.ptr, size) };
+        util::parse_ret(ret)
+    }
+
+    pub fn set_value_size(&mut self, size: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_value_size(self.ptr, size) };
+        util::parse_ret(ret)
+    }
+
     pub fn set_max_entries(&mut self, count: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_max_entries(self.ptr, count) };
         util::parse_ret(ret)
