@@ -5,7 +5,7 @@ repository = "https://github.com/libbpf/libbpf-rs"
 homepage = "https://github.com/libbpf/libbpf-rs"
 documentation = "https://docs.rs/crate/libbpf-cargo"
 readme = "../README.md"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2018"
 license = "LGPL-2.1 OR BSD-2-Clause"
@@ -31,7 +31,7 @@ novendor = ["libbpf-sys/novendor"]
 [dependencies]
 anyhow = "1.0"
 cargo_metadata = "0.14"
-libbpf-sys = { version = "0.8.0" }
+libbpf-sys = { version = "0.8.1" }
 memmap2 = "0.5"
 num_enum = "0.5"
 regex = "1.5"

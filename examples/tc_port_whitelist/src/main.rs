@@ -4,8 +4,9 @@ use libbpf_rs::{
     MapFlags, TcHookBuilder, TC_CUSTOM, TC_EGRESS, TC_H_CLSACT, TC_H_MIN_INGRESS, TC_INGRESS,
 };
 
-#[path = "bpf/.output/tc.skel.rs"]
-mod tc;
+mod tc {
+    include!(concat!(env!("OUT_DIR"), "/tc.skel.rs"));
+}
 use tc::*;
 
 #[derive(Debug, Parser)]
