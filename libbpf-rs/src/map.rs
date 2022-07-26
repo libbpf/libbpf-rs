@@ -62,8 +62,36 @@ impl OpenMap {
         util::parse_ret(ret)
     }
 
+    pub fn set_map_flags(&mut self, flags: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_map_flags(self.ptr, flags) };
+        util::parse_ret(ret)
+    }
+
+    pub fn set_numa_node(&mut self, numa_node: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr, numa_node) };
+        util::parse_ret(ret)
+    }
+
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
+    }
+
+    pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr, map_extra) };
+        util::parse_ret(ret)
+    }
+
+    pub fn set_autocreate(&mut self, autocreate: bool) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__set_autocreate(self.ptr, autocreate) };
+        util::parse_ret(ret)
+    }
+
+    pub fn set_pin_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let ret = unsafe { libbpf_sys::bpf_map__set_pin_path(self.ptr, path_ptr) };
+        util::parse_ret(ret)
     }
 
     /// Reuse an fd for a BPF map
