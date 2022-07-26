@@ -457,6 +457,18 @@ impl Map {
         util::parse_ret(ret)
     }
 
+    /// Freeze the map as read-only from user space.
+    ///
+    /// Entries from a frozen map can no longer be updated or deleted with the
+    /// bpf() system call. This operation is not reversible, and the map remains
+    /// immutable from user space until its destruction. However, read and write
+    /// permissions for BPF programs to the map remain unchanged.
+    pub fn freeze(&self) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map_freeze(self.fd) };
+
+        util::parse_ret(ret)
+    }
+
     /// Returns an iterator over keys in this map
     ///
     /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
