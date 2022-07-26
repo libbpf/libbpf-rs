@@ -129,6 +129,19 @@ impl OpenProgram {
         }
     }
 
+    /// Set the log level for the bpf program.
+    ///
+    /// The log level is interpreted by bpf kernel code and interpretation may
+    /// change with newer kernel versions. Refer to the kernel source code for
+    /// details.
+    ///
+    /// In general, a value of `0` disables logging while values `> 0` enables
+    /// it.
+    pub fn set_log_level(&mut self, log_level: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_program__set_log_level(self.ptr.as_ptr(), log_level) };
+        util::parse_ret(ret)
+    }
+
     /// Name of the section this `OpenProgram` belongs to.
     pub fn section(&self) -> &str {
         &self.section
@@ -143,6 +156,8 @@ impl OpenProgram {
             .map_err(|e| Error::Internal(e.to_string()))
     }
 
+    /// Set whether a bpf program should be automatically loaded by default
+    /// when the bpf object is loaded.
     pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr.as_ptr(), autoload) };
         util::parse_ret(ret)
@@ -402,6 +417,16 @@ impl Program {
             Ok(ty) => ty,
             Err(_) => ProgramAttachType::Unknown,
         }
+    }
+
+    /// Return `true` if the bpf program is set to autoload, `false` otherwise.
+    pub fn autoload(&self) -> bool {
+        unsafe { libbpf_sys::bpf_program__autoload(self.ptr.as_ptr()) }
+    }
+
+    /// Return the bpf program's log level.
+    pub fn log_level(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_program__log_level(self.ptr.as_ptr()) }
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
