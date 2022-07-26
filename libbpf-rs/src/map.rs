@@ -283,7 +283,7 @@ impl Map {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
-                self.fd as i32,
+                self.fd,
                 key.as_ptr() as *const c_void,
                 out.as_mut_ptr() as *mut c_void,
                 flags.bits,
@@ -317,9 +317,8 @@ impl Map {
             )));
         };
 
-        let ret = unsafe {
-            libbpf_sys::bpf_map_delete_elem(self.fd as i32, key.as_ptr() as *const c_void)
-        };
+        let ret =
+            unsafe { libbpf_sys::bpf_map_delete_elem(self.fd, key.as_ptr() as *const c_void) };
         util::parse_ret(ret)
     }
 
@@ -342,7 +341,7 @@ impl Map {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_and_delete_elem(
-                self.fd as i32,
+                self.fd,
                 key.as_ptr() as *const c_void,
                 out.as_mut_ptr() as *mut c_void,
             )
@@ -448,7 +447,7 @@ impl Map {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_update_elem(
-                self.fd as i32,
+                self.fd,
                 key.as_ptr() as *const c_void,
                 value.as_ptr() as *const c_void,
                 flags.bits,
