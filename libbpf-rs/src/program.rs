@@ -119,6 +119,12 @@ impl OpenProgram {
         }
     }
 
+    /// Set the log level for the bpf program
+    pub fn set_log_level(&mut self, log_level: u32) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_program__set_log_level(self.ptr, log_level) };
+        util::parse_ret(ret)
+    }
+
     /// Name of the section this `OpenProgram` belongs to.
     pub fn section(&self) -> &str {
         &self.section
@@ -133,6 +139,8 @@ impl OpenProgram {
             .map_err(|e| Error::Internal(e.to_string()))
     }
 
+    /// Set whether a bpf program should be automatically loaded by default
+    /// when the BPF object is loaded
     pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr, autoload) };
         util::parse_ret(ret)
@@ -374,6 +382,16 @@ impl Program {
             Ok(ty) => ty,
             Err(_) => ProgramAttachType::Unknown,
         }
+    }
+
+    /// Return true if the bpf program is set to autoload else false
+    pub fn autoload(&self) -> bool {
+        unsafe { libbpf_sys::bpf_program__autoload(self.ptr) }
+    }
+
+    /// Return the bpf program log level
+    pub fn log_level(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_program__log_level(self.ptr) }
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
