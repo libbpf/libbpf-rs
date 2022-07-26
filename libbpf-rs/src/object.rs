@@ -319,21 +319,20 @@ impl Object {
             let name = unsafe { libbpf_sys::bpf_map__name(next_ptr) };
             let name = util::c_ptr_to_string(name)?;
 
-            // Get the map def
-            // bpf_map__def can return null but only if it's passed a null.
-            // We already know next_ptr is not null.
-            let def = unsafe { ptr::read(libbpf_sys::bpf_map__def(next_ptr)) };
-
             // Get the map fd
             let fd = unsafe { libbpf_sys::bpf_map__fd(next_ptr) };
             if fd < 0 {
                 return Err(Error::System(-fd));
             }
 
+            let map_type = unsafe { libbpf_sys::bpf_map__type(next_ptr) };
+            let key_size = unsafe { libbpf_sys::bpf_map__key_size(next_ptr) };
+            let value_size = unsafe { libbpf_sys::bpf_map__value_size(next_ptr) };
+
             // Add the map to the hashmap
             obj.maps.insert(
                 name.clone(),
-                Map::new(fd, name, def.type_, def.key_size, def.value_size, next_ptr),
+                Map::new(fd, name, map_type, key_size, value_size, next_ptr),
             );
             map = next_ptr;
         }
