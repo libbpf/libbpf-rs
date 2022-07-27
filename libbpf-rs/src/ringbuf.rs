@@ -146,6 +146,13 @@ impl<'a> RingBuffer<'a> {
 
         util::parse_ret(ret)
     }
+
+    /// Get an fd that can be used to sleep until data is available
+    pub fn epoll_fd(&self) -> i32 {
+        assert!(!self.ptr.is_null());
+
+        unsafe { libbpf_sys::ring_buffer__epoll_fd(self.ptr) }
+    }
 }
 
 impl<'a> Drop for RingBuffer<'a> {
