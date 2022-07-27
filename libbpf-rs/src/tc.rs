@@ -19,19 +19,20 @@ pub const TC_H_MIN_EGRESS: u32 = 0xFFF3;
 pub const TC_H_MAJ_MASK: u32 = 0xFFFF0000;
 pub const TC_H_MIN_MASK: u32 = 0x0000FFFF;
 
-/// The BPF TC subsystem has different control paths from other BPF programs
-/// As such a BPF program using a TC Hook (SEC("classifier") | SEC("tc")) must be operated
-/// more independently from other [libbpf-rs::Program]s.
+/// Represents a location where a TC-BPF filter can be attached.
 ///
-/// Documentation about the libbpf TC interface can be found here
-/// https://lwn.net/ml/bpf/20210512103451.989420-3-memxor@gmail.com/
+/// The BPF TC subsystem has different control paths from other BPF programs.
+/// As such a BPF program using a TC Hook (`SEC("classifier")` or `SEC("tc")`) must be operated
+/// more independently from other [`Program`]s.
 ///
-/// An example of using a BPF TC program can be seen in [examples/tc_whitelist_ports/src/main.rs]
+/// This struct exposes operations to create, attach, query and destroy
+/// a bpf_tc_hook using the TC subsystem.
 ///
-/// Represents a Hook Point for a Traffic Control (TC) bpf program
+/// Documentation about the libbpf TC interface can be found
+/// [here](https://lwn.net/ml/bpf/20210512103451.989420-3-memxor@gmail.com/).
 ///
-/// The TcHook struct exposes operations to create, attach, query and destroy
-/// a bpf_tc_hook using the TC subsystem
+/// An example of using a BPF TC program can found
+/// [here](https://github.com/libbpf/libbpf-rs/tree/master/examples/tc_port_whitelist).
 #[derive(Clone, Copy, Debug)]
 pub struct TcHook {
     hook: libbpf_sys::bpf_tc_hook,
@@ -208,11 +209,13 @@ impl TcHook {
     }
 }
 
-/// A TcHookBuilder is a way to ergonomically create multiple TcHooks
-/// All with similar initial values
+/// Builds [`TcHook`] instances.
+///
+/// TcHookBuilder is a way to ergonomically create multiple TcHooks,
+/// all with similar initial values.
 ///
 /// Once a TcHook is created via the hook() method, the TcHook's values can still
-/// be adjusted before attach() is called
+/// be adjusted before attach() is called.
 #[derive(Debug, Default)]
 pub struct TcHookBuilder {
     fd: i32,
