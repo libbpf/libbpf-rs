@@ -306,10 +306,10 @@ impl Object {
         };
 
         // Populate obj.maps
-        let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+        let mut next_ptr: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
-            let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr, map) };
+            next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr, next_ptr) };
             if next_ptr.is_null() {
                 break;
             }
@@ -327,10 +327,12 @@ impl Object {
 
             // Get the map fd
             let fd = unsafe { libbpf_sys::bpf_map__fd(next_ptr) };
-            // Old kernels can have uninitialized internal maps:
+
+            // Old kernels can have uninitialized internal maps with fd -1:
             // https://github.com/libbpf/libbpf/blob/5c31bcf220f66e70f39fd141f5b0c55c6ab65e8e/src/libbpf.c#L5009-L5022
-            if fd < 0 && !unsafe { libbpf_sys::bpf_map__is_internal(next_ptr) } {
-                return Err(Error::System(-fd));
+            // Skip them
+            if fd < 0 {
+                continue;
             }
 
             // Add the map to the hashmap
@@ -338,7 +340,6 @@ impl Object {
                 name.clone(),
                 Map::new(fd, name, def.type_, def.key_size, def.value_size, next_ptr),
             );
-            map = next_ptr;
         }
 
         // Populate obj.progs
