@@ -34,3 +34,8 @@ libbpf-cargo = "0.12"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-cargo).
+
+## Contributing
+
+We welcome all contributions! Please see the [contributor's
+guide](CONTRIBUTING.md) for more information.
