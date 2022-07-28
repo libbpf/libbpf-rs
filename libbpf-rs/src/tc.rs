@@ -40,8 +40,7 @@ pub struct TcHook {
 }
 
 impl TcHook {
-    /// Create a New TcHook given the file descriptor of the loaded SEC("tc") Program
-    /// See: [libbpf-rs::Program]
+    /// Create a new [`TcHook`] given the file descriptor of the loaded `SEC("tc")` [`Program`]
     pub fn new(fd: i32) -> Self {
         let mut tc_hook = TcHook {
             hook: libbpf_sys::bpf_tc_hook::default(),
@@ -55,12 +54,12 @@ impl TcHook {
         tc_hook
     }
 
-    /// create a new TcHook
+    /// Create a new [`TcHook`] as well as the underlying qdiscs
     ///
-    /// if a TcHook already exists with the same parameters as the hook calling
-    /// create(), this function will still succeed.
+    /// If a [`TcHook`] already exists with the same parameters as the hook calling
+    /// [`Self::create()`], this function will still succeed.
     ///
-    /// Will always fail on a TC_CUSTOM hook
+    /// Will always fail on a `TC_CUSTOM` hook
     pub fn create(&mut self) -> Result<Self> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_create(&mut self.hook as *mut _) };
         // the hook may already exist, this is not an error
@@ -71,9 +70,9 @@ impl TcHook {
         }
     }
 
-    /// Set the interface to be used
+    /// Set the interface to attach to
     ///
-    /// Interfaces can be listed by using ip link command from the iproute2 software package
+    /// Interfaces can be listed by using `ip link` command from the iproute2 software package
     pub fn ifindex(&mut self, idx: i32) -> &mut Self {
         self.hook.ifindex = idx;
         self
@@ -81,23 +80,25 @@ impl TcHook {
 
     /// Set what type of TC point to attach onto
     ///
-    /// TC_EGRESS, TC_INGRESS, or TC_CUSTOM
+    /// `TC_EGRESS`, `TC_INGRESS`, or `TC_CUSTOM`
     ///
-    /// An TC_EGRESS|TC_INGRESS hook can be used as an attach_point for calling
-    /// the destroy() method to remove the clsact bpf tc qdisc, but cannot
-    /// be used to attach()
+    /// An `TC_EGRESS|TC_INGRESS` hook can be used as an attach point for calling
+    /// [`Self::destroy()`] to remove the clsact bpf tc qdisc, but cannot be used for an
+    /// [`Self::attach()`] operation
     pub fn attach_point(&mut self, ap: TcAttachPoint) -> &mut Self {
         self.hook.attach_point = ap;
         self
     }
 
     /// Set the parent of a hook
-    /// Will cause an EINVAL upon attach()
-    /// if set upon an TC_EGRESS/TC_INGRESS/TC_EGRESS|TC_INGRESS hook
     ///
-    /// Must be set on a TC_CUSTOM hook
-    /// Current acceptable values are TC_H_CLSACT for maj, and
-    /// TC_H_MIN_EGRESS or TC_H_MIN_INGRESS for min
+    /// Will cause an EINVAL upon [`Self::attach()`] if set upon an
+    /// `TC_EGRESS/TC_INGRESS/(TC_EGRESS|TC_INGRESS)` hook
+    ///
+    /// Must be set on a `TC_CUSTOM` hook
+    ///
+    /// Current acceptable values are `TC_H_CLSACT` for `maj`, and `TC_H_MIN_EGRESS` or
+    /// `TC_H_MIN_INGRESS` for `min`
     pub fn parent(&mut self, maj: u32, min: u32) -> &mut Self {
         /* values from libbpf.h BPF_TC_PARENT() */
         let parent = (maj & TC_H_MAJ_MASK) | (min & TC_H_MIN_MASK);
@@ -108,7 +109,7 @@ impl TcHook {
     /// Set whether this hook should replace an existing hook
     ///
     /// If replace is not true upon attach, and a hook already exists
-    /// an EEXIST error will be returned from attach()
+    /// an EEXIST error will be returned from [`Self::attach()`]
     pub fn replace(&mut self, replace: bool) -> &mut Self {
         if replace {
             self.opts.flags = BPF_TC_F_REPLACE;
@@ -126,7 +127,7 @@ impl TcHook {
     }
 
     /// Set the priority of a hook
-    /// if unset upon attach, the kernel will assign a priority for the hook
+    /// If unset upon attach, the kernel will assign a priority for the hook
     pub fn priority(&mut self, priority: u32) -> &mut Self {
         self.opts.priority = priority;
         self
@@ -149,17 +150,15 @@ impl TcHook {
 
     /// Attach a filter to the TcHook so that the program starts processing
     ///
-    /// Once the hook is processing, changing the values will have no effect
-    /// unless the hook is attach()'d again (replace(true) being required)
+    /// Once the hook is processing, changing the values will have no effect unless the hook is
+    /// [`Self::attach()`]'d again (`replace=true` being required)
     ///
-    /// Users can create a second hook by changing the handle, the priority
-    /// or the attach_point and calling the attach() method again.
-    /// Beware doing this.  It might be better to Copy the TcHook and change
-    /// the values on the copied hook for easier detach()
+    /// Users can create a second hook by changing the handle, the priority or the attach_point and
+    /// calling the [`Self::attach()`] method again.  Beware doing this.  It might be better to
+    /// Copy the TcHook and change the values on the copied hook for easier [`Self::detach()`]
     ///
-    /// NOTE: Once a TcHook is attached, it, and the maps it uses,
-    ///       will outlive the userspace application that spawned them
-    ///       Make sure to detach if this is not desired
+    /// NOTE: Once a [`TcHook`] is attached, it, and the maps it uses, will outlive the userspace
+    /// application that spawned them Make sure to detach if this is not desired
     pub fn attach(&mut self) -> Result<Self> {
         self.opts.prog_id = 0;
         let err =
@@ -171,7 +170,7 @@ impl TcHook {
         }
     }
 
-    /// Detach a filter from a TcHook
+    /// Detach a filter from a [`TcHook`]
     pub fn detach(&mut self) -> Result<()> {
         let mut opts = self.opts;
         opts.prog_id = 0;
@@ -189,16 +188,17 @@ impl TcHook {
 
     /// Destroy attached filters
     ///
-    /// If called on a hook with an attach_point of EGRESS, will detach all EGRESS hooks
-    /// If called on a hook with an attach_point of INGRESS, will detach all INGRESS hooks
+    /// If called on a hook with an attach_point of `TC_EGRESS`, will detach all egress hooks
     ///
-    /// If called on a hook with an attach_point of EGRESS|INGRESS, will destroy the clsact tc
-    /// qdisc and detach all hooks
+    /// If called on a hook with an attach_point of `TC_INGRESS`, will detach all ingress hooks
     ///
-    /// Will error with EOPNOTSUPP if attach_point is BPF_TC_CUSTOM
+    /// If called on a hook with an attach_point of `TC_EGRESS|TC_INGRESS`, will destroy the clsact
+    /// tc qdisc and detach all hooks
     ///
-    /// It is good practice to query before destroying as the tc qdisc may be used
-    /// by multiple programs
+    /// Will error with EOPNOTSUPP if attach_point is `TC_CUSTOM`
+    ///
+    /// It is good practice to query before destroying as the tc qdisc may be used by multiple
+    /// programs
     pub fn destroy(&mut self) -> Result<()> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_destroy(&mut self.hook as *mut _) };
         if err != 0 {
