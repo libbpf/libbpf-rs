@@ -211,11 +211,11 @@ impl TcHook {
 
 /// Builds [`TcHook`] instances.
 ///
-/// TcHookBuilder is a way to ergonomically create multiple TcHooks,
+/// [`TcHookBuilder`] is a way to ergonomically create multiple `TcHook`s,
 /// all with similar initial values.
 ///
-/// Once a TcHook is created via the hook() method, the TcHook's values can still
-/// be adjusted before attach() is called.
+/// Once a `TcHook` is created via the [`Self::hook()`] method, the `TcHook`'s values can still
+/// be adjusted before [`TcHook::attach()`] is called.
 #[derive(Debug, Default)]
 pub struct TcHookBuilder {
     fd: i32,
@@ -233,7 +233,7 @@ impl TcHookBuilder {
     }
 
     /// Set the initial file descriptor for created hooks
-    /// this fd should come from a loaded libbpf_rs::Program
+    /// this fd should come from a loaded [`Program`]
     pub fn fd(&mut self, fd: i32) -> &mut Self {
         self.fd = fd;
         self
@@ -270,10 +270,10 @@ impl TcHookBuilder {
         self
     }
 
-    /// Create a Hook given the values previously set
+    /// Create a [`TcHook`] given the values previously set
     ///
-    /// Once a hook is created, the values can still be changed on the TcHook
-    /// by calling the TcHooks setter methods
+    /// Once a hook is created, the values can still be changed on the `TcHook`
+    /// by calling the `TcHooks` setter methods
     pub fn hook(&self, attach_point: TcAttachPoint) -> TcHook {
         let mut hook = TcHook::new(self.fd);
         hook.ifindex(self.ifindex)
