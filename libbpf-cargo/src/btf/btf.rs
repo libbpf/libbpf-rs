@@ -7,7 +7,7 @@ use std::mem::size_of;
 use std::os::raw::{c_char, c_ulong};
 use std::slice;
 
-use anyhow::{bail, ensure, Result};
+use anyhow::{anyhow, bail, ensure, Result};
 use scroll::Pread;
 
 use crate::btf::c_types::*;
@@ -275,9 +275,12 @@ impl<'a> Btf<'a> {
             BtfType::Float(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
             BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
             BtfType::Array(t) => {
-                let val_ty = self.type_declaration(t.val_type_id)?;
-
-                format!("[{}::default(); {}]", val_ty, t.nelems)
+                format!(
+                    "[{}; {}]",
+                    self.type_default(t.val_type_id)
+                        .map_err(|err| anyhow!("in {ty}: {err}"))?,
+                    t.nelems
+                )
             }
             BtfType::Struct(t) | BtfType::Union(t) => format!("{}::default()", t.name),
             BtfType::Enum(t) => format!("{}::default()", t.name),
