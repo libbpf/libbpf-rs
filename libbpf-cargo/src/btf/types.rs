@@ -2,7 +2,7 @@ use std::fmt;
 
 use num_enum::TryFromPrimitive;
 
-#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
+#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq, Eq)]
 #[repr(u32)]
 pub enum BtfKind {
     Void = 0,
@@ -26,7 +26,7 @@ pub enum BtfKind {
     TypeTag = 18,
 }
 
-#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
+#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq, Eq)]
 #[repr(u8)]
 pub enum BtfIntEncoding {
     None = 0,
@@ -84,7 +84,7 @@ pub struct BtfEnum<'a> {
     pub values: Vec<BtfEnumValue<'a>>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BtfFwdKind {
     Struct,
     Union,
@@ -135,7 +135,7 @@ pub struct BtfFuncProto<'a> {
     pub params: Vec<BtfFuncParam<'a>>,
 }
 
-#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
+#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq, Eq)]
 #[repr(u32)]
 pub enum BtfVarLinkage {
     Static = 0,
