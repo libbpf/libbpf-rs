@@ -573,7 +573,7 @@ bitflags! {
 // If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Display)]
+#[derive(Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Eq, Display)]
 pub enum MapType {
     Unspec = 0,
     Hash,

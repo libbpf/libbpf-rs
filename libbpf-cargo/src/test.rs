@@ -1397,7 +1397,7 @@ enum Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Foo {
     Zero = 0,
@@ -1992,7 +1992,7 @@ struct Foo foo;
 pub struct Foo {
     pub test: __anon_1,
 }
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
 pub enum __anon_1 {
     FOO = 1,

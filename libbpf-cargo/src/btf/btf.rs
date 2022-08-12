@@ -603,7 +603,7 @@ impl<'a> Btf<'a> {
                         }
                     }
 
-                    writeln!(def, r#"#[derive(Debug, Copy, Clone, PartialEq)]"#)?;
+                    writeln!(def, r#"#[derive(Debug, Copy, Clone, PartialEq, Eq)]"#)?;
                     writeln!(
                         def,
                         r#"#[repr({signed}{repr_size})]"#,

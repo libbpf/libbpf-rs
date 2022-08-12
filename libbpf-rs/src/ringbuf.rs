@@ -7,8 +7,9 @@ use std::time::Duration;
 
 use crate::*;
 
+type Cb<'a> = Box<dyn FnMut(&[u8]) -> i32 + 'a>;
 struct RingBufferCallback<'a> {
-    cb: Box<dyn FnMut(&[u8]) -> i32 + 'a>,
+    cb: Cb<'a>,
 }
 
 impl<'a> RingBufferCallback<'a> {
