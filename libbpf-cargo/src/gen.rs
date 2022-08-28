@@ -157,8 +157,7 @@ fn get_prog_name(prog: *const libbpf_sys::bpf_program) -> Result<String> {
 }
 
 fn map_is_mmapable(map: *const libbpf_sys::bpf_map) -> bool {
-    let def = unsafe { libbpf_sys::bpf_map__def(map) };
-    (unsafe { (*def).map_flags } & libbpf_sys::BPF_F_MMAPABLE) > 0
+    (unsafe { libbpf_sys::bpf_map__map_flags(map) } & libbpf_sys::BPF_F_MMAPABLE) > 0
 }
 
 fn map_is_datasec(map: *const libbpf_sys::bpf_map) -> bool {
@@ -170,10 +169,9 @@ fn map_is_datasec(map: *const libbpf_sys::bpf_map) -> bool {
 
 fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
     assert!(map_is_mmapable(map));
-    let def = unsafe { libbpf_sys::bpf_map__def(map) };
 
     // BPF_F_RDONLY_PROG means readonly from prog side
-    (unsafe { (*def).map_flags } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
+    (unsafe { libbpf_sys::bpf_map__map_flags(map) } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
 }
 
 fn gen_skel_c_skel_constructor(

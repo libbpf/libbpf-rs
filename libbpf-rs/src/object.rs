@@ -42,17 +42,13 @@ impl ObjectBuilder {
             sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
             object_name: name,
             relaxed_maps: self.relaxed_maps,
-            relaxed_core_relocs: false,
             pin_root_path: ptr::null(),
-            attach_prog_fd: 0,
             kconfig: ptr::null(),
             btf_custom_path: ptr::null(),
-            __bindgen_padding_0: <[u8; 6]>::default(),
-            __bindgen_padding_1: <[u8; 4]>::default(),
             kernel_log_buf: ptr::null_mut(),
             kernel_log_size: 0,
             kernel_log_level: 0,
-            __bindgen_padding_2: <[u8; 4]>::default(),
+            ..Default::default()
         }
     }
 
