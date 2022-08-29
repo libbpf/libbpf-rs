@@ -1,10 +1,11 @@
-use std::{env, path::PathBuf};
 use libbpf_cargo::SkeletonBuilder;
+use std::{env, path::PathBuf};
 
 const SRC: &str = "src/bpf/capable.bpf.c";
 
 fn main() {
-    let mut out = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR must be set in build script"));
+    let mut out =
+        PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR must be set in build script"));
     out.push("capable.skel.rs");
     SkeletonBuilder::new()
         .source(SRC)

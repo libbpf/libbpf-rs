@@ -2,7 +2,7 @@
 name = "capable"
 version = "0.1.0"
 authors = ["Devasia Thomas <https://www.linkedin.com/in/devasiathomas>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0"

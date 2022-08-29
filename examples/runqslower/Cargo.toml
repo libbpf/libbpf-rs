@@ -2,7 +2,7 @@
 name = "runqslower"
 version = "0.1.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0"

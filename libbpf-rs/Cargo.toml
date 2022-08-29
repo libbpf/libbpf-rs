@@ -6,7 +6,7 @@ homepage = "https://github.com/libbpf/libbpf-rs"
 readme = "../README.md"
 version = "0.18.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
-edition = "2018"
+edition = "2021"
 license = "LGPL-2.1 OR BSD-2-Clause"
 keywords = ["bpf", "ebpf", "libbpf"]
 
