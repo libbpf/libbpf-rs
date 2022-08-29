@@ -5,10 +5,6 @@ use std::time::Duration;
 
 use crate::*;
 
-fn is_power_of_two(i: usize) -> bool {
-    i > 0 && (i & (i - 1)) == 0
-}
-
 // Workaround for `trait_alias`
 // (https://doc.rust-lang.org/unstable-book/language-features/trait-alias.html)
 // not being available yet. This is just a custom trait plus a blanket implementation.
@@ -89,7 +85,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
             ));
         }
 
-        if !is_power_of_two(self.pages) {
+        if !self.pages.is_power_of_two() {
             return Err(Error::InvalidInput(
                 "Page count must be power of two".to_string(),
             ));
@@ -196,33 +192,6 @@ impl<'b> Drop for PerfBuffer<'b> {
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::perf_buffer__free(self.ptr);
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn is_power_of_two_slow(i: usize) -> bool {
-        if i == 0 {
-            return false;
-        }
-
-        let mut n = i;
-        while n > 1 {
-            if n & 0x01_usize == 1 {
-                return false;
-            }
-            n >>= 1;
-        }
-        true
-    }
-
-    #[test]
-    fn test_is_power_of_two() {
-        for i in 0..=256 {
-            assert_eq!(is_power_of_two(i), is_power_of_two_slow(i));
         }
     }
 }
