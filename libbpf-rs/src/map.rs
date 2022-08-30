@@ -560,14 +560,13 @@ impl Map {
     }
 }
 
-#[rustfmt::skip]
 bitflags! {
     /// Flags to configure [`Map`] operations.
     pub struct MapFlags: u64 {
-	const ANY      = 0;
-	const NO_EXIST = 1;
-	const EXIST    = 1 << 1;
-	const LOCK     = 1 << 2;
+        const ANY      = 0;
+        const NO_EXIST = 1;
+        const EXIST    = 1 << 1;
+        const LOCK     = 1 << 2;
     }
 }
 
