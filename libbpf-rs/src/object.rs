@@ -4,7 +4,7 @@ use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char, path::Path, ptr
 use crate::{util, *};
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ObjectBuilder {
     name: String,
     relaxed_maps: bool,
@@ -117,6 +117,7 @@ impl ObjectBuilder {
 /// Represents an opened (but not yet loaded) BPF object file.
 ///
 /// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
+#[allow(missing_debug_implementations)]
 pub struct OpenObject {
     ptr: *mut libbpf_sys::bpf_object,
     maps: HashMap<String, OpenMap>,
@@ -290,6 +291,7 @@ impl Drop for OpenObject {
 ///
 /// Note that this is an explanation of the motivation -- Rust's lifetime system should already be
 /// enforcing this invariant.
+#[allow(missing_debug_implementations)]
 pub struct Object {
     ptr: *mut libbpf_sys::bpf_object,
     maps: HashMap<String, Map>,
