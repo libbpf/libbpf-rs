@@ -90,7 +90,7 @@ impl OpenProgram {
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, Display)]
+#[derive(Clone, TryFromPrimitive, Display, Debug)]
 pub enum ProgramType {
     Unspec = 0,
     SocketFilter,
@@ -131,7 +131,7 @@ pub enum ProgramType {
 /// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, Display)]
+#[derive(Clone, TryFromPrimitive, Display, Debug)]
 pub enum ProgramAttachType {
     CgroupInetIngress,
     CgroupInetEgress,

@@ -99,6 +99,7 @@ fn name_arr_to_string(a: &[c_char], default: &str) -> String {
 }
 
 /// Information about a BPF program
+#[derive(Debug)]
 pub struct ProgramInfo {
     pub name: String,
     pub ty: ProgramType,
@@ -194,6 +195,7 @@ gen_info_impl!(
 );
 
 /// Information about a BPF map
+#[derive(Debug)]
 pub struct MapInfo {
     pub name: String,
     pub ty: MapType,
@@ -248,6 +250,7 @@ gen_info_impl!(
 );
 
 /// Information about BPF type format
+#[derive(Debug)]
 pub struct BtfInfo {
     pub btf: u64,
     pub btf_size: u32,
@@ -273,24 +276,29 @@ gen_info_impl!(
     libbpf_sys::bpf_btf_get_fd_by_id
 );
 
+#[derive(Debug)]
 pub struct RawTracepointLinkInfo {
     pub name: String,
 }
 
+#[derive(Debug)]
 pub struct TracingLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
+#[derive(Debug)]
 pub struct CgroupLinkInfo {
     pub cgroup_id: u64,
     pub attach_type: ProgramAttachType,
 }
 
+#[derive(Debug)]
 pub struct NetNsLinkInfo {
     pub ino: u32,
     pub attach_type: ProgramAttachType,
 }
 
+#[derive(Debug)]
 pub enum LinkTypeInfo {
     RawTracepoint(RawTracepointLinkInfo),
     Tracing(TracingLinkInfo),
@@ -301,6 +309,7 @@ pub enum LinkTypeInfo {
 }
 
 /// Information about a BPF link
+#[derive(Debug)]
 pub struct LinkInfo {
     pub info: LinkTypeInfo,
     pub id: u32,
