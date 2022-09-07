@@ -9,6 +9,7 @@ use crate::*;
 /// This implements [`std::io::Read`] for reading bytes from the iterator.
 /// Methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
+#[derive(Debug)]
 pub struct Iter {
     fd: i32,
 }

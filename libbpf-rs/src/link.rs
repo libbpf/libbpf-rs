@@ -6,6 +6,7 @@ use crate::*;
 ///
 /// This struct is used to model ownership. The underlying program will be detached
 /// when this object is dropped if nothing else is holding a reference count.
+#[allow(missing_debug_implementations)]
 pub struct Link {
     ptr: *mut libbpf_sys::bpf_link,
 }

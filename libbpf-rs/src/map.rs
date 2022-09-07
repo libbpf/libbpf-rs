@@ -17,6 +17,7 @@ use crate::*;
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
+#[allow(missing_debug_implementations)]
 pub struct OpenMap {
     ptr: *mut libbpf_sys::bpf_map,
 }
@@ -123,6 +124,7 @@ impl OpenMap {
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
+#[allow(missing_debug_implementations)]
 pub struct Map {
     fd: i32,
     name: String,
@@ -625,6 +627,7 @@ impl MapType {
     }
 }
 
+#[allow(missing_debug_implementations)]
 pub struct MapKeyIter<'a> {
     map: &'a Map,
     prev: Option<Vec<u8>>,

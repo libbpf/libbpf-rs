@@ -8,6 +8,8 @@ use std::time::Duration;
 use crate::*;
 
 type Cb<'a> = Box<dyn FnMut(&[u8]) -> i32 + 'a>;
+
+#[allow(missing_debug_implementations)]
 struct RingBufferCallback<'a> {
     cb: Cb<'a>,
 }
@@ -27,6 +29,7 @@ impl<'a> RingBufferCallback<'a> {
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
 #[derive(Default)]
+#[allow(missing_debug_implementations)]
 pub struct RingBufferBuilder<'a> {
     fd_callbacks: Vec<(i32, RingBufferCallback<'a>)>,
 }
@@ -119,6 +122,7 @@ impl<'a> RingBufferBuilder<'a> {
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
+#[allow(missing_debug_implementations)]
 pub struct RingBuffer<'a> {
     ptr: *mut libbpf_sys::ring_buffer,
     #[allow(clippy::vec_box)]

@@ -26,7 +26,7 @@ macro_rules! gen_info_impl {
     ($(#[$attr:meta])*
      $name:ident, $info_ty:ty, $uapi_info_ty:ty, $next_id:expr, $fd_by_id:expr) => {
         $(#[$attr])*
-        #[derive(Default)]
+        #[derive(Default, Debug)]
         pub struct $name {
             cur_id: u32,
         }

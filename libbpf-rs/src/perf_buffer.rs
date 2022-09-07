@@ -18,12 +18,14 @@ impl<T> SampleCb for T where T: FnMut(i32, &[u8]) {}
 pub trait LostCb: FnMut(i32, u64) {}
 impl<T> LostCb for T where T: FnMut(i32, u64) {}
 
+#[allow(missing_debug_implementations)]
 struct CbStruct<'b> {
     sample_cb: Option<Box<dyn SampleCb + 'b>>,
     lost_cb: Option<Box<dyn LostCb + 'b>>,
 }
 
 /// Builds [`PerfBuffer`] instances.
+#[allow(missing_debug_implementations)]
 pub struct PerfBufferBuilder<'a, 'b> {
     map: &'a Map,
     pages: usize,
@@ -150,6 +152,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
 
 /// Represents a special kind of [`Map`]. Typically used to transfer data between
 /// [`Program`]s and userspace.
+#[allow(missing_debug_implementations)]
 pub struct PerfBuffer<'b> {
     ptr: *mut libbpf_sys::perf_buffer,
     // Hold onto the box so it'll get dropped when PerfBuffer is dropped

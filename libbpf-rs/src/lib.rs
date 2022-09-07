@@ -66,6 +66,8 @@
 //!
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
 
+#![warn(missing_debug_implementations)]
+
 mod error;
 mod iter;
 mod link;
