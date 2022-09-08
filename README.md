@@ -1,5 +1,5 @@
 ![CI](https://github.com/libbpf/libbpf-rs/workflows/Rust/badge.svg?branch=master)
-[![rustc](https://img.shields.io/badge/rustc-1.56+-blue.svg)](https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html)
+[![rustc](https://img.shields.io/badge/rustc-1.58.1+-blue.svg)](https://blog.rust-lang.org/2022/01/20/Rust-1.58.1.html)
 
 WARNING: The API is not stable and is subject to breakage. Any breakage will
 include a minor version bump pre-1.0 and a major version bump post-1.0.
