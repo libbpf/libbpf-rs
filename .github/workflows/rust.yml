@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         # Please adjust README when bumping version.
-        rust: [stable, 1.56.0]
+        rust: [stable, 1.58.1]
     steps:
     - uses: actions/checkout@v2
     - name: Install Rust
