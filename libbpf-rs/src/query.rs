@@ -106,8 +106,8 @@ fn name_arr_to_string(a: &[c_char], default: &str) -> String {
     }
 }
 
-#[derive(Clone, Debug)]
 /// BTF Line information
+#[derive(Clone, Debug)]
 pub struct LineInfo {
     /// Offset of instruction in vector
     pub insn_off: u32,
@@ -497,32 +497,84 @@ gen_info_impl!(
 
 /// Information about BPF type format
 #[derive(Debug, Clone)]
-// TODO: Document members.
 #[allow(missing_docs)]
 pub struct BtfInfo {
-    pub btf: u64,
-    pub btf_size: u32,
+    /// The name associated with this btf information in the kernel
+    pub name: String,
+    /// The raw btf bytes from the kernel
+    pub btf: Vec<u8>,
+    /// The btf id associated with this btf information in the kernel
     pub id: u32,
 }
 
 impl BtfInfo {
-    fn from_uapi(_fd: i32, s: libbpf_sys::bpf_btf_info) -> Option<Self> {
-        Some(Self {
-            btf: s.btf,
-            btf_size: s.btf_size,
-            id: s.id,
+    fn load_from_fd(fd: i32) -> Result<Self> {
+        let mut item = libbpf_sys::bpf_btf_info::default();
+        let mut btf: Vec<u8> = Vec::new();
+        let mut name: Vec<u8> = Vec::new();
+
+        let item_ptr: *mut libbpf_sys::bpf_btf_info = &mut item;
+        let mut len = size_of::<libbpf_sys::bpf_btf_info>() as u32;
+
+        let ret =
+            unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+        util::parse_ret(ret)?;
+
+        // The API gives you the ascii string length while expecting
+        // you to give it back space for a nul-terminator
+        item.name_len += 1;
+        name.resize(item.name_len as usize, 0u8);
+        item.name = name.as_mut_ptr() as *mut c_void as u64;
+
+        btf.resize(item.btf_size as usize, 0u8);
+        item.btf = btf.as_mut_ptr() as *mut c_void as u64;
+
+        let ret =
+            unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+        util::parse_ret(ret)?;
+
+        Ok(BtfInfo {
+            name: String::from_utf8(name).unwrap_or_else(|_| "(?)".to_string()),
+            btf,
+            id: item.id,
         })
     }
 }
 
-gen_info_impl!(
-    /// Iterator that returns [`BtfInfo`]s.
-    BtfInfoIter,
-    BtfInfo,
-    libbpf_sys::bpf_btf_info,
-    libbpf_sys::bpf_btf_get_next_id,
-    libbpf_sys::bpf_btf_get_fd_by_id
-);
+#[derive(Debug, Default)]
+/// An iterator for the btf type information of modules and programs
+/// in the kernel
+pub struct BtfInfoIter {
+    cur_id: u32,
+}
+
+impl Iterator for BtfInfoIter {
+    type Item = BtfInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if unsafe { libbpf_sys::bpf_btf_get_next_id(self.cur_id, &mut self.cur_id) } != 0 {
+                return None;
+            }
+
+            let fd = unsafe { libbpf_sys::bpf_btf_get_fd_by_id(self.cur_id) };
+            if fd < 0 {
+                if errno::errno() == errno::Errno::ENOENT as i32 {
+                    continue;
+                }
+                return None;
+            }
+
+            let info = BtfInfo::load_from_fd(fd);
+            let _ = close(fd);
+
+            match info {
+                Ok(i) => return Some(i),
+                Err(e) => eprintln!("Failed to load btf information: {}", e),
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 // TODO: Document members.
