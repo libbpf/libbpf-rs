@@ -62,7 +62,7 @@ fn map() {
 
 fn btf() {
     for btf in query::BtfInfoIter::default() {
-        println!("id={:4} size={}", btf.id, btf.btf_size);
+        println!("id={:4} name={} size={}", btf.id, btf.name, btf.btf.len());
     }
 }
 
