@@ -414,6 +414,40 @@ impl Program {
         }
     }
 
+    /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
+    /// point. The entry point of the program must be defined with
+    /// `SEC("usdt")`.
+    pub fn attach_usdt<S: AsRef<str>, T: AsRef<Path>>(
+        &mut self,
+        pid: i32,
+        binary_path: T,
+        usdt_provider: S,
+        usdt_name: S,
+    ) -> Result<Link> {
+        let path = util::path_to_cstring(binary_path.as_ref())?;
+        let path_ptr = path.as_ptr();
+        let usdt_provider = util::str_to_cstring(usdt_provider.as_ref())?;
+        let usdt_provider_ptr = usdt_provider.as_ptr();
+        let usdt_name = util::str_to_cstring(usdt_name.as_ref())?;
+        let usdt_name_ptr = usdt_name.as_ptr();
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_usdt(
+                self.ptr,
+                pid,
+                path_ptr,
+                usdt_provider_ptr,
+                usdt_name_ptr,
+                ptr::null(),
+            )
+        };
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
     /// Returns the number of instructions that form the program.
     ///
     /// Please see note in [`OpenProgram::insn_cnt`].
