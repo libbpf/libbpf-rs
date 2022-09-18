@@ -218,6 +218,11 @@ impl<'b> PerfBuffer<'b> {
             unsafe { libbpf_sys::perf_buffer__buffer_fd(self.ptr, buf_idx as libbpf_sys::size_t) };
         util::parse_ret_i32(ret)
     }
+
+    /// Retrieve the underlying [`libbpf_sys::perf_buffer`].
+    pub fn as_libbpf_perf_buffer_ptr(&self) -> *mut libbpf_sys::perf_buffer {
+        self.ptr
+    }
 }
 
 // SAFETY: `perf_buffer` objects can safely be polled from any thread.
