@@ -5,6 +5,7 @@ use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write;
 use std::mem::size_of;
 use std::os::raw::{c_char, c_ulong};
+use std::ptr;
 use std::slice;
 
 use anyhow::{anyhow, bail, ensure, Result};
@@ -12,14 +13,16 @@ use scroll::Pread;
 
 use crate::btf::c_types::*;
 use crate::btf::*;
+use crate::gen::BpfObj;
 
 const ANON_PREFIX: &str = "__anon_";
 
 pub struct Btf<'a> {
+    /// Copy of the raw BTF data from the BPF object.
+    _raw_data: Box<[u8]>,
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
     string_table: &'a [u8],
-    bpf_obj: *mut libbpf_sys::bpf_object,
     anon_count: u32,
 }
 
@@ -38,10 +41,14 @@ impl<'a> Btf<'a> {
                 &obj_opts,
             )
         };
+
+        ensure!(!bpf_obj.is_null(), "Failed to bpf_object__open_mem");
+
         let err = unsafe { libbpf_sys::libbpf_get_error(bpf_obj as *const _) };
         ensure!(err == 0, "Failed to bpf_object__open_mem: errno {}", err);
 
-        let bpf_obj_btf = unsafe { libbpf_sys::bpf_object__btf(bpf_obj) };
+        let mut bpf_obj = BpfObj::new(ptr::NonNull::new(bpf_obj).unwrap());
+        let bpf_obj_btf = unsafe { libbpf_sys::bpf_object__btf(bpf_obj.as_mut_ptr()) };
         if bpf_obj_btf.is_null() {
             return Ok(None);
         }
@@ -66,10 +73,16 @@ impl<'a> Btf<'a> {
             !raw_data.is_null() && raw_data_size > 0,
             "Could not get raw BTF data"
         );
-        // `data` is valid as long as `bpf_obj` ptr is valid, so we're safe to conjure up this
-        // `'a` lifetime
-        let data: &'a [u8] =
-            unsafe { slice::from_raw_parts(raw_data as *const u8, raw_data_size as usize) };
+        let raw_data_copy =
+            unsafe { slice::from_raw_parts(raw_data as *const u8, raw_data_size as usize) }
+                .to_vec()
+                .into_boxed_slice();
+
+        // `data` is valid as long as `raw_data_copy` is valid, so we're safe to conjure up
+        // this `'a` lifetime
+        let data: &'a [u8] = unsafe {
+            slice::from_raw_parts(raw_data_copy.as_ptr() as *const u8, raw_data_size as usize)
+        };
 
         // Read section header
         let hdr = data.pread::<btf_header>(0)?;
@@ -93,11 +106,11 @@ impl<'a> Btf<'a> {
         let type_data = &data[type_off..type_end];
 
         let mut btf = Btf::<'a> {
+            _raw_data: raw_data_copy,
             // Type ID 0 is reserved for Void
             types: vec![BtfType::Void],
             ptr_size: ptr_size as u32,
             string_table: str_data,
-            bpf_obj,
             anon_count: 0u32,
         };
 
@@ -1002,13 +1015,5 @@ impl<'a> Btf<'a> {
         let c_str =
             unsafe { CStr::from_ptr(&self.string_table[offset] as *const u8 as *const c_char) };
         Ok(c_str.to_str()?)
-    }
-}
-
-impl<'a> Drop for Btf<'a> {
-    fn drop(&mut self) {
-        unsafe {
-            libbpf_sys::bpf_object__close(self.bpf_obj);
-        }
     }
 }
