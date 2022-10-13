@@ -16,6 +16,26 @@ use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
+#[repr(transparent)]
+pub(crate) struct BpfObj(ptr::NonNull<libbpf_sys::bpf_object>);
+
+impl BpfObj {
+    pub fn new(object: ptr::NonNull<libbpf_sys::bpf_object>) -> BpfObj {
+        Self(object)
+    }
+
+    #[inline]
+    pub fn as_mut_ptr(&mut self) -> *mut libbpf_sys::bpf_object {
+        self.0.as_ptr()
+    }
+}
+
+impl Drop for BpfObj {
+    fn drop(&mut self) {
+        unsafe { libbpf_sys::bpf_object__close(self.as_mut_ptr()) }
+    }
+}
+
 pub enum OutputDest<'a> {
     Stdout,
     /// Infer a filename and place file in specified directory
@@ -174,11 +194,7 @@ fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
     (unsafe { libbpf_sys::bpf_map__map_flags(map) } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
 }
 
-fn gen_skel_c_skel_constructor(
-    skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
-    name: &str,
-) -> Result<()> {
+fn gen_skel_c_skel_constructor(skel: &mut String, object: &mut BpfObj, name: &str) -> Result<()> {
     write!(
         skel,
         r#"
@@ -191,7 +207,7 @@ fn gen_skel_c_skel_constructor(
         name = name
     )?;
 
-    for map in MapIter::new(object) {
+    for map in MapIter::new(object.as_mut_ptr()) {
         let raw_name = get_raw_map_name(map)?;
         let mmaped = if map_is_mmapable(map) {
             "true"
@@ -209,7 +225,7 @@ fn gen_skel_c_skel_constructor(
         )?;
     }
 
-    for prog in ProgIter::new(object) {
+    for prog in ProgIter::new(object.as_mut_ptr()) {
         let name = get_prog_name(prog)?;
 
         write!(
@@ -236,12 +252,12 @@ fn gen_skel_c_skel_constructor(
 
 fn gen_skel_map_defs(
     skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
+    object: &mut BpfObj,
     obj_name: &str,
     open: bool,
     mutable: bool,
 ) -> Result<()> {
-    if MapIter::new(object).next().is_none() {
+    if MapIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -279,7 +295,7 @@ fn gen_skel_map_defs(
         mut_prefix = mut_prefix,
     )?;
 
-    for map in MapIter::new(object) {
+    for map in MapIter::new(object.as_mut_ptr()) {
         let map_name = match get_map_name(map)? {
             Some(n) => n,
             None => continue,
@@ -307,12 +323,12 @@ fn gen_skel_map_defs(
 
 fn gen_skel_prog_defs(
     skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
+    object: &mut BpfObj,
     obj_name: &str,
     open: bool,
     mutable: bool,
 ) -> Result<()> {
-    if ProgIter::new(object).next().is_none() {
+    if ProgIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -350,7 +366,7 @@ fn gen_skel_prog_defs(
         mut_prefix = mut_prefix,
     )?;
 
-    for prog in ProgIter::new(object) {
+    for prog in ProgIter::new(object.as_mut_ptr()) {
         write!(
             skel,
             r#"
@@ -403,12 +419,12 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
 
 fn gen_skel_map_getter(
     skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
+    object: &mut BpfObj,
     obj_name: &str,
     open: bool,
     mutable: bool,
 ) -> Result<()> {
-    if MapIter::new(object).next().is_none() {
+    if MapIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -443,12 +459,12 @@ fn gen_skel_map_getter(
 
 fn gen_skel_prog_getter(
     skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
+    object: &mut BpfObj,
     obj_name: &str,
     open: bool,
     mutable: bool,
 ) -> Result<()> {
-    if ProgIter::new(object).next().is_none() {
+    if ProgIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -483,11 +499,11 @@ fn gen_skel_prog_getter(
 
 fn gen_skel_datasec_getters(
     skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
+    object: &mut BpfObj,
     obj_name: &str,
     loaded: bool,
 ) -> Result<()> {
-    for (idx, map) in MapIter::new(object).enumerate() {
+    for (idx, map) in MapIter::new(object.as_mut_ptr()).enumerate() {
         if !map_is_datasec(map) {
             continue;
         }
@@ -528,12 +544,8 @@ fn gen_skel_datasec_getters(
     Ok(())
 }
 
-fn gen_skel_link_defs(
-    skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
-    obj_name: &str,
-) -> Result<()> {
-    if ProgIter::new(object).next().is_none() {
+fn gen_skel_link_defs(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Result<()> {
+    if ProgIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -546,7 +558,7 @@ fn gen_skel_link_defs(
         obj_name
     )?;
 
-    for prog in ProgIter::new(object) {
+    for prog in ProgIter::new(object.as_mut_ptr()) {
         write!(
             skel,
             r#"pub {}: Option<libbpf_rs::Link>,
@@ -560,12 +572,8 @@ fn gen_skel_link_defs(
     Ok(())
 }
 
-fn gen_skel_link_getter(
-    skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
-    obj_name: &str,
-) -> Result<()> {
-    if ProgIter::new(object).next().is_none() {
+fn gen_skel_link_getter(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Result<()> {
+    if ProgIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -579,7 +587,7 @@ fn gen_skel_link_getter(
     Ok(())
 }
 
-fn open_bpf_object(name: &str, data: &[u8]) -> Result<*mut libbpf_sys::bpf_object> {
+fn open_bpf_object(name: &str, data: &[u8]) -> Result<BpfObj> {
     let cname = CString::new(name)?;
     let obj_opts = libbpf_sys::bpf_object_open_opts {
         sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
@@ -597,15 +605,11 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<*mut libbpf_sys::bpf_objec
         bail!("Failed to bpf_object__open_mem()");
     }
 
-    Ok(object)
+    Ok(BpfObj(ptr::NonNull::new(object).unwrap()))
 }
 
-fn gen_skel_attach(
-    skel: &mut String,
-    object: *mut libbpf_sys::bpf_object,
-    obj_name: &str,
-) -> Result<()> {
-    if ProgIter::new(object).next().is_none() {
+fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Result<()> {
+    if ProgIter::new(object.as_mut_ptr()).next().is_none() {
         return Ok(());
     }
 
@@ -623,7 +627,7 @@ fn gen_skel_attach(
         obj_name
     )?;
 
-    for (idx, prog) in ProgIter::new(object).enumerate() {
+    for (idx, prog) in ProgIter::new(object.as_mut_ptr()).enumerate() {
         let prog_name = get_prog_name(prog)?;
 
         write!(
@@ -687,9 +691,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     // Open bpf_object so we can iterate over maps and progs
     let file = File::open(obj_file_path)?;
     let mmap = unsafe { Mmap::map(&file)? };
-    let object = open_bpf_object(&libbpf_obj_name, &mmap)?;
+    let mut object = open_bpf_object(&libbpf_obj_name, &mmap)?;
 
-    gen_skel_c_skel_constructor(&mut skel, object, &libbpf_obj_name)?;
+    gen_skel_c_skel_constructor(&mut skel, &mut object, &libbpf_obj_name)?;
 
     write!(
         skel,
@@ -737,10 +741,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         name = obj_name
     )?;
 
-    gen_skel_map_defs(&mut skel, object, &obj_name, true, false)?;
-    gen_skel_map_defs(&mut skel, object, &obj_name, true, true)?;
-    gen_skel_prog_defs(&mut skel, object, &obj_name, true, false)?;
-    gen_skel_prog_defs(&mut skel, object, &obj_name, true, true)?;
+    gen_skel_map_defs(&mut skel, &mut object, &obj_name, true, false)?;
+    gen_skel_map_defs(&mut skel, &mut object, &obj_name, true, true)?;
+    gen_skel_prog_defs(&mut skel, &mut object, &obj_name, true, false)?;
+    gen_skel_prog_defs(&mut skel, &mut object, &obj_name, true, true)?;
     gen_skel_datasec_defs(&mut skel, raw_obj_name, &mmap)?;
 
     write!(
@@ -768,24 +772,24 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             }}
         "#,
         name = &obj_name,
-        links = if ProgIter::new(object).next().is_some() {
+        links = if ProgIter::new(object.as_mut_ptr()).next().is_some() {
             format!(r#"links: {}Links::default()"#, obj_name)
         } else {
             "".to_string()
         }
     )?;
-    gen_skel_prog_getter(&mut skel, object, &obj_name, true, false)?;
-    gen_skel_prog_getter(&mut skel, object, &obj_name, true, true)?;
-    gen_skel_map_getter(&mut skel, object, &obj_name, true, false)?;
-    gen_skel_map_getter(&mut skel, object, &obj_name, true, true)?;
-    gen_skel_datasec_getters(&mut skel, object, raw_obj_name, false)?;
+    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, false)?;
+    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, true)?;
+    gen_skel_map_getter(&mut skel, &mut object, &obj_name, true, false)?;
+    gen_skel_map_getter(&mut skel, &mut object, &obj_name, true, true)?;
+    gen_skel_datasec_getters(&mut skel, &mut object, raw_obj_name, false)?;
     writeln!(skel, "}}")?;
 
-    gen_skel_map_defs(&mut skel, object, &obj_name, false, false)?;
-    gen_skel_map_defs(&mut skel, object, &obj_name, false, true)?;
-    gen_skel_prog_defs(&mut skel, object, &obj_name, false, false)?;
-    gen_skel_prog_defs(&mut skel, object, &obj_name, false, true)?;
-    gen_skel_link_defs(&mut skel, object, &obj_name)?;
+    gen_skel_map_defs(&mut skel, &mut object, &obj_name, false, false)?;
+    gen_skel_map_defs(&mut skel, &mut object, &obj_name, false, true)?;
+    gen_skel_prog_defs(&mut skel, &mut object, &obj_name, false, false)?;
+    gen_skel_prog_defs(&mut skel, &mut object, &obj_name, false, true)?;
+    gen_skel_link_defs(&mut skel, &mut object, &obj_name)?;
 
     write!(
         skel,
@@ -796,7 +800,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         "#,
         name = &obj_name,
     )?;
-    gen_skel_link_getter(&mut skel, object, &obj_name)?;
+    gen_skel_link_getter(&mut skel, &mut object, &obj_name)?;
     write!(
         skel,
         r#"
@@ -808,12 +812,12 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         "#,
         name = &obj_name,
     )?;
-    gen_skel_prog_getter(&mut skel, object, &obj_name, false, false)?;
-    gen_skel_prog_getter(&mut skel, object, &obj_name, false, true)?;
-    gen_skel_map_getter(&mut skel, object, &obj_name, false, false)?;
-    gen_skel_map_getter(&mut skel, object, &obj_name, false, true)?;
-    gen_skel_datasec_getters(&mut skel, object, raw_obj_name, true)?;
-    gen_skel_attach(&mut skel, object, &obj_name)?;
+    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, false)?;
+    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, true)?;
+    gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, false)?;
+    gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, true)?;
+    gen_skel_datasec_getters(&mut skel, &mut object, raw_obj_name, true)?;
+    gen_skel_attach(&mut skel, &mut object, &obj_name)?;
     writeln!(skel, "}}")?;
 
     // Coerce to &[u8] just to be safe, as we'll be using debug formatting
