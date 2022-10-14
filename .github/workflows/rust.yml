@@ -13,8 +13,29 @@ jobs:
       fail-fast: false
       matrix:
         # Please adjust README when bumping version.
-        rust: [stable, 1.59.0]
+        rust: [stable, 1.59.0, nightly]
     steps:
+    - name: "Set environmental variables"
+      shell: bash
+      run: |
+        RUST_BACKTRACE_nightly='1'
+        CFLAGS_nightly='-fsanitize=leak'
+        CXXFLAGS_nightly='-fsanitize=leak'
+        RUSTFLAGS_nightly='-Zsanitizer=leak'
+
+        # A function for defining a variable conditional on the toolchain in
+        # use.
+        tc_var() {
+          # Replace any dots in the toolchain name with underscores. Necessary
+          # due to shell imposed variable naming restrictions.
+          var="${1}_$(echo ${{ matrix.rust }} | tr . _)"
+          echo "${1}=${!var}" >> ${GITHUB_ENV}
+        }
+
+        tc_var RUST_BACKTRACE
+        tc_var RUSTFLAGS
+        tc_var CFLAGS
+        tc_var CXXFLAGS
     - uses: actions/checkout@v3
     - name: Install Rust
       uses: actions-rs/toolchain@v1.0.6
@@ -30,14 +51,16 @@ jobs:
     - name: Build
       run: cargo build --verbose --workspace --exclude runqslower
     - name: Build capable example with static libelf and libz
-      run: RUSTFLAGS='-L /usr/lib/x86_64-linux-gnu' cargo b --package capable --features=static
+      run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo b --package capable --features=static
     - name: Run tests
       # Skip BTF tests which require sudo
       # Skip BTF dump float test for now, we can enable it when we have access to clang 13+
       run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object --skip test_btf_dump_float --skip test_tc
     - name: Run BTF tests
       run: cd libbpf-rs && cargo test --verbose -- test_object test_tc
-    - name: Run rustfmt
+    - if: ${{ matrix.rust != 'nightly' }}
+      name: Run rustfmt
       run: cargo fmt --package libbpf-cargo libbpf-rs -- --check
-    - name: Run clippy
+    - if: ${{ matrix.rust != 'nightly' }}
+      name: Run clippy
       run: cargo clippy --tests -- -D warnings
