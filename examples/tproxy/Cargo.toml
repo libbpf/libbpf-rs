@@ -1,0 +1,18 @@
+[package]
+name = "tproxy"
+version = "0.1.0"
+authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
+edition = "2021"
+
+[[bin]]
+name = "proxy"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "3.1", default-features = false, features = ["std", "derive"] }
+ctrlc = "3.2"
+libbpf-rs = { path = "../../libbpf-rs" }
+nix = { version = "0.24", default-features = false, features = ["net", "user"] }
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
