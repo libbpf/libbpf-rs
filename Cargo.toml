@@ -6,4 +6,5 @@ members = [
   "examples/bpf_query",
   "examples/capable",
   "examples/tc_port_whitelist",
+  "examples/tproxy",
 ]
