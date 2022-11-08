@@ -1033,7 +1033,7 @@ fn build_btf_prog(prog_text: &str) -> Btf {
         .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
         .expect("failed to open object file");
     let mmap = unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file");
-    let btf = Btf::new("prog", &*mmap)
+    let btf = Btf::new("prog", &mmap)
         .expect("Failed to initialize Btf")
         .expect("Did not find .BTF section");
 
