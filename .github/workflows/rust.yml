@@ -12,7 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Please adjust README when bumping version.
+        # Please adjust README and rust-version field in Cargo.toml files when
+        # bumping version.
         rust: [stable, 1.59.0, nightly]
     steps:
     - name: "Set environmental variables"
