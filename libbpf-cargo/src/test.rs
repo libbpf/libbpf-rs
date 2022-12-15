@@ -96,16 +96,14 @@ fn validate_bpf_o(path: &Path) {
 }
 
 /// Returns the path to the local libbpf-rs
-///
-/// Warning: hacky! But necessary to run tests. We assume that the current working directory is
-/// libbpf-cargo project root. Hopefully this is a cargo-provided invariant. I tried using the
-/// file!() macro but it returns a relative path and seems even hackier to make work.
 fn get_libbpf_rs_path() -> PathBuf {
-    let cwd = std::env::current_dir().expect("failed to get cwd");
+    // The `CARGO_MANIFEST_DIR` environment variable points to the
+    // libbpf-cargo directory, at build time.
+    let libcargo_dir = env!("CARGO_MANIFEST_DIR");
 
-    Path::new(&cwd)
+    Path::new(&libcargo_dir)
         .parent()
-        .expect("failed to get parent of cwd")
+        .expect("failed to get parent of libbpf-cargo directory")
         .join("libbpf-rs")
         .canonicalize()
         .expect("failed to canonicalize libbpf-rs")
