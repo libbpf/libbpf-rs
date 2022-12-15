@@ -120,7 +120,7 @@ impl<'a> Btf<'a> {
 
         // Load all types
         let mut off: usize = 0;
-        while off < hdr.type_len as usize {
+        while off < type_data.len() {
             let t = btf.load_type(&type_data[off..])?;
             off += Btf::type_size(&t);
             btf.types.push(t);
