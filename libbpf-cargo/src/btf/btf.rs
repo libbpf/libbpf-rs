@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write;
+use std::marker::PhantomData;
 use std::mem::size_of;
 use std::os::raw::{c_char, c_ulong};
 use std::ptr;
@@ -29,11 +30,46 @@ fn get_kind(info: u32) -> u32 {
     (info >> 24) & 0x1f
 }
 
+struct BtfLoader<'dat> {
+    /// Counter for anonymous types.
+    anon_count: u32,
+    /// Phantom data for the type's lifetime. Necessary only to avoid having to
+    /// push it to each method.
+    _phantom: PhantomData<&'dat ()>,
+}
+
+impl<'dat> BtfLoader<'dat> {
+    /// Load all BTF types.
+    fn load(type_data: &'dat [u8], string_table: &'dat [u8]) -> Result<Vec<BtfType<'dat>>> {
+        let mut slf = Self {
+            anon_count: 0,
+            _phantom: PhantomData,
+        };
+        slf.load_now(type_data, string_table)
+    }
+
+    fn load_now(
+        &mut self,
+        type_data: &'dat [u8],
+        string_table: &'dat [u8],
+    ) -> Result<Vec<BtfType<'dat>>> {
+        let mut off: usize = 0;
+        // Type ID 0 is reserved for Void
+        let mut types = vec![BtfType::Void];
+
+        while off < type_data.len() {
+            let t = self.load_type(string_table, &type_data[off..])?;
+            off += Self::type_size(&t);
+            types.push(t);
+        }
+
+        Ok(types)
+    }
+}
+
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
-    string_table: &'a [u8],
-    anon_count: u32,
     /// Copy of the raw BTF data from the BPF object.
     ///
     /// SAFETY: Needs to stay last to be dropped last, as other members
@@ -121,22 +157,11 @@ impl<'a> Btf<'a> {
         ensure!(type_end <= data.len(), "Type table out of bounds");
         let type_data = &data[type_off..type_end];
 
-        let mut btf = Btf::<'a> {
+        let btf = Btf::<'a> {
             _raw_data: raw_data_copy,
-            // Type ID 0 is reserved for Void
-            types: vec![BtfType::Void],
+            types: BtfLoader::load(type_data, str_data)?,
             ptr_size: ptr_size as u32,
-            string_table: str_data,
-            anon_count: 0u32,
         };
-
-        // Load all types
-        let mut off: usize = 0;
-        while off < type_data.len() {
-            let t = btf.load_type(&type_data[off..])?;
-            off += Btf::type_size(&t);
-            btf.types.push(t);
-        }
 
         Ok(Some(btf))
     }
@@ -767,8 +792,10 @@ impl<'a> Btf<'a> {
             };
         }
     }
+}
 
-    fn load_type(&mut self, data: &'a [u8]) -> Result<BtfType<'a>> {
+impl<'dat> BtfLoader<'dat> {
+    fn load_type(&mut self, string_table: &'dat [u8], data: &'dat [u8]) -> Result<BtfType<'dat>> {
         let t = data.pread::<btf_type>(0)?;
         let extra = &data[size_of::<btf_type>()..];
         let kind = get_kind(t.info);
@@ -778,39 +805,43 @@ impl<'a> Btf<'a> {
                 let _ = BtfType::Void; // Silence unused variant warning
                 bail!("Cannot load Void type");
             }
-            BtfKind::Int => Self::load_int(self.string_table, &t, extra),
-            BtfKind::Float => Self::load_float(self.string_table, &t),
+            BtfKind::Int => Self::load_int(string_table, &t, extra),
+            BtfKind::Float => Self::load_float(string_table, &t),
             BtfKind::Ptr => Ok(BtfType::Ptr(BtfPtr {
                 pointee_type: t.type_id,
             })),
             BtfKind::Array => Self::load_array(extra),
-            BtfKind::Struct => self.load_struct(self.string_table, &t, extra),
-            BtfKind::Union => self.load_union(&t, extra),
-            BtfKind::Enum => self.load_enum(&t, extra),
-            BtfKind::Fwd => Self::load_fwd(self.string_table, &t),
+            BtfKind::Struct => self.load_struct(string_table, &t, extra),
+            BtfKind::Union => self.load_union(string_table, &t, extra),
+            BtfKind::Enum => self.load_enum(string_table, &t, extra),
+            BtfKind::Fwd => Self::load_fwd(string_table, &t),
             BtfKind::Typedef => Ok(BtfType::Typedef(BtfTypedef {
-                name: Self::get_btf_str(self.string_table, t.name_off as usize)?,
+                name: Self::get_btf_str(string_table, t.name_off as usize)?,
                 type_id: t.type_id,
             })),
             BtfKind::Volatile => Ok(BtfType::Volatile(BtfVolatile { type_id: t.type_id })),
             BtfKind::Const => Ok(BtfType::Const(BtfConst { type_id: t.type_id })),
             BtfKind::Restrict => Ok(BtfType::Restrict(BtfRestrict { type_id: t.type_id })),
             BtfKind::Func => Ok(BtfType::Func(BtfFunc {
-                name: Self::get_btf_str(self.string_table, t.name_off as usize)?,
+                name: Self::get_btf_str(string_table, t.name_off as usize)?,
                 type_id: t.type_id,
             })),
-            BtfKind::FuncProto => Self::load_func_proto(self.string_table, &t, extra),
-            BtfKind::Var => Self::load_var(self.string_table, &t, extra),
-            BtfKind::Datasec => Self::load_datasec(self.string_table, &t, extra),
-            BtfKind::DeclTag => Self::load_decl_tag(self.string_table, &t, extra),
+            BtfKind::FuncProto => Self::load_func_proto(string_table, &t, extra),
+            BtfKind::Var => Self::load_var(string_table, &t, extra),
+            BtfKind::Datasec => Self::load_datasec(string_table, &t, extra),
+            BtfKind::DeclTag => Self::load_decl_tag(string_table, &t, extra),
             BtfKind::TypeTag => Ok(BtfType::TypeTag(BtfTypeTag {
-                name: Self::get_btf_str(self.string_table, t.name_off as usize)?,
+                name: Self::get_btf_str(string_table, t.name_off as usize)?,
                 type_id: t.type_id,
             })),
         }
     }
 
-    fn load_int(string_table: &'a [u8], t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_int(
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
         let info = extra.pread::<u32>(0)?;
         let enc: u8 = ((info >> 24) & 0xf) as u8;
         let off: u8 = ((info >> 16) & 0xff) as u8;
@@ -823,14 +854,14 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_float(string_table: &'a [u8], t: &btf_type) -> Result<BtfType<'a>> {
+    fn load_float(string_table: &'dat [u8], t: &btf_type) -> Result<BtfType<'dat>> {
         Ok(BtfType::Float(BtfFloat {
             name: Self::get_btf_str(string_table, t.name_off as usize)?,
             size: t.type_id,
         }))
     }
 
-    fn load_array(extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_array(extra: &'dat [u8]) -> Result<BtfType<'dat>> {
         let info = extra.pread::<btf_array>(0)?;
         Ok(BtfType::Array(BtfArray {
             nelems: info.nelems,
@@ -841,10 +872,10 @@ impl<'a> Btf<'a> {
 
     fn load_struct(
         &mut self,
-        string_table: &'a [u8],
+        string_table: &'dat [u8],
         t: &btf_type,
-        extra: &'a [u8],
-    ) -> Result<BtfType<'a>> {
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
         let name = match Self::get_btf_str(string_table, t.name_off as usize)? {
             "" => {
                 self.anon_count += 1;
@@ -860,8 +891,13 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_union(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
-        let name = match Self::get_btf_str(self.string_table, t.name_off as usize)? {
+    fn load_union(
+        &mut self,
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
+        let name = match Self::get_btf_str(string_table, t.name_off as usize)? {
             "" => {
                 self.anon_count += 1;
                 format!("{}{}", ANON_PREFIX, self.anon_count)
@@ -872,15 +908,15 @@ impl<'a> Btf<'a> {
             name,
             is_struct: false,
             size: t.type_id,
-            members: Self::load_members(self.string_table, t, extra)?,
+            members: Self::load_members(string_table, t, extra)?,
         }))
     }
 
     fn load_members(
-        string_table: &'a [u8],
+        string_table: &'dat [u8],
         t: &btf_type,
-        extra: &'a [u8],
-    ) -> Result<Vec<BtfMember<'a>>> {
+        extra: &'dat [u8],
+    ) -> Result<Vec<BtfMember<'dat>>> {
         let mut res = Vec::new();
         let mut off: usize = 0;
         let bits = get_kind_flag(t.info);
@@ -900,8 +936,13 @@ impl<'a> Btf<'a> {
         Ok(res)
     }
 
-    fn load_enum(&mut self, t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
-        let name = match Self::get_btf_str(self.string_table, t.name_off as usize)? {
+    fn load_enum(
+        &mut self,
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
+        let name = match Self::get_btf_str(string_table, t.name_off as usize)? {
             "" => {
                 self.anon_count += 1;
                 format!("{}{}", ANON_PREFIX, self.anon_count)
@@ -914,7 +955,7 @@ impl<'a> Btf<'a> {
         for _ in 0..get_vlen(t.info) {
             let v = extra.pread::<btf_enum>(off)?;
             vals.push(BtfEnumValue {
-                name: Self::get_btf_str(self.string_table, v.name_off as usize)?,
+                name: Self::get_btf_str(string_table, v.name_off as usize)?,
                 value: v.val,
             });
 
@@ -928,7 +969,7 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_fwd(string_table: &'a [u8], t: &btf_type) -> Result<BtfType<'a>> {
+    fn load_fwd(string_table: &'dat [u8], t: &btf_type) -> Result<BtfType<'dat>> {
         Ok(BtfType::Fwd(BtfFwd {
             name: Self::get_btf_str(string_table, t.name_off as usize)?,
             kind: if get_kind_flag(t.info) {
@@ -940,10 +981,10 @@ impl<'a> Btf<'a> {
     }
 
     fn load_func_proto(
-        string_table: &'a [u8],
+        string_table: &'dat [u8],
         t: &btf_type,
-        extra: &'a [u8],
-    ) -> Result<BtfType<'a>> {
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
         let mut params = Vec::new();
         let mut off: usize = 0;
 
@@ -963,7 +1004,11 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_var(string_table: &'a [u8], t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_var(
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
         let kind = extra.pread::<u32>(0)?;
         Ok(BtfType::Var(BtfVar {
             name: Self::get_btf_str(string_table, t.name_off as usize)?,
@@ -972,7 +1017,11 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_datasec(string_table: &'a [u8], t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_datasec(
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
         let mut vars = Vec::new();
         let mut off: usize = 0;
 
@@ -994,7 +1043,11 @@ impl<'a> Btf<'a> {
         }))
     }
 
-    fn load_decl_tag(string_table: &'a [u8], t: &btf_type, extra: &'a [u8]) -> Result<BtfType<'a>> {
+    fn load_decl_tag(
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
         let decl_tag = extra.pread::<btf_decl_tag>(0)?;
         Ok(BtfType::DeclTag(BtfDeclTag {
             name: Self::get_btf_str(string_table, t.name_off as usize)?,
