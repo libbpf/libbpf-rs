@@ -179,7 +179,7 @@ impl TcHook {
 
         let err = unsafe { libbpf_sys::bpf_tc_detach(&self.hook as *const _, &opts as *const _) };
         if err != 0 {
-            Err(Error::System(err as i32))
+            Err(Error::System(err))
         } else {
             self.opts.prog_id = 0;
             Ok(())
@@ -202,7 +202,7 @@ impl TcHook {
     pub fn destroy(&mut self) -> Result<()> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_destroy(&mut self.hook as *mut _) };
         if err != 0 {
-            Err(Error::System(err as i32))
+            Err(Error::System(err))
         } else {
             Ok(())
         }
