@@ -93,7 +93,7 @@ impl<'a> RingBufferBuilder<'a> {
 
                 // Handle errors
                 if err != 0 {
-                    return Err(Error::System(err as i32));
+                    return Err(Error::System(err));
                 }
             }
 
