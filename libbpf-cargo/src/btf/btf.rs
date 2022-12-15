@@ -17,6 +17,18 @@ use crate::gen::BpfObj;
 
 const ANON_PREFIX: &str = "__anon_";
 
+fn get_vlen(info: u32) -> u32 {
+    info & 0xffff
+}
+
+fn get_kind_flag(info: u32) -> bool {
+    (info >> 31) == 1
+}
+
+fn get_kind(info: u32) -> u32 {
+    (info >> 24) & 0x1f
+}
+
 pub struct Btf<'a> {
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
@@ -759,7 +771,7 @@ impl<'a> Btf<'a> {
     fn load_type(&mut self, data: &'a [u8]) -> Result<BtfType<'a>> {
         let t = data.pread::<btf_type>(0)?;
         let extra = &data[size_of::<btf_type>()..];
-        let kind = Self::get_kind(t.info);
+        let kind = get_kind(t.info);
 
         match BtfKind::try_from(kind)? {
             BtfKind::Void => {
@@ -871,9 +883,9 @@ impl<'a> Btf<'a> {
     ) -> Result<Vec<BtfMember<'a>>> {
         let mut res = Vec::new();
         let mut off: usize = 0;
-        let bits = Self::get_kind_flag(t.info);
+        let bits = get_kind_flag(t.info);
 
-        for _ in 0..Btf::get_vlen(t.info) {
+        for _ in 0..get_vlen(t.info) {
             let m = extra.pread::<btf_member>(off)?;
             res.push(BtfMember {
                 name: Self::get_btf_str(string_table, m.name_off as usize)?,
@@ -899,7 +911,7 @@ impl<'a> Btf<'a> {
 
         let mut vals = Vec::new();
         let mut off: usize = 0;
-        for _ in 0..Btf::get_vlen(t.info) {
+        for _ in 0..get_vlen(t.info) {
             let v = extra.pread::<btf_enum>(off)?;
             vals.push(BtfEnumValue {
                 name: Self::get_btf_str(self.string_table, v.name_off as usize)?,
@@ -919,7 +931,7 @@ impl<'a> Btf<'a> {
     fn load_fwd(string_table: &'a [u8], t: &btf_type) -> Result<BtfType<'a>> {
         Ok(BtfType::Fwd(BtfFwd {
             name: Self::get_btf_str(string_table, t.name_off as usize)?,
-            kind: if Self::get_kind_flag(t.info) {
+            kind: if get_kind_flag(t.info) {
                 BtfFwdKind::Union
             } else {
                 BtfFwdKind::Struct
@@ -935,7 +947,7 @@ impl<'a> Btf<'a> {
         let mut params = Vec::new();
         let mut off: usize = 0;
 
-        for _ in 0..Btf::get_vlen(t.info) {
+        for _ in 0..get_vlen(t.info) {
             let p = extra.pread::<btf_param>(off)?;
             params.push(BtfFuncParam {
                 name: Self::get_btf_str(string_table, p.name_off as usize)?,
@@ -964,7 +976,7 @@ impl<'a> Btf<'a> {
         let mut vars = Vec::new();
         let mut off: usize = 0;
 
-        for _ in 0..Btf::get_vlen(t.info) {
+        for _ in 0..get_vlen(t.info) {
             let v = extra.pread::<btf_datasec_var>(off)?;
             vars.push(BtfDatasecVar {
                 type_id: v.type_id,
@@ -1014,18 +1026,6 @@ impl<'a> Btf<'a> {
             BtfType::Datasec(t) => common + t.vars.len() * size_of::<btf_datasec_var>(),
             BtfType::DeclTag(_) => common + size_of::<btf_decl_tag>(),
         }
-    }
-
-    fn get_vlen(info: u32) -> u32 {
-        info & 0xffff
-    }
-
-    fn get_kind_flag(info: u32) -> bool {
-        (info >> 31) == 1
-    }
-
-    fn get_kind(info: u32) -> u32 {
-        (info >> 24) & 0x1f
     }
 
     fn get_btf_str(string_table: &[u8], offset: usize) -> Result<&str> {
