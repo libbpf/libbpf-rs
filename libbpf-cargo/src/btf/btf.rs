@@ -358,8 +358,10 @@ impl<'dat> BtfLoader<'dat> {
     }
 }
 
-pub struct Btf<'a> {
-    types: Vec<BtfType<'a>>,
+pub struct Btf {
+    /// SAFETY: We must not hand out references with a 'static lifetime to
+    ///         this member. They should never outlive `self`.
+    types: Vec<BtfType<'static>>,
     ptr_size: u32,
     /// Copy of the raw BTF data from the BPF object.
     ///
@@ -369,7 +371,7 @@ pub struct Btf<'a> {
     _raw_data: Box<[u8]>,
 }
 
-impl<'a> Btf<'a> {
+impl Btf {
     pub fn new(name: &str, object_file: &[u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)?;
         let obj_opts = libbpf_sys::bpf_object_open_opts {
@@ -421,9 +423,10 @@ impl<'a> Btf<'a> {
                 .to_vec()
                 .into_boxed_slice();
 
-        // `data` is valid as long as `raw_data_copy` is valid, so we're safe to conjure up
-        // this `'a` lifetime
-        let data: &'a [u8] = unsafe {
+        // `data` is valid as long as `raw_data_copy` is valid, so we're safe to
+        // conjure up this `'static` lifetime, as long as we make sure that
+        // references carrying it do not leave the `Btf` object itself.
+        let data: &'static [u8] = unsafe {
             slice::from_raw_parts(raw_data_copy.as_ptr() as *const u8, raw_data_size as usize)
         };
 
@@ -448,7 +451,7 @@ impl<'a> Btf<'a> {
         ensure!(type_end <= data.len(), "Type table out of bounds");
         let type_data = &data[type_off..type_end];
 
-        let btf = Btf::<'a> {
+        let btf = Btf {
             _raw_data: raw_data_copy,
             types: BtfLoader::load(type_data, str_data)?,
             ptr_size: ptr_size as u32,
@@ -457,7 +460,7 @@ impl<'a> Btf<'a> {
         Ok(Some(btf))
     }
 
-    pub fn types(&self) -> &[BtfType<'a>] {
+    pub fn types(&self) -> &[BtfType<'_>] {
         &self.types
     }
 
