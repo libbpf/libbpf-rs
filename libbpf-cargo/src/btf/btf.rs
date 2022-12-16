@@ -18,12 +18,16 @@ use crate::gen::BpfObj;
 const ANON_PREFIX: &str = "__anon_";
 
 pub struct Btf<'a> {
-    /// Copy of the raw BTF data from the BPF object.
-    _raw_data: Box<[u8]>,
     types: Vec<BtfType<'a>>,
     ptr_size: u32,
     string_table: &'a [u8],
     anon_count: u32,
+    /// Copy of the raw BTF data from the BPF object.
+    ///
+    /// SAFETY: Needs to stay last to be dropped last, as other members
+    ///         reference it. We also must not move out of it while references
+    ///         to it are present.
+    _raw_data: Box<[u8]>,
 }
 
 impl<'a> Btf<'a> {
