@@ -880,6 +880,18 @@ impl Btf {
                         agg_content.push(format!(r#"    pub {}: {},"#, field_name, field_ty_str));
                     }
 
+                    if t.is_struct {
+                        let struct_size = t.size as usize;
+                        let padding =
+                            self.required_padding(offset, struct_size, type_id, packed)?;
+                        if padding != 0 {
+                            agg_content.push(format!(r#"    __pad_{offset}: [u8; {padding}],"#,));
+                            impl_default.push(format!(
+                                r#"            __pad_{offset}: [u8::default(); {padding}]"#,
+                            ));
+                        }
+                    }
+
                     if !gen_impl_default && t.is_struct {
                         writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
                     } else if t.is_struct {

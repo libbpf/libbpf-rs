@@ -1111,6 +1111,34 @@ pub struct Foo {
 }
 
 #[test]
+fn test_btf_dump_align() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    int x;
+} __attribute__((aligned(16)));
+
+struct Foo foo = {1};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub x: i32,
+    __pad_4: [u8; 12],
+}
+"#;
+
+    let btf = build_btf_prog(prog_text);
+    let struct_foo = find_type_in_btf!(btf, Struct, "Foo");
+
+    assert_definition(&btf, struct_foo, expected_output);
+}
+
+#[test]
 fn test_btf_dump_basic_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"
@@ -1767,6 +1795,7 @@ pub struct Foo {
     __pad_36: [u8; 4],
     pub baz: __anon_2,
     pub w: i32,
+    __pad_52: [u8; 4],
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1844,6 +1873,7 @@ pub struct Foo {
     pub bar: __anon_1,
     pub baz: __anon_2,
     pub w: i32,
+    __pad_68: [u8; 4],
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
