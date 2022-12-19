@@ -1060,7 +1060,7 @@ fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
     println!("-------------");
     println!("{}", ao);
 
-    assert_eq!(eo, ao);
+    assert!(eo == ao);
 }
 
 #[test]
