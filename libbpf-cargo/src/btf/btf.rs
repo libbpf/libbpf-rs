@@ -702,18 +702,9 @@ impl Btf {
         let align = if packed {
             1
         } else {
-            // Assume 32-bit alignment in case we're generating code for 32-bit
-            // arch. Worst case is on a 64-bit arch the compiler will generate
-            // extra padding. The final layout will still be identical to what is
-            // described by BTF.
             let a = self.align_of(type_id)? as usize;
             ensure!(a != 0, "Failed to get alignment of type_id: {}", type_id);
-
-            if a > 4 {
-                4
-            } else {
-                a
-            }
+            a
         };
 
         // If we aren't aligning to the natural offset, padding needs to be inserted
