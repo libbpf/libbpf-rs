@@ -12,7 +12,9 @@ use plain::Plain;
 use probe::probe;
 use scopeguard::defer;
 
-use libbpf_rs::{num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder};
+use libbpf_rs::{
+    num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, ProgramType,
+};
 
 fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -777,4 +779,45 @@ fn test_object_usdt() {
     mgr.consume().expect("Failed to consume ringbuf");
 
     unsafe { assert_eq!(V, 1) };
+}
+
+#[test]
+fn test_object_map_probes() {
+    bump_rlimit_mlock();
+
+    let supported = MapType::Array
+        .is_supported()
+        .expect("Failed to query if Array map is supported");
+    assert!(supported);
+    let supported_res = MapType::Unknown.is_supported();
+    assert!(supported_res.is_err());
+}
+
+#[test]
+fn test_object_program_probes() {
+    bump_rlimit_mlock();
+
+    let supported = ProgramType::SocketFilter
+        .is_supported()
+        .expect("Failed to query if SocketFilter program is supported");
+    assert!(supported);
+    let supported_res = ProgramType::Unknown.is_supported();
+    assert!(supported_res.is_err());
+}
+
+#[test]
+fn test_object_program_helper_probes() {
+    bump_rlimit_mlock();
+
+    let supported = ProgramType::SocketFilter
+        .is_helper_supported(libbpf_sys::BPF_FUNC_map_lookup_elem)
+        .expect("Failed to query if helper supported");
+    assert!(supported);
+    // redirect should not be supported from socket filter, as it is only used in TC/XDP.
+    let supported = ProgramType::SocketFilter
+        .is_helper_supported(libbpf_sys::BPF_FUNC_redirect)
+        .expect("Failed to query if helper supported");
+    assert!(!supported);
+    let supported_res = MapType::Unknown.is_supported();
+    assert!(supported_res.is_err());
 }
