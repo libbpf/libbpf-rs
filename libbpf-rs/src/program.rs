@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::path::Path;
 use std::ptr;
 
+use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
@@ -93,7 +94,7 @@ impl OpenProgram {
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, Display, Debug)]
+#[derive(Copy, Clone, TryFromPrimitive, Display, Debug)]
 // TODO: Document variants.
 #[allow(missing_docs)]
 pub enum ProgramType {
@@ -131,6 +132,37 @@ pub enum ProgramType {
     Syscall,
     /// See [`MapType::Unknown`]
     Unknown = u32::MAX,
+}
+
+impl ProgramType {
+    /// Detects if host kernel supports this BPF program type
+    ///
+    /// Make sure the process has required set of CAP_* permissions (or runs as
+    /// root) when performing feature checking.
+    pub fn is_supported(&self) -> Result<bool> {
+        let ret = unsafe { libbpf_sys::libbpf_probe_bpf_prog_type(*self as u32, std::ptr::null()) };
+        match ret {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(Error::System(-ret)),
+        }
+    }
+
+    /// Detects if host kernel supports the use of a given BPF helper from this BPF program type.
+    /// * `helper_id` - BPF helper ID (enum bpf_func_id) to check support for
+    ///
+    /// Make sure the process has required set of CAP_* permissions (or runs as
+    /// root) when performing feature checking.
+    pub fn is_helper_supported(&self, helper_id: bpf_func_id) -> Result<bool> {
+        let ret = unsafe {
+            libbpf_sys::libbpf_probe_bpf_helper(*self as u32, helper_id, std::ptr::null())
+        };
+        match ret {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(Error::System(-ret)),
+        }
+    }
 }
 
 /// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
@@ -460,7 +492,6 @@ impl Program {
     /// Returns the number of instructions that form the program.
     ///
     /// Please see note in [`OpenProgram::insn_cnt`].
-    ///
     pub fn insn_cnt(&self) -> usize {
         unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
     }

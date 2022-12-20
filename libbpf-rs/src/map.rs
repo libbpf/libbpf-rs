@@ -582,7 +582,7 @@ bitflags! {
 // If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Eq, Display, Debug)]
+#[derive(Copy, Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Eq, Display, Debug)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub enum MapType {
@@ -633,6 +633,19 @@ impl MapType {
                 | MapType::LruPercpuHash
                 | MapType::PercpuCgroupStorage
         )
+    }
+
+    /// Detects if host kernel supports this BPF map type.
+    ///
+    /// Make sure the process has required set of CAP_* permissions (or runs as
+    /// root) when performing feature checking.
+    pub fn is_supported(&self) -> Result<bool> {
+        let ret = unsafe { libbpf_sys::libbpf_probe_bpf_map_type(*self as u32, std::ptr::null()) };
+        match ret {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(Error::System(-ret)),
+        }
     }
 }
 
