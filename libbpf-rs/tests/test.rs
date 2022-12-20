@@ -13,7 +13,7 @@ use probe::probe;
 use scopeguard::defer;
 
 use libbpf_rs::{
-    num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, ProgramType,
+    num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject, ProgramType,
 };
 
 fn get_test_object_path(filename: &str) -> PathBuf {
@@ -25,7 +25,7 @@ fn get_test_object_path(filename: &str) -> PathBuf {
     path
 }
 
-pub fn get_test_object(filename: &str) -> Object {
+pub fn open_test_object(filename: &str) -> OpenObject {
     let obj_path = get_test_object_path(filename);
     let mut builder = ObjectBuilder::default();
     // Invoke cargo with:
@@ -34,9 +34,11 @@ pub fn get_test_object(filename: &str) -> Object {
     //
     // To get all the output
     builder.debug(true);
-    builder
-        .open_file(obj_path)
-        .expect("failed to open object")
+    builder.open_file(obj_path).expect("failed to open object")
+}
+
+pub fn get_test_object(filename: &str) -> Object {
+    open_test_object(filename)
         .load()
         .expect("failed to load object")
 }
@@ -820,4 +822,28 @@ fn test_object_program_helper_probes() {
     assert!(!supported);
     let supported_res = MapType::Unknown.is_supported();
     assert!(supported_res.is_err());
+}
+
+#[test]
+fn test_object_open_proram_insns() {
+    bump_rlimit_mlock();
+
+    let open_obj = open_test_object("usdt.bpf.o");
+    let prog = open_obj
+        .prog("handle__usdt")
+        .expect("Failed to find program");
+
+    let insns = prog.insns();
+    assert!(!insns.is_empty());
+}
+
+#[test]
+fn test_object_proram_insns() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("usdt.bpf.o");
+    let prog = obj.prog("handle__usdt").expect("Failed to find program");
+
+    let insns = prog.insns();
+    assert!(!insns.is_empty());
 }

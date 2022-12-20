@@ -1,5 +1,6 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
+use std::ffi::CStr;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
@@ -27,6 +28,24 @@ pub struct OpenMap {
 impl OpenMap {
     pub(crate) fn new(ptr: *mut libbpf_sys::bpf_map) -> Self {
         OpenMap { ptr }
+    }
+
+    /// Retrieve the `Map`'s name.
+    pub fn name(&self) -> Result<&str> {
+        let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr) };
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        name_c_str
+            .to_str()
+            .map_err(|e| Error::Internal(e.to_string()))
+    }
+
+    /// Retrieve type of the map.
+    pub fn map_type(&self) -> MapType {
+        let ty = unsafe { libbpf_sys::bpf_map__type(self.ptr) };
+        match MapType::try_from(ty) {
+            Ok(t) => t,
+            Err(_) => MapType::Unknown,
+        }
     }
 
     pub fn set_map_ifindex(&mut self, idx: u32) {

@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::ffi::CStr;
 use std::path::Path;
 use std::ptr;
 
@@ -30,6 +31,14 @@ impl OpenProgram {
         }
     }
 
+    // The `ProgramType` of this `OpenProgram`.
+    pub fn prog_type(&self) -> ProgramType {
+        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr) }) {
+            Ok(ty) => ty,
+            Err(_) => ProgramType::Unknown,
+        }
+    }
+
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
         unsafe {
             libbpf_sys::bpf_program__set_expected_attach_type(self.ptr, attach_type as u32);
@@ -42,9 +51,18 @@ impl OpenProgram {
         }
     }
 
-    /// Name of the section this `Program` belongs to.
+    /// Name of the section this `OpenProgram` belongs to.
     pub fn section(&self) -> &str {
         &self.section
+    }
+
+    /// The name of this `OpenProgram`.
+    pub fn name(&self) -> Result<&str> {
+        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr) };
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        name_c_str
+            .to_str()
+            .map_err(|e| Error::Internal(e.to_string()))
     }
 
     pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
@@ -88,6 +106,21 @@ impl OpenProgram {
     ///
     pub fn insn_cnt(&self) -> usize {
         unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+    }
+
+    /// Gives read-only access to BPF program's underlying BPF instructions.
+    ///
+    /// Keep in mind, libbpf can modify and append/delete BPF program's
+    /// instructions as it processes BPF object file and prepares everything for
+    /// uploading into the kernel. So [`OpenProgram::insns`] and [`Program::insns`] may return
+    /// different sets of instructions. As an example, during BPF object load phase BPF program
+    /// instructions will be CO-RE-relocated, BPF subprograms instructions will be appended, ldimm64
+    /// instructions will have FDs embedded, etc. So instructions returned before load and after it
+    /// might be quite different.
+    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
+        let count = self.insn_cnt();
+        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr) };
+        unsafe { std::slice::from_raw_parts(ptr, count) }
     }
 }
 
@@ -494,5 +527,15 @@ impl Program {
     /// Please see note in [`OpenProgram::insn_cnt`].
     pub fn insn_cnt(&self) -> usize {
         unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+    }
+
+    /// Gives read-only access to BPF program's underlying BPF instructions.
+    ///
+    /// Please see note in [`OpenProgram::insns`].
+    ///
+    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
+        let count = self.insn_cnt();
+        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr) };
+        unsafe { std::slice::from_raw_parts(ptr, count) }
     }
 }
