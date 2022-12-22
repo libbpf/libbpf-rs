@@ -563,10 +563,14 @@ impl Map {
 bitflags! {
     /// Flags to configure [`Map`] operations.
     pub struct MapFlags: u64 {
-        const ANY      = 0;
-        const NO_EXIST = 1;
-        const EXIST    = 1 << 1;
-        const LOCK     = 1 << 2;
+        /// See [`libbpf_sys::BPF_ANY`].
+        const ANY      = libbpf_sys::BPF_ANY as _;
+        /// See [`libbpf_sys::BPF_NOEXIST`].
+        const NO_EXIST = libbpf_sys::BPF_NOEXIST as _;
+        /// See [`libbpf_sys::BPF_EXIST`].
+        const EXIST    = libbpf_sys::BPF_EXIST as _;
+        /// See [`libbpf_sys::BPF_F_LOCK`].
+        const LOCK     = libbpf_sys::BPF_F_LOCK as _;
     }
 }
 
