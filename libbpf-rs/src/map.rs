@@ -22,6 +22,8 @@ pub struct OpenMap {
     ptr: *mut libbpf_sys::bpf_map,
 }
 
+// TODO: Document members.
+#[allow(missing_docs)]
 impl OpenMap {
     pub(crate) fn new(ptr: *mut libbpf_sys::bpf_map) -> Self {
         OpenMap { ptr }
@@ -155,6 +157,7 @@ impl Map {
         }
     }
 
+    /// Retrieve the `Map`'s name.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -164,6 +167,7 @@ impl Map {
         self.fd
     }
 
+    /// Retrieve type of the map.
     pub fn map_type(&self) -> MapType {
         match MapType::try_from(self.ty) {
             Ok(t) => t,
@@ -579,6 +583,8 @@ bitflags! {
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Eq, Display, Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub enum MapType {
     Unspec = 0,
     Hash,

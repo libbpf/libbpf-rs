@@ -3,20 +3,31 @@ use nix::errno::Errno::EEXIST;
 
 use crate::*;
 
+/// See [`libbpf_sys::bpf_tc_attach_point`].
 pub type TcAttachPoint = libbpf_sys::bpf_tc_attach_point;
+/// See [`libbpf_sys::BPF_TC_INGRESS`].
 pub const TC_INGRESS: TcAttachPoint = libbpf_sys::BPF_TC_INGRESS;
+/// See [`libbpf_sys::BPF_TC_EGRESS`].
 pub const TC_EGRESS: TcAttachPoint = libbpf_sys::BPF_TC_EGRESS;
+/// See [`libbpf_sys::BPF_TC_CUSTOM`].
 pub const TC_CUSTOM: TcAttachPoint = libbpf_sys::BPF_TC_CUSTOM;
 
 pub type TcFlags = libbpf_sys::bpf_tc_flags;
+/// See [`libbpf_sys::BPF_TC_F_REPLACE`].
 pub const BPF_TC_F_REPLACE: TcFlags = libbpf_sys::BPF_TC_F_REPLACE;
 
 // from kernel @ include/uapi/linux/pkt_sched.h
+#[allow(missing_docs)]
 pub const TC_H_INGRESS: u32 = 0xFFFFFFF1;
+#[allow(missing_docs)]
 pub const TC_H_CLSACT: u32 = TC_H_INGRESS;
+#[allow(missing_docs)]
 pub const TC_H_MIN_INGRESS: u32 = 0xFFF2;
+#[allow(missing_docs)]
 pub const TC_H_MIN_EGRESS: u32 = 0xFFF3;
+#[allow(missing_docs)]
 pub const TC_H_MAJ_MASK: u32 = 0xFFFF0000;
+#[allow(missing_docs)]
 pub const TC_H_MIN_MASK: u32 = 0x0000FFFF;
 
 /// Represents a location where a TC-BPF filter can be attached.
@@ -228,6 +239,7 @@ pub struct TcHookBuilder {
 }
 
 impl TcHookBuilder {
+    /// Create a new `TcHookBuilder` with no attributes set.
     pub fn new() -> Self {
         TcHookBuilder::default()
     }

@@ -101,6 +101,7 @@ impl Link {
         Some(PathBuf::from(path.as_str()))
     }
 
+    /// Detach the link.
     pub fn detach(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr) };
         util::parse_ret(ret)

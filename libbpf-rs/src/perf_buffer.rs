@@ -30,6 +30,7 @@ pub struct PerfBufferBuilder<'a, 'b> {
 }
 
 impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
+    /// Create a new `PerfBufferBuilder` using the provided `Map`.
     pub fn new(map: &'a Map) -> Self {
         Self {
             map,
@@ -78,6 +79,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
         }
     }
 
+    /// Build the `PerfBuffer` object as configured.
     pub fn build(self) -> Result<PerfBuffer<'b>> {
         if self.map.map_type() != MapType::PerfEventArray {
             return Err(Error::InvalidInput(
@@ -155,6 +157,8 @@ pub struct PerfBuffer<'b> {
     _cb_struct: Box<CbStruct<'b>>,
 }
 
+// TODO: Document methods.
+#[allow(missing_docs)]
 impl<'b> PerfBuffer<'b> {
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr) }
