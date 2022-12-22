@@ -64,3 +64,8 @@ jobs:
     - if: ${{ matrix.rust != 'nightly' }}
       name: Run clippy
       run: cargo clippy --tests -- -D warnings
+    - if: ${{ matrix.rust != 'nightly' }}
+      name: Check documentation
+      env:
+        RUSTDOCFLAGS: '-D warnings'
+      run: cargo doc --no-deps
