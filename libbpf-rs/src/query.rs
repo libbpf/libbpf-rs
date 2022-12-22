@@ -100,6 +100,8 @@ fn name_arr_to_string(a: &[c_char], default: &str) -> String {
 
 /// Information about a BPF program
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct ProgramInfo {
     pub name: String,
     pub ty: ProgramType,
@@ -196,6 +198,8 @@ gen_info_impl!(
 
 /// Information about a BPF map
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct MapInfo {
     pub name: String,
     pub ty: MapType,
@@ -251,6 +255,8 @@ gen_info_impl!(
 
 /// Information about BPF type format
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct BtfInfo {
     pub btf: u64,
     pub btf_size: u32,
@@ -277,28 +283,38 @@ gen_info_impl!(
 );
 
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct RawTracepointLinkInfo {
     pub name: String,
 }
 
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct TracingLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct CgroupLinkInfo {
     pub cgroup_id: u64,
     pub attach_type: ProgramAttachType,
 }
 
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct NetNsLinkInfo {
     pub ino: u32,
     pub attach_type: ProgramAttachType,
 }
 
 #[derive(Debug)]
+// TODO: Document variants.
+#[allow(missing_docs)]
 pub enum LinkTypeInfo {
     RawTracepoint(RawTracepointLinkInfo),
     Tracing(TracingLinkInfo),
@@ -310,6 +326,8 @@ pub enum LinkTypeInfo {
 
 /// Information about a BPF link
 #[derive(Debug)]
+// TODO: Document members.
+#[allow(missing_docs)]
 pub struct LinkInfo {
     pub info: LinkTypeInfo,
     pub id: u32,

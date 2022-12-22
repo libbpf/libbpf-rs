@@ -4,11 +4,15 @@ use std::io::{self, Write};
 use std::os::raw::c_char;
 use std::sync::Mutex;
 
+/// An enum representing the different supported print levels.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 #[repr(u32)]
 pub enum PrintLevel {
+    /// Print warnings and more severe messages.
     Warn = libbpf_sys::LIBBPF_WARN,
+    /// Print general information and more severe messages.
     Info = libbpf_sys::LIBBPF_INFO,
+    /// Print debug information and more severe messages.
     Debug = libbpf_sys::LIBBPF_DEBUG,
 }
 
@@ -24,6 +28,7 @@ impl From<libbpf_sys::libbpf_print_level> for PrintLevel {
     }
 }
 
+/// The type of callback functions suitable for being provided to [`set_print`].
 pub type PrintCallback = fn(PrintLevel, String);
 
 /// Mimic the default print functionality of libbpf. This way if the user calls `get_print` when no
@@ -121,7 +126,7 @@ pub fn set_print(
 ///
 /// # Examples
 ///
-/// To temporarliy suppress output:
+/// To temporarily suppress output:
 ///
 /// ```
 /// use libbpf_rs::{get_print, set_print};

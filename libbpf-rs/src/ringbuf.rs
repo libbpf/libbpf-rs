@@ -35,6 +35,7 @@ pub struct RingBufferBuilder<'a> {
 }
 
 impl<'a> RingBufferBuilder<'a> {
+    /// Create a new `RingBufferBuilder` object.
     pub fn new() -> Self {
         RingBufferBuilder {
             fd_callbacks: vec![],

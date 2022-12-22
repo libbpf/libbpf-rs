@@ -15,6 +15,7 @@ pub struct Iter {
 }
 
 impl Iter {
+    /// Create a new `Iter` wrapping the provided `Link`.
     pub fn new(link: &Link) -> Result<Self> {
         let link_fd = link.fd();
         let fd = unsafe { libbpf_sys::bpf_iter_create(link_fd) };

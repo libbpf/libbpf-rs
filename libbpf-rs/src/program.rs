@@ -16,6 +16,8 @@ pub struct OpenProgram {
     section: String,
 }
 
+// TODO: Document variants.
+#[allow(missing_docs)]
 impl OpenProgram {
     pub(crate) fn new(ptr: *mut libbpf_sys::bpf_program, section: String) -> Self {
         Self { ptr, section }
@@ -92,6 +94,8 @@ impl OpenProgram {
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, Display, Debug)]
+// TODO: Document variants.
+#[allow(missing_docs)]
 pub enum ProgramType {
     Unspec = 0,
     SocketFilter,
@@ -133,6 +137,8 @@ pub enum ProgramType {
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, TryFromPrimitive, Display, Debug)]
+// TODO: Document variants.
+#[allow(missing_docs)]
 pub enum ProgramAttachType {
     CgroupInetIngress,
     CgroupInetEgress,
@@ -199,6 +205,7 @@ impl Program {
         Program { ptr, name, section }
     }
 
+    /// Retrieve the program's name.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -208,6 +215,7 @@ impl Program {
         &self.section
     }
 
+    /// Retrieve the type of the program.
     pub fn prog_type(&self) -> ProgramType {
         match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr) }) {
             Ok(ty) => ty,
@@ -225,6 +233,7 @@ impl Program {
         unsafe { libbpf_sys::bpf_program__flags(self.ptr) }
     }
 
+    /// Retrieve the attach type of the program.
     pub fn attach_type(&self) -> ProgramAttachType {
         match ProgramAttachType::try_from(unsafe {
             libbpf_sys::bpf_program__expected_attach_type(self.ptr)

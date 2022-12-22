@@ -52,6 +52,7 @@ impl ObjectBuilder {
         }
     }
 
+    /// Open an object using the provided path on the file system.
     pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
         // Convert path to a C style pointer
         let path_str = path.as_ref().to_str().ok_or_else(|| {
@@ -81,6 +82,7 @@ impl ObjectBuilder {
         OpenObject::new(obj)
     }
 
+    /// Open an object from memory.
     pub fn open_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
         // Convert name to a C style pointer
         //
@@ -194,6 +196,7 @@ impl OpenObject {
         ptr
     }
 
+    /// Retrieve the object's name.
     pub fn name(&self) -> Result<&str> {
         unsafe {
             let ptr = libbpf_sys::bpf_object__name(self.ptr);
