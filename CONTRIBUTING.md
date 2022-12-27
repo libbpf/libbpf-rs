@@ -49,6 +49,10 @@ the change does and why it is needed.
 Follow-up changes to the submitted commit should be amended to the commit,
 not pushed out as a separate commit.
 
+- **Accompany your code with tests.**
+Please make an effort to add regression tests for bug fixes and unit or
+integration tests for newly added functionality.
+
 - **Run rustfmt before submitting.**.
 Running rustfmt (`cargo fmt`) will help fix any styling inconsistencies.
 It is checked by CI, but running rustfmt before submitting will help reduce
