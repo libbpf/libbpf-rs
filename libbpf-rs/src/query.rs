@@ -99,7 +99,7 @@ fn name_arr_to_string(a: &[c_char], default: &str) -> String {
 }
 
 /// Information about a BPF program
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct ProgramInfo {
@@ -197,7 +197,7 @@ gen_info_impl!(
 );
 
 /// Information about a BPF map
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct MapInfo {
@@ -254,7 +254,7 @@ gen_info_impl!(
 );
 
 /// Information about BPF type format
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct BtfInfo {
@@ -282,21 +282,21 @@ gen_info_impl!(
     libbpf_sys::bpf_btf_get_fd_by_id
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct RawTracepointLinkInfo {
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct TracingLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct CgroupLinkInfo {
@@ -304,7 +304,7 @@ pub struct CgroupLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct NetNsLinkInfo {
@@ -312,7 +312,7 @@ pub struct NetNsLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document variants.
 #[allow(missing_docs)]
 pub enum LinkTypeInfo {
@@ -325,7 +325,7 @@ pub enum LinkTypeInfo {
 }
 
 /// Information about a BPF link
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct LinkInfo {
