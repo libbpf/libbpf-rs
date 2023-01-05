@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
+use std::io::stdout;
 use std::io::Write;
 use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
@@ -90,7 +91,7 @@ gen_bpf_object_iter!(
 );
 
 /// Run `rustfmt` over `s` and return result
-fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
+fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<Vec<u8>> {
     let mut cmd = if let Some(r) = rustfmt_path {
         Command::new(r)
     } else {
@@ -102,7 +103,7 @@ fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
     .context("Failed to spawn rustfmt")?;
 
     // Send input in via stdin
-    write!(cmd.stdin.take().unwrap(), "{}", s)?;
+    cmd.stdin.take().unwrap().write_all(s.as_bytes())?;
 
     // Extract output
     let output = cmd
@@ -114,7 +115,7 @@ fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<String> {
         output.status
     );
 
-    Ok(String::from_utf8(output.stdout)?)
+    Ok(output.stdout)
 }
 
 fn capitalize_first_letter(s: &str) -> String {
@@ -850,15 +851,15 @@ fn gen_skel(
     let skel = rustfmt(&gen_skel_contents(debug, name, obj)?, rustfmt_path)?;
 
     match out {
-        OutputDest::Stdout => print!("{}", skel),
+        OutputDest::Stdout => stdout().write_all(&skel)?,
         OutputDest::Directory(dir) => {
             let path = dir.join(format!("{}.skel.rs", name));
             let mut file = File::create(path)?;
-            file.write_all(skel.as_bytes())?;
+            file.write_all(&skel)?;
         }
         OutputDest::File(file) => {
             let mut file = File::create(file)?;
-            file.write_all(skel.as_bytes())?;
+            file.write_all(&skel)?;
         }
     };
 
@@ -910,7 +911,7 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     }
 
     let mut file = File::create(path)?;
-    file.write_all(rustfmt(&contents, rustfmt_path)?.as_bytes())?;
+    file.write_all(&rustfmt(&contents, rustfmt_path)?)?;
 
     Ok(())
 }
