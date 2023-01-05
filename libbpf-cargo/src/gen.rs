@@ -1,9 +1,11 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::stdout;
+use std::io::ErrorKind;
 use std::io::Write;
 use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
@@ -90,32 +92,43 @@ gen_bpf_object_iter!(
     libbpf_sys::bpf_object__next_program
 );
 
-/// Run `rustfmt` over `s` and return result
-fn rustfmt(s: &str, rustfmt_path: Option<&PathBuf>) -> Result<Vec<u8>> {
-    let mut cmd = if let Some(r) = rustfmt_path {
+/// Try running `rustfmt` over `s` and return result.
+///
+/// If no `rustfmt` binary could be found the content is left untouched, as
+/// it's only meant as a cosmetic brush up, without change of semantics.
+fn try_rustfmt<'code>(s: &'code str, rustfmt_path: Option<&PathBuf>) -> Result<Cow<'code, [u8]>> {
+    let result = if let Some(r) = rustfmt_path {
         Command::new(r)
     } else {
         Command::new("rustfmt")
     }
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
-    .spawn()
-    .context("Failed to spawn rustfmt")?;
+    .spawn();
 
-    // Send input in via stdin
-    cmd.stdin.take().unwrap().write_all(s.as_bytes())?;
+    match result {
+        Ok(mut cmd) => {
+            // Send input in via stdin
+            cmd.stdin.take().unwrap().write_all(s.as_bytes())?;
 
-    // Extract output
-    let output = cmd
-        .wait_with_output()
-        .context("Failed to execute rustfmt")?;
-    ensure!(
-        output.status.success(),
-        "Failed to rustfmt: {}",
-        output.status
-    );
+            // Extract output
+            let output = cmd
+                .wait_with_output()
+                .context("Failed to execute rustfmt")?;
+            ensure!(
+                output.status.success(),
+                "Failed to rustfmt: {}",
+                output.status
+            );
 
-    Ok(output.stdout)
+            Ok(output.stdout.into())
+        }
+        Err(err) if err.kind() == ErrorKind::NotFound => {
+            // No `rustfmt` is present. Just skip formatting altogether.
+            Ok(Cow::Borrowed(s.as_bytes()))
+        }
+        Err(err) => panic!("failed to spawn rustfmt: {err}"),
+    }
 }
 
 fn capitalize_first_letter(s: &str) -> String {
@@ -848,7 +861,8 @@ fn gen_skel(
         bail!("Object file has no name");
     }
 
-    let skel = rustfmt(&gen_skel_contents(debug, name, obj)?, rustfmt_path)?;
+    let skel = gen_skel_contents(debug, name, obj)?;
+    let skel = try_rustfmt(&skel, rustfmt_path)?;
 
     match out {
         OutputDest::Stdout => stdout().write_all(&skel)?,
@@ -911,7 +925,7 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     }
 
     let mut file = File::create(path)?;
-    file.write_all(&rustfmt(&contents, rustfmt_path)?)?;
+    file.write_all(&try_rustfmt(&contents, rustfmt_path)?)?;
 
     Ok(())
 }
