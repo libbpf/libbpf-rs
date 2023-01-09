@@ -5,7 +5,7 @@ use std::ffi::{c_void, CStr, CString};
 use std::fmt::Write;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::os::raw::{c_char, c_ulong};
+use std::os::raw::c_char;
 use std::ptr;
 use std::slice;
 
@@ -375,14 +375,14 @@ impl Btf {
     pub fn new(name: &str, object_file: &[u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)?;
         let obj_opts = libbpf_sys::bpf_object_open_opts {
-            sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>(),
             object_name: cname.as_ptr(),
             ..Default::default()
         };
         let bpf_obj = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr() as *const c_void,
-                object_file.len() as c_ulong,
+                object_file.len(),
                 &obj_opts,
             )
         };

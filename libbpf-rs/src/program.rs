@@ -105,7 +105,7 @@ impl OpenProgram {
     /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
     ///
     pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) }
     }
 
     /// Gives read-only access to BPF program's underlying BPF instructions.
@@ -374,13 +374,7 @@ impl Program {
         let path = util::path_to_cstring(binary_path.as_ref())?;
         let path_ptr = path.as_ptr();
         let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_uprobe(
-                self.ptr,
-                retprobe,
-                pid,
-                path_ptr,
-                func_offset as libbpf_sys::size_t,
-            )
+            libbpf_sys::bpf_program__attach_uprobe(self.ptr, retprobe, pid, path_ptr, func_offset)
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
         if err != 0 {
@@ -526,7 +520,7 @@ impl Program {
     ///
     /// Please see note in [`OpenProgram::insn_cnt`].
     pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) }
     }
 
     /// Gives read-only access to BPF program's underlying BPF instructions.
