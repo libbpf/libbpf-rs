@@ -39,7 +39,7 @@ impl ObjectBuilder {
     /// Get an instance of libbpf_sys::bpf_object_open_opts.
     pub fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
         libbpf_sys::bpf_object_open_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>(),
+            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
             object_name: name,
             relaxed_maps: self.relaxed_maps,
             pin_root_path: ptr::null(),
@@ -97,7 +97,11 @@ impl ObjectBuilder {
         let opts = self.opts(name_ptr);
 
         let obj = unsafe {
-            libbpf_sys::bpf_object__open_mem(mem.as_ptr() as *const c_void, mem.len(), &opts)
+            libbpf_sys::bpf_object__open_mem(
+                mem.as_ptr() as *const c_void,
+                mem.len() as libbpf_sys::size_t,
+                &opts,
+            )
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(obj as *const _) };
         if err != 0 {

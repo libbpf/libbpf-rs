@@ -32,7 +32,7 @@ novendor = ["libbpf-sys/novendor"]
 [dependencies]
 anyhow = "1.0"
 cargo_metadata = "0.14"
-libbpf-sys = { version = "1.1.0" }
+libbpf-sys = { version = "1.0.3" }
 memmap2 = "0.5"
 num_enum = "0.5"
 regex = { version = "1.6.0", default-features = false, features = ["std", "unicode-perl"] }

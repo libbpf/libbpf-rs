@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::stdout;
 use std::io::ErrorKind;
 use std::io::Write;
+use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::ptr;
@@ -603,12 +604,16 @@ fn gen_skel_link_getter(skel: &mut String, object: &mut BpfObj, obj_name: &str) 
 fn open_bpf_object(name: &str, data: &[u8]) -> Result<BpfObj> {
     let cname = CString::new(name)?;
     let obj_opts = libbpf_sys::bpf_object_open_opts {
-        sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>(),
+        sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
         object_name: cname.as_ptr(),
         ..Default::default()
     };
     let object = unsafe {
-        libbpf_sys::bpf_object__open_mem(data.as_ptr() as *const c_void, data.len(), &obj_opts)
+        libbpf_sys::bpf_object__open_mem(
+            data.as_ptr() as *const c_void,
+            data.len() as c_ulong,
+            &obj_opts,
+        )
     };
     if object.is_null() {
         bail!("Failed to bpf_object__open_mem()");

@@ -1,5 +1,6 @@
 use core::ffi::c_void;
 use std::boxed::Box;
+use std::os::raw::c_ulong;
 use std::ptr;
 use std::slice;
 use std::time::Duration;
@@ -109,11 +110,11 @@ impl<'a> RingBufferBuilder<'a> {
         Ok(RingBuffer { ptr, _cbs: cbs })
     }
 
-    unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: usize) -> i32 {
+    unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
         let callback_struct = ctx as *mut RingBufferCallback;
         let callback = (*callback_struct).cb.as_mut();
 
-        callback(slice::from_raw_parts(data as *const u8, size))
+        callback(slice::from_raw_parts(data as *const u8, size as usize))
     }
 }
 
