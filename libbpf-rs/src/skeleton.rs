@@ -3,7 +3,7 @@ use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::boxed::Box;
 use std::ffi::CString;
 use std::mem::size_of;
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_ulong};
 use std::ptr;
 
 use libbpf_sys::{
@@ -169,7 +169,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         let mut string_pool = Vec::new();
 
         let mut s = libbpf_sys::bpf_object_skeleton {
-            sz: size_of::<bpf_object_skeleton>(),
+            sz: size_of::<bpf_object_skeleton>() as c_ulong,
             ..Default::default()
         };
 
@@ -179,7 +179,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
 
         // libbpf_sys will use it as const despite the signature
         s.data = self.data.as_ptr() as *mut c_void;
-        s.data_sz = self.data.len();
+        s.data_sz = self.data.len() as c_ulong;
 
         s.obj = &mut *self.p;
 

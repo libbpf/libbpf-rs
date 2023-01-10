@@ -658,7 +658,7 @@ fn test_object_map_create_and_pin() {
     bump_rlimit_mlock();
 
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>(),
+        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         btf_fd: 0,
         btf_key_type_id: 0,
@@ -710,7 +710,7 @@ fn test_object_map_create_without_name() {
     bump_rlimit_mlock();
 
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>(),
+        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         btf_fd: 0,
         btf_key_type_id: 0,

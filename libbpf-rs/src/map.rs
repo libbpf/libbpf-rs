@@ -57,7 +57,7 @@ impl OpenMap {
             libbpf_sys::bpf_map__set_initial_value(
                 self.ptr,
                 data.as_ptr() as *const std::ffi::c_void,
-                data.len(),
+                data.len() as libbpf_sys::size_t,
             )
         };
 
