@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 SRC=$(find bin/src/ -name "*.bpf.c")
 BPFTOOL=""
 
