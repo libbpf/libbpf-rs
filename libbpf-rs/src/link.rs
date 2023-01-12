@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
 use crate::*;
@@ -6,7 +7,7 @@ use crate::*;
 ///
 /// This struct is used to model ownership. The underlying program will be detached
 /// when this object is dropped if nothing else is holding a reference count.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct Link {
     ptr: *mut libbpf_sys::bpf_link,
 }
@@ -48,7 +49,7 @@ impl Link {
     /// Release "ownership" of underlying BPF resource (typically, a BPF program
     /// attached to some BPF hook, e.g., tracepoint, kprobe, etc). Disconnected
     /// links, when destructed through bpf_link__destroy() call won't attempt to
-    /// detach/unregisted that BPF resource. This is useful in situations where,
+    /// detach/unregistered that BPF resource. This is useful in situations where,
     /// say, attached BPF program has to outlive userspace program that attached it
     /// in the system. Depending on type of BPF program, though, there might be
     /// additional steps (like pinning BPF program in BPF FS) necessary to ensure

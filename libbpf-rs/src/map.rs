@@ -1,6 +1,7 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::ffi::CStr;
+use std::fmt::Debug;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
@@ -18,7 +19,7 @@ use crate::*;
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct OpenMap {
     ptr: *mut libbpf_sys::bpf_map,
 }
@@ -145,7 +146,7 @@ impl OpenMap {
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct Map {
     fd: i32,
     name: String,
@@ -668,7 +669,7 @@ impl MapType {
     }
 }
 
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct MapKeyIter<'a> {
     map: &'a Map,
     prev: Option<Vec<u8>>,

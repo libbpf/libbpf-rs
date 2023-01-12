@@ -1,5 +1,9 @@
 use core::ffi::c_void;
 use std::boxed::Box;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Result as FmtResult;
+use std::ops::Deref as _;
 use std::os::raw::c_ulong;
 use std::ptr;
 use std::slice;
@@ -9,7 +13,6 @@ use crate::*;
 
 type Cb<'a> = Box<dyn FnMut(&[u8]) -> i32 + 'a>;
 
-#[allow(missing_debug_implementations)]
 struct RingBufferCallback<'a> {
     cb: Cb<'a>,
 }
@@ -23,13 +26,21 @@ impl<'a> RingBufferCallback<'a> {
     }
 }
 
+impl Debug for RingBufferCallback<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let Self { cb } = self;
+        f.debug_struct("RingBufferCallback")
+            .field("cb", &(cb.deref() as *const _))
+            .finish()
+    }
+}
+
 /// Builds [`RingBuffer`] instances.
 ///
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
-#[derive(Default)]
-#[allow(missing_debug_implementations)]
+#[derive(Debug, Default)]
 pub struct RingBufferBuilder<'a> {
     fd_callbacks: Vec<(i32, RingBufferCallback<'a>)>,
 }
@@ -123,7 +134,7 @@ impl<'a> RingBufferBuilder<'a> {
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
 /// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
 /// preferred over the `perf buffer`.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct RingBuffer<'a> {
     ptr: *mut libbpf_sys::ring_buffer,
     #[allow(clippy::vec_box)]

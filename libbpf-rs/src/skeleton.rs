@@ -14,21 +14,21 @@ use libbpf_sys::{
 use crate::util;
 use crate::*;
 
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 struct MapSkelConfig {
     name: String,
     p: Box<*mut bpf_map>,
     mmaped: Option<Box<*mut c_void>>,
 }
 
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 struct ProgSkelConfig {
     name: String,
     p: Box<*mut bpf_program>,
     link: Box<*mut bpf_link>,
 }
 
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct ObjectSkeletonConfigBuilder<'a> {
     data: &'a [u8],
     p: Box<*mut bpf_object>,
@@ -206,7 +206,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
 /// * free any allocated memory on drop
 ///
 /// This struct can be moved around at will. Upon drop, all allocated resources will be freed
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct ObjectSkeletonConfig<'a> {
     inner: bpf_object_skeleton,
     obj: Box<*mut bpf_object>,
