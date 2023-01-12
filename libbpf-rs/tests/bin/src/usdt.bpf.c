@@ -23,4 +23,18 @@ int handle__usdt(void *ctx)
     return 0;
 }
 
+SEC("usdt")
+int handle__usdt_with_cookie(void *ctx)
+{
+    int *value;
+
+    value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
+    if (value) {
+        *value = bpf_usdt_cookie(ctx);
+        bpf_ringbuf_submit(value, 0);
+    }
+
+    return 0;
+}
+
 char LICENSE[] SEC("license") = "GPL";

@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::ffi::CStr;
+use std::mem;
 use std::path::Path;
 use std::ptr;
 
@@ -8,6 +9,28 @@ use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
 use crate::*;
+
+/// Options to optionally be provided when attaching to a USDT.
+#[derive(Clone, Debug, Default)]
+pub struct UsdtOpts {
+    /// Custom user-provided value accessible through `bpf_usdt_cookie`.
+    pub cookie: u64,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
+    fn from(opts: UsdtOpts) -> Self {
+        let UsdtOpts {
+            cookie,
+            _non_exhaustive,
+        } = opts;
+        libbpf_sys::bpf_usdt_opts {
+            sz: mem::size_of::<Self>() as u64,
+            usdt_cookie: cookie,
+        }
+    }
+}
 
 /// Represents a parsed but not yet loaded BPF program.
 ///
@@ -488,6 +511,44 @@ impl Program {
         }
     }
 
+    fn attach_usdt_impl(
+        &mut self,
+        pid: i32,
+        binary_path: &Path,
+        usdt_provider: &str,
+        usdt_name: &str,
+        usdt_opts: Option<UsdtOpts>,
+    ) -> Result<Link> {
+        let path = util::path_to_cstring(binary_path)?;
+        let path_ptr = path.as_ptr();
+        let usdt_provider = util::str_to_cstring(usdt_provider)?;
+        let usdt_provider_ptr = usdt_provider.as_ptr();
+        let usdt_name = util::str_to_cstring(usdt_name)?;
+        let usdt_name_ptr = usdt_name.as_ptr();
+        let usdt_opts = usdt_opts.map(libbpf_sys::bpf_usdt_opts::from);
+        let usdt_opts_ptr = usdt_opts
+            .as_ref()
+            .map(|opts| opts as *const _)
+            .unwrap_or_else(ptr::null);
+
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_usdt(
+                self.ptr,
+                pid,
+                path_ptr,
+                usdt_provider_ptr,
+                usdt_name_ptr,
+                usdt_opts_ptr,
+            )
+        };
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
     /// point. The entry point of the program must be defined with
     /// `SEC("usdt")`.
@@ -498,28 +559,33 @@ impl Program {
         usdt_provider: impl AsRef<str>,
         usdt_name: impl AsRef<str>,
     ) -> Result<Link> {
-        let path = util::path_to_cstring(binary_path.as_ref())?;
-        let path_ptr = path.as_ptr();
-        let usdt_provider = util::str_to_cstring(usdt_provider.as_ref())?;
-        let usdt_provider_ptr = usdt_provider.as_ptr();
-        let usdt_name = util::str_to_cstring(usdt_name.as_ref())?;
-        let usdt_name_ptr = usdt_name.as_ptr();
-        let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_usdt(
-                self.ptr,
-                pid,
-                path_ptr,
-                usdt_provider_ptr,
-                usdt_name_ptr,
-                ptr::null(),
-            )
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        self.attach_usdt_impl(
+            pid,
+            binary_path.as_ref(),
+            usdt_provider.as_ref(),
+            usdt_name.as_ref(),
+            None,
+        )
+    }
+
+    /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
+    /// point, providing additional options. The entry point of the program must
+    /// be defined with `SEC("usdt")`.
+    pub fn attach_usdt_with_opts(
+        &mut self,
+        pid: i32,
+        binary_path: impl AsRef<Path>,
+        usdt_provider: impl AsRef<str>,
+        usdt_name: impl AsRef<str>,
+        usdt_opts: UsdtOpts,
+    ) -> Result<Link> {
+        self.attach_usdt_impl(
+            pid,
+            binary_path.as_ref(),
+            usdt_provider.as_ref(),
+            usdt_name.as_ref(),
+            Some(usdt_opts),
+        )
     }
 
     /// Returns the number of instructions that form the program.
