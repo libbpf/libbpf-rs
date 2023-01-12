@@ -97,7 +97,7 @@ pub use crate::map::{Map, MapFlags, MapType, OpenMap};
 pub use crate::object::{Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
 pub use crate::print::{get_print, set_print, PrintCallback, PrintLevel};
-pub use crate::program::{OpenProgram, Program, ProgramAttachType, ProgramType};
+pub use crate::program::{OpenProgram, Program, ProgramAttachType, ProgramType, UsdtOpts};
 pub use crate::ringbuf::{RingBuffer, RingBufferBuilder};
 pub use crate::tc::{
     TcAttachPoint, TcHook, TcHookBuilder, TC_CUSTOM, TC_EGRESS, TC_H_CLSACT, TC_H_INGRESS,

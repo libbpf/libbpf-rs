@@ -13,7 +13,8 @@ use probe::probe;
 use scopeguard::defer;
 
 use libbpf_rs::{
-    num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject, ProgramType,
+    num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject,
+    ProgramType, UsdtOpts,
 };
 
 fn get_test_object_path(filename: &str) -> PathBuf {
@@ -781,6 +782,56 @@ fn test_object_usdt() {
     mgr.consume().expect("Failed to consume ringbuf");
 
     unsafe { assert_eq!(V, 1) };
+}
+
+#[test]
+fn test_object_usdt_cookie() {
+    bump_rlimit_mlock();
+
+    let cookie_val = 1337u16;
+    let mut obj = get_test_object("usdt.bpf.o");
+    let prog = obj
+        .prog_mut("handle__usdt_with_cookie")
+        .expect("Failed to find program");
+
+    let path = std::env::current_exe().expect("Failed to find executable name");
+    let _link = prog
+        .attach_usdt_with_opts(
+            unsafe { libc::getpid() },
+            &path,
+            "test_provider",
+            "test_function",
+            UsdtOpts {
+                cookie: cookie_val.into(),
+                ..UsdtOpts::default()
+            },
+        )
+        .expect("Failed to attach prog");
+
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+
+    static mut V: i32 = 0;
+    fn callback(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V = value;
+        }
+
+        0
+    }
+
+    builder.add(map, callback).expect("Failed to add ringbuf");
+    let mgr = builder.build().expect("Failed to build");
+
+    // Define a USDT probe point and exercise it as we are attaching to self.
+    probe!(test_provider, test_function, 1);
+
+    mgr.consume().expect("Failed to consume ringbuf");
+
+    unsafe { assert_eq!(V, cookie_val.into()) };
 }
 
 #[test]
