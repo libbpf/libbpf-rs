@@ -491,12 +491,12 @@ impl Program {
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
     /// point. The entry point of the program must be defined with
     /// `SEC("usdt")`.
-    pub fn attach_usdt<S: AsRef<str>, T: AsRef<Path>>(
+    pub fn attach_usdt(
         &mut self,
         pid: i32,
-        binary_path: T,
-        usdt_provider: S,
-        usdt_name: S,
+        binary_path: impl AsRef<Path>,
+        usdt_provider: impl AsRef<str>,
+        usdt_name: impl AsRef<str>,
     ) -> Result<Link> {
         let path = util::path_to_cstring(binary_path.as_ref())?;
         let path_ptr = path.as_ptr();
