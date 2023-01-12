@@ -1,5 +1,8 @@
 use core::ffi::c_void;
 use std::boxed::Box;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Result as FmtResult;
 use std::slice;
 use std::time::Duration;
 
@@ -14,14 +17,22 @@ impl<T> SampleCb for T where T: FnMut(i32, &[u8]) {}
 pub trait LostCb: FnMut(i32, u64) {}
 impl<T> LostCb for T where T: FnMut(i32, u64) {}
 
-#[allow(missing_debug_implementations)]
 struct CbStruct<'b> {
     sample_cb: Option<Box<dyn SampleCb + 'b>>,
     lost_cb: Option<Box<dyn LostCb + 'b>>,
 }
 
+impl Debug for CbStruct<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let Self { sample_cb, lost_cb } = self;
+        f.debug_struct("CbStruct")
+            .field("sample_cb", &sample_cb.as_ref().map(|cb| &cb as *const _))
+            .field("lost_cb", &lost_cb.as_ref().map(|cb| &cb as *const _))
+            .finish()
+    }
+}
+
 /// Builds [`PerfBuffer`] instances.
-#[allow(missing_debug_implementations)]
 pub struct PerfBufferBuilder<'a, 'b> {
     map: &'a Map,
     pages: usize,
@@ -148,9 +159,26 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     }
 }
 
+impl Debug for PerfBufferBuilder<'_, '_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let Self {
+            map,
+            pages,
+            sample_cb,
+            lost_cb,
+        } = self;
+        f.debug_struct("PerfBufferBuilder")
+            .field("map", map)
+            .field("pages", pages)
+            .field("sample_cb", &sample_cb.as_ref().map(|cb| &cb as *const _))
+            .field("lost_cb", &lost_cb.as_ref().map(|cb| &cb as *const _))
+            .finish()
+    }
+}
+
 /// Represents a special kind of [`Map`]. Typically used to transfer data between
 /// [`Program`]s and userspace.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct PerfBuffer<'b> {
     ptr: *mut libbpf_sys::perf_buffer,
     // Hold onto the box so it'll get dropped when PerfBuffer is dropped

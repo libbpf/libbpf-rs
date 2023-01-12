@@ -115,7 +115,7 @@ impl ObjectBuilder {
 /// Represents an opened (but not yet loaded) BPF object file.
 ///
 /// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct OpenObject {
     ptr: *mut libbpf_sys::bpf_object,
     maps: HashMap<String, OpenMap>,
@@ -290,7 +290,7 @@ impl Drop for OpenObject {
 ///
 /// Note that this is an explanation of the motivation -- Rust's lifetime system should already be
 /// enforcing this invariant.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct Object {
     ptr: *mut libbpf_sys::bpf_object,
     maps: HashMap<String, Map>,

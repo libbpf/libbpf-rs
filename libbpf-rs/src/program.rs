@@ -12,7 +12,7 @@ use crate::*;
 /// Represents a parsed but not yet loaded BPF program.
 ///
 /// This object exposes operations that need to happen before the program is loaded.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct OpenProgram {
     ptr: *mut libbpf_sys::bpf_program,
     section: String,
@@ -258,7 +258,7 @@ pub enum ProgramAttachType {
 ///
 /// If you attempt to attach a `Program` with the wrong attach method, the `attach_*`
 /// method will fail with the appropriate error.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct Program {
     pub(crate) ptr: *mut libbpf_sys::bpf_program,
     name: String,
