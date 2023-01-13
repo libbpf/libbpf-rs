@@ -42,7 +42,7 @@ jobs:
       with:
         profile: minimal
         toolchain: ${{ matrix.rust }}
-        components: rustfmt, clippy
+        components: rustfmt
         override: true
     - name: Install deps
       run: sudo apt-get install -y clang-14 libelf-dev zlib1g-dev
@@ -57,9 +57,20 @@ jobs:
       run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object --skip test_tc
     - name: Run BTF tests
       run: cd libbpf-rs && cargo test --verbose -- test_object test_tc
-    - if: ${{ matrix.rust != 'nightly' }}
-      name: Run clippy
-      run: cargo clippy --tests -- -D warnings
+  clippy:
+    name: Lint with clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get install -y libelf-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+          override: true
+      - run: cargo clippy --no-deps --all-targets --tests -- -D warnings
   rustfmt:
     name: Check code formatting
     runs-on: ubuntu-latest
