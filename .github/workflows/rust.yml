@@ -50,13 +50,24 @@ jobs:
         sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-14 /bin/clang
     - name: Build
       run: cargo build --verbose --workspace --exclude runqslower
-    - name: Build capable example with static libelf and libz
-      run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --package capable --features=static
     - name: Run tests
       # Skip BTF tests which require sudo
       run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object --skip test_tc
     - name: Run BTF tests
       run: cd libbpf-rs && cargo test --verbose -- test_object test_tc
+  build-capable:
+    name: Build capable example with static libelf and libz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get install -y libelf-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --package capable --features=static
   clippy:
     name: Lint with clippy
     runs-on: ubuntu-latest
