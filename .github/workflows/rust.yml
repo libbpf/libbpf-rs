@@ -63,8 +63,18 @@ jobs:
     - if: ${{ matrix.rust != 'nightly' }}
       name: Run clippy
       run: cargo clippy --tests -- -D warnings
-    - if: ${{ matrix.rust != 'nightly' }}
-      name: Check documentation
-      env:
-        RUSTDOCFLAGS: '-D warnings'
-      run: cargo doc --no-deps
+  cargo-doc:
+    name: Check documentation
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: '-D warnings'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get install -y libelf-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo doc --no-deps
