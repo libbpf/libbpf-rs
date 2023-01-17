@@ -430,7 +430,11 @@ impl Program {
 
     /// Attach this program to a [kernel
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
-    pub fn attach_tracepoint<T: AsRef<str>>(&mut self, tp_category: T, tp_name: T) -> Result<Link> {
+    pub fn attach_tracepoint(
+        &mut self,
+        tp_category: impl AsRef<str>,
+        tp_name: impl AsRef<str>,
+    ) -> Result<Link> {
         let tp_category = util::str_to_cstring(tp_category.as_ref())?;
         let tp_category_ptr = tp_category.as_ptr();
         let tp_name = util::str_to_cstring(tp_name.as_ref())?;
