@@ -14,7 +14,7 @@ use scopeguard::defer;
 
 use libbpf_rs::{
     num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject,
-    ProgramType, UsdtOpts,
+    ProgramType, TracepointOpts, UsdtOpts,
 };
 
 fn get_test_object_path(filename: &str) -> PathBuf {
@@ -661,14 +661,7 @@ fn test_object_map_create_and_pin() {
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
-        btf_fd: 0,
-        btf_key_type_id: 0,
-        btf_value_type_id: 0,
-        btf_vmlinux_value_type_id: 0,
-        inner_map_fd: 0,
-        map_extra: 0,
-        numa_node: 0,
-        map_ifindex: 0,
+        ..Default::default()
     };
 
     let mut map = Map::create(
@@ -935,4 +928,48 @@ fn test_object_tracepoint() {
     mgr.consume().expect("Failed to consume ringbuf");
 
     unsafe { assert_eq!(V, 1) };
+}
+
+/// Check that we can attach a BPF program to a kernel tracepoint, providing
+/// additional options.
+#[test]
+fn test_object_tracepoint_with_opts() {
+    bump_rlimit_mlock();
+
+    let cookie_val = 42u16;
+    let mut obj = get_test_object("tracepoint.bpf.o");
+    let prog = obj
+        .prog_mut("handle__tracepoint_with_cookie")
+        .expect("Failed to find program");
+
+    let opts = TracepointOpts {
+        cookie: cookie_val.into(),
+        ..TracepointOpts::default()
+    };
+    let _link = prog
+        .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .expect("Failed to attach prog");
+
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+
+    static mut V: i32 = 0;
+    fn callback(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V = value;
+        }
+
+        0
+    }
+
+    builder.add(map, callback).expect("Failed to add ringbuf");
+    let mgr = builder.build().expect("Failed to build");
+
+    let _pid = unsafe { libc::getpid() };
+    mgr.consume().expect("Failed to consume ringbuf");
+
+    unsafe { assert_eq!(V, cookie_val.into()) };
 }
