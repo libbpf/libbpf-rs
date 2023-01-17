@@ -876,7 +876,7 @@ fn test_object_program_helper_probes() {
 }
 
 #[test]
-fn test_object_open_proram_insns() {
+fn test_object_open_program_insns() {
     bump_rlimit_mlock();
 
     let open_obj = open_test_object("usdt.bpf.o");
@@ -889,7 +889,7 @@ fn test_object_open_proram_insns() {
 }
 
 #[test]
-fn test_object_proram_insns() {
+fn test_object_program_insns() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("usdt.bpf.o");
