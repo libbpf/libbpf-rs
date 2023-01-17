@@ -14,7 +14,7 @@ use scopeguard::defer;
 
 use libbpf_rs::{
     num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject,
-    ProgramType, TracepointOpts, UsdtOpts,
+    ProgramType, TracepointOpts, UprobeOpts, UsdtOpts,
 };
 
 fn get_test_object_path(filename: &str) -> PathBuf {
@@ -932,6 +932,75 @@ fn test_object_tracepoint_with_opts() {
     let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
     let action = || {
         let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(map, action);
+
+    assert_eq!(result, cookie_val.into());
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn uprobe_target() -> usize {
+    42
+}
+
+/// Check that we can attach a BPF program to a uprobe.
+#[test]
+fn test_object_uprobe_with_opts() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("uprobe.bpf.o");
+    let prog = obj
+        .prog_mut("handle__uprobe")
+        .expect("Failed to find program");
+
+    let pid = unsafe { libc::getpid() };
+    let path = std::env::current_exe().expect("Failed to find executable name");
+    let func_offset = 0;
+    let opts = UprobeOpts {
+        func_name: "uprobe_target".to_string(),
+        ..Default::default()
+    };
+    let _link = prog
+        .attach_uprobe_with_opts(pid, path, func_offset, opts)
+        .expect("Failed to attach prog");
+
+    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        let _ = uprobe_target();
+    };
+    let result = with_ringbuffer(map, action);
+
+    assert_eq!(result, 1);
+}
+
+/// Check that we can attach a BPF program to a uprobe and access the cookie
+/// provided during attach.
+#[test]
+fn test_object_uprobe_with_cookie() {
+    bump_rlimit_mlock();
+
+    let cookie_val = 5u16;
+    let mut obj = get_test_object("uprobe.bpf.o");
+    let prog = obj
+        .prog_mut("handle__uprobe_with_cookie")
+        .expect("Failed to find program");
+
+    let pid = unsafe { libc::getpid() };
+    let path = std::env::current_exe().expect("Failed to find executable name");
+    let func_offset = 0;
+    let opts = UprobeOpts {
+        func_name: "uprobe_target".to_string(),
+        cookie: cookie_val.into(),
+        ..Default::default()
+    };
+    let _link = prog
+        .attach_uprobe_with_opts(pid, path, func_offset, opts)
+        .expect("Failed to attach prog");
+
+    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        let _ = uprobe_target();
     };
     let result = with_ringbuffer(map, action);
 
