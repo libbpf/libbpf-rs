@@ -898,3 +898,41 @@ fn test_object_program_insns() {
     let insns = prog.insns();
     assert!(!insns.is_empty());
 }
+
+/// Check that we can attach a BPF program to a kernel tracepoint.
+#[test]
+fn test_object_tracepoint() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("tracepoint.bpf.o");
+    let prog = obj
+        .prog_mut("handle__tracepoint")
+        .expect("Failed to find program");
+
+    let _link = prog
+        .attach_tracepoint("syscalls", "sys_enter_getpid")
+        .expect("Failed to attach prog");
+
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+
+    static mut V: i32 = 0;
+    fn callback(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V = value;
+        }
+
+        0
+    }
+
+    builder.add(map, callback).expect("Failed to add ringbuf");
+    let mgr = builder.build().expect("Failed to build");
+
+    let _pid = unsafe { libc::getpid() };
+    mgr.consume().expect("Failed to consume ringbuf");
+
+    unsafe { assert_eq!(V, 1) };
+}
