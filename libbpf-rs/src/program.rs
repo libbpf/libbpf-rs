@@ -10,6 +10,28 @@ use strum_macros::Display;
 
 use crate::*;
 
+/// Options to optionally be provided when attaching to a uprobe.
+#[derive(Clone, Debug, Default)]
+pub struct UprobeOpts {
+    /// Offset of kernel reference counted USDT semaphore.
+    pub ref_ctr_offset: usize,
+    /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
+    pub cookie: u64,
+    /// uprobe is return probe, invoked at function return time.
+    pub retprobe: bool,
+    /// Function name to attach to.
+    ///
+    /// Could be an unqualified ("abc") or library-qualified "abc@LIBXYZ" name.
+    /// To specify function entry, `func_name` should be set while `func_offset`
+    /// argument to should be 0. To trace an offset within a function, specify
+    /// `func_name` and use `func_offset` argument to specify offset within the
+    /// function. Shared library functions must specify the shared library
+    /// binary_path.
+    pub func_name: String,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
 /// Options to optionally be provided when attaching to a USDT.
 #[derive(Clone, Debug, Default)]
 pub struct UsdtOpts {
@@ -417,7 +439,7 @@ impl Program {
         binary_path: T,
         func_offset: usize,
     ) -> Result<Link> {
-        let path = util::path_to_cstring(binary_path.as_ref())?;
+        let path = util::path_to_cstring(binary_path)?;
         let path_ptr = path.as_ptr();
         let ptr = unsafe {
             libbpf_sys::bpf_program__attach_uprobe(
@@ -426,6 +448,53 @@ impl Program {
                 pid,
                 path_ptr,
                 func_offset as libbpf_sys::size_t,
+            )
+        };
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
+    /// Attach this program to a [userspace
+    /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html),
+    /// providing additional options.
+    pub fn attach_uprobe_with_opts(
+        &mut self,
+        pid: i32,
+        binary_path: impl AsRef<Path>,
+        func_offset: usize,
+        opts: UprobeOpts,
+    ) -> Result<Link> {
+        let path = util::path_to_cstring(binary_path)?;
+        let path_ptr = path.as_ptr();
+        let UprobeOpts {
+            ref_ctr_offset,
+            cookie,
+            retprobe,
+            func_name,
+            _non_exhaustive,
+        } = opts;
+
+        let func_name = util::str_to_cstring(&func_name)?;
+        let opts = libbpf_sys::bpf_uprobe_opts {
+            sz: mem::size_of::<Self>() as u64,
+            ref_ctr_offset: ref_ctr_offset as libbpf_sys::size_t,
+            bpf_cookie: cookie,
+            retprobe,
+            func_name: func_name.as_ptr(),
+            ..Default::default()
+        };
+
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_uprobe_opts(
+                self.ptr,
+                pid,
+                path_ptr,
+                func_offset as libbpf_sys::size_t,
+                &opts as *const _,
             )
         };
         let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
