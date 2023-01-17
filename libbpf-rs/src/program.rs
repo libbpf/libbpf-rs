@@ -32,6 +32,29 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
     }
 }
 
+/// Options to optionally be provided when attaching to a tracepoint.
+#[derive(Clone, Debug, Default)]
+pub struct TracepointOpts {
+    /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
+    pub cookie: u64,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
+    fn from(opts: TracepointOpts) -> Self {
+        let TracepointOpts {
+            cookie,
+            _non_exhaustive,
+        } = opts;
+
+        libbpf_sys::bpf_tracepoint_opts {
+            sz: mem::size_of::<Self>() as u64,
+            bpf_cookie: cookie,
+        }
+    }
+}
+
 /// Represents a parsed but not yet loaded BPF program.
 ///
 /// This object exposes operations that need to happen before the program is loaded.
@@ -428,6 +451,41 @@ impl Program {
         }
     }
 
+    fn attach_tracepoint_impl(
+        &mut self,
+        tp_category: &str,
+        tp_name: &str,
+        tp_opts: Option<TracepointOpts>,
+    ) -> Result<Link> {
+        let tp_category = util::str_to_cstring(tp_category)?;
+        let tp_category_ptr = tp_category.as_ptr();
+        let tp_name = util::str_to_cstring(tp_name)?;
+        let tp_name_ptr = tp_name.as_ptr();
+
+        let ptr = if let Some(tp_opts) = tp_opts {
+            let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
+            unsafe {
+                libbpf_sys::bpf_program__attach_tracepoint_opts(
+                    self.ptr,
+                    tp_category_ptr,
+                    tp_name_ptr,
+                    &tp_opts as *const _,
+                )
+            }
+        } else {
+            unsafe {
+                libbpf_sys::bpf_program__attach_tracepoint(self.ptr, tp_category_ptr, tp_name_ptr)
+            }
+        };
+
+        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
+        if err != 0 {
+            Err(Error::System(err as i32))
+        } else {
+            Ok(Link::new(ptr))
+        }
+    }
+
     /// Attach this program to a [kernel
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
     pub fn attach_tracepoint(
@@ -435,19 +493,19 @@ impl Program {
         tp_category: impl AsRef<str>,
         tp_name: impl AsRef<str>,
     ) -> Result<Link> {
-        let tp_category = util::str_to_cstring(tp_category.as_ref())?;
-        let tp_category_ptr = tp_category.as_ptr();
-        let tp_name = util::str_to_cstring(tp_name.as_ref())?;
-        let tp_name_ptr = tp_name.as_ptr();
-        let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_tracepoint(self.ptr, tp_category_ptr, tp_name_ptr)
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        self.attach_tracepoint_impl(tp_category.as_ref(), tp_name.as_ref(), None)
+    }
+
+    /// Attach this program to a [kernel
+    /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html),
+    /// providing additional options.
+    pub fn attach_tracepoint_with_opts(
+        &mut self,
+        tp_category: impl AsRef<str>,
+        tp_name: impl AsRef<str>,
+        tp_opts: TracepointOpts,
+    ) -> Result<Link> {
+        self.attach_tracepoint_impl(tp_category.as_ref(), tp_name.as_ref(), Some(tp_opts))
     }
 
     /// Attach this program to a [raw kernel

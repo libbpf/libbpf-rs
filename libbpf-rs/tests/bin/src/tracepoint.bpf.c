@@ -23,4 +23,18 @@ int handle__tracepoint(void *ctx)
     return 0;
 }
 
+SEC("tracepoint/syscalls/sys_enter_getpid")
+int handle__tracepoint_with_cookie(void *ctx)
+{
+    int *value;
+
+    value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
+    if (value) {
+        *value = bpf_get_attach_cookie(ctx);
+        bpf_ringbuf_submit(value, 0);
+    }
+
+    return 0;
+}
+
 char LICENSE[] SEC("license") = "GPL";
