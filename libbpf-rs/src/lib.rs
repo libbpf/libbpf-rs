@@ -98,7 +98,7 @@ pub use crate::object::{Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
 pub use crate::print::{get_print, set_print, PrintCallback, PrintLevel};
 pub use crate::program::{
-    OpenProgram, Program, ProgramAttachType, ProgramType, TracepointOpts, UsdtOpts,
+    OpenProgram, Program, ProgramAttachType, ProgramType, TracepointOpts, UprobeOpts, UsdtOpts,
 };
 pub use crate::ringbuf::{RingBuffer, RingBufferBuilder};
 pub use crate::tc::{
