@@ -59,6 +59,32 @@ pub fn bump_rlimit_mlock() {
     );
 }
 
+/// A helper function for instantiating a `RingBuffer` with a callback meant to
+/// be invoked when `action` is executed and that is intended to trigger a write
+/// to said `RingBuffer` from kernel space, which then reads a single `i32` from
+/// this buffer from user space and returns it.
+fn with_ringbuffer<F>(map: &Map, action: F) -> i32
+where
+    F: FnOnce(),
+{
+    let mut value = 0i32;
+    {
+        let callback = |data: &[u8]| {
+            plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+            0
+        };
+
+        let mut builder = libbpf_rs::RingBufferBuilder::new();
+        builder.add(map, callback).expect("Failed to add ringbuf");
+        let mgr = builder.build().expect("Failed to build");
+
+        action();
+        mgr.consume().expect("Failed to consume ringbuf");
+    }
+
+    value
+}
+
 #[test]
 fn test_object_build_and_load() {
     bump_rlimit_mlock();
@@ -751,30 +777,14 @@ fn test_object_usdt() {
         )
         .expect("Failed to attach prog");
 
-    let mut builder = libbpf_rs::RingBufferBuilder::new();
     let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        // Define a USDT probe point and exercise it as we are attaching to self.
+        probe!(test_provider, test_function, 1);
+    };
+    let result = with_ringbuffer(map, action);
 
-    static mut V: i32 = 0;
-    fn callback(data: &[u8]) -> i32 {
-        let mut value: i32 = 0;
-        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
-
-        unsafe {
-            V = value;
-        }
-
-        0
-    }
-
-    builder.add(map, callback).expect("Failed to add ringbuf");
-    let mgr = builder.build().expect("Failed to build");
-
-    // Define a USDT probe point and exercise it as we are attaching to self.
-    probe!(test_provider, test_function, 1);
-
-    mgr.consume().expect("Failed to consume ringbuf");
-
-    unsafe { assert_eq!(V, 1) };
+    assert_eq!(result, 1);
 }
 
 #[test]
@@ -801,30 +811,14 @@ fn test_object_usdt_cookie() {
         )
         .expect("Failed to attach prog");
 
-    let mut builder = libbpf_rs::RingBufferBuilder::new();
     let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        // Define a USDT probe point and exercise it as we are attaching to self.
+        probe!(test_provider, test_function, 1);
+    };
+    let result = with_ringbuffer(map, action);
 
-    static mut V: i32 = 0;
-    fn callback(data: &[u8]) -> i32 {
-        let mut value: i32 = 0;
-        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
-
-        unsafe {
-            V = value;
-        }
-
-        0
-    }
-
-    builder.add(map, callback).expect("Failed to add ringbuf");
-    let mgr = builder.build().expect("Failed to build");
-
-    // Define a USDT probe point and exercise it as we are attaching to self.
-    probe!(test_provider, test_function, 1);
-
-    mgr.consume().expect("Failed to consume ringbuf");
-
-    unsafe { assert_eq!(V, cookie_val.into()) };
+    assert_eq!(result, cookie_val.into());
 }
 
 #[test]
@@ -906,28 +900,13 @@ fn test_object_tracepoint() {
         .attach_tracepoint("syscalls", "sys_enter_getpid")
         .expect("Failed to attach prog");
 
-    let mut builder = libbpf_rs::RingBufferBuilder::new();
     let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(map, action);
 
-    static mut V: i32 = 0;
-    fn callback(data: &[u8]) -> i32 {
-        let mut value: i32 = 0;
-        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
-
-        unsafe {
-            V = value;
-        }
-
-        0
-    }
-
-    builder.add(map, callback).expect("Failed to add ringbuf");
-    let mgr = builder.build().expect("Failed to build");
-
-    let _pid = unsafe { libc::getpid() };
-    mgr.consume().expect("Failed to consume ringbuf");
-
-    unsafe { assert_eq!(V, 1) };
+    assert_eq!(result, 1);
 }
 
 /// Check that we can attach a BPF program to a kernel tracepoint, providing
@@ -950,26 +929,11 @@ fn test_object_tracepoint_with_opts() {
         .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
         .expect("Failed to attach prog");
 
-    let mut builder = libbpf_rs::RingBufferBuilder::new();
     let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(map, action);
 
-    static mut V: i32 = 0;
-    fn callback(data: &[u8]) -> i32 {
-        let mut value: i32 = 0;
-        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
-
-        unsafe {
-            V = value;
-        }
-
-        0
-    }
-
-    builder.add(map, callback).expect("Failed to add ringbuf");
-    let mgr = builder.build().expect("Failed to build");
-
-    let _pid = unsafe { libc::getpid() };
-    mgr.consume().expect("Failed to consume ringbuf");
-
-    unsafe { assert_eq!(V, cookie_val.into()) };
+    assert_eq!(result, cookie_val.into());
 }
