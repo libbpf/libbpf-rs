@@ -32,7 +32,7 @@ vsprintf = "2.0"
 
 [dev-dependencies]
 libc = "0.2"
-log = "0.4"
+log = "0.4.4"
 plain = "0.2.3"
 probe = "0.3"
 scopeguard = "1.1"

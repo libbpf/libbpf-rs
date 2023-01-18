@@ -83,7 +83,6 @@ extern "C" fn outer_print_cb(
 /// To pass all messages to the `log` crate:
 ///
 /// ```
-/// use log;
 /// use libbpf_rs::{PrintLevel, set_print};
 ///
 /// fn print_to_log(level: PrintLevel, msg: String) {

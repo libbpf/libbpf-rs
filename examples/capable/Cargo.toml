@@ -5,7 +5,7 @@ authors = ["Devasia Thomas <https://www.linkedin.com/in/devasiathomas>"]
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0"
+anyhow = "1.0.4"
 libbpf-rs = { path = "../../libbpf-rs" }
 libc = "0.2"
 phf = { version = "0.10", features = ["macros"] }
