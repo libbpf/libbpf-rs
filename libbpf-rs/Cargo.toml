@@ -37,3 +37,10 @@ plain = "0.2.3"
 probe = "0.3"
 scopeguard = "1.1"
 serial_test = "0.5"
+
+# A set of unused dependencies that we require to force correct minimum versions
+# of transitive dependencies, for cases where our dependencies have incorrect
+# dependency specifications themselves.
+_cc_unused = { package = "cc", version = "1.0.3" }
+_pkg-config_unused = { package = "pkg-config", version = "0.3.3" }
+_syn_unused = { package = "syn", version = "0.15.15" }
