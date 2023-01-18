@@ -30,8 +30,8 @@ path = "src/lib.rs"
 novendor = ["libbpf-sys/novendor"]
 
 [dependencies]
-anyhow = "1.0"
-cargo_metadata = "0.14"
+anyhow = "1.0.1"
+cargo_metadata = "0.15.0"
 libbpf-sys = { version = "1.0.3" }
 memmap2 = "0.5"
 num_enum = "0.5"
