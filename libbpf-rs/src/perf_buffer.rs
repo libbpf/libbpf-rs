@@ -220,10 +220,30 @@ impl<'b> PerfBuffer<'b> {
     }
 }
 
-impl<'b> Drop for PerfBuffer<'b> {
+// SAFETY: `perf_buffer` objects can safely be polled from any thread.
+unsafe impl Send for PerfBuffer<'_> {}
+
+impl Drop for PerfBuffer<'_> {
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::perf_buffer__free(self.ptr);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// Check that `PerfBuffer` is `Send`.
+    #[test]
+    fn perfbuffer_is_send() {
+        fn test<T>()
+        where
+            T: Send,
+        {
+        }
+
+        test::<PerfBuffer>();
     }
 }
