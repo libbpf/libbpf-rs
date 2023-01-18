@@ -11,9 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Please adjust README and rust-version field in Cargo.toml files when
-        # bumping version.
-        rust: [stable, 1.59.0, nightly]
+        rust: [stable, nightly]
     steps:
     - name: "Set environmental variables"
       shell: bash
@@ -55,6 +53,32 @@ jobs:
       run: cargo test --verbose --workspace --exclude runqslower -- --skip test_object --skip test_tc
     - name: Run BTF tests
       run: cd libbpf-rs && cargo test --verbose -- test_object test_tc
+
+  build-minimum:
+    name: Build using minimum versions of dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get install -y libelf-dev
+      - name: Install Nightly Rust
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          profile: minimal
+          toolchain: nightly
+      - run: cargo +nightly -Z minimal-versions update
+      - name: Install minimum Rust
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          profile: minimal
+          # Please adjust README and rust-version field in Cargo.toml files when
+          # bumping version.
+          toolchain: 1.59.0
+          components: rustfmt
+          default: true
+      - name: Build
+        run: cargo build --verbose --workspace --exclude runqslower
+
   build-capable:
     name: Build capable example with static libelf and libz
     runs-on: ubuntu-latest
