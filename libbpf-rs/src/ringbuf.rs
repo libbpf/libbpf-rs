@@ -178,12 +178,32 @@ impl<'a> RingBuffer<'a> {
     }
 }
 
-impl<'a> Drop for RingBuffer<'a> {
+// SAFETY: `ring_buffer` objects can safely be polled from any thread.
+unsafe impl Send for RingBuffer<'_> {}
+
+impl Drop for RingBuffer<'_> {
     fn drop(&mut self) {
         unsafe {
             if !self.ptr.is_null() {
                 libbpf_sys::ring_buffer__free(self.ptr);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// Check that `RingBuffer` is `Send`.
+    #[test]
+    fn perfbuffer_is_send() {
+        fn test<T>()
+        where
+            T: Send,
+        {
+        }
+
+        test::<RingBuffer>();
     }
 }
