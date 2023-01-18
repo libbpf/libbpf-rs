@@ -7,7 +7,7 @@ readme = "../README.md"
 version = "0.19.1"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.58"
 license = "LGPL-2.1 OR BSD-2-Clause"
 keywords = ["bpf", "ebpf", "libbpf"]
 
