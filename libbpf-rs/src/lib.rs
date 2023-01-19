@@ -75,6 +75,7 @@
 mod error;
 mod iter;
 mod link;
+mod linker;
 mod map;
 mod object;
 mod perf_buffer;
@@ -93,6 +94,7 @@ pub use libbpf_sys;
 pub use crate::error::{Error, Result};
 pub use crate::iter::Iter;
 pub use crate::link::Link;
+pub use crate::linker::Linker;
 pub use crate::map::{Map, MapFlags, MapType, OpenMap};
 pub use crate::object::{Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
