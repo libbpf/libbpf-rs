@@ -147,9 +147,7 @@ fn capitalize_first_letter(s: &str) -> String {
 
 fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
     let name_ptr = unsafe { libbpf_sys::bpf_map__name(map) };
-    if name_ptr.is_null() {
-        bail!("Map name unknown");
-    }
+    ensure!(!name_ptr.is_null(), "Map name unknown");
 
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
@@ -182,10 +180,7 @@ fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
 
 fn get_prog_name(prog: *const libbpf_sys::bpf_program) -> Result<String> {
     let name_ptr = unsafe { libbpf_sys::bpf_program__name(prog) };
-
-    if name_ptr.is_null() {
-        bail!("Prog name unknown");
-    }
+    ensure!(!name_ptr.is_null(), "Prog name unknown");
 
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
@@ -615,9 +610,7 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<BpfObj> {
             &obj_opts,
         )
     };
-    if object.is_null() {
-        bail!("Failed to bpf_object__open_mem()");
-    }
+    ensure!(!object.is_null(), "Failed to bpf_object__open_mem()");
 
     Ok(BpfObj(ptr::NonNull::new(object).unwrap()))
 }
@@ -857,9 +850,7 @@ fn gen_skel(
     out: OutputDest,
     rustfmt_path: Option<&PathBuf>,
 ) -> Result<()> {
-    if name.is_empty() {
-        bail!("Object file has no name");
-    }
+    ensure!(!name.is_empty(), "Object file has no name");
 
     let skel = gen_skel_contents(debug, name, obj)?;
     let skel = try_rustfmt(&skel, rustfmt_path)?;
@@ -946,9 +937,10 @@ pub fn gen_single(
 
     let name = match filename.to_str() {
         Some(n) => {
-            if !n.ends_with(".o") {
-                bail!("Object file does not have `.o` suffix: {}", n);
-            }
+            ensure!(
+                n.ends_with(".o"),
+                "Object file does not have `.o` suffix: {n}"
+            );
 
             n.split('.').next().unwrap()
         }
