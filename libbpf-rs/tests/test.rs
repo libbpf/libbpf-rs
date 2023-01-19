@@ -11,9 +11,10 @@ use nix::errno;
 use plain::Plain;
 use probe::probe;
 use scopeguard::defer;
+use tempfile::NamedTempFile;
 
 use libbpf_rs::{
-    num_possible_cpus, Iter, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject,
+    num_possible_cpus, Iter, Linker, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject,
     ProgramType, TracepointOpts, UprobeOpts, UsdtOpts,
 };
 
@@ -102,6 +103,16 @@ fn test_object_build_from_memory() {
         .expect("failed to build object");
     let name = obj.name().expect("failed to get object name");
     assert!(name == "memory name");
+}
+
+/// Check that loading an object from an empty file fails as expected.
+#[test]
+fn test_object_load_invalid() {
+    let empty_file = NamedTempFile::new().unwrap();
+    let _err = ObjectBuilder::default()
+        .debug(true)
+        .open_file(empty_file.path())
+        .unwrap_err();
 }
 
 #[test]
@@ -1005,4 +1016,31 @@ fn test_object_uprobe_with_cookie() {
     let result = with_ringbuffer(map, action);
 
     assert_eq!(result, cookie_val.into());
+}
+
+/// Check that we can link multiple object files.
+#[test]
+fn test_object_link_files() {
+    fn test(files: Vec<PathBuf>) {
+        let output_file = NamedTempFile::new().unwrap();
+
+        let mut linker = Linker::new(output_file.path()).unwrap();
+        let () = files
+            .into_iter()
+            .try_for_each(|file| linker.add(file))
+            .unwrap();
+        let () = linker.link().unwrap();
+
+        // Check that we can load the resulting object file.
+        let _object = ObjectBuilder::default()
+            .debug(true)
+            .open_file(output_file.path())
+            .unwrap();
+    }
+
+    let obj_path1 = get_test_object_path("usdt.bpf.o");
+    let obj_path2 = get_test_object_path("ringbuf.bpf.o");
+
+    test(vec![obj_path1.clone()]);
+    test(vec![obj_path1, obj_path2]);
 }
