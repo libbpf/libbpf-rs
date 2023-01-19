@@ -105,6 +105,25 @@ fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<(
     Ok(())
 }
 
+/// Strip DWARF information from the provided BPF object file.
+///
+/// We rely on the `libbpf` linker here, which removes debug information as a
+/// side-effect.
+fn strip_dwarf_info(file: &Path) -> Result<()> {
+    let mut temp_file = file.as_os_str().to_os_string();
+    temp_file.push(".tmp");
+
+    fs::rename(file, &temp_file).context("Failed to rename compiled BPF object file")?;
+
+    let mut linker =
+        libbpf_rs::Linker::new(file).context("Failed to instantiate libbpf object file linker")?;
+    linker
+        .add(temp_file)
+        .context("Failed to add object file to BPF linker")?;
+    linker.link().context("Failed to link object file")?;
+    Ok(())
+}
+
 /// We're essentially going to run:
 ///
 ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
@@ -154,7 +173,11 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
         );
     }
 
-    Ok(())
+    // Compilation with clang may contain DWARF information that references
+    // system specific and temporary paths. That can render our generated
+    // skeletons unstable, potentially rendering them unsuitable for inclusion
+    // in version control systems. So strip this information.
+    strip_dwarf_info(out).with_context(|| format!("Failed to strip object file {}", out.display()))
 }
 
 fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path, target_dir: &Path) -> Result<()> {

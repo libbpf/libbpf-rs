@@ -33,6 +33,7 @@ novendor = ["libbpf-sys/novendor"]
 anyhow = "1.0.1"
 cargo_metadata = "0.15.0"
 libbpf-sys = { version = "1.0.3" }
+libbpf-rs = { path = "../libbpf-rs" }
 memmap2 = "0.5"
 num_enum = "0.5"
 regex = { version = "1.6.0", default-features = false, features = ["std", "unicode-perl"] }
