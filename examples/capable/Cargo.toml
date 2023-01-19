@@ -2,6 +2,7 @@
 name = "capable"
 version = "0.1.0"
 authors = ["Devasia Thomas <https://www.linkedin.com/in/devasiathomas>"]
+license = "LGPL-2.1 OR BSD-2-Clause"
 edition = "2021"
 
 [dependencies]
