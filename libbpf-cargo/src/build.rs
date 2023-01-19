@@ -166,16 +166,16 @@ fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path, target_dir: &Path
     };
 
     for obj in objs {
-        let dest_name = if let Some(f) = obj.path.file_stem() {
-            let mut stem = f.to_os_string();
-            stem.push(".o");
-            stem
-        } else {
-            bail!(
+        let stem = obj.path.file_stem().with_context(|| {
+            format!(
                 "Could not calculate destination name for obj={}",
                 obj.path.display()
-            );
-        };
+            )
+        })?;
+
+        let mut dest_name = stem.to_os_string();
+        dest_name.push(".o");
+
         let mut dest_path = obj.out.to_path_buf();
         dest_path.push(&dest_name);
         fs::create_dir_all(&obj.out)?;
