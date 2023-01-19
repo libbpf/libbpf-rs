@@ -224,6 +224,7 @@ dependencies = [
  "cargo_metadata",
  "clap",
  "goblin",
+ "libbpf-rs",
  "libbpf-sys",
  "memmap2",
  "num_enum",

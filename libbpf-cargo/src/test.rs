@@ -1,6 +1,6 @@
 use std::{
     convert::TryInto,
-    fs::{create_dir, read, File, OpenOptions},
+    fs::{create_dir, read, read_to_string, write, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
     process::Command,
@@ -916,6 +916,56 @@ fn test_skeleton_builder_arrays_ptrs() {
         .status()
         .expect("failed to spawn cargo-build");
     assert!(status.success());
+}
+
+/// Check that skeleton creation is deterministic, i.e., that no temporary paths
+/// change the output between invocations.
+#[test]
+#[ignore = "may fail on some systems; depends on kernel headers that have been seen to be broken"]
+fn test_skeleton_builder_deterministic() {
+    let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
+
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+    write(
+        proj_dir.join("src/bpf/prog.bpf.c"),
+        r#"
+            #include <linux/bpf.h>
+            #include <bpf/bpf_helpers.h>
+
+            struct {
+                __uint(type, BPF_MAP_TYPE_REUSEPORT_SOCKARRAY);
+            } sock_map SEC(".maps");
+
+            SEC("sk_reuseport/reuse_pass")
+            long prog_select_sk(struct sk_reuseport_md *reuse_md)
+            {
+                unsigned int index = 0;
+                bpf_sk_select_reuseport(reuse_md, &sock_map, &index, 0);
+                return SK_PASS;
+            }
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    let skel1 = NamedTempFile::new().unwrap();
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("clang")
+        .build_and_generate(skel1.path())
+        .unwrap();
+    let skel1 = read_to_string(skel1.path()).unwrap();
+
+    let skel2 = NamedTempFile::new().unwrap();
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .clang("clang")
+        .build_and_generate(skel2.path())
+        .unwrap();
+    let skel2 = read_to_string(skel2.path()).unwrap();
+
+    assert_eq!(skel1, skel2);
 }
 
 // -- TEST RUST GENERATION OF BTF PROGRAMS --
