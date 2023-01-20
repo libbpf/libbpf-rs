@@ -46,6 +46,7 @@ jobs:
       run: |
         sudo apt-get install -y clang-14 libelf-dev zlib1g-dev
         sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-14 /bin/clang
+    - uses: Swatinem/rust-cache@v2.2.0
     - name: Build
       run: cargo build --verbose --workspace --exclude runqslower
     - name: Run tests
@@ -76,6 +77,7 @@ jobs:
           toolchain: 1.58.0
           components: rustfmt
           default: true
+      - uses: Swatinem/rust-cache@v2.2.0
       - name: Build
         run: cargo build --verbose --workspace --exclude runqslower
 
@@ -91,6 +93,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v2.2.0
       - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --package capable --features=static
   clippy:
     name: Lint with clippy
@@ -105,6 +108,7 @@ jobs:
           toolchain: stable
           components: clippy
           override: true
+      - uses: Swatinem/rust-cache@v2.2.0
       - run: cargo clippy --no-deps --all-targets --tests -- -D warnings
   rustfmt:
     name: Check code formatting
