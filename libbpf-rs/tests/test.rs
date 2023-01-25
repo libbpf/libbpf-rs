@@ -1027,7 +1027,7 @@ fn test_object_link_files() {
         let mut linker = Linker::new(output_file.path()).unwrap();
         let () = files
             .into_iter()
-            .try_for_each(|file| linker.add(file))
+            .try_for_each(|file| linker.add_file(file))
             .unwrap();
         let () = linker.link().unwrap();
 
