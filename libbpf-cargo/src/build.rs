@@ -118,7 +118,7 @@ fn strip_dwarf_info(file: &Path) -> Result<()> {
     let mut linker =
         libbpf_rs::Linker::new(file).context("Failed to instantiate libbpf object file linker")?;
     linker
-        .add(temp_file)
+        .add_file(temp_file)
         .context("Failed to add object file to BPF linker")?;
     linker.link().context("Failed to link object file")?;
     Ok(())

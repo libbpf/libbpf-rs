@@ -37,7 +37,7 @@ impl Linker {
     }
 
     /// Add a file to the set of files to link.
-    pub fn add<P>(&mut self, file: P) -> Result<()>
+    pub fn add_file<P>(&mut self, file: P) -> Result<()>
     where
         P: AsRef<Path>,
     {
@@ -52,7 +52,8 @@ impl Linker {
         }
     }
 
-    /// Link all BPF object files [`add`](Self::add)ed to this object into a single one.
+    /// Link all BPF object files [added](Self::add_file) to this object into
+    /// a single one.
     pub fn link(&self) -> Result<()> {
         // SAFETY: `linker` is a valid pointer.
         let err = unsafe { libbpf_sys::bpf_linker__finalize(self.linker) };

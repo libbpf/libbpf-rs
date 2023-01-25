@@ -929,14 +929,14 @@ fn test_skeleton_builder_deterministic() {
     write(
         proj_dir.join("src/bpf/prog.bpf.c"),
         r#"
-            #include <linux/bpf.h>
+            #include "vmlinux.h"
             #include <bpf/bpf_helpers.h>
 
             struct {
                 __uint(type, BPF_MAP_TYPE_REUSEPORT_SOCKARRAY);
             } sock_map SEC(".maps");
 
-            SEC("sk_reuseport/reuse_pass")
+            SEC("sk_reuseport")
             long prog_select_sk(struct sk_reuseport_md *reuse_md)
             {
                 unsigned int index = 0;
@@ -946,6 +946,8 @@ fn test_skeleton_builder_deterministic() {
         "#,
     )
     .expect("failed to write prog.bpf.c");
+
+    add_vmlinux_header(&proj_dir);
 
     let skel1 = NamedTempFile::new().unwrap();
     SkeletonBuilder::new()
