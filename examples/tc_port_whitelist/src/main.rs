@@ -80,28 +80,28 @@ fn main() -> Result<()> {
 
     if opts.query {
         match custom.query() {
-            Err(e) => println!("failed to find custom hook: {}", e),
-            Ok(prog_id) => println!("found custom hook prog_id: {}", prog_id),
+            Err(e) => println!("failed to find custom hook: {e}"),
+            Ok(prog_id) => println!("found custom hook prog_id: {prog_id}"),
         }
         match egress.query() {
-            Err(e) => println!("failed to find custom hook: {}", e),
-            Ok(prog_id) => println!("found custom hook prog_id: {}", prog_id),
+            Err(e) => println!("failed to find custom hook: {e}"),
+            Ok(prog_id) => println!("found custom hook prog_id: {prog_id}"),
         }
         match ingress.query() {
-            Err(e) => println!("failed to find custom hook: {}", e),
-            Ok(prog_id) => println!("found custom hook prog_id: {}", prog_id),
+            Err(e) => println!("failed to find custom hook: {e}"),
+            Ok(prog_id) => println!("found custom hook prog_id: {prog_id}"),
         }
     }
 
     if opts.detach {
         if let Err(e) = ingress.detach() {
-            println!("failed to detach ingress hook {}", e);
+            println!("failed to detach ingress hook {e}");
         }
         if let Err(e) = egress.detach() {
-            println!("failed to detach egress hook {}", e);
+            println!("failed to detach egress hook {e}");
         }
         if let Err(e) = custom.detach() {
-            println!("failed to detach custom hook {}", e);
+            println!("failed to detach custom hook {e}");
         }
     }
 
@@ -110,27 +110,27 @@ fn main() -> Result<()> {
             let key = (i as u32).to_ne_bytes();
             let val = port.to_ne_bytes();
             if let Err(e) = skel.maps_mut().ports().update(&key, &val, MapFlags::ANY) {
-                bail!("Example limited to 10 ports: {}", e);
+                bail!("Example limited to 10 ports: {e}");
             }
         }
         ingress.create()?;
 
         if let Err(e) = egress.attach() {
-            println!("failed to attach egress hook {}", e);
+            println!("failed to attach egress hook {e}");
         }
 
         if let Err(e) = ingress.attach() {
-            println!("failed to attach ingress hook {}", e);
+            println!("failed to attach ingress hook {e}");
         }
 
         if let Err(e) = custom.attach() {
-            println!("failed to attach custom hook {}", e);
+            println!("failed to attach custom hook {e}");
         }
     }
 
     if opts.destroy {
         if let Err(e) = destroy_all.destroy() {
-            println!("failed to destroy all {}", e);
+            println!("failed to destroy all {e}");
         }
     }
 

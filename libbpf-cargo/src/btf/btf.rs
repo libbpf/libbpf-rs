@@ -552,12 +552,12 @@ impl Btf {
                 };
 
                 match t.encoding {
-                    btf::BtfIntEncoding::Signed => format!("i{}", width),
+                    btf::BtfIntEncoding::Signed => format!("i{width}"),
                     btf::BtfIntEncoding::Bool => {
                         assert!(t.bits as usize == (std::mem::size_of::<bool>() * 8));
                         "bool".to_string()
                     }
-                    btf::BtfIntEncoding::Char | btf::BtfIntEncoding::None => format!("u{}", width),
+                    btf::BtfIntEncoding::Char | btf::BtfIntEncoding::None => format!("u{width}"),
                 }
             }
             BtfType::Float(t) => {
@@ -570,12 +570,12 @@ impl Btf {
                     _ => bail!("Invalid float width"),
                 };
 
-                format!("f{}", width)
+                format!("f{width}")
             }
             BtfType::Ptr(t) => {
                 let pointee_ty = self.type_declaration(t.pointee_type)?;
 
-                format!("*mut {}", pointee_ty)
+                format!("*mut {pointee_ty}")
             }
             BtfType::Array(t) => {
                 let val_ty = self.type_declaration(t.val_type_id)?;
@@ -832,16 +832,11 @@ impl Btf {
                             )?;
 
                             if padding != 0 {
-                                agg_content.push(format!(
-                                    r#"    __pad_{offset}: [u8; {padding}],"#,
-                                    offset = offset,
-                                    padding = padding,
-                                ));
+                                agg_content
+                                    .push(format!(r#"    __pad_{offset}: [u8; {padding}],"#,));
 
                                 impl_default.push(format!(
                                     r#"            __pad_{offset}: [u8::default(); {padding}]"#,
-                                    offset = offset,
-                                    padding = padding,
                                 ));
                             }
 
@@ -877,7 +872,7 @@ impl Btf {
                             field_ty_str.clone()
                         };
 
-                        agg_content.push(format!(r#"    pub {}: {},"#, field_name, field_ty_str));
+                        agg_content.push(format!(r#"    pub {field_name}: {field_ty_str},"#));
                     }
 
                     if t.is_struct {
@@ -903,7 +898,7 @@ impl Btf {
                     let aggregate_type = if t.is_struct { "struct" } else { "union" };
                     let packed_repr = if packed { ", packed" } else { "" };
 
-                    writeln!(def, r#"#[repr(C{})]"#, packed_repr)?;
+                    writeln!(def, r#"#[repr(C{packed_repr})]"#)?;
                     writeln!(
                         def,
                         r#"pub {agg_type} {name} {{"#,
@@ -912,7 +907,7 @@ impl Btf {
                     )?;
 
                     for field in agg_content {
-                        writeln!(def, "{}", field)?;
+                        writeln!(def, "{field}")?;
                     }
                     writeln!(def, "}}")?;
 
@@ -922,7 +917,7 @@ impl Btf {
                         writeln!(def, r#"    fn default() -> Self {{"#)?;
                         writeln!(def, r#"        {} {{"#, t.name)?;
                         for impl_def in impl_default {
-                            writeln!(def, r#"{},"#, impl_def)?;
+                            writeln!(def, r#"{impl_def},"#)?;
                         }
                         writeln!(def, r#"        }}"#)?;
                         writeln!(def, r#"    }}"#)?;
@@ -967,13 +962,8 @@ impl Btf {
                     }
 
                     writeln!(def, r#"#[derive(Debug, Copy, Clone, PartialEq, Eq)]"#)?;
-                    writeln!(
-                        def,
-                        r#"#[repr({signed}{repr_size})]"#,
-                        signed = signed,
-                        repr_size = repr_size,
-                    )?;
-                    writeln!(def, r#"pub enum {name} {{"#, name = t.name,)?;
+                    writeln!(def, r#"#[repr({signed}{repr_size})]"#)?;
+                    writeln!(def, r#"pub enum {name} {{"#, name = t.name)?;
 
                     for value in &t.values {
                         writeln!(
@@ -1012,7 +1002,7 @@ impl Btf {
 
                     writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
                     writeln!(def, r#"#[repr(C)]"#)?;
-                    writeln!(def, r#"pub struct {} {{"#, sec_name,)?;
+                    writeln!(def, r#"pub struct {sec_name} {{"#)?;
 
                     let mut offset: u32 = 0;
                     for datasec_var in &t.vars {
@@ -1039,7 +1029,7 @@ impl Btf {
                             false,
                         )?;
                         if padding != 0 {
-                            writeln!(def, r#"    __pad_{}: [u8; {}],"#, offset, padding,)?;
+                            writeln!(def, r#"    __pad_{offset}: [u8; {padding}],"#)?;
                         }
 
                         // Set `offset` to end of current var

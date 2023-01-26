@@ -86,10 +86,10 @@ fn main() -> Result<()> {
     }
 
     if let Err(e) = ingress.detach() {
-        eprintln!("Failed to detach prog: {}", e);
+        eprintln!("Failed to detach prog: {e}");
     }
     if let Err(e) = ingress.destroy() {
-        eprintln!("Failed to destroy TC hook: {}", e);
+        eprintln!("Failed to destroy TC hook: {e}");
     }
 
     Ok(())

@@ -146,7 +146,7 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
             "aarch64" => "arm64",
             _ => std::env::consts::ARCH,
         };
-        cmd.arg(format!("-D__TARGET_ARCH_{}", arch));
+        cmd.arg(format!("-D__TARGET_ARCH_{arch}"));
     }
 
     cmd.arg("-g")
@@ -227,7 +227,7 @@ pub fn build(
     if debug && !to_compile.is_empty() {
         println!("Found bpf progs to compile:");
         for obj in &to_compile {
-            println!("\t{:?}", obj);
+            println!("\t{obj:?}");
         }
     } else if to_compile.is_empty() {
         bail!("Did not find any bpf progs to compile");

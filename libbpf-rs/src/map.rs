@@ -240,7 +240,7 @@ impl Map {
         if self.ptr.is_null() {
             match std::fs::remove_file(path) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(Error::Internal(format!("remove pin map failed: {}", e))),
+                Err(e) => Err(Error::Internal(format!("remove pin map failed: {e}"))),
             }
         } else {
             let path_c = util::path_to_cstring(path)?;

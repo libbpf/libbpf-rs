@@ -37,11 +37,11 @@ pub fn make(
     let status = cmd.status().context("Failed to spawn child")?;
     if !status.success() {
         let reason = match status.code() {
-            Some(rc) => format!("exit code {}", rc),
+            Some(rc) => format!("exit code {rc}"),
             None => "killed by signal".to_string(),
         };
 
-        bail!("Failed to `cargo build`: {}", reason);
+        bail!("Failed to `cargo build`: {reason}");
     }
 
     Ok(())

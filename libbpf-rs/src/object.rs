@@ -29,7 +29,7 @@ impl ObjectBuilder {
     /// currently in use.
     pub fn debug(&mut self, dbg: bool) -> &mut Self {
         if dbg {
-            set_print(Some((PrintLevel::Debug, |_, s| print!("{}", s))));
+            set_print(Some((PrintLevel::Debug, |_, s| print!("{s}"))));
         } else {
             set_print(None);
         }

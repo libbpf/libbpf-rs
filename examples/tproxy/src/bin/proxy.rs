@@ -29,8 +29,8 @@ fn handle_client(client: TcpStream) -> Result<()> {
     let peer_addr = client.peer_addr().context("Failed to get peer addr")?;
 
     println!("New connection:");
-    println!("\tlocal: {}", local_addr);
-    println!("\tpeer: {}", peer_addr);
+    println!("\tlocal: {local_addr}");
+    println!("\tpeer: {peer_addr}");
     println!();
 
     Ok(())
