@@ -61,7 +61,7 @@ extern "C" fn outer_print_cb(
         if level <= min_level {
             let msg = match unsafe { vsprintf::vsprintf(fmtstr, va_list) } {
                 Ok(s) => s,
-                Err(e) => format!("Failed to parse libbpf output: {}", e),
+                Err(e) => format!("Failed to parse libbpf output: {e}"),
             };
             func(level, msg);
         }

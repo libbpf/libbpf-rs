@@ -116,7 +116,7 @@ fn add_vmlinux_header(project: &Path) {
         .write(true)
         .open(project.join("src/bpf/vmlinux.h"))
         .expect("failed to open vmlinux.h");
-    write!(vmlinux, "{}", VMLINUX).expect("failed to write vmlinux.h");
+    write!(vmlinux, "{VMLINUX}").expect("failed to write vmlinux.h");
 }
 
 #[test]
@@ -1068,7 +1068,7 @@ fn build_btf_prog(prog_text: &str) -> Btf {
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
-    write!(prog, "{}", prog_text).expect("failed to write prog.bpf.c");
+    write!(prog, "{prog_text}").expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
@@ -1104,11 +1104,11 @@ fn assert_definition(btf: &Btf, btf_item: u32, expected_output: &str) {
     println!("---------------");
     println!("expected output");
     println!("---------------");
-    println!("{}", eo);
+    println!("{eo}");
     println!("-------------");
     println!("actual output");
     println!("-------------");
-    println!("{}", ao);
+    println!("{ao}");
 
     assert!(eo == ao);
 }

@@ -167,7 +167,7 @@ fn _handle_event(opts: Command, event: capable_bss_types::event) {
 }
 
 fn handle_lost_events(cpu: i32, count: u64) {
-    eprintln!("Lost {} events on CPU {}", count, cpu);
+    eprintln!("Lost {count} events on CPU {cpu}");
 }
 
 fn main() -> Result<()> {

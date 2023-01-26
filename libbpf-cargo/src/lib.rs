@@ -236,7 +236,7 @@ impl SkeletonBuilder {
         if self.obj.is_none() {
             let name = filename.split('.').next().unwrap();
             let dir = tempdir().map_err(|e| Error::Build(e.to_string()))?;
-            let objfile = dir.path().join(format!("{}.o", name));
+            let objfile = dir.path().join(format!("{name}.o"));
             self.obj = Some(objfile);
             // Hold onto tempdir so that it doesn't get deleted early
             self.dir = Some(dir);

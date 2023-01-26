@@ -162,7 +162,7 @@ fn canonicalize_internal_map_name(s: &str) -> Option<String> {
     } else if s.ends_with(".kconfig") {
         Some("kconfig".to_string())
     } else {
-        eprintln!("Warning: unrecognized map: {}", s);
+        eprintln!("Warning: unrecognized map: {s}");
         None
     }
 }
@@ -213,7 +213,6 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &mut BpfObj, name: &st
             builder
                 .name("{name}")
         "#,
-        name = name
     )?;
 
     for map in MapIter::new(object.as_mut_ptr()) {
@@ -229,8 +228,6 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &mut BpfObj, name: &st
             r#"
             .map("{raw_name}", {mmaped})
             "#,
-            raw_name = raw_name,
-            mmaped = mmaped,
         )?;
     }
 
@@ -242,7 +239,6 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &mut BpfObj, name: &st
             r#"
             .prog("{name}")
             "#,
-            name = name,
         )?;
     }
 
@@ -278,13 +274,13 @@ fn gen_skel_map_defs(
 
     let (struct_name, inner_ty, return_ty) = if open {
         (
-            format!("Open{}Maps{}", obj_name, struct_suffix),
+            format!("Open{obj_name}Maps{struct_suffix}"),
             "libbpf_rs::OpenObject",
             "libbpf_rs::OpenMap",
         )
     } else {
         (
-            format!("{}Maps{}", obj_name, struct_suffix),
+            format!("{obj_name}Maps{struct_suffix}"),
             "libbpf_rs::Object",
             "libbpf_rs::Map",
         )
@@ -299,9 +295,6 @@ fn gen_skel_map_defs(
 
         impl<'a> {struct_name}<'a> {{
         "#,
-        inner_ty = inner_ty,
-        struct_name = struct_name,
-        mut_prefix = mut_prefix,
     )?;
 
     for map in MapIter::new(object.as_mut_ptr()) {
@@ -349,13 +342,13 @@ fn gen_skel_prog_defs(
 
     let (struct_name, inner_ty, return_ty) = if open {
         (
-            format!("Open{}Progs{}", obj_name, struct_suffix),
+            format!("Open{obj_name}Progs{struct_suffix}"),
             "libbpf_rs::OpenObject",
             "libbpf_rs::OpenProgram",
         )
     } else {
         (
-            format!("{}Progs{}", obj_name, struct_suffix),
+            format!("{obj_name}Progs{struct_suffix}"),
             "libbpf_rs::Object",
             "libbpf_rs::Program",
         )
@@ -370,9 +363,6 @@ fn gen_skel_prog_defs(
 
         impl<'a> {struct_name}<'a> {{
         "#,
-        inner_ty = inner_ty,
-        struct_name = struct_name,
-        mut_prefix = mut_prefix,
     )?;
 
     for prog in ProgIter::new(object.as_mut_ptr()) {
@@ -411,13 +401,12 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
             write!(
                 skel,
                 r#"
-                pub mod {}_{}_types {{
-                "#,
-                obj_name, sec_ident,
+                pub mod {obj_name}_{sec_ident}_types {{
+                "#
             )?;
 
             let sec_def = btf.type_definition(idx.try_into().unwrap())?;
-            write!(skel, "{}", sec_def)?;
+            write!(skel, "{sec_def}")?;
 
             writeln!(skel, "}}")?;
         }
@@ -444,9 +433,9 @@ fn gen_skel_map_getter(
     };
 
     let return_ty = if open {
-        format!("Open{}Maps{}", obj_name, struct_suffix)
+        format!("Open{obj_name}Maps{struct_suffix}")
     } else {
-        format!("{}Maps{}", obj_name, struct_suffix)
+        format!("{obj_name}Maps{struct_suffix}")
     };
 
     write!(
@@ -458,9 +447,6 @@ fn gen_skel_map_getter(
             }}
         }}
         "#,
-        return_ty = return_ty,
-        map_fn = map_fn,
-        mut_prefix = mut_prefix,
     )?;
 
     Ok(())
@@ -484,9 +470,9 @@ fn gen_skel_prog_getter(
     };
 
     let return_ty = if open {
-        format!("Open{}Progs{}", obj_name, struct_suffix)
+        format!("Open{obj_name}Progs{struct_suffix}")
     } else {
-        format!("{}Progs{}", obj_name, struct_suffix)
+        format!("{obj_name}Progs{struct_suffix}")
     };
 
     write!(
@@ -498,9 +484,6 @@ fn gen_skel_prog_getter(
             }}
         }}
         "#,
-        return_ty = return_ty,
-        mut_prefix = mut_prefix,
-        prog_fn = prog_fn,
     )?;
 
     Ok(())
@@ -521,11 +504,7 @@ fn gen_skel_datasec_getters(
             Some(n) => n,
             None => continue,
         };
-        let struct_name = format!(
-            "{obj_name}_{name}_types::{name}",
-            obj_name = obj_name,
-            name = name,
-        );
+        let struct_name = format!("{obj_name}_{name}_types::{name}");
         let mutability = if loaded && map_is_readonly(map) {
             ""
         } else {
@@ -535,18 +514,14 @@ fn gen_skel_datasec_getters(
         write!(
             skel,
             r#"
-            pub fn {name}(&mut self) -> &'a {mut} {struct_name} {{
+            pub fn {name}(&mut self) -> &'a {mutability} {struct_name} {{
                 unsafe {{
-                    std::mem::transmute::<*mut std::ffi::c_void, &'a {mut} {struct_name}>(
+                    std::mem::transmute::<*mut std::ffi::c_void, &'a {mutability} {struct_name}>(
                         self.skel_config.map_mmap_ptr({idx}).unwrap()
                     )
                 }}
             }}
-            "#,
-            name = name,
-            struct_name = struct_name,
-            mut = mutability,
-            idx = idx,
+            "#
         )?;
     }
 
@@ -562,9 +537,8 @@ fn gen_skel_link_defs(skel: &mut String, object: &mut BpfObj, obj_name: &str) ->
         skel,
         r#"
         #[derive(Default)]
-        pub struct {}Links {{
+        pub struct {obj_name}Links {{
         "#,
-        obj_name
     )?;
 
     for prog in ProgIter::new(object.as_mut_ptr()) {
@@ -588,9 +562,8 @@ fn gen_skel_link_getter(skel: &mut String, object: &mut BpfObj, obj_name: &str) 
 
     write!(
         skel,
-        r#"pub links: {}Links,
-        "#,
-        obj_name
+        r#"pub links: {obj_name}Links,
+        "#
     )?;
 
     Ok(())
@@ -629,9 +602,8 @@ fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Re
                 return Err(libbpf_rs::Error::System(-ret));
             }}
 
-            self.links = {}Links {{
+            self.links = {obj_name}Links {{
         "#,
-        obj_name
     )?;
 
     for (idx, prog) in ProgIter::new(object.as_mut_ptr()).enumerate() {
@@ -647,9 +619,7 @@ fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Re
                     Ok(Some(unsafe {{ libbpf_rs::Link::from_ptr(ptr) }}))
                 }}
             }})()?,
-            "#,
-            prog_name = prog_name,
-            idx = idx,
+            "#
         )?;
     }
 
@@ -691,7 +661,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     // The name we'll always hand to libbpf
     //
     // Note it's important this remains consistent b/c libbpf infers map/prog names from this name
-    let libbpf_obj_name = format!("{}_bpf", raw_obj_name);
+    let libbpf_obj_name = format!("{raw_obj_name}_bpf");
     // We'll use `obj_name` as the rust-ified object name
     let obj_name = capitalize_first_letter(raw_obj_name);
 
@@ -702,6 +672,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
     gen_skel_c_skel_constructor(&mut skel, &mut object, &libbpf_obj_name)?;
 
+    #[allow(clippy::uninlined_format_args)]
     write!(
         skel,
         r#"
@@ -780,7 +751,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         "#,
         name = &obj_name,
         links = if ProgIter::new(object.as_mut_ptr()).next().is_some() {
-            format!(r#"links: {}Links::default()"#, obj_name)
+            format!(r#"links: {obj_name}Links::default()"#)
         } else {
             "".to_string()
         }
@@ -832,9 +803,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     write!(
         skel,
         r#"
-        const DATA: &[u8] = &{:?};
-        "#,
-        bytes
+        const DATA: &[u8] = &{bytes:?};
+        "#
     )?;
 
     writeln!(skel, "}}")?;
@@ -858,7 +828,7 @@ fn gen_skel(
     match out {
         OutputDest::Stdout => stdout().write_all(&skel)?,
         OutputDest::Directory(dir) => {
-            let path = dir.join(format!("{}.skel.rs", name));
+            let path = dir.join(format!("{name}.skel.rs"));
             let mut file = File::create(path)?;
             file.write_all(&skel)?;
         }
@@ -970,7 +940,7 @@ fn gen_project(
     if debug && !to_gen.is_empty() {
         println!("Found bpf objs to gen skel:");
         for obj in &to_gen {
-            println!("\t{:?}", obj);
+            println!("\t{obj:?}");
         }
     } else if to_gen.is_empty() {
         bail!("Did not find any bpf objects to generate skeleton");

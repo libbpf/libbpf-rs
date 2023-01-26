@@ -240,7 +240,7 @@ impl<'a> ObjectSkeletonConfig<'a> {
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
     pub fn map_mmap_ptr(&mut self, index: usize) -> Result<*mut c_void> {
         if index >= self.maps.len() {
-            return Err(Error::Internal(format!("Invalid map index: {}", index)));
+            return Err(Error::Internal(format!("Invalid map index: {index}")));
         }
 
         self.maps[index].mmaped.as_ref().map_or_else(
@@ -257,7 +257,7 @@ impl<'a> ObjectSkeletonConfig<'a> {
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
     pub fn prog_link_ptr(&mut self, index: usize) -> Result<*mut bpf_link> {
         if index >= self.progs.len() {
-            return Err(Error::Internal(format!("Invalid prog index: {}", index)));
+            return Err(Error::Internal(format!("Invalid prog index: {index}")));
         }
 
         Ok(*self.progs[index].link)

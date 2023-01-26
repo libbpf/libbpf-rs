@@ -12,5 +12,5 @@ fn main() {
         .clang_args("-Wno-compare-distinct-pointer-types")
         .build_and_generate(&out)
         .unwrap();
-    println!("cargo:rerun-if-changed={}", SRC);
+    println!("cargo:rerun-if-changed={SRC}");
 }
