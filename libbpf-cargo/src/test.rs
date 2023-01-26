@@ -1480,6 +1480,7 @@ pub enum Foo {
     One = 1,
     seven = 7,
 }
+#[allow(clippy::derivable_impls)]
 impl Default for Foo {
     fn default() -> Self {
         Foo::Zero
@@ -2075,6 +2076,7 @@ pub struct Foo {
 pub enum __anon_1 {
     FOO = 1,
 }
+#[allow(clippy::derivable_impls)]
 impl Default for __anon_1 {
     fn default() -> Self {
         __anon_1::FOO
