@@ -988,6 +988,9 @@ impl Btf {
 
                     // write an impl Default for this enum
                     if !t.values.is_empty() {
+                        // TODO: remove #[allow(clippy::derivable_impls)]
+                        //       once minimum rust at 1.62+
+                        writeln!(def, r#"#[allow(clippy::derivable_impls)]"#)?;
                         writeln!(def, r#"impl Default for {name} {{"#, name = t.name)?;
                         writeln!(def, r#"    fn default() -> Self {{"#)?;
                         writeln!(
