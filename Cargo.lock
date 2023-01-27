@@ -26,7 +26,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "libbpf-rs",
- "nix 0.24.2",
+ "nix",
 ]
 
 [[package]]
@@ -129,7 +129,7 @@ version = "3.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d91974fbbe88ec1df0c24a4f00f99583667a7e2e6272b2b92d294d81e462173"
 dependencies = [
- "nix 0.25.0",
+ "nix",
  "winapi",
 ]
 
@@ -248,7 +248,7 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "log",
- "nix 0.24.2",
+ "nix",
  "num_enum",
  "pkg-config",
  "plain",
@@ -317,18 +317,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.24.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "195cdbc1741b8134346d515b3a56a1c94b0912758009cfd53f99ea0f57b065fc"
-dependencies = [
- "bitflags",
- "cfg-if",
- "libc",
- "memoffset",
-]
-
-[[package]]
-name = "nix"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e322c04a9e3440c327fca7b6c8a63e6890a32fa2ad689db972425f07e0d22abb"
@@ -337,6 +325,7 @@ dependencies = [
  "bitflags",
  "cfg-if",
  "libc",
+ "memoffset",
 ]
 
 [[package]]
@@ -800,7 +789,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "nix 0.24.2",
+ "nix",
  "plain",
 ]
 
@@ -891,7 +880,7 @@ dependencies = [
  "ctrlc",
  "libbpf-cargo",
  "libbpf-rs",
- "nix 0.24.2",
+ "nix",
 ]
 
 [[package]]
