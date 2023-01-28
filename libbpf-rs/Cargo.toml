@@ -26,7 +26,7 @@ lazy_static = "1.4"
 libbpf-sys = { version = "1.0.3" }
 nix = { version = "0.25", default-features = false, features = ["net", "user"] }
 num_enum = "0.5"
-strum_macros = "0.23"
+strum_macros = "0.24"
 thiserror = "1.0"
 vsprintf = "2.0"
 
