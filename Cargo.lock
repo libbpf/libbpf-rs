@@ -26,7 +26,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "libbpf-rs",
- "nix 0.25.0",
+ "nix 0.25.1",
 ]
 
 [[package]]
@@ -248,7 +248,7 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "log",
- "nix 0.25.0",
+ "nix 0.25.1",
  "num_enum",
  "pkg-config",
  "plain",
@@ -790,7 +790,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "nix 0.25.0",
+ "nix 0.25.1",
  "plain",
 ]
 
@@ -881,7 +881,7 @@ dependencies = [
  "ctrlc",
  "libbpf-cargo",
  "libbpf-rs",
- "nix 0.25.0",
+ "nix 0.25.1",
 ]
 
 [[package]]
