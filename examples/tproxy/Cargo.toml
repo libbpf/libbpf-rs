@@ -13,7 +13,7 @@ anyhow = "1.0"
 clap = { version = "3.2.1", default-features = false, features = ["std", "derive"] }
 ctrlc = "3.2"
 libbpf-rs = { path = "../../libbpf-rs" }
-nix = { version = "0.25", default-features = false, features = ["net", "user"] }
+nix = { version = "0.26", default-features = false, features = ["net", "user"] }
 
 [build-dependencies]
 libbpf-cargo = { path = "../../libbpf-cargo" }

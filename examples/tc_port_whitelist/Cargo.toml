@@ -10,7 +10,7 @@ anyhow = "1.0"
 libbpf-rs = { path = "../../libbpf-rs" }
 libc = "0.2"
 plain = "0.2"
-nix = { version = "0.25", default-features = false, features = ["net", "user"] }
+nix = { version = "0.26", default-features = false, features = ["net", "user"] }
 clap = { version = "3.1", default-features = false, features = ["std", "derive"] }
 
 [build-dependencies]
