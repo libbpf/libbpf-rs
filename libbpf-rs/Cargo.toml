@@ -45,4 +45,3 @@ tempfile = "3.3"
 # dependency specifications themselves.
 _cc_unused = { package = "cc", version = "1.0.3" }
 _pkg-config_unused = { package = "pkg-config", version = "0.3.3" }
-_syn_unused = { package = "syn", version = "0.15.15" }
