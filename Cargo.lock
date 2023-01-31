@@ -26,7 +26,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "libbpf-rs",
- "nix 0.25.1",
+ "nix",
 ]
 
 [[package]]
@@ -129,7 +129,7 @@ version = "3.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1631ca6e3c59112501a9d87fd86f21591ff77acd31331e8a73f8d80a65bbdd71"
 dependencies = [
- "nix 0.26.2",
+ "nix",
  "windows-sys",
 ]
 
@@ -239,7 +239,7 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "log",
- "nix 0.25.1",
+ "nix",
  "num_enum",
  "pkg-config",
  "plain",
@@ -299,24 +299,11 @@ dependencies = [
 
 [[package]]
 name = "memoffset"
-version = "0.6.5"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
+checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "nix"
-version = "0.25.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f346ff70e7dbfd675fe90590b92d59ef2de15a8779ae305ebcbfd3f0caf59be4"
-dependencies = [
- "autocfg",
- "bitflags",
- "cfg-if",
- "libc",
- "memoffset",
 ]
 
 [[package]]
@@ -328,6 +315,7 @@ dependencies = [
  "bitflags",
  "cfg-if",
  "libc",
+ "memoffset",
  "static_assertions",
 ]
 
@@ -781,7 +769,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "nix 0.25.1",
+ "nix",
  "plain",
 ]
 
@@ -872,7 +860,7 @@ dependencies = [
  "ctrlc",
  "libbpf-cargo",
  "libbpf-rs",
- "nix 0.25.1",
+ "nix",
 ]
 
 [[package]]
