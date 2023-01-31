@@ -785,6 +785,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         }}
 
         unsafe impl<'a> Send for {name}Skel<'a> {{}}
+        unsafe impl<'a> Sync for {name}Skel<'a> {{}}
 
         impl<'a> {name}Skel<'a> {{
         "#,
