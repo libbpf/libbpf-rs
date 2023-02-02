@@ -71,6 +71,7 @@
     missing_docs,
     rustdoc::broken_intra_doc_links
 )]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 mod error;
 mod iter;

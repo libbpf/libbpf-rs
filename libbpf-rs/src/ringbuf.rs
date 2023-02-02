@@ -123,9 +123,10 @@ impl<'a> RingBufferBuilder<'a> {
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
         let callback_struct = ctx as *mut RingBufferCallback;
-        let callback = (*callback_struct).cb.as_mut();
+        let callback = unsafe { (*callback_struct).cb.as_mut() };
+        let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
 
-        callback(slice::from_raw_parts(data as *const u8, size as usize))
+        callback(slice)
     }
 }
 

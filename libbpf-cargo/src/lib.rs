@@ -55,6 +55,8 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
+#![deny(unsafe_op_in_unsafe_fn)]
+
 use std::{
     path::{Path, PathBuf},
     result,
