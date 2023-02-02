@@ -145,15 +145,16 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {
         let callback_struct = ctx as *mut CbStruct;
 
-        if let Some(cb) = &mut (*callback_struct).sample_cb {
-            cb(cpu, slice::from_raw_parts(data as *const u8, size as usize));
+        if let Some(cb) = unsafe { &mut (*callback_struct).sample_cb } {
+            let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
+            cb(cpu, slice);
         }
     }
 
     unsafe extern "C" fn call_lost_cb(ctx: *mut c_void, cpu: i32, count: u64) {
         let callback_struct = ctx as *mut CbStruct;
 
-        if let Some(cb) = &mut (*callback_struct).lost_cb {
+        if let Some(cb) = unsafe { &mut (*callback_struct).lost_cb } {
             cb(cpu, count);
         }
     }
