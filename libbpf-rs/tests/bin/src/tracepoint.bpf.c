@@ -2,7 +2,6 @@
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include <bpf/usdt.bpf.h>
 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -33,6 +32,21 @@ int handle__tracepoint_with_cookie(void *ctx)
         *value = bpf_get_attach_cookie(ctx);
         bpf_ringbuf_submit(value, 0);
     }
+
+    return 0;
+}
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+    __uint(key_size, sizeof(int));
+    __uint(value_size, sizeof(int));
+} pb SEC(".maps");
+
+SEC("tracepoint/syscalls/sys_enter_getpid")
+int handle__tracepoint_with_cookie_pb(void *ctx)
+{
+    int value = bpf_get_attach_cookie(ctx);
+    bpf_perf_event_output(ctx, &pb, BPF_F_CURRENT_CPU, &value, sizeof(value));
 
     return 0;
 }

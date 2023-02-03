@@ -248,6 +248,7 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "log",
+ "memmem",
  "nix 0.25.1",
  "num_enum",
  "pkg-config",
@@ -305,6 +306,12 @@ checksum = "4b182332558b18d807c4ce1ca8ca983b34c3ee32765e47b3f0f69b90355cc1dc"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "memmem"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a64a92489e2744ce060c349162be1c5f33c6969234104dbd99ddb5feb08b8c15"
 
 [[package]]
 name = "memoffset"

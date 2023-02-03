@@ -11,6 +11,7 @@ use nix::errno;
 use plain::Plain;
 use probe::probe;
 use scopeguard::defer;
+use std::ptr;
 use tempfile::NamedTempFile;
 
 use libbpf_rs::{
@@ -58,6 +59,30 @@ pub fn bump_rlimit_mlock() {
         "Setting RLIMIT_MEMLOCK failed with errno: {}",
         errno::errno()
     );
+}
+
+/// Get a mutable access to the underlying per-cpu ring buffer data, this API can be used
+/// to implement a different draining mechanisim for the perf buffer data.
+///
+/// Notice: The API will return a mutable reference to the same memory region in case
+///         it's called more than once with the same index, this due to it's nature.
+///         This is one of the reason this API is marked as unsafe!
+pub unsafe fn buffer_mut<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a mut [u8] {
+    use core::ffi::c_void;
+
+    let perf_buff_ptr = perf.as_libbpf_perf_buffer_ptr();
+    let mut buffer_data_ptr: *mut c_void = ptr::null_mut();
+    let mut buffer_size: usize = 0;
+    let ret = unsafe {
+        libbpf_sys::perf_buffer__buffer(
+            perf_buff_ptr,
+            buf_idx as i32,
+            ptr::addr_of_mut!(buffer_data_ptr) as *mut *mut c_void,
+            ptr::addr_of_mut!(buffer_size) as *mut libbpf_sys::size_t,
+        )
+    };
+    assert!(ret >= 0);
+    unsafe { std::slice::from_raw_parts_mut(buffer_data_ptr as *mut u8, buffer_size) }
 }
 
 /// A helper function for instantiating a `RingBuffer` with a callback meant to
@@ -1043,4 +1068,45 @@ fn test_object_link_files() {
 
     test(vec![obj_path1.clone()]);
     test(vec![obj_path1, obj_path2]);
+}
+
+/// Check that we can see the raw ring buffer of the perf buffer and find a value we have sent
+#[test]
+fn test_perf_buffer_raw() {
+    use memmem::{Searcher, TwoWaySearcher};
+
+    bump_rlimit_mlock();
+
+    let cookie_val = 42u16;
+    let mut obj = get_test_object("tracepoint.bpf.o");
+    let prog = obj
+        .prog_mut("handle__tracepoint_with_cookie_pb")
+        .expect("Failed to find program");
+
+    let opts = TracepointOpts {
+        cookie: cookie_val.into(),
+        ..TracepointOpts::default()
+    };
+    let _link = prog
+        .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .expect("Failed to attach prog");
+
+    let map = obj.map("pb").expect("Failed to get perf-buffer map");
+
+    let cookie_bytes = cookie_val.to_ne_bytes();
+    let searcher = TwoWaySearcher::new(&cookie_bytes[..]);
+
+    let perf = libbpf_rs::PerfBufferBuilder::new(map)
+        .build()
+        .expect("Failed to build");
+
+    // Make an action that the tracepoint will see
+    let _pid = unsafe { libc::getpid() };
+
+    let found_cookie = (0..perf.buffer_cnt()).into_iter().any(|buf_idx| {
+        let buf = unsafe { buffer_mut(&perf, buf_idx) };
+        searcher.search_in(buf).is_some()
+    });
+
+    assert!(found_cookie);
 }
