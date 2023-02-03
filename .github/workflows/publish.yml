@@ -1,0 +1,24 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1.0.6
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Publish libbpf-rs
+      run: cd libbpf-rs && cargo publish --locked --no-verify --token "${CRATES_IO_TOKEN}"
+      env:
+        CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+    - name: Publish libbpf-cargo
+      run: cd libbpf-cargo && cargo publish --locked --no-verify --token "${CRATES_IO_TOKEN}"
+      env:
+        CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
