@@ -18,7 +18,7 @@ impl Link {
     }
 
     /// Create link from BPF FS file.
-    pub fn open<P: AsRef<Path>>(&mut self, path: P) -> Result<Self> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
         let ptr = unsafe { libbpf_sys::bpf_link__open(path_ptr) };
