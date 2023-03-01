@@ -147,14 +147,10 @@ impl OpenObject {
                 }
             };
 
-            // Get the map name
-            // bpf_map__name can return null but only if it's passed a null.
-            // We already know next_ptr is not null.
-            let name = unsafe { libbpf_sys::bpf_map__name(map_ptr.as_ptr()) };
-            let name = util::c_ptr_to_string(name)?;
+            let map_obj = unsafe { OpenMap::new(map_ptr) };
 
             // Add the map to the hashmap
-            obj.maps.insert(name, unsafe { OpenMap::new(map_ptr) });
+            obj.maps.insert(map_obj.name()?.into(), map_obj);
             map = map_ptr.as_ptr();
         }
 
@@ -171,19 +167,10 @@ impl OpenObject {
                 }
             };
 
-            // Get the program name.
-            // bpf_program__name never returns NULL, so no need to check the pointer.
-            let name = unsafe { libbpf_sys::bpf_program__name(prog_ptr.as_ptr()) };
-            let name = util::c_ptr_to_string(name)?;
-
-            // Get the program section
-            // bpf_program__section_name never returns NULL, so no need to check the pointer.
-            let section = unsafe { libbpf_sys::bpf_program__section_name(prog_ptr.as_ptr()) };
-            let section = util::c_ptr_to_string(section)?;
+            let program = unsafe { OpenProgram::new(prog_ptr) }?;
 
             // Add the program to the hashmap
-            obj.progs
-                .insert(name, unsafe { OpenProgram::new(prog_ptr, section) });
+            obj.progs.insert(program.name()?.into(), program);
             prog = prog_ptr.as_ptr();
         }
 
@@ -346,27 +333,10 @@ impl Object {
                 }
             };
 
-            // Get the map name
-            // bpf_map__name can return null but only if it's passed a null.
-            // We already know next_ptr is not null.
-            let name = unsafe { libbpf_sys::bpf_map__name(map_ptr.as_ptr()) };
-            let name = util::c_ptr_to_string(name)?;
-
-            // Get the map fd
-            let fd = unsafe { libbpf_sys::bpf_map__fd(map_ptr.as_ptr()) };
-            if fd < 0 {
-                return Err(Error::System(-fd));
-            }
-
-            let map_type = unsafe { libbpf_sys::bpf_map__type(map_ptr.as_ptr()) };
-            let key_size = unsafe { libbpf_sys::bpf_map__key_size(map_ptr.as_ptr()) };
-            let value_size = unsafe { libbpf_sys::bpf_map__value_size(map_ptr.as_ptr()) };
+            let map_obj = unsafe { Map::new(map_ptr) }?;
 
             // Add the map to the hashmap
-            obj.maps.insert(
-                name.clone(),
-                Map::new(fd, name, map_type, key_size, value_size, map_ptr),
-            );
+            obj.maps.insert(map_obj.name().into(), map_obj);
             map = map_ptr.as_ptr();
         }
 
@@ -382,20 +352,11 @@ impl Object {
                     None => break,
                 }
             };
-            // Get the program name
-            // bpf_program__name never returns NULL, so no need to check the pointer.
-            let name = unsafe { libbpf_sys::bpf_program__name(prog_ptr.as_ptr()) };
-            let name = util::c_ptr_to_string(name)?;
 
-            // Get the program section
-            // bpf_program__section_name never returns NULL, so no need to check the pointer.
-            let section = unsafe { libbpf_sys::bpf_program__section_name(prog_ptr.as_ptr()) };
-            let section = util::c_ptr_to_string(section)?;
+            let program = unsafe { Program::new(prog_ptr) }?;
 
             // Add the program to the hashmap
-            obj.progs.insert(name.clone(), unsafe {
-                Program::new(prog_ptr, name, section)
-            });
+            obj.progs.insert(program.name().into(), program);
             prog = prog_ptr.as_ptr();
         }
 
