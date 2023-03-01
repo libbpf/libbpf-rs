@@ -89,8 +89,14 @@ pub struct OpenProgram {
 // TODO: Document variants.
 #[allow(missing_docs)]
 impl OpenProgram {
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>, section: String) -> Self {
-        Self { ptr, section }
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Result<Self> {
+        // Get the program section
+        // SAFETY:
+        // bpf_program__section_name never returns NULL, so no need to check the pointer.
+        let section = unsafe { libbpf_sys::bpf_program__section_name(ptr.as_ptr()) };
+        let section = util::c_ptr_to_string(section)?;
+
+        Ok(Self { ptr, section })
     }
 
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
@@ -341,12 +347,22 @@ pub struct Program {
 }
 
 impl Program {
-    pub(crate) unsafe fn new(
-        ptr: NonNull<libbpf_sys::bpf_program>,
-        name: String,
-        section: String,
-    ) -> Self {
-        Program { ptr, name, section }
+    /// Create a [`Program`] from a [`libbpf_sys::bpf_program`]
+    ///
+    /// # Safety
+    /// The pointer must point to a loaded program.
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Result<Self> {
+        // Get the program name
+        // bpf_program__name never returns NULL, so no need to check the pointer.
+        let name = unsafe { libbpf_sys::bpf_program__name(ptr.as_ptr()) };
+        let name = util::c_ptr_to_string(name)?;
+
+        // Get the program section
+        // bpf_program__section_name never returns NULL, so no need to check the pointer.
+        let section = unsafe { libbpf_sys::bpf_program__section_name(ptr.as_ptr()) };
+        let section = util::c_ptr_to_string(section)?;
+
+        Ok(Program { ptr, name, section })
     }
 
     /// Retrieve the program's name.

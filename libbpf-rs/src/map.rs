@@ -163,22 +163,37 @@ pub struct Map {
 }
 
 impl Map {
-    pub(crate) fn new(
-        fd: i32,
-        name: String,
-        ty: libbpf_sys::bpf_map_type,
-        key_size: u32,
-        value_size: u32,
-        ptr: NonNull<libbpf_sys::bpf_map>,
-    ) -> Self {
-        Map {
+    /// Create a [`Map`] from a [`libbpf_sys::bpf_map`].
+    ///
+    /// # Safety
+    ///
+    /// The pointer must point to a loaded map.
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Result<Self> {
+        // Get the map name
+        // SAFETY:
+        // bpf_map__name can return null but only if it's passed a null.
+        // We already know ptr is not null.
+        let name = unsafe { libbpf_sys::bpf_map__name(ptr.as_ptr()) };
+        let name = util::c_ptr_to_string(name)?;
+
+        // Get the map fd
+        let fd = unsafe { libbpf_sys::bpf_map__fd(ptr.as_ptr()) };
+        if fd < 0 {
+            return Err(Error::System(-fd));
+        }
+
+        let ty = unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) };
+        let key_size = unsafe { libbpf_sys::bpf_map__key_size(ptr.as_ptr()) };
+        let value_size = unsafe { libbpf_sys::bpf_map__value_size(ptr.as_ptr()) };
+
+        Ok(Map {
             fd,
             name,
             ty,
             key_size,
             value_size,
             ptr: Some(ptr),
-        }
+        })
     }
 
     /// Retrieve the `Map`'s name.
