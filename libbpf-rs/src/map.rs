@@ -1,10 +1,10 @@
 use core::ffi::c_void;
-use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::fmt::Debug;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
+use std::{convert::TryFrom, ptr::NonNull};
 
 use bitflags::bitflags;
 use nix::{errno, unistd};
@@ -21,19 +21,23 @@ use crate::*;
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 pub struct OpenMap {
-    ptr: *mut libbpf_sys::bpf_map,
+    ptr: NonNull<libbpf_sys::bpf_map>,
 }
 
 // TODO: Document members.
 #[allow(missing_docs)]
 impl OpenMap {
-    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_map) -> Self {
-        OpenMap { ptr }
+    /// Create a new [`OpenMap`] from a ptr to a `libbpf_sys::bpf_map`.
+    ///
+    /// # Safety
+    /// The pointer must point to an opened but not loaded map.
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+        Self { ptr }
     }
 
     /// Retrieve the `Map`'s name.
     pub fn name(&self) -> Result<&str> {
-        let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr) };
+        let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
         name_c_str
             .to_str()
@@ -42,7 +46,7 @@ impl OpenMap {
 
     /// Retrieve type of the map.
     pub fn map_type(&self) -> MapType {
-        let ty = unsafe { libbpf_sys::bpf_map__type(self.ptr) };
+        let ty = unsafe { libbpf_sys::bpf_map__type(self.ptr.as_ptr()) };
         match MapType::try_from(ty) {
             Ok(t) => t,
             Err(_) => MapType::Unknown,
@@ -50,13 +54,13 @@ impl OpenMap {
     }
 
     pub fn set_map_ifindex(&mut self, idx: u32) {
-        unsafe { libbpf_sys::bpf_map__set_ifindex(self.ptr, idx) };
+        unsafe { libbpf_sys::bpf_map__set_ifindex(self.ptr.as_ptr(), idx) };
     }
 
     pub fn set_initial_value(&mut self, data: &[u8]) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_initial_value(
-                self.ptr,
+                self.ptr.as_ptr(),
                 data.as_ptr() as *const std::ffi::c_void,
                 data.len() as libbpf_sys::size_t,
             )
@@ -66,46 +70,46 @@ impl OpenMap {
     }
 
     pub fn set_type(&mut self, ty: MapType) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_type(self.ptr, ty as u32) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_type(self.ptr.as_ptr(), ty as u32) };
         util::parse_ret(ret)
     }
 
     pub fn set_key_size(&mut self, size: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_key_size(self.ptr, size) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_key_size(self.ptr.as_ptr(), size) };
         util::parse_ret(ret)
     }
 
     pub fn set_value_size(&mut self, size: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_value_size(self.ptr, size) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_value_size(self.ptr.as_ptr(), size) };
         util::parse_ret(ret)
     }
 
     pub fn set_max_entries(&mut self, count: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_max_entries(self.ptr, count) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_max_entries(self.ptr.as_ptr(), count) };
         util::parse_ret(ret)
     }
 
     pub fn set_map_flags(&mut self, flags: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_map_flags(self.ptr, flags) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_map_flags(self.ptr.as_ptr(), flags) };
         util::parse_ret(ret)
     }
 
     pub fn set_numa_node(&mut self, numa_node: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr, numa_node) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr.as_ptr(), numa_node) };
         util::parse_ret(ret)
     }
 
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
-        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
+        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner.fd()) };
     }
 
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr, map_extra) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr.as_ptr(), map_extra) };
         util::parse_ret(ret)
     }
 
     pub fn set_autocreate(&mut self, autocreate: bool) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__set_autocreate(self.ptr, autocreate) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_autocreate(self.ptr.as_ptr(), autocreate) };
         util::parse_ret(ret)
     }
 
@@ -113,13 +117,13 @@ impl OpenMap {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        let ret = unsafe { libbpf_sys::bpf_map__set_pin_path(self.ptr, path_ptr) };
+        let ret = unsafe { libbpf_sys::bpf_map__set_pin_path(self.ptr.as_ptr(), path_ptr) };
         util::parse_ret(ret)
     }
 
     /// Reuse an fd for a BPF map
     pub fn reuse_fd(&self, fd: i32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr, fd) };
+        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr.as_ptr(), fd) };
         util::parse_ret(ret)
     }
 
@@ -155,7 +159,7 @@ pub struct Map {
     value_size: u32,
 
     // The ptr will be null if we use Map::create to create the map from the userspace side directly.
-    ptr: *mut libbpf_sys::bpf_map,
+    ptr: Option<NonNull<libbpf_sys::bpf_map>>,
 }
 
 impl Map {
@@ -165,7 +169,7 @@ impl Map {
         ty: libbpf_sys::bpf_map_type,
         key_size: u32,
         value_size: u32,
-        ptr: *mut libbpf_sys::bpf_map,
+        ptr: NonNull<libbpf_sys::bpf_map>,
     ) -> Self {
         Map {
             fd,
@@ -173,7 +177,7 @@ impl Map {
             ty,
             key_size,
             value_size,
-            ptr,
+            ptr: Some(ptr),
         }
     }
 
@@ -225,10 +229,9 @@ impl Map {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        let ret = if self.ptr.is_null() {
-            unsafe { libbpf_sys::bpf_obj_pin(self.fd, path_ptr) }
-        } else {
-            unsafe { libbpf_sys::bpf_map__pin(self.ptr, path_ptr) }
+        let ret = match self.ptr {
+            Some(ptr) => unsafe { libbpf_sys::bpf_map__pin(ptr.as_ptr(), path_ptr) },
+            None => unsafe { libbpf_sys::bpf_obj_pin(self.fd, path_ptr) },
         };
 
         util::parse_ret(ret)
@@ -237,16 +240,17 @@ impl Map {
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// from bpffs
     pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        if self.ptr.is_null() {
-            match std::fs::remove_file(path) {
+        match self.ptr {
+            Some(ptr) => {
+                let path_c = util::path_to_cstring(path)?;
+                let path_ptr = path_c.as_ptr();
+                let ret = unsafe { libbpf_sys::bpf_map__unpin(ptr.as_ptr(), path_ptr) };
+                util::parse_ret(ret)
+            }
+            None => match std::fs::remove_file(path) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(Error::Internal(format!("remove pin map failed: {e}"))),
-            }
-        } else {
-            let path_c = util::path_to_cstring(path)?;
-            let path_ptr = path_c.as_ptr();
-            let ret = unsafe { libbpf_sys::bpf_map__unpin(self.ptr, path_ptr) };
-            util::parse_ret(ret)
+            },
         }
     }
 
@@ -553,7 +557,7 @@ impl Map {
             ty: map_type,
             key_size,
             value_size,
-            ptr: std::ptr::null_mut(),
+            ptr: None,
         })
     }
 
@@ -566,21 +570,19 @@ impl Map {
             )));
         }
 
-        if self.ptr.is_null() {
-            return Err(Error::InvalidInput(
-                "Cannot attach a user-created struct_ops map".to_string(),
-            ));
-        }
-
-        let ptr = unsafe {
-            let p = libbpf_sys::bpf_map__attach_struct_ops(self.ptr);
-            let rc = libbpf_sys::libbpf_get_error(p as *const c_void);
-            if rc != 0 {
-                return Err(Error::System(rc as i32));
+        let ptr = match self.ptr {
+            Some(ptr) => ptr,
+            None => {
+                return Err(Error::InvalidInput(
+                    "Cannot attach a user-created struct_ops map".to_string(),
+                ))
             }
-            p
         };
-        Ok(Link::new(ptr))
+
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_map__attach_struct_ops(ptr.as_ptr())
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 }
 

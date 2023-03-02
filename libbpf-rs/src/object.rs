@@ -154,7 +154,7 @@ impl OpenObject {
             let name = util::c_ptr_to_string(name)?;
 
             // Add the map to the hashmap
-            obj.maps.insert(name, OpenMap::new(map_ptr.as_ptr()));
+            obj.maps.insert(name, unsafe { OpenMap::new(map_ptr) });
             map = map_ptr.as_ptr();
         }
 
@@ -365,7 +365,7 @@ impl Object {
             // Add the map to the hashmap
             obj.maps.insert(
                 name.clone(),
-                Map::new(fd, name, map_type, key_size, value_size, map_ptr.as_ptr()),
+                Map::new(fd, name, map_type, key_size, value_size, map_ptr),
             );
             map = map_ptr.as_ptr();
         }
