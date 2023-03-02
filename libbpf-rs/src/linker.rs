@@ -1,7 +1,8 @@
 use std::path::Path;
 use std::ptr::null_mut;
+use std::ptr::NonNull;
 
-use crate::util::path_to_cstring;
+use crate::util::{self, path_to_cstring};
 use crate::Error;
 use crate::Result;
 
@@ -13,7 +14,7 @@ use crate::Result;
 #[derive(Debug)]
 pub struct Linker {
     /// The `libbpf` linker object.
-    linker: *mut libbpf_sys::bpf_linker,
+    linker: NonNull<libbpf_sys::bpf_linker>,
 }
 
 impl Linker {
@@ -23,17 +24,12 @@ impl Linker {
         P: AsRef<Path>,
     {
         let output = path_to_cstring(output)?;
-        let opts = null_mut();
-        // SAFETY: `output` is a valid pointer and `opts` is accepted as NULL.
-        let linker = unsafe { libbpf_sys::bpf_linker__new(output.as_ptr(), opts) };
-        // SAFETY: `libbpf_get_error` is always safe to call.
-        let err = unsafe { libbpf_sys::libbpf_get_error(linker as *const _) };
-        if err != 0 {
-            return Err(Error::System(err as i32));
-        }
-
-        let slf = Self { linker };
-        Ok(slf)
+        util::create_bpf_entity_checked(|| {
+            let opts = null_mut();
+            // SAFETY: `output` is a valid pointer and `opts` is accepted as NULL.
+            unsafe { libbpf_sys::bpf_linker__new(output.as_ptr(), opts) }
+        })
+        .map(|linker| Self { linker })
     }
 
     /// Add a file to the set of files to link.
@@ -44,7 +40,8 @@ impl Linker {
         let file = path_to_cstring(file)?;
         let opts = null_mut();
         // SAFETY: `linker` and `file` are a valid pointers.
-        let err = unsafe { libbpf_sys::bpf_linker__add_file(self.linker, file.as_ptr(), opts) };
+        let err =
+            unsafe { libbpf_sys::bpf_linker__add_file(self.linker.as_ptr(), file.as_ptr(), opts) };
         if err != 0 {
             Err(Error::System(err))
         } else {
@@ -56,7 +53,7 @@ impl Linker {
     /// a single one.
     pub fn link(&self) -> Result<()> {
         // SAFETY: `linker` is a valid pointer.
-        let err = unsafe { libbpf_sys::bpf_linker__finalize(self.linker) };
+        let err = unsafe { libbpf_sys::bpf_linker__finalize(self.linker.as_ptr()) };
         if err != 0 {
             return Err(Error::System(err));
         }
@@ -70,7 +67,7 @@ unsafe impl Send for Linker {}
 impl Drop for Linker {
     fn drop(&mut self) {
         // SAFETY: `linker` is a valid pointer returned by `bpf_linker__new`.
-        unsafe { libbpf_sys::bpf_linker__free(self.linker) }
+        unsafe { libbpf_sys::bpf_linker__free(self.linker.as_ptr()) }
     }
 }
 
