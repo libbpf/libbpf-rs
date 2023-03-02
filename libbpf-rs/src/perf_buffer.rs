@@ -3,6 +3,7 @@ use std::boxed::Box;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
+use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
 
@@ -121,7 +122,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
             lost_cb: self.lost_cb,
         }));
 
-        let ptr = unsafe {
+        util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::perf_buffer__new(
                 self.map.fd(),
                 self.pages as libbpf_sys::size_t,
@@ -130,16 +131,11 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
                 callback_struct_ptr as *mut _,
                 std::ptr::null(),
             )
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(PerfBuffer {
-                ptr,
-                _cb_struct: unsafe { Box::from_raw(callback_struct_ptr) },
-            })
-        }
+        })
+        .map(|ptr| PerfBuffer {
+            ptr,
+            _cb_struct: unsafe { Box::from_raw(callback_struct_ptr) },
+        })
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {
@@ -181,7 +177,7 @@ impl Debug for PerfBufferBuilder<'_, '_> {
 /// [`Program`]s and userspace.
 #[derive(Debug)]
 pub struct PerfBuffer<'b> {
-    ptr: *mut libbpf_sys::perf_buffer,
+    ptr: NonNull<libbpf_sys::perf_buffer>,
     // Hold onto the box so it'll get dropped when PerfBuffer is dropped
     _cb_struct: Box<CbStruct<'b>>,
 }
@@ -190,38 +186,43 @@ pub struct PerfBuffer<'b> {
 #[allow(missing_docs)]
 impl<'b> PerfBuffer<'b> {
     pub fn epoll_fd(&self) -> i32 {
-        unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr) }
+        unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr.as_ptr()) }
     }
 
     pub fn poll(&self, timeout: Duration) -> Result<()> {
-        let ret = unsafe { libbpf_sys::perf_buffer__poll(self.ptr, timeout.as_millis() as i32) };
+        let ret =
+            unsafe { libbpf_sys::perf_buffer__poll(self.ptr.as_ptr(), timeout.as_millis() as i32) };
         util::parse_ret(ret)
     }
 
     pub fn consume(&self) -> Result<()> {
-        let ret = unsafe { libbpf_sys::perf_buffer__consume(self.ptr) };
+        let ret = unsafe { libbpf_sys::perf_buffer__consume(self.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 
     pub fn consume_buffer(&self, buf_idx: usize) -> Result<()> {
         let ret = unsafe {
-            libbpf_sys::perf_buffer__consume_buffer(self.ptr, buf_idx as libbpf_sys::size_t)
+            libbpf_sys::perf_buffer__consume_buffer(
+                self.ptr.as_ptr(),
+                buf_idx as libbpf_sys::size_t,
+            )
         };
         util::parse_ret(ret)
     }
 
     pub fn buffer_cnt(&self) -> usize {
-        unsafe { libbpf_sys::perf_buffer__buffer_cnt(self.ptr) as usize }
+        unsafe { libbpf_sys::perf_buffer__buffer_cnt(self.ptr.as_ptr()) as usize }
     }
 
     pub fn buffer_fd(&self, buf_idx: usize) -> Result<i32> {
-        let ret =
-            unsafe { libbpf_sys::perf_buffer__buffer_fd(self.ptr, buf_idx as libbpf_sys::size_t) };
+        let ret = unsafe {
+            libbpf_sys::perf_buffer__buffer_fd(self.ptr.as_ptr(), buf_idx as libbpf_sys::size_t)
+        };
         util::parse_ret_i32(ret)
     }
 
     /// Retrieve the underlying [`libbpf_sys::perf_buffer`].
-    pub fn as_libbpf_perf_buffer_ptr(&self) -> *mut libbpf_sys::perf_buffer {
+    pub fn as_libbpf_perf_buffer_ptr(&self) -> NonNull<libbpf_sys::perf_buffer> {
         self.ptr
     }
 }
@@ -232,7 +233,7 @@ unsafe impl Send for PerfBuffer<'_> {}
 impl Drop for PerfBuffer<'_> {
     fn drop(&mut self) {
         unsafe {
-            libbpf_sys::perf_buffer__free(self.ptr);
+            libbpf_sys::perf_buffer__free(self.ptr.as_ptr());
         }
     }
 }
