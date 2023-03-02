@@ -5,7 +5,7 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::ops::Deref as _;
 use std::os::raw::c_ulong;
-use std::ptr;
+use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
 
@@ -76,49 +76,50 @@ impl<'a> RingBufferBuilder<'a> {
     /// Build a new [`RingBuffer`]. Must have added at least one ringbuf.
     pub fn build(self) -> Result<RingBuffer<'a>> {
         let mut cbs = vec![];
-        let mut ptr: *mut libbpf_sys::ring_buffer = ptr::null_mut();
+        let mut ptr: Option<NonNull<libbpf_sys::ring_buffer>> = None;
         let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
 
         for (fd, callback) in self.fd_callbacks {
             let sample_cb_ptr = Box::into_raw(Box::new(callback));
-            if ptr.is_null() {
-                // Allocate a new ringbuf manager and add a ringbuf to it
-                ptr = unsafe {
-                    libbpf_sys::ring_buffer__new(
-                        fd,
-                        c_sample_cb,
-                        sample_cb_ptr as *mut _,
-                        std::ptr::null_mut(),
-                    )
-                };
-
-                // Handle errors
-                let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-                if err != 0 {
-                    return Err(Error::System(err as i32));
+            match ptr {
+                None => {
+                    // Allocate a new ringbuf manager and add a ringbuf to it
+                    ptr = Some(util::create_bpf_entity_checked(|| unsafe {
+                        libbpf_sys::ring_buffer__new(
+                            fd,
+                            c_sample_cb,
+                            sample_cb_ptr as *mut _,
+                            std::ptr::null_mut(),
+                        )
+                    })?);
                 }
-            } else {
-                // Add a ringbuf to the existing ringbuf manager
-                let err = unsafe {
-                    libbpf_sys::ring_buffer__add(ptr, fd, c_sample_cb, sample_cb_ptr as *mut _)
-                };
+                Some(ptr) => {
+                    // Add a ringbuf to the existing ringbuf manager
+                    let err = unsafe {
+                        libbpf_sys::ring_buffer__add(
+                            ptr.as_ptr(),
+                            fd,
+                            c_sample_cb,
+                            sample_cb_ptr as *mut _,
+                        )
+                    };
 
-                // Handle errors
-                if err != 0 {
-                    return Err(Error::System(err));
+                    // Handle errors
+                    if err != 0 {
+                        return Err(Error::System(err));
+                    }
                 }
             }
 
             unsafe { cbs.push(Box::from_raw(sample_cb_ptr)) };
         }
 
-        if ptr.is_null() {
-            return Err(Error::InvalidInput(
+        match ptr {
+            Some(ptr) => Ok(RingBuffer { ptr, _cbs: cbs }),
+            None => Err(Error::InvalidInput(
                 "You must add at least one ring buffer map and callback before building".into(),
-            ));
+            )),
         }
-
-        Ok(RingBuffer { ptr, _cbs: cbs })
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
@@ -137,7 +138,7 @@ impl<'a> RingBufferBuilder<'a> {
 /// preferred over the `perf buffer`.
 #[derive(Debug)]
 pub struct RingBuffer<'a> {
-    ptr: *mut libbpf_sys::ring_buffer,
+    ptr: NonNull<libbpf_sys::ring_buffer>,
     #[allow(clippy::vec_box)]
     _cbs: Vec<Box<RingBufferCallback<'a>>>,
 }
@@ -148,14 +149,12 @@ impl<'a> RingBuffer<'a> {
     /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
     /// indefinitely until an event occurs.
     pub fn poll(&self, timeout: Duration) -> Result<()> {
-        assert!(!self.ptr.is_null());
-
         let mut timeout_ms = -1;
         if timeout != Duration::MAX {
             timeout_ms = timeout.as_millis() as i32;
         }
 
-        let ret = unsafe { libbpf_sys::ring_buffer__poll(self.ptr, timeout_ms) };
+        let ret = unsafe { libbpf_sys::ring_buffer__poll(self.ptr.as_ptr(), timeout_ms) };
 
         util::parse_ret(ret)
     }
@@ -164,18 +163,14 @@ impl<'a> RingBuffer<'a> {
     /// callback for each one. Consumes continually until we run out of events
     /// to consume or one of the callbacks returns a non-zero integer.
     pub fn consume(&self) -> Result<()> {
-        assert!(!self.ptr.is_null());
-
-        let ret = unsafe { libbpf_sys::ring_buffer__consume(self.ptr) };
+        let ret = unsafe { libbpf_sys::ring_buffer__consume(self.ptr.as_ptr()) };
 
         util::parse_ret(ret)
     }
 
     /// Get an fd that can be used to sleep until data is available
     pub fn epoll_fd(&self) -> i32 {
-        assert!(!self.ptr.is_null());
-
-        unsafe { libbpf_sys::ring_buffer__epoll_fd(self.ptr) }
+        unsafe { libbpf_sys::ring_buffer__epoll_fd(self.ptr.as_ptr()) }
     }
 }
 
@@ -185,9 +180,7 @@ unsafe impl Send for RingBuffer<'_> {}
 impl Drop for RingBuffer<'_> {
     fn drop(&mut self) {
         unsafe {
-            if !self.ptr.is_null() {
-                libbpf_sys::ring_buffer__free(self.ptr);
-            }
+            libbpf_sys::ring_buffer__free(self.ptr.as_ptr());
         }
     }
 }
