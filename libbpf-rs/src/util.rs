@@ -1,6 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::Path;
+use std::ptr::NonNull;
 
 use crate::*;
 
@@ -63,6 +64,18 @@ pub fn parse_ret_usize(ret: i32) -> Result<usize> {
         Err(Error::System(-ret))
     } else {
         Ok(ret as usize)
+    }
+}
+
+pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Result<NonNull<B>> {
+    let ptr = f();
+    // SAFETY: `libbpf_get_error` is always safe to call.
+    match unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) } {
+        0 => match NonNull::new(ptr) {
+            None => unreachable!("libbpf_get_error returned 0 but bpf call returned NULL"),
+            Some(ptr) => Ok(ptr),
+        },
+        err => Err(Error::System(err as i32)),
     }
 }
 
