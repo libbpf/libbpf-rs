@@ -42,7 +42,7 @@ impl Link {
 
     /// Replace the underlying prog with `prog`.
     pub fn update_prog(&mut self, prog: &Program) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_link__update_program(self.ptr, prog.ptr) };
+        let ret = unsafe { libbpf_sys::bpf_link__update_program(self.ptr, prog.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 

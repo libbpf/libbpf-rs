@@ -183,7 +183,7 @@ impl OpenObject {
 
             // Add the program to the hashmap
             obj.progs
-                .insert(name, OpenProgram::new(prog_ptr.as_ptr(), section));
+                .insert(name, unsafe { OpenProgram::new(prog_ptr, section) });
             prog = prog_ptr.as_ptr();
         }
 
@@ -393,8 +393,9 @@ impl Object {
             let section = util::c_ptr_to_string(section)?;
 
             // Add the program to the hashmap
-            obj.progs
-                .insert(name.clone(), Program::new(prog_ptr.as_ptr(), name, section));
+            obj.progs.insert(name.clone(), unsafe {
+                Program::new(prog_ptr, name, section)
+            });
             prog = prog_ptr.as_ptr();
         }
 
