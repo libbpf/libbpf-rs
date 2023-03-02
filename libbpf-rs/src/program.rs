@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem;
 use std::path::Path;
-use std::ptr;
+use std::ptr::{self, NonNull};
 
 use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
@@ -82,26 +82,26 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
 /// This object exposes operations that need to happen before the program is loaded.
 #[derive(Debug)]
 pub struct OpenProgram {
-    ptr: *mut libbpf_sys::bpf_program,
+    ptr: NonNull<libbpf_sys::bpf_program>,
     section: String,
 }
 
 // TODO: Document variants.
 #[allow(missing_docs)]
 impl OpenProgram {
-    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_program, section: String) -> Self {
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>, section: String) -> Self {
         Self { ptr, section }
     }
 
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
         unsafe {
-            libbpf_sys::bpf_program__set_type(self.ptr, prog_type as u32);
+            libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32);
         }
     }
 
     // The `ProgramType` of this `OpenProgram`.
     pub fn prog_type(&self) -> ProgramType {
-        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr) }) {
+        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) }) {
             Ok(ty) => ty,
             Err(_) => ProgramType::Unknown,
         }
@@ -109,13 +109,16 @@ impl OpenProgram {
 
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
         unsafe {
-            libbpf_sys::bpf_program__set_expected_attach_type(self.ptr, attach_type as u32);
+            libbpf_sys::bpf_program__set_expected_attach_type(
+                self.ptr.as_ptr(),
+                attach_type as u32,
+            );
         }
     }
 
     pub fn set_ifindex(&mut self, idx: u32) {
         unsafe {
-            libbpf_sys::bpf_program__set_ifindex(self.ptr, idx);
+            libbpf_sys::bpf_program__set_ifindex(self.ptr.as_ptr(), idx);
         }
     }
 
@@ -126,7 +129,7 @@ impl OpenProgram {
 
     /// The name of this `OpenProgram`.
     pub fn name(&self) -> Result<&str> {
-        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr) };
+        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
         name_c_str
             .to_str()
@@ -134,7 +137,7 @@ impl OpenProgram {
     }
 
     pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr, autoload) };
+        let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr.as_ptr(), autoload) };
         util::parse_ret(ret)
     }
 
@@ -148,21 +151,25 @@ impl OpenProgram {
             let name_c = util::str_to_cstring(&name)?;
             unsafe {
                 libbpf_sys::bpf_program__set_attach_target(
-                    self.ptr,
+                    self.ptr.as_ptr(),
                     attach_prog_fd,
                     name_c.as_ptr(),
                 )
             }
         } else {
             unsafe {
-                libbpf_sys::bpf_program__set_attach_target(self.ptr, attach_prog_fd, ptr::null())
+                libbpf_sys::bpf_program__set_attach_target(
+                    self.ptr.as_ptr(),
+                    attach_prog_fd,
+                    ptr::null(),
+                )
             }
         };
         util::parse_ret(ret)
     }
 
     pub fn set_flags(&self, flags: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr, flags) };
+        let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
         util::parse_ret(ret)
     }
 
@@ -173,7 +180,7 @@ impl OpenProgram {
     /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
     ///
     pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
     }
 
     /// Gives read-only access to BPF program's underlying BPF instructions.
@@ -187,7 +194,7 @@ impl OpenProgram {
     /// might be quite different.
     pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
-        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr) };
+        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { std::slice::from_raw_parts(ptr, count) }
     }
 }
@@ -328,13 +335,17 @@ pub enum ProgramAttachType {
 /// method will fail with the appropriate error.
 #[derive(Debug)]
 pub struct Program {
-    pub(crate) ptr: *mut libbpf_sys::bpf_program,
+    pub(crate) ptr: NonNull<libbpf_sys::bpf_program>,
     name: String,
     section: String,
 }
 
 impl Program {
-    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_program, name: String, section: String) -> Self {
+    pub(crate) unsafe fn new(
+        ptr: NonNull<libbpf_sys::bpf_program>,
+        name: String,
+        section: String,
+    ) -> Self {
         Program { ptr, name, section }
     }
 
@@ -350,7 +361,7 @@ impl Program {
 
     /// Retrieve the type of the program.
     pub fn prog_type(&self) -> ProgramType {
-        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr) }) {
+        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) }) {
             Ok(ty) => ty,
             Err(_) => ProgramType::Unknown,
         }
@@ -358,18 +369,18 @@ impl Program {
 
     /// Returns a file descriptor to the underlying program.
     pub fn fd(&self) -> i32 {
-        unsafe { libbpf_sys::bpf_program__fd(self.ptr) }
+        unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) }
     }
 
     /// Returns flags that have been set for the program.
     pub fn flags(&self) -> u32 {
-        unsafe { libbpf_sys::bpf_program__flags(self.ptr) }
+        unsafe { libbpf_sys::bpf_program__flags(self.ptr.as_ptr()) }
     }
 
     /// Retrieve the attach type of the program.
     pub fn attach_type(&self) -> ProgramAttachType {
         match ProgramAttachType::try_from(unsafe {
-            libbpf_sys::bpf_program__expected_attach_type(self.ptr)
+            libbpf_sys::bpf_program__expected_attach_type(self.ptr.as_ptr())
         }) {
             Ok(ty) => ty,
             Err(_) => ProgramAttachType::Unknown,
@@ -382,7 +393,7 @@ impl Program {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        let ret = unsafe { libbpf_sys::bpf_program__pin(self.ptr, path_ptr) };
+        let ret = unsafe { libbpf_sys::bpf_program__pin(self.ptr.as_ptr(), path_ptr) };
         util::parse_ret(ret)
     }
 
@@ -392,42 +403,33 @@ impl Program {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        let ret = unsafe { libbpf_sys::bpf_program__unpin(self.ptr, path_ptr) };
+        let ret = unsafe { libbpf_sys::bpf_program__unpin(self.ptr.as_ptr(), path_ptr) };
         util::parse_ret(ret)
     }
 
     /// Auto-attach based on prog section
     pub fn attach(&mut self) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach(self.ptr) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach(self.ptr.as_ptr())
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a
     /// [cgroup](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html).
     pub fn attach_cgroup(&mut self, cgroup_fd: i32) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_cgroup(self.ptr, cgroup_fd) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_cgroup(self.ptr.as_ptr(), cgroup_fd)
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
     pub fn attach_perf_event(&mut self, pfd: i32) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr, pfd) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd)
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a [userspace
@@ -441,21 +443,16 @@ impl Program {
     ) -> Result<Link> {
         let path = util::path_to_cstring(binary_path)?;
         let path_ptr = path.as_ptr();
-        let ptr = unsafe {
+        util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_uprobe(
-                self.ptr,
+                self.ptr.as_ptr(),
                 retprobe,
                 pid,
                 path_ptr,
                 func_offset as libbpf_sys::size_t,
             )
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a [userspace
@@ -488,21 +485,16 @@ impl Program {
             ..Default::default()
         };
 
-        let ptr = unsafe {
+        util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_uprobe_opts(
-                self.ptr,
+                self.ptr.as_ptr(),
                 pid,
                 path_ptr,
                 func_offset as libbpf_sys::size_t,
                 &opts as *const _,
             )
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a [kernel
@@ -510,14 +502,10 @@ impl Program {
     pub fn attach_kprobe<T: AsRef<str>>(&mut self, retprobe: bool, func_name: T) -> Result<Link> {
         let func_name = util::str_to_cstring(func_name.as_ref())?;
         let func_name_ptr = func_name.as_ptr();
-        let ptr =
-            unsafe { libbpf_sys::bpf_program__attach_kprobe(self.ptr, retprobe, func_name_ptr) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_kprobe(self.ptr.as_ptr(), retprobe, func_name_ptr)
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     fn attach_tracepoint_impl(
@@ -531,28 +519,28 @@ impl Program {
         let tp_name = util::str_to_cstring(tp_name)?;
         let tp_name_ptr = tp_name.as_ptr();
 
-        let ptr = if let Some(tp_opts) = tp_opts {
-            let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
-            unsafe {
-                libbpf_sys::bpf_program__attach_tracepoint_opts(
-                    self.ptr,
-                    tp_category_ptr,
-                    tp_name_ptr,
-                    &tp_opts as *const _,
-                )
+        util::create_bpf_entity_checked(|| {
+            if let Some(tp_opts) = tp_opts {
+                let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
+                unsafe {
+                    libbpf_sys::bpf_program__attach_tracepoint_opts(
+                        self.ptr.as_ptr(),
+                        tp_category_ptr,
+                        tp_name_ptr,
+                        &tp_opts as *const _,
+                    )
+                }
+            } else {
+                unsafe {
+                    libbpf_sys::bpf_program__attach_tracepoint(
+                        self.ptr.as_ptr(),
+                        tp_category_ptr,
+                        tp_name_ptr,
+                    )
+                }
             }
-        } else {
-            unsafe {
-                libbpf_sys::bpf_program__attach_tracepoint(self.ptr, tp_category_ptr, tp_name_ptr)
-            }
-        };
-
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a [kernel
@@ -582,35 +570,26 @@ impl Program {
     pub fn attach_raw_tracepoint<T: AsRef<str>>(&mut self, tp_name: T) -> Result<Link> {
         let tp_name = util::str_to_cstring(tp_name.as_ref())?;
         let tp_name_ptr = tp_name.as_ptr();
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr, tp_name_ptr) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr.as_ptr(), tp_name_ptr)
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
     pub fn attach_lsm(&mut self) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_lsm(self.ptr) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_lsm(self.ptr.as_ptr())
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
     pub fn attach_trace(&mut self) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_trace(self.ptr.as_ptr())
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
@@ -622,24 +601,18 @@ impl Program {
 
     /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
     pub fn attach_xdp(&mut self, ifindex: i32) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_xdp(self.ptr, ifindex) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_xdp(self.ptr.as_ptr(), ifindex)
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
     pub fn attach_netns(&mut self, netns_fd: i32) -> Result<Link> {
-        let ptr = unsafe { libbpf_sys::bpf_program__attach_netns(self.ptr, netns_fd) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd)
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     fn attach_usdt_impl(
@@ -662,22 +635,17 @@ impl Program {
             .map(|opts| opts as *const _)
             .unwrap_or_else(ptr::null);
 
-        let ptr = unsafe {
+        util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_usdt(
-                self.ptr,
+                self.ptr.as_ptr(),
                 pid,
                 path_ptr,
                 usdt_provider_ptr,
                 usdt_name_ptr,
                 usdt_opts_ptr,
             )
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            Err(Error::System(err as i32))
-        } else {
-            Ok(Link::new(ptr))
-        }
+        })
+        .map(|ptr| Link::new(ptr.as_ptr()))
     }
 
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
@@ -723,7 +691,7 @@ impl Program {
     ///
     /// Please see note in [`OpenProgram::insn_cnt`].
     pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr) as usize }
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
     }
 
     /// Gives read-only access to BPF program's underlying BPF instructions.
@@ -732,7 +700,7 @@ impl Program {
     ///
     pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
-        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr) };
+        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { std::slice::from_raw_parts(ptr, count) }
     }
 }
