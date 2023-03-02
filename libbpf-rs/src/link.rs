@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
+use std::ptr::NonNull;
 
 use crate::*;
 
@@ -9,11 +10,16 @@ use crate::*;
 /// when this object is dropped if nothing else is holding a reference count.
 #[derive(Debug)]
 pub struct Link {
-    ptr: *mut libbpf_sys::bpf_link,
+    ptr: NonNull<libbpf_sys::bpf_link>,
 }
 
 impl Link {
-    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_link) -> Self {
+    /// Create a new [`Link`] from a [`libbpf_sys::bpf_link`].
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to a correctly initialized [`libbpf_sys::bpf_link`].
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_link>) -> Self {
         Link { ptr }
     }
 
@@ -21,14 +27,8 @@ impl Link {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
-        let ptr = unsafe { libbpf_sys::bpf_link__open(path_ptr) };
-
-        let err = unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) };
-        if err != 0 {
-            return Err(Error::System(err as i32));
-        }
-
-        Ok(Link::new(ptr))
+        util::create_bpf_entity_checked(|| unsafe { libbpf_sys::bpf_link__open(path_ptr) })
+            .map(|ptr| unsafe { Self::new(ptr) })
     }
 
     /// Takes ownership from pointer.
@@ -36,13 +36,14 @@ impl Link {
     /// # Safety
     ///
     /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_link) -> Self {
-        Self::new(ptr)
+    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_link>) -> Self {
+        unsafe { Self::new(ptr) }
     }
 
     /// Replace the underlying prog with `prog`.
     pub fn update_prog(&mut self, prog: &Program) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_link__update_program(self.ptr, prog.ptr.as_ptr()) };
+        let ret =
+            unsafe { libbpf_sys::bpf_link__update_program(self.ptr.as_ptr(), prog.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 
@@ -56,7 +57,7 @@ impl Link {
     /// exit of userspace program doesn't trigger automatic detachment and clean up
     /// inside the kernel.
     pub fn disconnect(&mut self) {
-        unsafe { libbpf_sys::bpf_link__disconnect(self.ptr) }
+        unsafe { libbpf_sys::bpf_link__disconnect(self.ptr.as_ptr()) }
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -65,31 +66,31 @@ impl Link {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        let ret = unsafe { libbpf_sys::bpf_link__pin(self.ptr, path_ptr) };
+        let ret = unsafe { libbpf_sys::bpf_link__pin(self.ptr.as_ptr(), path_ptr) };
         util::parse_ret(ret)
     }
 
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// from bpffs
     pub fn unpin(&mut self) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_link__unpin(self.ptr) };
+        let ret = unsafe { libbpf_sys::bpf_link__unpin(self.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 
     /// Returns the file descriptor of the link.
     #[deprecated(since = "0.17.0", note = "please use `fd` instead")]
     pub fn get_fd(&self) -> i32 {
-        unsafe { libbpf_sys::bpf_link__fd(self.ptr) }
+        unsafe { libbpf_sys::bpf_link__fd(self.ptr.as_ptr()) }
     }
 
     /// Returns the file descriptor of the link.
     pub fn fd(&self) -> i32 {
-        unsafe { libbpf_sys::bpf_link__fd(self.ptr) }
+        unsafe { libbpf_sys::bpf_link__fd(self.ptr.as_ptr()) }
     }
 
     /// Returns path to BPF FS file or `None` if not pinned.
     pub fn pin_path(&self) -> Option<PathBuf> {
-        let path_ptr = unsafe { libbpf_sys::bpf_link__pin_path(self.ptr) };
+        let path_ptr = unsafe { libbpf_sys::bpf_link__pin_path(self.ptr.as_ptr()) };
         if path_ptr.is_null() {
             return None;
         }
@@ -104,13 +105,13 @@ impl Link {
 
     /// Detach the link.
     pub fn detach(&self) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr) };
+        let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 }
 
 impl Drop for Link {
     fn drop(&mut self) {
-        let _ = unsafe { libbpf_sys::bpf_link__destroy(self.ptr) };
+        let _ = unsafe { libbpf_sys::bpf_link__destroy(self.ptr.as_ptr()) };
     }
 }

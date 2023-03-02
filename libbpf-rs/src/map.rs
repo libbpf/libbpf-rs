@@ -582,7 +582,10 @@ impl Map {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_map__attach_struct_ops(ptr.as_ptr())
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 }
 

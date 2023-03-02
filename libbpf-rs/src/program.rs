@@ -412,7 +412,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach(self.ptr.as_ptr())
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a
@@ -421,7 +424,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_cgroup(self.ptr.as_ptr(), cgroup_fd)
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
@@ -429,7 +435,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd)
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a [userspace
@@ -452,7 +461,10 @@ impl Program {
                 func_offset as libbpf_sys::size_t,
             )
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a [userspace
@@ -494,7 +506,10 @@ impl Program {
                 &opts as *const _,
             )
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a [kernel
@@ -505,7 +520,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_kprobe(self.ptr.as_ptr(), retprobe, func_name_ptr)
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     fn attach_tracepoint_impl(
@@ -540,7 +558,10 @@ impl Program {
                 }
             }
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a [kernel
@@ -573,7 +594,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr.as_ptr(), tp_name_ptr)
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
@@ -581,7 +605,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_lsm(self.ptr.as_ptr())
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
@@ -589,7 +616,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_trace(self.ptr.as_ptr())
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
@@ -604,7 +634,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_xdp(self.ptr.as_ptr(), ifindex)
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
@@ -612,7 +645,10 @@ impl Program {
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd)
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     fn attach_usdt_impl(
@@ -645,7 +681,10 @@ impl Program {
                 usdt_opts_ptr,
             )
         })
-        .map(|ptr| Link::new(ptr.as_ptr()))
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
     }
 
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe

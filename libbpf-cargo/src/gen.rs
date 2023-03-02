@@ -612,12 +612,10 @@ fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Re
         write!(
             skel,
             r#"{prog_name}: (|| {{
-                let ptr = self.skel_config.prog_link_ptr({idx})?;
-                if ptr.is_null() {{
-                    Ok(None)
-                }} else {{
-                    Ok(Some(unsafe {{ libbpf_rs::Link::from_ptr(ptr) }}))
-                }}
+                Ok(
+                    core::ptr::NonNull::new(self.skel_config.prog_link_ptr({idx})?)
+                        .map(|ptr| unsafe {{ libbpf_rs::Link::from_ptr(ptr) }})
+                )
             }})()?,
             "#
         )?;
