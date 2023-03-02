@@ -1,5 +1,12 @@
 use core::ffi::c_void;
-use std::{collections::HashMap, ffi::CStr, mem, os::raw::c_char, path::Path, ptr};
+use std::{
+    collections::HashMap,
+    ffi::CStr,
+    mem,
+    os::raw::c_char,
+    path::Path,
+    ptr::{self, NonNull},
+};
 
 use crate::{util, *};
 
@@ -73,13 +80,10 @@ impl ObjectBuilder {
 
         let opts = self.opts(name_ptr);
 
-        let obj = unsafe { libbpf_sys::bpf_object__open_file(path_ptr, &opts) };
-        let err = unsafe { libbpf_sys::libbpf_get_error(obj as *const _) };
-        if err != 0 {
-            return Err(Error::System(err as i32));
-        }
-
-        OpenObject::new(obj)
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_object__open_file(path_ptr, &opts)
+        })
+        .and_then(|ptr| unsafe { OpenObject::new(ptr) })
     }
 
     /// Open an object from memory.
@@ -96,19 +100,14 @@ impl ObjectBuilder {
 
         let opts = self.opts(name_ptr);
 
-        let obj = unsafe {
+        util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_object__open_mem(
                 mem.as_ptr() as *const c_void,
                 mem.len() as libbpf_sys::size_t,
                 &opts,
             )
-        };
-        let err = unsafe { libbpf_sys::libbpf_get_error(obj as *const _) };
-        if err != 0 {
-            return Err(Error::System(err as i32));
-        }
-
-        OpenObject::new(obj)
+        })
+        .and_then(|ptr| unsafe { OpenObject::new(ptr) })
     }
 }
 
@@ -117,13 +116,19 @@ impl ObjectBuilder {
 /// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
 #[derive(Debug)]
 pub struct OpenObject {
-    ptr: *mut libbpf_sys::bpf_object,
+    ptr: NonNull<libbpf_sys::bpf_object>,
     maps: HashMap<String, OpenMap>,
     progs: HashMap<String, OpenProgram>,
 }
 
 impl OpenObject {
-    fn new(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
+    /// Create a [`OpenObject`] from a [`libbpf_sys::bpf_object`].
+    ///
+    /// # Safety
+    /// `ptr` must point to an opened but not loaded `bpf_object`
+    ///
+    /// It is not safe to manipulate `ptr` after this operation.
+    unsafe fn new(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
         let mut obj = OpenObject {
             ptr,
             maps: HashMap::new(),
@@ -134,44 +139,52 @@ impl OpenObject {
         let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
-            let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr, map) };
-            if next_ptr.is_null() {
-                break;
-            }
+            let map_ptr = {
+                let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr.as_ptr(), map) };
+                match NonNull::new(next_ptr) {
+                    Some(map_ptr) => map_ptr,
+                    None => break,
+                }
+            };
 
             // Get the map name
             // bpf_map__name can return null but only if it's passed a null.
             // We already know next_ptr is not null.
-            let name = unsafe { libbpf_sys::bpf_map__name(next_ptr) };
+            let name = unsafe { libbpf_sys::bpf_map__name(map_ptr.as_ptr()) };
             let name = util::c_ptr_to_string(name)?;
 
             // Add the map to the hashmap
-            obj.maps.insert(name, OpenMap::new(next_ptr));
-            map = next_ptr;
+            obj.maps.insert(name, OpenMap::new(map_ptr.as_ptr()));
+            map = map_ptr.as_ptr();
         }
 
         // Populate obj.progs
         let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF program
-            let next_ptr = unsafe { libbpf_sys::bpf_object__next_program(obj.ptr, prog) };
-            if next_ptr.is_null() {
-                break;
-            }
+            let prog_ptr = {
+                let next_ptr =
+                    unsafe { libbpf_sys::bpf_object__next_program(obj.ptr.as_ptr(), prog) };
+                match NonNull::new(next_ptr) {
+                    Some(ptr) => ptr,
+                    None => break,
+                }
+            };
 
             // Get the program name.
             // bpf_program__name never returns NULL, so no need to check the pointer.
-            let name = unsafe { libbpf_sys::bpf_program__name(next_ptr) };
+            let name = unsafe { libbpf_sys::bpf_program__name(prog_ptr.as_ptr()) };
             let name = util::c_ptr_to_string(name)?;
 
             // Get the program section
             // bpf_program__section_name never returns NULL, so no need to check the pointer.
-            let section = unsafe { libbpf_sys::bpf_program__section_name(next_ptr) };
+            let section = unsafe { libbpf_sys::bpf_program__section_name(prog_ptr.as_ptr()) };
             let section = util::c_ptr_to_string(section)?;
 
             // Add the program to the hashmap
-            obj.progs.insert(name, OpenProgram::new(next_ptr, section));
-            prog = next_ptr;
+            obj.progs
+                .insert(name, OpenProgram::new(prog_ptr.as_ptr(), section));
+            prog = prog_ptr.as_ptr();
         }
 
         Ok(obj)
@@ -181,25 +194,36 @@ impl OpenObject {
     ///
     /// # Safety
     ///
-    /// If `ptr` is unopen or already loaded then further operations on the returned object are
-    /// undefined.
+    /// Operations on the returned object are undefined if `ptr` is any one of:
+    ///     - null
+    ///     - points to an unopened `bpf_object`
+    ///     - points to a loaded `bpf_object`
     ///
     /// It is not safe to manipulate `ptr` after this operation.
     pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
-        Self::new(ptr)
+        unsafe { Self::new(NonNull::new_unchecked(ptr)) }
     }
 
     /// Takes underlying `libbpf_sys::bpf_object` pointer.
-    pub fn take_ptr(mut self) -> *mut libbpf_sys::bpf_object {
-        let ptr = self.ptr;
-        self.ptr = ptr::null_mut();
+    pub fn take_ptr(mut self) -> NonNull<libbpf_sys::bpf_object> {
+        let ptr = {
+            // manually free the internal state.
+            // using destructuring we make sure we'll get a compiler error if anything in
+            // Self changes, which will alert us to change this function as well
+            let Self { ptr, maps, progs } = &mut self;
+            std::mem::take(maps);
+            std::mem::take(progs);
+            *ptr
+        };
+        // avoid double free of self.ptr
+        std::mem::forget(self);
         ptr
     }
 
     /// Retrieve the object's name.
     pub fn name(&self) -> Result<&str> {
         unsafe {
-            let ptr = libbpf_sys::bpf_object__name(self.ptr);
+            let ptr = libbpf_sys::bpf_object__name(self.ptr.as_ptr());
             let err = libbpf_sys::libbpf_get_error(ptr as *const _);
             if err != 0 {
                 return Err(Error::System(err as i32));
@@ -256,17 +280,14 @@ impl OpenObject {
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
-    pub fn load(mut self) -> Result<Object> {
-        let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr) };
+    pub fn load(self) -> Result<Object> {
+        let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr.as_ptr()) };
         if ret != 0 {
             // bpf_object__load() returns errno as negative, so flip
             return Err(Error::System(-ret));
         }
 
-        let obj = Object::new(self.ptr)?;
-
-        // Prevent object from being closed once `self` is dropped
-        self.ptr = ptr::null_mut();
+        let obj = unsafe { Object::from_ptr(self.take_ptr())? };
 
         Ok(obj)
     }
@@ -276,7 +297,7 @@ impl Drop for OpenObject {
     fn drop(&mut self) {
         // `self.ptr` may be null if `load()` was called. This is ok: libbpf noops
         unsafe {
-            libbpf_sys::bpf_object__close(self.ptr);
+            libbpf_sys::bpf_object__close(self.ptr.as_ptr());
         }
     }
 }
@@ -292,13 +313,21 @@ impl Drop for OpenObject {
 /// enforcing this invariant.
 #[derive(Debug)]
 pub struct Object {
-    ptr: *mut libbpf_sys::bpf_object,
+    ptr: NonNull<libbpf_sys::bpf_object>,
     maps: HashMap<String, Map>,
     progs: HashMap<String, Program>,
 }
 
 impl Object {
-    fn new(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
+    /// Takes ownership from pointer.
+    ///
+    /// # Safety
+    ///
+    /// If `ptr` is not already loaded then further operations on the returned object are
+    /// undefined.
+    ///
+    /// It is not safe to manipulate `ptr` after this operation.
+    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
         let mut obj = Object {
             ptr,
             maps: HashMap::new(),
@@ -309,73 +338,67 @@ impl Object {
         let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
-            let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr, map) };
-            if next_ptr.is_null() {
-                break;
-            }
+            let map_ptr = {
+                let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr.as_ptr(), map) };
+                match NonNull::new(next_ptr) {
+                    Some(map_ptr) => map_ptr,
+                    None => break,
+                }
+            };
 
             // Get the map name
             // bpf_map__name can return null but only if it's passed a null.
             // We already know next_ptr is not null.
-            let name = unsafe { libbpf_sys::bpf_map__name(next_ptr) };
+            let name = unsafe { libbpf_sys::bpf_map__name(map_ptr.as_ptr()) };
             let name = util::c_ptr_to_string(name)?;
 
             // Get the map fd
-            let fd = unsafe { libbpf_sys::bpf_map__fd(next_ptr) };
+            let fd = unsafe { libbpf_sys::bpf_map__fd(map_ptr.as_ptr()) };
             if fd < 0 {
                 return Err(Error::System(-fd));
             }
 
-            let map_type = unsafe { libbpf_sys::bpf_map__type(next_ptr) };
-            let key_size = unsafe { libbpf_sys::bpf_map__key_size(next_ptr) };
-            let value_size = unsafe { libbpf_sys::bpf_map__value_size(next_ptr) };
+            let map_type = unsafe { libbpf_sys::bpf_map__type(map_ptr.as_ptr()) };
+            let key_size = unsafe { libbpf_sys::bpf_map__key_size(map_ptr.as_ptr()) };
+            let value_size = unsafe { libbpf_sys::bpf_map__value_size(map_ptr.as_ptr()) };
 
             // Add the map to the hashmap
             obj.maps.insert(
                 name.clone(),
-                Map::new(fd, name, map_type, key_size, value_size, next_ptr),
+                Map::new(fd, name, map_type, key_size, value_size, map_ptr.as_ptr()),
             );
-            map = next_ptr;
+            map = map_ptr.as_ptr();
         }
 
         // Populate obj.progs
         let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
         loop {
             // Get the pointer to the next BPF program
-            let next_ptr = unsafe { libbpf_sys::bpf_object__next_program(obj.ptr, prog) };
-            if next_ptr.is_null() {
-                break;
-            }
-
+            let prog_ptr = {
+                let next_ptr =
+                    unsafe { libbpf_sys::bpf_object__next_program(obj.ptr.as_ptr(), prog) };
+                match NonNull::new(next_ptr) {
+                    Some(prog_ptr) => prog_ptr,
+                    None => break,
+                }
+            };
             // Get the program name
             // bpf_program__name never returns NULL, so no need to check the pointer.
-            let name = unsafe { libbpf_sys::bpf_program__name(next_ptr) };
+            let name = unsafe { libbpf_sys::bpf_program__name(prog_ptr.as_ptr()) };
             let name = util::c_ptr_to_string(name)?;
 
             // Get the program section
             // bpf_program__section_name never returns NULL, so no need to check the pointer.
-            let section = unsafe { libbpf_sys::bpf_program__section_name(next_ptr) };
+            let section = unsafe { libbpf_sys::bpf_program__section_name(prog_ptr.as_ptr()) };
             let section = util::c_ptr_to_string(section)?;
 
             // Add the program to the hashmap
             obj.progs
-                .insert(name.clone(), Program::new(next_ptr, name, section));
-            prog = next_ptr;
+                .insert(name.clone(), Program::new(prog_ptr.as_ptr(), name, section));
+            prog = prog_ptr.as_ptr();
         }
 
         Ok(obj)
-    }
-
-    /// Takes ownership from pointer.
-    ///
-    /// # Safety
-    ///
-    /// If `ptr` is not already loaded then further operations on the returned object are
-    /// undefined.
-    ///
-    /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
-        Self::new(ptr)
     }
 
     /// Get a reference to `Map` with the name `name`, if one exists.
@@ -426,7 +449,7 @@ impl Object {
 impl Drop for Object {
     fn drop(&mut self) {
         unsafe {
-            libbpf_sys::bpf_object__close(self.ptr);
+            libbpf_sys::bpf_object__close(self.ptr.as_ptr());
         }
     }
 }
