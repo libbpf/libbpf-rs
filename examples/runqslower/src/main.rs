@@ -79,7 +79,12 @@ fn main() -> Result<()> {
 
     let mut skel_builder = RunqslowerSkelBuilder::default();
     if opts.verbose {
-        skel_builder.obj_builder.debug(true);
+        unsafe {
+            // SAFETY:
+            // no other thread is running which could cause undefined behaviour due
+            // to this call.
+            skel_builder.obj_builder.debug(true);
+        }
     }
 
     bump_memlock_rlimit()?;

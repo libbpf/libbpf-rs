@@ -32,14 +32,18 @@ impl ObjectBuilder {
 
     /// Option to print debug output to stderr.
     ///
+    /// # Safety
+    ///
+    /// See [`set_print`](set_print#safety).
+    ///
+    /// Also it is guarenteed that the only parts of the `ObjectBuilder` that interacts with libbpf
+    /// are the [`open_file`](Self::open_file) and [`open_memory`](Self::open_memory) methods.
+    ///
     /// Note: This function uses [`set_print`] internally and will overwrite any callbacks
     /// currently in use.
-    pub fn debug(&mut self, dbg: bool) -> &mut Self {
-        if dbg {
-            set_print(Some((PrintLevel::Debug, |_, s| print!("{s}"))));
-        } else {
-            set_print(None);
-        }
+    pub unsafe fn debug(&mut self, dbg: bool) -> &mut Self {
+        let callback = dbg.then(|| (PrintLevel::Debug, (|_, s| print!("{s}")) as PrintCallback));
+        unsafe { set_print(callback) };
         self
     }
 

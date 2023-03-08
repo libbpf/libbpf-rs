@@ -69,6 +69,9 @@ extern "C" fn outer_print_cb(
     0 // return value is ignored by libbpf
 }
 
+// allow main to reinforce the idea that set print should be used before any other interaction
+// with the library.
+#[allow(clippy::needless_doctest_main)]
 /// Set a callback to receive log messages from libbpf, instead of printing them to stderr.
 ///
 /// # Arguments
@@ -77,6 +80,12 @@ extern "C" fn outer_print_cb(
 ///   log message to handle, or `None` to disable all printing.
 ///
 /// This overrides (and is overridden by) [`ObjectBuilder::debug`]
+///
+/// # Safety
+///
+/// This function mutates a global variable without syncronization inside libbpf. This means that
+/// it is not thread safe and **cannot** be called concurrently with any other function
+/// in this library.
 ///
 /// # Examples
 ///
@@ -93,26 +102,26 @@ extern "C" fn outer_print_cb(
 ///     }
 /// }
 ///
-/// set_print(Some((PrintLevel::Debug, print_to_log)));
+/// fn main() {
+///     unsafe {
+///         // SAFETY: this is being setup before interacting with any other part of the library
+///         set_print(Some((PrintLevel::Debug, print_to_log)))
+///     };
+/// }
 /// ```
 ///
 /// To disable printing completely:
 ///
 /// ```
 /// use libbpf_rs::set_print;
-/// set_print(None);
+/// fn main() {
+///     unsafe {
+///         // SAFETY: this is being setup before interacting with any other part of the library
+///         set_print(None)
+///     };
+/// }
 /// ```
-///
-/// To temporarliy suppress output:
-///
-/// ```
-/// use libbpf_rs::set_print;
-///
-/// let prev = set_print(None);
-/// // do things quietly
-/// set_print(prev);
-/// ```
-pub fn set_print(
+pub unsafe fn set_print(
     mut callback: Option<(PrintLevel, PrintCallback)>,
 ) -> Option<(PrintLevel, PrintCallback)> {
     let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(Some(outer_print_cb));
@@ -122,19 +131,6 @@ pub fn set_print(
 }
 
 /// Return the current print callback and level.
-///
-/// # Examples
-///
-/// To temporarily suppress output:
-///
-/// ```
-/// use libbpf_rs::{get_print, set_print};
-///
-/// let prev = get_print();
-/// set_print(None);
-/// // do things quietly
-/// set_print(prev);
-/// ```
 pub fn get_print() -> Option<(PrintLevel, PrintCallback)> {
     *PRINT_CB.lock().unwrap()
 }

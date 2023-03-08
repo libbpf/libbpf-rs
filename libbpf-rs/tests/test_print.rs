@@ -25,7 +25,9 @@ fn test_set_print() {
         }
     }
 
-    set_print(Some((PrintLevel::Debug, callback)));
+    unsafe {
+        set_print(Some((PrintLevel::Debug, callback)));
+    }
     // expect_err requires that OpenObject implement Debug, which it does not.
     let obj = ObjectBuilder::default().open_file("/dev/null");
     assert!(obj.is_err(), "Successfully loaded /dev/null?");
@@ -46,11 +48,15 @@ fn test_set_restore_print() {
         println!("two");
     }
 
-    set_print(Some((PrintLevel::Warn, callback1)));
+    unsafe {
+        set_print(Some((PrintLevel::Warn, callback1)));
+    }
     let prev = get_print();
     assert_eq!(prev, Some((PrintLevel::Warn, callback1 as PrintCallback)));
 
-    set_print(Some((PrintLevel::Debug, callback2)));
+    unsafe {
+        set_print(Some((PrintLevel::Debug, callback2)));
+    }
     let prev = get_print();
     assert_eq!(prev, Some((PrintLevel::Debug, callback2 as PrintCallback)));
 }
@@ -65,10 +71,12 @@ fn test_set_and_save_print() {
         println!("two");
     }
 
-    set_print(Some((PrintLevel::Warn, callback1)));
-    let prev = set_print(Some((PrintLevel::Debug, callback2)));
+    unsafe {
+        set_print(Some((PrintLevel::Warn, callback1)));
+    }
+    let prev = unsafe { set_print(Some((PrintLevel::Debug, callback2))) };
     assert_eq!(prev, Some((PrintLevel::Warn, callback1 as PrintCallback)));
 
-    let prev = set_print(None);
+    let prev = unsafe { set_print(None) };
     assert_eq!(prev, Some((PrintLevel::Debug, callback2 as PrintCallback)));
 }

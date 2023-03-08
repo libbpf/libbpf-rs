@@ -38,7 +38,7 @@ pub fn open_test_object(filename: &str) -> OpenObject {
     //     cargo test -- --nocapture
     //
     // To get all the output
-    builder.debug(true);
+    unsafe { builder.debug(true) };
     builder.open_file(obj_path).expect("failed to open object")
 }
 
@@ -112,8 +112,8 @@ fn test_object_build_from_memory() {
 #[test]
 fn test_object_load_invalid() {
     let empty_file = NamedTempFile::new().unwrap();
-    let _err = ObjectBuilder::default()
-        .debug(true)
+    let mut builder = ObjectBuilder::default();
+    let _err = unsafe { builder.debug(true) }
         .open_file(empty_file.path())
         .unwrap_err();
 }
@@ -488,7 +488,7 @@ fn test_object_reuse_pined_map() {
     // Reuse the pinned map
     let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
-    builder.debug(true);
+    unsafe { builder.debug(true) };
     let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
 
     let start = open_obj.map_mut("start").expect("failed to find map");
@@ -1035,8 +1035,8 @@ fn test_object_link_files() {
         let () = linker.link().unwrap();
 
         // Check that we can load the resulting object file.
-        let _object = ObjectBuilder::default()
-            .debug(true)
+        let mut builder = ObjectBuilder::default();
+        let _object = unsafe { builder.debug(true) }
             .open_file(output_file.path())
             .unwrap();
     }
