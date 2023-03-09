@@ -134,23 +134,23 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
     }
 
     fn build_progs(
-        &mut self,
+        progs: &mut [ProgSkelConfig],
         s: &mut bpf_object_skeleton,
         string_pool: &mut Vec<CString>,
     ) -> Option<Layout> {
-        if self.progs.is_empty() {
+        if progs.is_empty() {
             return None;
         }
 
-        s.prog_cnt = self.progs.len() as i32;
+        s.prog_cnt = progs.len() as i32;
         s.prog_skel_sz = size_of::<bpf_prog_skeleton>() as i32;
 
-        let layout = Layout::array::<bpf_prog_skeleton>(self.progs.len())
+        let layout = Layout::array::<bpf_prog_skeleton>(progs.len())
             .expect("Failed to allocate memory for progs skeleton");
 
         unsafe {
             s.progs = alloc_zeroed(layout) as *mut bpf_prog_skeleton;
-            for (i, prog) in self.progs.iter_mut().enumerate() {
+            for (i, prog) in progs.iter_mut().enumerate() {
                 let current_prog = s.progs.add(i);
 
                 // See above for `expect()` rationale
@@ -184,7 +184,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         s.obj = &mut *self.p;
 
         let maps_layout = Self::build_maps(&mut self.maps, &mut s, &mut string_pool);
-        let progs_layout = self.build_progs(&mut s, &mut string_pool);
+        let progs_layout = Self::build_progs(&mut self.progs, &mut s, &mut string_pool);
 
         Ok(ObjectSkeletonConfig {
             inner: s,
