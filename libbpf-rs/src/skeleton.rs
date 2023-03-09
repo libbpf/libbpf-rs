@@ -181,14 +181,14 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         s.data = self.data.as_ptr() as *mut c_void;
         s.data_sz = self.data.len() as c_ulong;
 
-        s.obj = &mut *self.p;
+        // Give s ownership over the box
+        s.obj = Box::into_raw(self.p);
 
         let maps_layout = Self::build_maps(&mut self.maps, &mut s, &mut string_pool);
         let progs_layout = Self::build_progs(&mut self.progs, &mut s, &mut string_pool);
 
         Ok(ObjectSkeletonConfig {
             inner: s,
-            obj: self.p,
             maps: self.maps,
             progs: self.progs,
             maps_layout,
@@ -209,7 +209,6 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
 #[derive(Debug)]
 pub struct ObjectSkeletonConfig<'a> {
     inner: bpf_object_skeleton,
-    obj: Box<*mut bpf_object>,
     maps: Vec<MapSkelConfig>,
     progs: Vec<ProgSkelConfig>,
     /// Layout necessary to `dealloc` memory
@@ -229,7 +228,7 @@ impl<'a> ObjectSkeletonConfig<'a> {
 
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
     pub fn object_ptr(&mut self) -> *mut bpf_object {
-        *self.obj
+        unsafe { *self.inner.obj }
     }
 
     /// Returns the `mmaped` pointer for a map at the specified `index`.
@@ -291,5 +290,7 @@ impl<'a> Drop for ObjectSkeletonConfig<'a> {
                 dealloc(self.inner.progs as _, layout);
             }
         }
+
+        unsafe { Box::from_raw(self.inner.obj) };
     }
 }
