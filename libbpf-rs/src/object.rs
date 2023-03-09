@@ -187,8 +187,8 @@ impl OpenObject {
     ///     - points to a loaded `bpf_object`
     ///
     /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: *mut libbpf_sys::bpf_object) -> Result<Self> {
-        unsafe { Self::new(NonNull::new_unchecked(ptr)) }
+    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
+        unsafe { Self::new(ptr) }
     }
 
     /// Takes underlying `libbpf_sys::bpf_object` pointer.

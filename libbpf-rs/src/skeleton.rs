@@ -4,7 +4,7 @@ use std::boxed::Box;
 use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::{c_char, c_ulong};
-use std::ptr;
+use std::ptr::{self, NonNull};
 
 use libbpf_sys::{
     bpf_link, bpf_map, bpf_map_skeleton, bpf_object, bpf_object_skeleton, bpf_prog_skeleton,
@@ -227,8 +227,18 @@ impl<'a> ObjectSkeletonConfig<'a> {
     }
 
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
-    pub fn object_ptr(&mut self) -> *mut bpf_object {
-        unsafe { *self.inner.obj }
+    ///
+    /// # Panic
+    /// This method panics if the inner [`bpf_object_skeleton`] has not be initialized.
+    ///
+    /// To initialize it, first call [`Self::get`] and initialize the skeleton.
+    pub fn object_ptr(&mut self) -> NonNull<bpf_object> {
+        NonNull::new(unsafe { *self.inner.obj }).expect(
+            r#"
+        The generated code failed to initialize bpf_object_skeleton.obj pointer through the use
+        of `bpf_object__open_skeleton(skel_config.get(), &open_opts)`
+        "#,
+        )
     }
 
     /// Returns the `mmaped` pointer for a map at the specified `index`.
