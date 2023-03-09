@@ -756,7 +756,7 @@ fn test_object_map_create_without_name() {
         map_ifindex: 0,
     };
 
-    let mut map = Map::create(MapType::Hash, Option::<&str>::None, 4, 8, 8, &opts)
+    let map = Map::create(MapType::Hash, Option::<&str>::None, 4, 8, 8, &opts)
         .expect("failed to create map");
 
     assert!(map.name().is_empty());
