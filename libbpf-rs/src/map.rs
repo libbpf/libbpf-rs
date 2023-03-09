@@ -353,7 +353,7 @@ impl Map {
     /// Deletes an element from the map.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn delete(&mut self, key: &[u8]) -> Result<()> {
+    pub fn delete(&self, key: &[u8]) -> Result<()> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "key_size {} != {}",
@@ -373,7 +373,7 @@ impl Map {
     /// and [`MapType::Stack`].
     ///
     /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup_and_delete(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    pub fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "key_size {} != {}",
@@ -413,7 +413,7 @@ impl Map {
     /// [`Map::value_size()`] elements.
     ///
     /// For per-cpu maps, [`Map::update_percpu()`] must be used.
-    pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+    pub fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if self.map_type().is_percpu() {
             return Err(Error::InvalidInput(format!(
                 "update_percpu() must be used for per-cpu maps (type of the map is {})",
@@ -439,7 +439,7 @@ impl Map {
     /// elements each.
     ///
     /// For per-cpu maps, [`Map::update_percpu()`] must be used.
-    pub fn update_percpu(&mut self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
+    pub fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::InvalidInput(format!(
                 "update() must be used for maps that are not per-cpu (type of the map is {})",
@@ -481,7 +481,7 @@ impl Map {
 
     /// Internal function to update a map. This does not check the length of the
     /// supplied value.
-    fn update_raw(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+    fn update_raw(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if key.len() != self.key_size() as usize {
             return Err(Error::InvalidInput(format!(
                 "key_size {} != {}",
@@ -577,7 +577,7 @@ impl Map {
     }
 
     /// Attach a struct ops map
-    pub fn attach_struct_ops(&mut self) -> Result<Link> {
+    pub fn attach_struct_ops(&self) -> Result<Link> {
         if self.map_type() != MapType::StructOps {
             return Err(Error::InvalidInput(format!(
                 "Invalid map type ({}) for attach_struct_ops()",
