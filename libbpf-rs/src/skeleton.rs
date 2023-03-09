@@ -98,23 +98,23 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
     }
 
     fn build_maps(
-        &mut self,
+        maps: &mut [MapSkelConfig],
         s: &mut bpf_object_skeleton,
         string_pool: &mut Vec<CString>,
     ) -> Option<Layout> {
-        if self.maps.is_empty() {
+        if maps.is_empty() {
             return None;
         }
 
-        s.map_cnt = self.maps.len() as i32;
+        s.map_cnt = maps.len() as i32;
         s.map_skel_sz = size_of::<bpf_map_skeleton>() as i32;
 
-        let layout = Layout::array::<bpf_map_skeleton>(self.maps.len())
+        let layout = Layout::array::<bpf_map_skeleton>(maps.len())
             .expect("Failed to allocate memory for maps skeleton");
 
         unsafe {
             s.maps = alloc_zeroed(layout) as *mut bpf_map_skeleton;
-            for (i, map) in self.maps.iter_mut().enumerate() {
+            for (i, map) in maps.iter_mut().enumerate() {
                 let current_map = s.maps.add(i);
 
                 // Opt to panic on error here. We've already allocated memory and we'd rather not
@@ -183,7 +183,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
 
         s.obj = &mut *self.p;
 
-        let maps_layout = self.build_maps(&mut s, &mut string_pool);
+        let maps_layout = Self::build_maps(&mut self.maps, &mut s, &mut string_pool);
         let progs_layout = self.build_progs(&mut s, &mut string_pool);
 
         Ok(ObjectSkeletonConfig {
