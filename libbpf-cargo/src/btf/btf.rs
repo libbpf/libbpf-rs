@@ -85,6 +85,7 @@ impl<'dat> BtfLoader<'dat> {
             BtfKind::Struct => self.load_struct(string_table, &t, extra),
             BtfKind::Union => self.load_union(string_table, &t, extra),
             BtfKind::Enum => self.load_enum(string_table, &t, extra),
+            BtfKind::Enum64 => self.load_enum64(string_table, &t, extra),
             BtfKind::Fwd => Self::load_fwd(string_table, &t),
             BtfKind::Typedef => Ok(BtfType::Typedef(BtfTypedef {
                 name: Self::get_btf_str(string_table, t.name_off as usize)?,
@@ -240,6 +241,40 @@ impl<'dat> BtfLoader<'dat> {
         }))
     }
 
+    fn load_enum64(
+        &mut self,
+        string_table: &'dat [u8],
+        t: &btf_type,
+        extra: &'dat [u8],
+    ) -> Result<BtfType<'dat>> {
+        let name = match Self::get_btf_str(string_table, t.name_off as usize)? {
+            "" => {
+                self.anon_count += 1;
+                format!("{}{}", ANON_PREFIX, self.anon_count)
+            }
+            n => n.to_string(),
+        };
+
+        let mut vals = Vec::new();
+        let mut off: usize = 0;
+        for _ in 0..get_vlen(t.info) {
+            let v = extra.pread::<btf_enum64>(off)?;
+            vals.push(BtfEnum64Value {
+                name: Self::get_btf_str(string_table, v.name_off as usize)?,
+                value: (u64::from(v.val_hi32) << 32) | u64::from(v.val_lo32),
+            });
+
+            off += size_of::<btf_enum64>();
+        }
+
+        Ok(BtfType::Enum64(BtfEnum64 {
+            name,
+            size: t.type_id,
+            signed: get_kind_flag(t.info),
+            values: vals,
+        }))
+    }
+
     fn load_fwd(string_table: &'dat [u8], t: &btf_type) -> Result<BtfType<'dat>> {
         Ok(BtfType::Fwd(BtfFwd {
             name: Self::get_btf_str(string_table, t.name_off as usize)?,
@@ -346,6 +381,7 @@ impl<'dat> BtfLoader<'dat> {
             BtfType::Struct(t) => common + t.members.len() * size_of::<btf_member>(),
             BtfType::Union(t) => common + t.members.len() * size_of::<btf_member>(),
             BtfType::Enum(t) => common + t.values.len() * size_of::<btf_enum>(),
+            BtfType::Enum64(t) => common + t.values.len() * size_of::<btf_enum64>(),
             BtfType::FuncProto(t) => common + t.params.len() * size_of::<btf_param>(),
             BtfType::Datasec(t) => common + t.vars.len() * size_of::<btf_datasec_var>(),
             BtfType::DeclTag(_) => common + size_of::<btf_decl_tag>(),
@@ -482,6 +518,7 @@ impl Btf {
             BtfType::Struct(t) => t.size,
             BtfType::Union(t) => t.size,
             BtfType::Enum(t) => t.size,
+            BtfType::Enum64(t) => t.size,
             BtfType::Var(t) => self.size_of(t.type_id)?,
             BtfType::Datasec(t) => t.size,
             BtfType::Float(t) => t.size,
@@ -514,6 +551,7 @@ impl Btf {
                 align
             }
             BtfType::Enum(t) => min(self.ptr_size, t.size),
+            BtfType::Enum64(t) => min(self.ptr_size, t.size),
             BtfType::Var(t) => self.align_of(t.type_id)?,
             BtfType::Datasec(t) => t.size,
             BtfType::Float(t) => min(self.ptr_size, t.size),
@@ -584,6 +622,7 @@ impl Btf {
             }
             BtfType::Struct(t) | BtfType::Union(t) => t.name.to_string(),
             BtfType::Enum(t) => t.name.to_string(),
+            BtfType::Enum64(t) => t.name.to_string(),
             // The only way a variable references a function is through a function pointer.
             // Return c_void here so the final def will look like `*mut c_void`.
             //
@@ -632,6 +671,7 @@ impl Btf {
             }
             BtfType::Struct(t) | BtfType::Union(t) => format!("{}::default()", t.name),
             BtfType::Enum(t) => format!("{}::default()", t.name),
+            BtfType::Enum64(t) => format!("{}::default()", t.name),
             BtfType::Var(t) => format!("{}::default()", self.type_declaration(t.type_id)?),
             BtfType::Func(_)
             | BtfType::Fwd(_)
@@ -725,6 +765,51 @@ impl Btf {
         }
     }
 
+    fn enum64_def(btf: &BtfEnum64<'_>, def: &mut String) -> Result<()> {
+        let repr_size = match btf.size {
+            1 => "8",
+            2 => "16",
+            4 => "32",
+            8 => "64",
+            _ => bail!("Invalid enum64 size: {}", btf.size),
+        };
+
+        let signed = if btf.signed { "i" } else { "u" };
+
+        writeln!(def, r#"#[derive(Debug, Copy, Clone, PartialEq, Eq)]"#)?;
+        writeln!(def, r#"#[repr({signed}{repr_size})]"#)?;
+        writeln!(def, r#"pub enum {name} {{"#, name = btf.name)?;
+
+        for value in &btf.values {
+            writeln!(
+                def,
+                r#"    {name} = {value},"#,
+                name = value.name,
+                value = value.value,
+            )?;
+        }
+
+        writeln!(def, "}}")?;
+
+        // write an impl Default for this enum
+        if !btf.values.is_empty() {
+            // TODO: remove #[allow(clippy::derivable_impls)]
+            //       once minimum rust at 1.62+
+            writeln!(def, r#"#[allow(clippy::derivable_impls)]"#)?;
+            writeln!(def, r#"impl Default for {name} {{"#, name = btf.name)?;
+            writeln!(def, r#"    fn default() -> Self {{"#)?;
+            writeln!(
+                def,
+                r#"        {name}::{value}"#,
+                name = btf.name,
+                value = btf.values[0].name
+            )?;
+            writeln!(def, r#"    }}"#)?;
+            writeln!(def, r#"}}"#)?;
+        }
+        Ok(())
+    }
+
     /// Returns rust type definition of `ty` in string format, including dependent types.
     ///
     /// `ty` must be a struct, union, enum, or datasec type.
@@ -735,6 +820,7 @@ impl Btf {
                     BtfType::Struct(_)
                     | BtfType::Union(_)
                     | BtfType::Enum(_)
+                    | BtfType::Enum64(_)
                     | BtfType::Datasec(_) => return Ok(Some(id)),
                     BtfType::Ptr(t) => id = t.pointee_type,
                     BtfType::Array(t) => id = t.val_type_id,
@@ -757,7 +843,11 @@ impl Btf {
 
         let is_terminal = |id| -> Result<bool> {
             match self.type_by_id(id)?.kind() {
-                BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Datasec => Ok(false),
+                BtfKind::Struct
+                | BtfKind::Union
+                | BtfKind::Enum
+                | BtfKind::Enum64
+                | BtfKind::Datasec => Ok(false),
                 BtfKind::Void
                 | BtfKind::Int
                 | BtfKind::Float
@@ -993,6 +1083,7 @@ impl Btf {
                         writeln!(def, r#"}}"#)?;
                     }
                 }
+                BtfType::Enum64(t) => Self::enum64_def(t, &mut def)?,
                 BtfType::Datasec(t) => {
                     let mut sec_name = t.name.to_string();
                     if sec_name.is_empty() || !sec_name.starts_with('.') {
@@ -1082,6 +1173,7 @@ impl Btf {
                 | BtfType::Struct(_)
                 | BtfType::Union(_)
                 | BtfType::Enum(_)
+                | BtfType::Enum64(_)
                 | BtfType::Fwd(_)
                 | BtfType::Func(_)
                 | BtfType::FuncProto(_)

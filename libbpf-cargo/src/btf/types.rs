@@ -24,6 +24,7 @@ pub enum BtfKind {
     Float = 16,
     DeclTag = 17,
     TypeTag = 18,
+    Enum64 = 19,
 }
 
 #[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq, Eq)]
@@ -183,6 +184,20 @@ pub struct BtfTypeTag<'a> {
     pub type_id: u32,
 }
 
+#[derive(Debug)]
+pub struct BtfEnum64Value<'a> {
+    pub name: &'a str,
+    pub value: u64,
+}
+
+#[derive(Debug)]
+pub struct BtfEnum64<'a> {
+    pub name: String,
+    pub size: u32,
+    pub signed: bool,
+    pub values: Vec<BtfEnum64Value<'a>>,
+}
+
 pub enum BtfType<'a> {
     Void,
     Int(BtfInt<'a>),
@@ -203,6 +218,7 @@ pub enum BtfType<'a> {
     Float(BtfFloat<'a>),
     DeclTag(BtfDeclTag<'a>),
     TypeTag(BtfTypeTag<'a>),
+    Enum64(BtfEnum64<'a>),
 }
 
 impl<'a> BtfType<'a> {
@@ -227,6 +243,7 @@ impl<'a> BtfType<'a> {
             BtfType::Float(_) => BtfKind::Float,
             BtfType::DeclTag(_) => BtfKind::DeclTag,
             BtfType::TypeTag(_) => BtfKind::TypeTag,
+            BtfType::Enum64(_) => BtfKind::Enum64,
         }
     }
 }
@@ -253,6 +270,7 @@ impl<'a> fmt::Display for BtfType<'a> {
             BtfType::Float(_) => write!(f, "float"),
             BtfType::DeclTag(_) => write!(f, "decltag"),
             BtfType::TypeTag(_) => write!(f, "typetag"),
+            BtfType::Enum64(_) => write!(f, "enum64"),
         }
     }
 }

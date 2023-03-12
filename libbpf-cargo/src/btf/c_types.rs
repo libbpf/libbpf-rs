@@ -34,6 +34,14 @@ pub struct btf_enum {
 
 #[repr(C)]
 #[derive(Debug, Clone, DerivePread, Pwrite, IOread, SizeWith)]
+pub struct btf_enum64 {
+    pub name_off: u32,
+    pub val_lo32: u32,
+    pub val_hi32: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, DerivePread, Pwrite, IOread, SizeWith)]
 pub struct btf_array {
     pub val_type_id: u32,
     pub idx_type_id: u32,
