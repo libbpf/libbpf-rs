@@ -4,10 +4,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  version:
+    name: Check workspace member versions
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - uses: actions/checkout@v3
+    - id: version
+      shell: bash
+      run: |
+        libbpf_rs_version="$(cd libbpf-rs && cargo pkgid | cut -d '#' -f2 | grep -o '[^:]*$')"
+        libbpf_cargo_version="$(cd libbpf-cargo && cargo pkgid | cut -d '#' -f2 | grep -o '[^:]*$')"
+        if [ -z "${libbpf_rs_version}" ]; then
+          echo "Invalid libbpf-rs version number"
+          exit 1
+        fi
+        if [ "${libbpf_rs_version}" != "${libbpf_cargo_version}" ]; then
+          echo "libbpf-rs and libbpf-cargo have differing version (${libbpf_rs_version} vs. ${libbpf_cargo_version}"
+          exit 1
+        fi
+        echo "version=${libbpf_rs_version}" >> $GITHUB_OUTPUT
   test:
     uses: ./.github/workflows/test.yml
   publish:
-    needs: [test]
+    needs: [test, version]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -17,6 +38,24 @@ jobs:
         profile: minimal
         toolchain: stable
         override: true
+    - name: Create git tag
+      env:
+        version: ${{ needs.version.outputs.version }}
+      run: |
+        curl --location \
+          --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/releases \
+          --header "Accept: application/vnd.github+json" \
+          --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"\
+          --header "X-GitHub-Api-Version: 2022-11-28" \
+          --data "{
+              \"tag_name\":\"v${version}\",
+              \"target_commitish\":\"${{ github.ref }}\",
+              \"name\":\"v${version}\",
+              \"draft\":false,
+              \"prerelease\":false,
+              \"generate_release_notes\":false
+            }"
     - name: Publish libbpf-rs
       run: cd libbpf-rs && cargo publish --locked --no-verify --token "${CRATES_IO_TOKEN}"
       env:
