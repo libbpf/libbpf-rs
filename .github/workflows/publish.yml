@@ -38,6 +38,8 @@ jobs:
         profile: minimal
         toolchain: stable
         override: true
+    - name: Dry-run package creation
+      run: cargo package --no-verify
     - name: Create git tag
       env:
         version: ${{ needs.version.outputs.version }}
