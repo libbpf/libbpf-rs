@@ -406,6 +406,11 @@ impl Object {
     pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut Program> {
         self.progs.values_mut()
     }
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_object`].
+    pub fn as_libbpf_bpf_object_ptr(&self) -> NonNull<libbpf_sys::bpf_object> {
+        self.ptr
+    }
 }
 
 impl Drop for Object {
