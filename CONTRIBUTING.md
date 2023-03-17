@@ -53,6 +53,11 @@ not pushed out as a separate commit.
 Please make an effort to add regression tests for bug fixes and unit or
 integration tests for newly added functionality.
 
+- **Add a CHANGELOG note.**
+If your change is user facing or otherwise notable, it should likely be
+mentioned in the respective `CHANGELOG.md` files of the crates being
+touched.
+
 - **Run rustfmt before submitting.**.
 Running rustfmt (`cargo fmt`) will help fix any styling inconsistencies.
 It is checked by CI, but running rustfmt before submitting will help reduce
