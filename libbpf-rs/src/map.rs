@@ -602,6 +602,11 @@ impl Map {
             Link::new(ptr)
         })
     }
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_map`].
+    pub fn as_libbpf_bpf_map_ptr(&self) -> Option<NonNull<libbpf_sys::bpf_map>> {
+        self.ptr
+    }
 }
 
 bitflags! {
