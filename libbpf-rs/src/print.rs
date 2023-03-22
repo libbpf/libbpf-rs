@@ -1,6 +1,7 @@
 use crate::*;
 use lazy_static::lazy_static;
-use std::io::{self, Write};
+use std::io::Write;
+use std::io::{self};
 use std::os::raw::c_char;
 use std::sync::Mutex;
 

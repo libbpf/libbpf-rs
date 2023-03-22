@@ -1,8 +1,13 @@
-use anyhow::{bail, Result};
+use anyhow::bail;
+use anyhow::Result;
 use clap::Parser;
-use libbpf_rs::{
-    MapFlags, TcHookBuilder, TC_CUSTOM, TC_EGRESS, TC_H_CLSACT, TC_H_MIN_INGRESS, TC_INGRESS,
-};
+use libbpf_rs::MapFlags;
+use libbpf_rs::TcHookBuilder;
+use libbpf_rs::TC_CUSTOM;
+use libbpf_rs::TC_EGRESS;
+use libbpf_rs::TC_H_CLSACT;
+use libbpf_rs::TC_H_MIN_INGRESS;
+use libbpf_rs::TC_INGRESS;
 
 mod tc {
     include!(concat!(env!("OUT_DIR"), "/tc.skel.rs"));

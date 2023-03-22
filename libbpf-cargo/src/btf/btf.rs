@@ -1,15 +1,22 @@
-use std::cmp::{max, min};
+use std::cmp::max;
+use std::cmp::min;
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::c_void;
+use std::ffi::CStr;
+use std::ffi::CString;
 use std::fmt::Write;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::os::raw::{c_char, c_ulong};
+use std::os::raw::c_char;
+use std::os::raw::c_ulong;
 use std::ptr;
 use std::slice;
 
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::anyhow;
+use anyhow::bail;
+use anyhow::ensure;
+use anyhow::Result;
 use scroll::Pread;
 
 use crate::btf::c_types::*;

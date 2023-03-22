@@ -1,14 +1,14 @@
 use core::ffi::c_void;
-use std::{
-    collections::HashMap,
-    ffi::CStr,
-    mem,
-    os::raw::c_char,
-    path::Path,
-    ptr::{self, NonNull},
-};
+use std::collections::HashMap;
+use std::ffi::CStr;
+use std::mem;
+use std::os::raw::c_char;
+use std::path::Path;
+use std::ptr::NonNull;
+use std::ptr::{self};
 
-use crate::{util, *};
+use crate::util;
+use crate::*;
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
 #[derive(Default, Debug)]

@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::bail;
+use anyhow::Context;
+use anyhow::Result;
 
-use crate::{build, gen};
+use crate::build;
+use crate::gen;
 
 pub fn make(
     debug: bool,

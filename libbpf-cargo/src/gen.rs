@@ -1,18 +1,25 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::c_void;
+use std::ffi::CStr;
+use std::ffi::CString;
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::stdout;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::os::raw::c_ulong;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
 use std::ptr;
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::bail;
+use anyhow::ensure;
+use anyhow::Context;
+use anyhow::Result;
 use memmap2::Mmap;
 
 use crate::btf;

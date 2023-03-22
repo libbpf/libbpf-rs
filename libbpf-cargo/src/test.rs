@@ -1,16 +1,26 @@
-use std::{
-    convert::TryInto,
-    fs::{create_dir, read, read_to_string, write, File, OpenOptions},
-    io::Write,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::convert::TryInto;
+use std::fs::create_dir;
+use std::fs::read;
+use std::fs::read_to_string;
+use std::fs::write;
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
 
 use goblin::Object;
 use memmap2::Mmap;
-use tempfile::{tempdir, NamedTempFile, TempDir};
+use tempfile::tempdir;
+use tempfile::NamedTempFile;
+use tempfile::TempDir;
 
-use crate::{btf, btf::Btf, build::build, make::make, SkeletonBuilder};
+use crate::btf;
+use crate::btf::Btf;
+use crate::build::build;
+use crate::make::make;
+use crate::SkeletonBuilder;
 
 static VMLINUX: &str = include_str!("../test_data/vmlinux.h");
 

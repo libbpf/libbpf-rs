@@ -1,13 +1,12 @@
-use std::{
-    collections::HashSet,
-    ffi::c_void,
-    fs,
-    io::Read,
-    path::{Path, PathBuf},
-    slice,
-    sync::mpsc::channel,
-    time::Duration,
-};
+use std::collections::HashSet;
+use std::ffi::c_void;
+use std::fs;
+use std::io::Read;
+use std::path::Path;
+use std::path::PathBuf;
+use std::slice;
+use std::sync::mpsc::channel;
+use std::time::Duration;
 
 use nix::errno;
 use plain::Plain;
@@ -16,10 +15,19 @@ use scopeguard::defer;
 use std::ptr;
 use tempfile::NamedTempFile;
 
-use libbpf_rs::{
-    num_possible_cpus, Iter, Linker, Map, MapFlags, MapType, Object, ObjectBuilder, OpenObject,
-    ProgramType, TracepointOpts, UprobeOpts, UsdtOpts,
-};
+use libbpf_rs::num_possible_cpus;
+use libbpf_rs::Iter;
+use libbpf_rs::Linker;
+use libbpf_rs::Map;
+use libbpf_rs::MapFlags;
+use libbpf_rs::MapType;
+use libbpf_rs::Object;
+use libbpf_rs::ObjectBuilder;
+use libbpf_rs::OpenObject;
+use libbpf_rs::ProgramType;
+use libbpf_rs::TracepointOpts;
+use libbpf_rs::UprobeOpts;
+use libbpf_rs::UsdtOpts;
 
 fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -1069,7 +1077,8 @@ fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
 /// value we have sent.
 #[test]
 fn test_object_perf_buffer_raw() {
-    use memmem::{Searcher, TwoWaySearcher};
+    use memmem::Searcher;
+    use memmem::TwoWaySearcher;
 
     bump_rlimit_mlock();
 

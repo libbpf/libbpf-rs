@@ -1,14 +1,17 @@
 use core::ffi::c_void;
+use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::fmt::Debug;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
-use std::{convert::TryFrom, ptr::NonNull};
+use std::ptr::NonNull;
 
 use bitflags::bitflags;
-use nix::{errno, unistd};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use nix::errno;
+use nix::unistd;
+use num_enum::IntoPrimitive;
+use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
 use crate::*;

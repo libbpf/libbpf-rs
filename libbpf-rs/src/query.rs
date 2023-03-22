@@ -17,7 +17,8 @@ use std::os::raw::c_char;
 use std::string::String;
 use std::time::Duration;
 
-use nix::{errno, unistd::close};
+use nix::errno;
+use nix::unistd::close;
 
 use crate::*;
 

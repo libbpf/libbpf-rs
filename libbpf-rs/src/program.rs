@@ -2,7 +2,8 @@ use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem;
 use std::path::Path;
-use std::ptr::{self, NonNull};
+use std::ptr::NonNull;
+use std::ptr::{self};
 
 use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
