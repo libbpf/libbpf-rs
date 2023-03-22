@@ -1,4 +1,7 @@
-use scroll_derive::{IOread, Pread as DerivePread, Pwrite, SizeWith};
+use scroll_derive::IOread;
+use scroll_derive::Pread as DerivePread;
+use scroll_derive::Pwrite;
+use scroll_derive::SizeWith;
 
 pub const BTF_MAGIC: u16 = 0xEB9F;
 pub const BTF_VERSION: u8 = 1;

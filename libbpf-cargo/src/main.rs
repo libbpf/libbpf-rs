@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{AppSettings, Parser, Subcommand};
+use clap::AppSettings;
+use clap::Parser;
+use clap::Subcommand;
 
 mod btf;
 #[doc(hidden)]

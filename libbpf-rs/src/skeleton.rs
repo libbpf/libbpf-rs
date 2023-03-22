@@ -1,15 +1,22 @@
 use core::ffi::c_void;
-use std::alloc::{alloc_zeroed, dealloc, Layout};
+use std::alloc::alloc_zeroed;
+use std::alloc::dealloc;
+use std::alloc::Layout;
 use std::boxed::Box;
 use std::ffi::CString;
 use std::mem::size_of;
-use std::os::raw::{c_char, c_ulong};
-use std::ptr::{self, NonNull};
+use std::os::raw::c_char;
+use std::os::raw::c_ulong;
+use std::ptr::NonNull;
+use std::ptr::{self};
 
-use libbpf_sys::{
-    bpf_link, bpf_map, bpf_map_skeleton, bpf_object, bpf_object_skeleton, bpf_prog_skeleton,
-    bpf_program,
-};
+use libbpf_sys::bpf_link;
+use libbpf_sys::bpf_map;
+use libbpf_sys::bpf_map_skeleton;
+use libbpf_sys::bpf_object;
+use libbpf_sys::bpf_object_skeleton;
+use libbpf_sys::bpf_prog_skeleton;
+use libbpf_sys::bpf_program;
 
 use crate::util;
 use crate::*;

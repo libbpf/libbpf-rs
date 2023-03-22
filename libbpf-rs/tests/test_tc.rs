@@ -1,14 +1,23 @@
 use serial_test::serial;
 
 mod test;
-use test::{bump_rlimit_mlock, get_test_object};
+use test::bump_rlimit_mlock;
+use test::get_test_object;
 
-use nix::errno::Errno::{EINVAL, ENOENT};
+use nix::errno::Errno::EINVAL;
+use nix::errno::Errno::ENOENT;
 
-use libbpf_rs::{
-    Error, Object, Result, TcHook, TcHookBuilder, TC_CUSTOM, TC_EGRESS, TC_H_CLSACT,
-    TC_H_MIN_EGRESS, TC_H_MIN_INGRESS, TC_INGRESS,
-};
+use libbpf_rs::Error;
+use libbpf_rs::Object;
+use libbpf_rs::Result;
+use libbpf_rs::TcHook;
+use libbpf_rs::TcHookBuilder;
+use libbpf_rs::TC_CUSTOM;
+use libbpf_rs::TC_EGRESS;
+use libbpf_rs::TC_H_CLSACT;
+use libbpf_rs::TC_H_MIN_EGRESS;
+use libbpf_rs::TC_H_MIN_INGRESS;
+use libbpf_rs::TC_INGRESS;
 // do all TC tests on the lo network interface
 const LO_IFINDEX: i32 = 1;
 

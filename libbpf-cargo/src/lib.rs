@@ -57,12 +57,12 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::{
-    path::{Path, PathBuf},
-    result,
-};
+use std::path::Path;
+use std::path::PathBuf;
+use std::result;
 
-use tempfile::{tempdir, TempDir};
+use tempfile::tempdir;
+use tempfile::TempDir;
 use thiserror::Error;
 
 // libbpf-cargo binary is the primary consumer of the following modules. As such,

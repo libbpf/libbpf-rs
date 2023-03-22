@@ -2,8 +2,10 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
-use cargo_metadata::{MetadataCommand, Package};
+use anyhow::bail;
+use anyhow::Result;
+use cargo_metadata::MetadataCommand;
+use cargo_metadata::Package;
 use serde::Deserialize;
 use serde_json::value::Value;
 

@@ -1,14 +1,21 @@
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpListener;
+use std::net::TcpStream;
 use std::os::unix::io::FromRawFd;
 use std::str::FromStr;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
+use anyhow::Result;
 use clap::Parser;
-use nix::sys::socket::{
-    bind, listen, setsockopt, socket,
-    sockopt::{IpTransparent, ReuseAddr},
-    AddressFamily, SockFlag, SockType, SockaddrIn,
-};
+use nix::sys::socket::bind;
+use nix::sys::socket::listen;
+use nix::sys::socket::setsockopt;
+use nix::sys::socket::socket;
+use nix::sys::socket::sockopt::IpTransparent;
+use nix::sys::socket::sockopt::ReuseAddr;
+use nix::sys::socket::AddressFamily;
+use nix::sys::socket::SockFlag;
+use nix::sys::socket::SockType;
+use nix::sys::socket::SockaddrIn;
 
 /// Fake proxy
 ///

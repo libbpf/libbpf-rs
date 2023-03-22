@@ -2,7 +2,8 @@ use std::path::Path;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
 
-use crate::util::{self, path_to_cstring};
+use crate::util::path_to_cstring;
+use crate::util::{self};
 use crate::Error;
 use crate::Result;
 

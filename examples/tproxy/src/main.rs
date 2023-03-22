@@ -1,13 +1,16 @@
 use std::net::Ipv4Addr;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
+use anyhow::Result;
 use clap::Parser;
-use libbpf_rs::{TcHookBuilder, TC_INGRESS};
+use libbpf_rs::TcHookBuilder;
+use libbpf_rs::TC_INGRESS;
 
 mod tproxy {
     include!(concat!(env!("OUT_DIR"), "/tproxy.skel.rs"));

@@ -1,5 +1,6 @@
 use libbpf_cargo::SkeletonBuilder;
-use std::{env, path::PathBuf};
+use std::env;
+use std::path::PathBuf;
 
 const SRC: &str = "src/bpf/runqslower.bpf.c";
 

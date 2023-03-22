@@ -6,7 +6,8 @@
 use core::time::Duration;
 use std::str::FromStr;
 
-use anyhow::{bail, Result};
+use anyhow::bail;
+use anyhow::Result;
 use clap::Parser;
 use libbpf_rs::PerfBufferBuilder;
 use phf::phf_map;
