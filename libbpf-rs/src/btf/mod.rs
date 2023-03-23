@@ -12,6 +12,8 @@
 //! [`Btf::type_by_kind`]). If you want to get a type independently of the kind, just make sure `K`
 //! binds to [`BtfType`].
 
+pub mod types;
+
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt;
