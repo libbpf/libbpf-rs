@@ -2,6 +2,7 @@ Unreleased
 ----------
 - Added `Map::as_libbpf_bpf_map_ptr` and `Object::as_libbpf_bpf_object_ptr`
   accessors
+- Bumped minimum Rust version to `1.63`
 
 
 0.20.0

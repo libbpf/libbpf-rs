@@ -76,7 +76,7 @@ jobs:
           profile: minimal
           # Please adjust README and rust-version field in Cargo.toml files when
           # bumping version.
-          toolchain: 1.58.0
+          toolchain: 1.63.0
           components: rustfmt
           default: true
       - uses: Swatinem/rust-cache@v2.2.0
