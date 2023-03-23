@@ -14,8 +14,12 @@
 
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::fmt;
+use std::fmt::Debug;
+use std::fmt::Display;
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::ops::Deref;
 use std::os::raw::c_void;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::FromRawFd;
@@ -30,6 +34,77 @@ use crate::util::create_bpf_entity_checked_opt;
 use crate::util::parse_ret_i32;
 use crate::Error;
 use crate::Result;
+use num_enum::IntoPrimitive;
+use num_enum::TryFromPrimitive;
+
+/// The various btf types.
+#[derive(IntoPrimitive, TryFromPrimitive, Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(u32)]
+pub enum BtfKind {
+    /// An unknown type kind. Usually an error.
+    #[num_enum(default)]
+    Unknown = 0,
+    /// [Int](types::Int)
+    Int,
+    /// [Ptr](types::Ptr)
+    Ptr,
+    /// [Array](types::Array)
+    Array,
+    /// [Struct](types::Struct)
+    Struct,
+    /// [Union](types::Union)
+    Union,
+    /// [Enum](types::Enum)
+    Enum,
+    /// [Fwd](types::Fwd)
+    Fwd,
+    /// [Typedef](types::Typedef)
+    Typedef,
+    /// [Volatile](types::Volatile)
+    Volatile,
+    /// [Const](types::Const)
+    Const,
+    /// [Restrict](types::Restrict)
+    Restrict,
+    /// [Func](types::Func)
+    Func,
+    /// [FuncProto](types::FuncProto)
+    FuncProto,
+    /// [Var](types::Var)
+    Var,
+    /// [DataSec](types::DataSec)
+    DataSec,
+    /// [Float](types::Float)
+    Float,
+    /// [DeclTag](types::DeclTag)
+    DeclTag,
+    /// [TypeTag](types::TypeTag)
+    TypeTag,
+    /// [Enum64](types::Enum64)
+    Enum64,
+}
+
+/// The id of a btf type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TypeId(u32);
+
+impl From<u32> for TypeId {
+    fn from(s: u32) -> Self {
+        Self(s)
+    }
+}
+
+impl From<TypeId> for u32 {
+    fn from(t: TypeId) -> Self {
+        t.0
+    }
+}
+
+impl Display for TypeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// The btf information of a bpf object.
 ///
@@ -135,6 +210,69 @@ impl<'btf> Btf<'btf> {
             libbpf_sys::btf__type_cnt(self.ptr.as_ptr()) as usize
         }
     }
+
+    /// Find a btf type by name
+    ///
+    /// # Panics
+    /// If `name` has null bytes.
+    pub fn type_by_name<'s, K>(&'s self, name: &str) -> Option<K>
+    where
+        K: TryFrom<BtfType<'s>>,
+    {
+        let c_string = CString::new(name)
+            .map_err(|_| Error::InvalidInput(format!("{name:?} contains null bytes")))
+            .unwrap();
+        let ty = unsafe {
+            // SAFETY: the btf pointer is valid and the c_string pointer was created from safe code
+            // therefore it's also valid.
+            libbpf_sys::btf__find_by_name(self.ptr.as_ptr(), c_string.as_ptr())
+        };
+        if ty < 0 {
+            None
+        } else {
+            self.type_by_id(TypeId(ty as _))
+        }
+    }
+
+    /// Find a type by it's [TypeId].
+    pub fn type_by_id<'s, K>(&'s self, type_id: TypeId) -> Option<K>
+    where
+        K: TryFrom<BtfType<'s>>,
+    {
+        let btf_type = unsafe {
+            // SAFETY: the btf pointer is valid.
+            libbpf_sys::btf__type_by_id(self.ptr.as_ptr(), type_id.0)
+        };
+
+        let btf_type = NonNull::new(btf_type as *mut libbpf_sys::btf_type)?;
+
+        let ty = unsafe {
+            // SAFETY: if it is non-null then it points to a valid type.
+            btf_type.as_ref()
+        };
+
+        let name = self.name_at(ty.name_off);
+
+        BtfType {
+            type_id,
+            name,
+            source: self,
+            ty,
+        }
+        .try_into()
+        .ok()
+    }
+
+    /// Find all types of a specific type kind.
+    pub fn type_by_kind<'s, K>(&'s self) -> impl Iterator<Item = K> + 's
+    where
+        K: TryFrom<BtfType<'s>>,
+    {
+        (1..self.len() as u32)
+            .map(TypeId::from)
+            .filter_map(|id| self.type_by_id(id))
+            .filter_map(|t| K::try_from(t).ok())
+    }
 }
 
 impl Drop for Btf<'_> {
@@ -146,4 +284,134 @@ impl Drop for Btf<'_> {
             }
         }
     }
+}
+
+/// An undiscriminated btf type
+#[derive(Clone, Copy)]
+pub struct BtfType<'btf> {
+    type_id: TypeId,
+    name: Option<&'btf CStr>,
+    source: &'btf Btf<'btf>,
+    ///  the __bindgen_anon_1 field is a union defined as
+    ///  ```no_run
+    ///  union btf_type__bindgen_ty_1 {
+    ///      size_: u32,
+    ///      type_: u32,
+    ///  }
+    ///  ```
+    ///
+    ///  The `size_` field tells the size of the type it's describing and is used for types:
+    ///      - Int
+    ///      - Enum
+    ///      - Struct
+    ///      - Union,
+    ///      - DataSec,
+    ///      - Enum64,
+    ///  The `type_` field is a type id referring to another type and is used for types:
+    ///      - Ptr,
+    ///      - Typedef,
+    ///      - Volatile,
+    ///      - Const,
+    ///      - Restrict,
+    ///      - Func,
+    ///      - FuncProto,
+    ///      - Var,
+    ///      - DeclTag,
+    ///      - TypeTag
+    ty: &'btf libbpf_sys::btf_type,
+}
+
+impl Debug for BtfType<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BtfType")
+            .field("type_id", &self.type_id)
+            .field("name", &self.name())
+            .field("source", &self.source)
+            .field("ty", &(self.ty as *const _))
+            .finish()
+    }
+}
+
+impl<'btf> BtfType<'btf> {
+    /// This type's type id.
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+
+    /// This type's name.
+    pub fn name(&'_ self) -> Option<&'btf CStr> {
+        self.name
+    }
+
+    /// This type's kind.
+    pub fn kind(&self) -> BtfKind {
+        ((self.ty.info >> 24) & 0x1f).try_into().unwrap()
+    }
+
+    fn vlen(&self) -> u32 {
+        self.ty.info & 0xffff
+    }
+
+    fn kind_flag(&self) -> bool {
+        (self.ty.info >> 31) == 1
+    }
+
+    /// Whether this represent's a modifier.
+    pub fn is_mod(&self) -> bool {
+        matches!(
+            self.kind(),
+            BtfKind::Volatile | BtfKind::Const | BtfKind::Restrict | BtfKind::TypeTag
+        )
+    }
+
+    /// Whether this represents any kind of enum.
+    pub fn is_any_enum(&self) -> bool {
+        matches!(self.kind(), BtfKind::Enum | BtfKind::Enum64)
+    }
+
+    /// Whether this btf type is core compatible to `other`.
+    pub fn is_core_compat(&self, other: &Self) -> bool {
+        self.kind() == other.kind() || (self.is_any_enum() && other.is_any_enum())
+    }
+
+    /// Whether this type represents a composite type (struct/union).
+    pub fn is_composite(&self) -> bool {
+        matches!(self.kind(), BtfKind::Struct | BtfKind::Union)
+    }
+}
+
+/// Some btf types have a size field, describing their size.
+///
+/// # Safety
+///
+/// It's only safe to implement this for types where the underlying btf_type has a .size set.
+///
+/// See the [docs](https://www.kernel.org/doc/html/latest/bpf/btf.html) for a reference of which
+/// [`BtfKind`] can implement this trait.
+pub unsafe trait HasSize<'btf>: Deref<Target = BtfType<'btf>> + sealed::Sealed {
+    /// The size of the described type.
+    fn size(&self) -> usize {
+        (unsafe { self.ty.__bindgen_anon_1.size }) as usize
+    }
+}
+
+/// Some btf types refer to other types by their type id.
+///
+/// # Safety
+///
+/// It's only safe to implement this for types where the underlying btf_type has a .type set.
+///
+/// See the [docs](https://www.kernel.org/doc/html/latest/bpf/btf.html) for a reference of which
+/// [`BtfKind`] can implement this trait.
+pub unsafe trait ReferencesType<'btf>:
+    Deref<Target = BtfType<'btf>> + sealed::Sealed
+{
+    /// The refered type.
+    fn referenced_type_id(&self) -> TypeId {
+        TypeId(unsafe { self.ty.__bindgen_anon_1.type_ })
+    }
+}
+
+mod sealed {
+    pub trait Sealed {}
 }
