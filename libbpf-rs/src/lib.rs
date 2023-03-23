@@ -73,6 +73,7 @@
 )]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+pub mod btf;
 mod error;
 mod iter;
 mod link;
@@ -92,6 +93,9 @@ mod util;
 
 pub use libbpf_sys;
 
+pub use crate::btf::Btf;
+pub use crate::btf::HasSize;
+pub use crate::btf::ReferencesType;
 pub use crate::error::Error;
 pub use crate::error::Result;
 pub use crate::iter::Iter;
