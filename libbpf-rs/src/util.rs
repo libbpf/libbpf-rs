@@ -69,13 +69,34 @@ pub fn parse_ret_usize(ret: i32) -> Result<usize> {
 }
 
 pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Result<NonNull<B>> {
+    create_bpf_entity_checked_opt(f).and_then(|ptr| {
+        ptr.ok_or_else(|| {
+            Error::Internal(format!(
+                "bpf call {:?} returned NULL",
+                std::any::type_name::<F>() // this is usually a library bug, hopefully this will
+                                           // help diagnose the bug.
+                                           //
+                                           // One way to fix the bug might be to change to calling
+                                           // create_bpf_entity_checked_opt and handling Ok(None)
+                                           // as a meaningfull value.
+            ))
+        })
+    })
+}
+
+pub fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
+    f: F,
+) -> Result<Option<NonNull<B>>> {
     let ptr = f();
+    if ptr.is_null() {
+        return Ok(None);
+    }
     // SAFETY: `libbpf_get_error` is always safe to call.
     match unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) } {
-        0 => match NonNull::new(ptr) {
-            None => unreachable!("libbpf_get_error returned 0 but bpf call returned NULL"),
-            Some(ptr) => Ok(ptr),
-        },
+        0 => Ok(Some(unsafe {
+            // SAFETY: We checked if the pointer was non null before.
+            NonNull::new_unchecked(ptr)
+        })),
         err => Err(Error::System(err as i32)),
     }
 }
