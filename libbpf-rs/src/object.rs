@@ -363,6 +363,11 @@ impl Object {
         Ok(obj)
     }
 
+    /// Parse the btf information associated with this bpf object.
+    pub fn btf(&self) -> Result<Btf> {
+        Btf::from_bpf_object(unsafe { &*self.ptr.as_ptr() })
+    }
+
     /// Get a reference to `Map` with the name `name`, if one exists.
     pub fn map<T: AsRef<str>>(&self, name: T) -> Option<&Map> {
         self.maps.get(name.as_ref())
