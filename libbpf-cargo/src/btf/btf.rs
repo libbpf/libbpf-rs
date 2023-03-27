@@ -514,32 +514,6 @@ impl Btf {
         }
     }
 
-    pub fn size_of(&self, type_id: u32) -> Result<u32> {
-        let skipped_type_id = self.skip_mods_and_typedefs(type_id)?;
-
-        Ok(match self.type_by_id(skipped_type_id)? {
-            BtfType::Int(t) => ((t.bits + 7) / 8).into(),
-            BtfType::Ptr(_) => self.ptr_size,
-            BtfType::Array(t) => t.nelems * self.size_of(t.val_type_id)?,
-            BtfType::Struct(t) => t.size,
-            BtfType::Union(t) => t.size,
-            BtfType::Enum(t) => t.size,
-            BtfType::Var(t) => self.size_of(t.type_id)?,
-            BtfType::Datasec(t) => t.size,
-            BtfType::Float(t) => t.size,
-            BtfType::Void
-            | BtfType::Volatile(_)
-            | BtfType::Const(_)
-            | BtfType::Restrict(_)
-            | BtfType::Typedef(_)
-            | BtfType::FuncProto(_)
-            | BtfType::Fwd(_)
-            | BtfType::Func(_)
-            | BtfType::DeclTag(_)
-            | BtfType::TypeTag(_) => bail!("Cannot get size of type_id: {}", skipped_type_id),
-        })
-    }
-
     pub fn align_of(&self, type_id: u32) -> Result<u32> {
         let skipped_type_id = self.skip_mods_and_typedefs(type_id)?;
 
