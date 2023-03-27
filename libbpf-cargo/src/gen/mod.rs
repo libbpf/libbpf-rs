@@ -25,7 +25,6 @@ use libbpf_rs::btf::types;
 use libbpf_rs::Btf;
 use memmap2::Mmap;
 
-// use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
