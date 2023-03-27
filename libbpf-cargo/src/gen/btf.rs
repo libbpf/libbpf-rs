@@ -245,4 +245,45 @@ impl<'s> GenBtf<'s> {
         // there is no effect of packedness for given struct
         Ok(false)
     }
+
+    /// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
+    /// type `type_id` needs to be placed at, returns how much padding must be inserted before
+    /// `type_id`.
+    fn required_padding(
+        &self,
+        current_offset: usize,
+        required_offset: usize,
+        ty: &BtfType<'s>,
+        packed: bool,
+    ) -> Result<usize> {
+        ensure!(
+            current_offset <= required_offset,
+            "Current offset ahead of required offset"
+        );
+
+        let align = if packed {
+            1
+        } else {
+            // Assume 32-bit alignment in case we're generating code for 32-bit
+            // arch. Worst case is on a 64-bit arch the compiler will generate
+            // extra padding. The final layout will still be identical to what is
+            // described by BTF.
+            let a = ty.alignment().unwrap();
+            ensure!(a != 0, "Failed to get alignment of type_id: {ty:?}");
+
+            if a > 4 {
+                4
+            } else {
+                a
+            }
+        };
+
+        // If we aren't aligning to the natural offset, padding needs to be inserted
+        let aligned_offset = (current_offset + align - 1) / align * align;
+        if aligned_offset == required_offset {
+            Ok(0)
+        } else {
+            Ok(required_offset - current_offset)
+        }
+    }
 }
