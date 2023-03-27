@@ -546,42 +546,6 @@ impl Btf {
         })
     }
 
-    fn is_struct_packed(&self, struct_type_id: u32, t: &BtfComposite) -> Result<bool> {
-        if !t.is_struct {
-            return Ok(false);
-        }
-
-        let align = self.align_of(struct_type_id)?;
-        ensure!(
-            align != 0,
-            "Failed to get alignment of struct_type_id: {}",
-            struct_type_id
-        );
-
-        // Size of a struct has to be a multiple of its alignment
-        if t.size % align != 0 {
-            return Ok(true);
-        }
-
-        // All the non-bitfield fields have to be naturally aligned
-        for m in &t.members {
-            let align = self.align_of(m.type_id)?;
-            ensure!(
-                align != 0,
-                "Failed to get alignment of m.type_id: {}",
-                m.type_id
-            );
-
-            if m.bit_size == 0 && m.bit_offset % (align * 8) != 0 {
-                return Ok(true);
-            }
-        }
-
-        // Even if original struct was marked as packed, we haven't detected any misalignment, so
-        // there is no effect of packedness for given struct
-        Ok(false)
-    }
-
     /// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
     /// type `type_id` needs to be placed at, returns how much padding must be inserted before
     /// `type_id`.
