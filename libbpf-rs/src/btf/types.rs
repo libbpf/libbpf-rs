@@ -303,7 +303,7 @@ pub struct Int<'btf> {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub enum IntEncoding {
-    Unsigned,
+    None,
     Signed,
     Char,
     Bool,
@@ -341,7 +341,7 @@ impl<'btf> TryFrom<BtfType<'btf>> for Int<'btf> {
                 0b1 => IntEncoding::Signed,
                 0b10 => IntEncoding::Char,
                 0b100 => IntEncoding::Bool,
-                _ => IntEncoding::Unsigned,
+                _ => IntEncoding::None,
             };
             Ok(Self {
                 source: t,
