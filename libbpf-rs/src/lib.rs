@@ -66,6 +66,7 @@
 //!
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
 
+#![allow(clippy::let_unit_value)]
 #![warn(
     missing_debug_implementations,
     missing_docs,
@@ -104,6 +105,7 @@ pub use crate::link::Link;
 pub use crate::linker::Linker;
 pub use crate::map::Map;
 pub use crate::map::MapFlags;
+pub use crate::map::MapInfo;
 pub use crate::map::MapType;
 pub use crate::map::OpenMap;
 pub use crate::object::Object;

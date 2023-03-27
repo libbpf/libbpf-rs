@@ -2,12 +2,18 @@ use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::fmt::Debug;
+use std::mem;
+use std::os::unix::prelude::AsRawFd;
+use std::os::unix::prelude::BorrowedFd;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
 use std::ptr::NonNull;
+use std::slice::from_raw_parts;
 
 use bitflags::bitflags;
+use libbpf_sys::bpf_map_info;
+use libbpf_sys::bpf_obj_get_info_by_fd;
 use nix::errno;
 use nix::unistd;
 use num_enum::IntoPrimitive;
@@ -732,5 +738,119 @@ impl<'a> Iterator for MapKeyIter<'a> {
             self.prev = Some(self.next.clone());
             Some(self.next.clone())
         }
+    }
+}
+
+/// A convenience wrapper for [`bpf_map_info`][libbpf_sys::bpf_map_info]. It
+/// provides the ability to retrieve the details of a certain map.
+#[derive(Debug)]
+pub struct MapInfo {
+    /// The inner [`bpf_map_info`][libbpf_sys::bpf_map_info] object.
+    pub info: bpf_map_info,
+}
+
+impl MapInfo {
+    /// Create a `MapInfo` object from a fd.
+    pub fn new(fd: BorrowedFd) -> Result<Self> {
+        // SAFETY: `bpf_map_info` is valid for any bit pattern.
+        let mut map_info = unsafe { mem::zeroed::<bpf_map_info>() };
+        let mut size = mem::size_of_val(&map_info) as u32;
+        // SAFETY: All pointers are derived from references and hence valid.
+        let () = util::parse_ret(unsafe {
+            bpf_obj_get_info_by_fd(
+                fd.as_raw_fd(),
+                &mut map_info as *mut bpf_map_info as *mut c_void,
+                &mut size as *mut u32,
+            )
+        })?;
+        Ok(Self { info: map_info })
+    }
+
+    /// Get the map type
+    #[inline]
+    pub fn map_type(&self) -> MapType {
+        match MapType::try_from(self.info.type_) {
+            Ok(t) => t,
+            Err(_) => MapType::Unknown,
+        }
+    }
+
+    /// Get the name of this map.
+    ///
+    /// Returns error if the underlying data in the structure is not a valid
+    /// utf-8 string.
+    pub fn name<'a>(&self) -> Result<&'a str> {
+        // SAFETY: convert &[i8] to &[u8], and then cast that to &str. i8 and u8 has the same size.
+        let char_slice = unsafe {
+            from_raw_parts(
+                self.info.name[..].as_ptr() as *const u8,
+                self.info.name.len(),
+            )
+        };
+        let mut zero_idx = 0;
+        while zero_idx < char_slice.len() && char_slice[zero_idx] != 0 {
+            zero_idx += 1;
+        }
+        if zero_idx == char_slice.len() {
+            return Err(Error::Internal(
+                "No nul found in `bpf_map_info::name`".to_string(),
+            ));
+        }
+        CStr::from_bytes_with_nul(&char_slice[..=zero_idx])
+            .map_err(|e| Error::Internal(format!("Failed to cast name to CStr: {e}")))?
+            .to_str()
+            .map_err(|e| Error::Internal(format!("Failed to cast name to str: {e}")))
+    }
+
+    /// Get the map flags.
+    #[inline]
+    pub fn flags(&self) -> MapFlags {
+        MapFlags::from_bits_truncate(self.info.map_flags as u64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::Map;
+    use crate::MapFlags;
+    use crate::MapInfo;
+    use crate::MapType;
+
+    /// Test whether `MapInfo` works properly
+    #[test]
+    pub fn test_map_info() {
+        let opts = libbpf_sys::bpf_map_create_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+            map_flags: libbpf_sys::BPF_ANY,
+            btf_fd: 0,
+            btf_key_type_id: 0,
+            btf_value_type_id: 0,
+            btf_vmlinux_value_type_id: 0,
+            inner_map_fd: 0,
+            map_extra: 0,
+            numa_node: 0,
+            map_ifindex: 0,
+        };
+
+        let map = Map::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
+        let fd = unsafe { BorrowedFd::borrow_raw(map.fd()) };
+        let map_info = MapInfo::new(fd).unwrap();
+        let name_received = map_info.name().unwrap();
+        assert_eq!(name_received, "simple_map");
+        assert_eq!(map_info.map_type(), MapType::Hash);
+        assert_eq!(map_info.flags() & MapFlags::ANY, MapFlags::ANY);
+
+        let map_info = &map_info.info;
+        assert_eq!(map_info.key_size, 8);
+        assert_eq!(map_info.value_size, 64);
+        assert_eq!(map_info.max_entries, 1024);
+        assert_eq!(map_info.btf_id, 0);
+        assert_eq!(map_info.btf_key_type_id, 0);
+        assert_eq!(map_info.btf_value_type_id, 0);
+        assert_eq!(map_info.btf_vmlinux_value_type_id, 0);
+        assert_eq!(map_info.map_extra, 0);
+        assert_eq!(map_info.ifindex, 0);
     }
 }

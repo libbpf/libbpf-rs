@@ -3,6 +3,7 @@ Unreleased
 - Added bindings for BTF via newly introduced `btf` module
 - Added `Map::as_libbpf_bpf_map_ptr` and `Object::as_libbpf_bpf_object_ptr`
   accessors
+- Added `MapInfo` type as a convenience wrapper around `bpf_map_info`
 - Added `set_log_level`, `log_level`, and `autoload` methods to `OpenProgram`
 - Bumped minimum Rust version to `1.63`
 
