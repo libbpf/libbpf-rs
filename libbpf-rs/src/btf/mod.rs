@@ -39,6 +39,8 @@ use crate::Result;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
+use self::types::Composite;
+
 /// The various btf types.
 #[derive(IntoPrimitive, TryFromPrimitive, Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
@@ -255,6 +257,16 @@ impl<'btf> Btf<'btf> {
         }
     }
 
+    /// The btf pointer size.
+    pub fn ptr_size(&self) -> Result<usize> {
+        let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) as usize };
+        if sz == 0 {
+            Err(Error::Internal("could not determine pointer size".into()))
+        } else {
+            Ok(sz)
+        }
+    }
+
     /// Find a btf type by name
     ///
     /// # Panics
@@ -354,24 +366,6 @@ pub struct BtfType<'btf> {
     ///  }
     ///  ```
     ///
-    ///  The `size_` field tells the size of the type it's describing and is used for types:
-    ///      - Int
-    ///      - Enum
-    ///      - Struct
-    ///      - Union,
-    ///      - DataSec,
-    ///      - Enum64,
-    ///  The `type_` field is a type id referring to another type and is used for types:
-    ///      - Ptr,
-    ///      - Typedef,
-    ///      - Volatile,
-    ///      - Const,
-    ///      - Restrict,
-    ///      - Func,
-    ///      - FuncProto,
-    ///      - Var,
-    ///      - DeclTag,
-    ///      - TypeTag
     ty: &'btf libbpf_sys::btf_type,
 }
 
@@ -432,6 +426,157 @@ impl<'btf> BtfType<'btf> {
     pub fn is_composite(&self) -> bool {
         matches!(self.kind(), BtfKind::Struct | BtfKind::Union)
     }
+
+    /// The size of the described type.
+    ///
+    /// # Safety
+    ///
+    /// This function can only be called when the [`Self::kind`] returns one of:
+    ///   - [`BtfKind::Int`],
+    ///   - [`BtfKind::Float`],
+    ///   - [`BtfKind::Enum`],
+    ///   - [`BtfKind::Struct`],
+    ///   - [`BtfKind::Union`],
+    ///   - [`BtfKind::DataSec`],
+    ///   - [`BtfKind::Enum64`],
+    unsafe fn size_unchecked(&self) -> u32 {
+        unsafe { self.ty.__bindgen_anon_1.size }
+    }
+
+    /// The [`TypeId`] of the referenced type.
+    ///
+    /// # Safety
+    /// This function can only be called when the [`Self::kind`] returns one of:
+    ///     - [`BtfKind::Ptr`],
+    ///     - [`BtfKind::Typedef`],
+    ///     - [`BtfKind::Volatile`],
+    ///     - [`BtfKind::Const`],
+    ///     - [`BtfKind::Restrict`],
+    ///     - [`BtfKind::Func`],
+    ///     - [`BtfKind::FuncProto`],
+    ///     - [`BtfKind::Var`],
+    ///     - [`BtfKind::DeclTag`],
+    ///     - [`BtfKind::TypeTag`],
+    unsafe fn referenced_type_id_unchecked(&self) -> TypeId {
+        unsafe { self.ty.__bindgen_anon_1.type_ }.into()
+    }
+
+    /// If this type implements [`ReferencesType`], returns the type it references.
+    pub fn next_type(&self) -> Option<Self> {
+        match self.kind() {
+            BtfKind::Ptr
+            | BtfKind::Typedef
+            | BtfKind::Volatile
+            | BtfKind::Const
+            | BtfKind::Restrict
+            | BtfKind::Func
+            | BtfKind::FuncProto
+            | BtfKind::Var
+            | BtfKind::DeclTag
+            | BtfKind::TypeTag => {
+                let tid = unsafe {
+                    // SAFETY: we checked the kind
+                    self.referenced_type_id_unchecked()
+                };
+                self.source.type_by_id(tid)
+            }
+
+            BtfKind::Void
+            | BtfKind::Int
+            | BtfKind::Array
+            | BtfKind::Struct
+            | BtfKind::Union
+            | BtfKind::Enum
+            | BtfKind::Fwd
+            | BtfKind::DataSec
+            | BtfKind::Float
+            | BtfKind::Enum64 => None,
+        }
+    }
+
+    /// Given a type, follows the refering type ids until it finds a type that isn't a modifier or
+    /// a [`BtfKind::Typedef`].
+    ///
+    /// See [is_mod](Self::is_mod).
+    pub fn skip_mods_and_typedefs(&self) -> Self {
+        let mut ty = *self;
+        loop {
+            if ty.is_mod() || ty.kind() == BtfKind::Typedef {
+                ty = ty.next_type().unwrap();
+            } else {
+                return ty;
+            }
+        }
+    }
+
+    /// Returns the alignment of this type, if this type points to some modifier or typedef, those
+    /// will be skipped until the underlying type (with an alignment) is found.
+    ///
+    /// See [skip_mods_and_typedefs](Self::skip_mods_and_typedefs).
+    pub fn alignment(&self) -> Result<usize> {
+        let skipped = self.skip_mods_and_typedefs();
+        match skipped.kind() {
+            BtfKind::Int => {
+                let int = types::Int::try_from(skipped).unwrap();
+                Ok(usize::min(
+                    skipped.source.ptr_size()?,
+                    ((int.bits + 7) / 8).into(),
+                ))
+            }
+            BtfKind::Ptr => skipped.source.ptr_size(),
+            BtfKind::Array => types::Array::try_from(skipped)
+                .unwrap()
+                .contained_type()
+                .alignment(),
+            BtfKind::Struct | BtfKind::Union => {
+                let c = Composite::try_from(skipped).unwrap();
+                let mut align = 1usize;
+                for m in c.iter() {
+                    align = usize::max(
+                        align,
+                        skipped
+                            .source
+                            .type_by_id::<Self>(m.ty)
+                            .unwrap()
+                            .alignment()?,
+                    );
+                }
+
+                Ok(align)
+            }
+            BtfKind::Enum | BtfKind::Enum64 | BtfKind::Float => {
+                Ok(usize::min(skipped.source.ptr_size()?, unsafe {
+                    // SAFETY: We checked the type.
+                    skipped.size_unchecked() as usize
+                }))
+            }
+            BtfKind::Var => {
+                let var = types::Var::try_from(skipped).unwrap();
+                var.source
+                    .type_by_id::<Self>(var.referenced_type_id())
+                    .unwrap()
+                    .alignment()
+            }
+            BtfKind::DataSec => Ok(unsafe {
+                // SAFETY: We checked the type.
+                skipped.size_unchecked() as usize
+            }),
+            BtfKind::Void
+            | BtfKind::Volatile
+            | BtfKind::Const
+            | BtfKind::Restrict
+            | BtfKind::Typedef
+            | BtfKind::FuncProto
+            | BtfKind::Fwd
+            | BtfKind::Func
+            | BtfKind::DeclTag
+            | BtfKind::TypeTag => Err(Error::InvalidInput(format!(
+                "Cannot get alignment of type with kind {:?}. TypeId is {}",
+                skipped.kind(),
+                skipped.type_id(),
+            ))),
+        }
+    }
 }
 
 /// Some btf types have a size field, describing their size.
@@ -445,7 +590,7 @@ impl<'btf> BtfType<'btf> {
 pub unsafe trait HasSize<'btf>: Deref<Target = BtfType<'btf>> + sealed::Sealed {
     /// The size of the described type.
     fn size(&self) -> usize {
-        (unsafe { self.ty.__bindgen_anon_1.size }) as usize
+        unsafe { self.size_unchecked() as usize }
     }
 }
 
@@ -462,7 +607,12 @@ pub unsafe trait ReferencesType<'btf>:
 {
     /// The refered type.
     fn referenced_type_id(&self) -> TypeId {
-        TypeId(unsafe { self.ty.__bindgen_anon_1.type_ })
+        unsafe { self.referenced_type_id_unchecked() }
+    }
+
+    /// The referenced type.
+    fn referenced_type(&self) -> BtfType<'btf> {
+        self.source.type_by_id(self.referenced_type_id()).unwrap()
     }
 }
 
