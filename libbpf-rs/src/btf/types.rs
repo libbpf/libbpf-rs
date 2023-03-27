@@ -218,18 +218,30 @@ macro_rules! gen_collection_concrete_type {
     };
 }
 
-/// The attributes of a bitfield member.
+/// The attributes of a member.
 #[derive(Debug)]
-pub struct BitFieldAttr {
-    /// The size of the bitfield.
-    pub size: u8,
-    /// The offset of the bitfield.
-    pub offset: u32,
+pub enum MemberAttr {
+    /// Member is a normal field.
+    Normal {
+        /// The offset of this member in the struct/union.
+        offset: u32,
+    },
+    /// Member is a bitfield.
+    BitField {
+        /// The size of the bitfield.
+        size: u8,
+        /// The offset of the bitfield.
+        offset: u32,
+    },
 }
 
-impl BitFieldAttr {
-    fn from_offset(offset: u32) -> Self {
-        Self {
+impl MemberAttr {
+    fn normal(offset: u32) -> Self {
+        Self::Normal { offset }
+    }
+
+    fn bif_field(offset: u32) -> Self {
+        Self::BitField {
             size: (offset >> 24) as u8,
             offset: offset & 0x00_ff_ff_ff,
         }
@@ -375,14 +387,18 @@ gen_collection_concrete_type! {
         pub name: Option<&'btf CStr>,
         /// The member's type
         pub ty: TypeId,
-        /// If this member is a bifield, these are it's attributes.
-        pub bitfield: Option<BitFieldAttr>
+        /// The attributes of this member.
+        pub attr: MemberAttr,
     }
 
     |btf, member, kflag| StructMember {
         name: btf.name_at(member.name_off),
         ty: member.type_.into(),
-        bitfield: kflag.then(|| BitFieldAttr::from_offset(member.offset) ),
+        attr: if kflag {
+            MemberAttr::bif_field(member.offset)
+        } else {
+            MemberAttr::normal(member.offset)
+        },
     }
 }
 
@@ -396,14 +412,18 @@ gen_collection_concrete_type! {
         pub name: Option<&'btf CStr>,
         /// The member's type
         pub ty: TypeId,
-        /// If this member is a bifield, these are it's attributes.
-        pub bitfield: Option<BitFieldAttr>,
+        /// The attributes of this member.
+        pub attr: MemberAttr,
     }
 
     |btf, member, kflag| UnionMember {
         name: btf.name_at(member.name_off),
         ty: member.type_.into(),
-        bitfield: kflag.then(|| BitFieldAttr::from_offset(member.offset) ),
+        attr: if kflag {
+            MemberAttr::bif_field(member.offset)
+        } else {
+            MemberAttr::normal(member.offset)
+        },
     }
 }
 
