@@ -546,49 +546,6 @@ impl Btf {
         })
     }
 
-    /// Returns an expression that evaluates to the Default value
-    /// of a type(typeid) in string form.
-    ///
-    /// To be used when creating a impl Default for a structure
-    ///
-    /// Rule of thumb is `ty` must be a type a variable can have.
-    ///
-    /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
-    pub fn type_default(&self, type_id: u32) -> Result<String> {
-        let stripped_type_id = self.skip_mods_and_typedefs(type_id)?;
-        let ty = self.type_by_id(stripped_type_id)?;
-
-        Ok(match ty {
-            BtfType::Void => "std::ffi::c_void::default()".to_string(),
-            BtfType::Int(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
-            BtfType::Float(_) => format!("{}::default()", self.type_declaration(stripped_type_id)?),
-            BtfType::Ptr(_) => "std::ptr::null_mut()".to_string(),
-            BtfType::Array(t) => {
-                format!(
-                    "[{}; {}]",
-                    self.type_default(t.val_type_id)
-                        .map_err(|err| anyhow!("in {ty}: {err}"))?,
-                    t.nelems
-                )
-            }
-            BtfType::Struct(t) | BtfType::Union(t) => format!("{}::default()", t.name),
-            BtfType::Enum(t) => format!("{}::default()", t.name),
-            BtfType::Var(t) => format!("{}::default()", self.type_declaration(t.type_id)?),
-            BtfType::Func(_)
-            | BtfType::Fwd(_)
-            | BtfType::FuncProto(_)
-            | BtfType::Datasec(_)
-            | BtfType::Typedef(_)
-            | BtfType::Volatile(_)
-            | BtfType::Const(_)
-            | BtfType::Restrict(_)
-            | BtfType::DeclTag(_)
-            | BtfType::TypeTag(_) => {
-                bail!("Invalid type: {}", ty)
-            }
-        })
-    }
-
     fn is_struct_packed(&self, struct_type_id: u32, t: &BtfComposite) -> Result<bool> {
         if !t.is_struct {
             return Ok(false);
