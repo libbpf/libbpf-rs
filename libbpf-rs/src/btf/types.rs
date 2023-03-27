@@ -107,8 +107,7 @@ macro_rules! gen_concrete_type {
     };
 }
 
-macro_rules! gen_collection_concrete_type {
-
+macro_rules! gen_collection_members_concrete_type {
     (
         $libbpf_ty:ident as $name:ident $(with $trait:ident)?;
 
@@ -122,47 +121,6 @@ macro_rules! gen_collection_concrete_type {
 
         |$btf:ident, $member:ident $(, $kind_flag:ident)?| $convert:expr
     ) => {
-        #[allow(missing_docs)]
-        #[derive(Debug)]
-        pub struct $name<'btf> {
-            source: BtfType<'btf>,
-            members: &'btf [libbpf_sys::$libbpf_ty],
-        }
-
-        impl<'btf> TryFrom<BtfType<'btf>> for $name<'btf> {
-            type Error = BtfType<'btf>;
-
-            fn try_from(t: BtfType<'btf>) -> ::core::result::Result<Self, Self::Error> {
-                if t.kind() == BtfKind::$name {
-                    let base_ptr = unsafe {
-                        // SAFETY:
-                        //
-                        // It's in bounds to access the memory following this btf_type
-                        // because we've checked the type
-                        (t.ty as *const libbpf_sys::btf_type).offset(1)
-                    };
-                    let members = unsafe {
-                        // SAFETY:
-                        //
-                        // This pointer is aligned.
-                        //      all fields of all struct have size and
-                        //      alignment of u32, if t.ty was aligned, then this must be as well
-                        //
-                        // It's initialized
-                        //      libbpf guarantees this since we've checked the type
-                        //
-                        // The lifetime will match the lifetime of the original t.ty reference.
-                        //
-                        // The docs specify the length of the array is stored in vlen.
-                        std::slice::from_raw_parts(base_ptr.cast(), t.vlen() as usize)
-                    };
-                    Ok(Self { source: t, members })
-                } else {
-                    Err(t)
-                }
-            }
-        }
-
         impl<'btf> ::std::ops::Deref for $name<'btf> {
             type Target = BtfType<'btf>;
             fn deref(&self) -> &Self::Target {
@@ -212,9 +170,63 @@ macro_rules! gen_collection_concrete_type {
         }
 
         $(
-            impl super::sealed::Sealed for $name<'_> {}
+            impl $crate::btf::sealed::Sealed for $name<'_> {}
             unsafe impl<'btf> $trait<'btf> for $name<'btf> {}
         )*
+    };
+}
+
+macro_rules! gen_collection_concrete_type {
+    (
+        $libbpf_ty:ident as $name:ident $(with $trait:ident)?;
+
+        $($rest:tt)+
+    ) => {
+        #[allow(missing_docs)]
+        #[derive(Debug)]
+        pub struct $name<'btf> {
+            source: BtfType<'btf>,
+            members: &'btf [libbpf_sys::$libbpf_ty],
+        }
+
+        impl<'btf> TryFrom<BtfType<'btf>> for $name<'btf> {
+            type Error = BtfType<'btf>;
+
+            fn try_from(t: BtfType<'btf>) -> ::core::result::Result<Self, Self::Error> {
+                if t.kind() == BtfKind::$name {
+                    let base_ptr = unsafe {
+                        // SAFETY:
+                        //
+                        // It's in bounds to access the memory following this btf_type
+                        // because we've checked the type
+                        (t.ty as *const libbpf_sys::btf_type).offset(1)
+                    };
+                    let members = unsafe {
+                        // SAFETY:
+                        //
+                        // This pointer is aligned.
+                        //      all fields of all struct have size and
+                        //      alignment of u32, if t.ty was aligned, then this must be as well
+                        //
+                        // It's initialized
+                        //      libbpf guarantees this since we've checked the type
+                        //
+                        // The lifetime will match the lifetime of the original t.ty reference.
+                        //
+                        // The docs specify the length of the array is stored in vlen.
+                        std::slice::from_raw_parts(base_ptr.cast(), t.vlen() as usize)
+                    };
+                    Ok(Self { source: t, members })
+                } else {
+                    Err(t)
+                }
+            }
+        }
+
+        gen_collection_members_concrete_type!{
+            $libbpf_ty as $name $(with $trait)?;
+            $($rest)*
+        }
     };
 }
 
