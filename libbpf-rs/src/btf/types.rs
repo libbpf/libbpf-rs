@@ -372,7 +372,7 @@ gen_fieldless_concrete_type!(Ptr with ReferencesType);
 // Array
 gen_concrete_type!(btf_array as Array);
 
-impl Array<'_> {
+impl<'s> Array<'s> {
     /// The type id of the stored type.
     pub fn ty(&self) -> TypeId {
         self.ptr.type_.into()
@@ -386,6 +386,14 @@ impl Array<'_> {
     /// The capacity of the array.
     pub fn capacity(&self) -> usize {
         self.ptr.nelems as usize
+    }
+
+    /// The type contained in this array.
+    pub fn contained_type(&self) -> BtfType<'s> {
+        self.source
+            .source
+            .type_by_id(self.ty())
+            .expect("arrays should always reference an existing type")
     }
 }
 
