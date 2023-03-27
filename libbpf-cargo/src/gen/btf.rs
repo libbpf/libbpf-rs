@@ -7,7 +7,10 @@ use std::ops::Deref;
 
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Result;
+use libbpf_rs::btf::types;
+use libbpf_rs::btf::types::MemberAttr;
 use libbpf_rs::btf::BtfKind;
 use libbpf_rs::btf::BtfType;
 use libbpf_rs::btf::TypeId;
@@ -203,5 +206,43 @@ impl<'s> GenBtf<'s> {
             BtfKind::DeclTag => bail!("Invalid type: {ty:?}"),
             BtfKind::TypeTag => bail!("Invalid type: {ty:?}"),
         }))
+    }
+
+    fn is_struct_packed(&self, composite: &types::Composite<'_>) -> Result<bool> {
+        if !composite.is_struct {
+            return Ok(false);
+        }
+
+        let align = composite.alignment().unwrap();
+        ensure!(
+            align != 0,
+            "Failed to get alignment of struct_type_id: {}",
+            composite.type_id(),
+        );
+
+        // Size of a struct has to be a multiple of its alignment
+        if composite.size() % align != 0 {
+            return Ok(true);
+        }
+
+        // All the non-bitfield fields have to be naturally aligned
+        for m in composite.iter() {
+            let align = self
+                .type_by_id::<BtfType>(m.ty)
+                .unwrap()
+                .alignment()
+                .unwrap();
+            ensure!(align != 0, "Failed to get alignment of m.type_id: {}", m.ty);
+
+            if let MemberAttr::Normal { offset } = m.attr {
+                if offset as usize % (align * 8) != 0 {
+                    return Ok(true);
+                }
+            }
+        }
+
+        // Even if original struct was marked as packed, we haven't detected any misalignment, so
+        // there is no effect of packedness for given struct
+        Ok(false)
     }
 }
