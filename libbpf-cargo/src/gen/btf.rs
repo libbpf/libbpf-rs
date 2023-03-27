@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::mem::size_of;
@@ -10,6 +11,7 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
 use libbpf_rs::btf::types;
+use libbpf_rs::btf::types::Linkage;
 use libbpf_rs::btf::types::MemberAttr;
 use libbpf_rs::btf::BtfKind;
 use libbpf_rs::btf::BtfType;
@@ -285,5 +287,343 @@ impl<'s> GenBtf<'s> {
         } else {
             Ok(required_offset - current_offset)
         }
+    }
+
+    /// Returns rust type definition of `ty` in string format, including dependent types.
+    ///
+    /// `ty` must be a struct, union, enum, or datasec type.
+    pub fn type_definition(&self, ty: BtfType<'s>) -> Result<String> {
+        fn next_type(mut t: BtfType<'_>) -> Result<Option<BtfType<'_>>> {
+            loop {
+                match t.kind() {
+                    BtfKind::Struct
+                    | BtfKind::Union
+                    | BtfKind::Enum
+                    | BtfKind::Enum64
+                    | BtfKind::DataSec => return Ok(Some(t)),
+                    BtfKind::Array => {
+                        let a = types::Array::try_from(t).unwrap();
+                        t = a.contained_type()
+                    }
+                    _ => match t.next_type() {
+                        Some(next) => t = next,
+                        None => return Ok(None),
+                    },
+                }
+            }
+        }
+
+        let is_terminal = |ty: BtfType| -> Result<bool> {
+            match ty.kind() {
+                BtfKind::Struct
+                | BtfKind::Union
+                | BtfKind::Enum
+                | BtfKind::Enum64
+                | BtfKind::DataSec => Ok(false),
+                BtfKind::Void
+                | BtfKind::Int
+                | BtfKind::Float
+                | BtfKind::Ptr
+                | BtfKind::Array
+                | BtfKind::Fwd
+                | BtfKind::Typedef
+                | BtfKind::Volatile
+                | BtfKind::Const
+                | BtfKind::Restrict
+                | BtfKind::Func
+                | BtfKind::FuncProto
+                | BtfKind::Var
+                | BtfKind::DeclTag
+                | BtfKind::TypeTag => Ok(true),
+            }
+        };
+
+        ensure!(
+            !is_terminal(ty)?,
+            "Tried to print type definition for terminal type"
+        );
+
+        // Process dependent types until there are none left.
+        //
+        // When we hit a terminal, we write out some stuff. A non-terminal adds more types to
+        // the queue.
+        let mut def = String::new();
+        let mut dependent_types = vec![ty];
+        let mut processed = BTreeSet::new();
+        while !dependent_types.is_empty() {
+            let ty = dependent_types.remove(0);
+            if processed.contains(&ty.type_id()) {
+                continue;
+            } else {
+                processed.insert(ty.type_id());
+            }
+
+            if let Ok(t) = types::Composite::try_from(ty) {
+                let packed = self.is_struct_packed(&t)?;
+
+                // fields in the aggregate
+                let mut agg_content: Vec<String> = Vec::new();
+
+                // structs with arrays > 32 length need to impl Default
+                // rather than #[derive(Default)]
+                let mut impl_default: Vec<String> = Vec::new(); // output for impl Default
+                let mut gen_impl_default = false; // whether to output impl Default or use #[derive]
+
+                let mut offset = 0; // In bytes
+                for member in t.iter() {
+                    let member_offset = match member.attr {
+                        MemberAttr::Normal { offset } => offset,
+                        _ => bail!("Struct bitfields not supported"),
+                    };
+
+                    let field_ty = self
+                        .type_by_id::<BtfType>(member.ty)
+                        .unwrap()
+                        .skip_mods_and_typedefs();
+                    if let Some(next_ty_id) = next_type(field_ty)? {
+                        dependent_types.push(next_ty_id);
+                    }
+
+                    // Add padding as necessary
+                    if t.is_struct {
+                        let padding = self.required_padding(
+                            offset,
+                            member_offset as usize / 8,
+                            &self.type_by_id::<BtfType>(member.ty).unwrap(),
+                            packed,
+                        )?;
+
+                        if padding != 0 {
+                            agg_content.push(format!(r#"    __pad_{offset}: [u8; {padding}],"#,));
+
+                            impl_default.push(format!(
+                                r#"            __pad_{offset}: [u8::default(); {padding}]"#,
+                            ));
+                        }
+
+                        if let Some(ft) = self.type_by_id::<types::Array>(field_ty.type_id()) {
+                            if ft.capacity() > 32 {
+                                gen_impl_default = true
+                            }
+                        }
+                    }
+
+                    match self.type_default(field_ty) {
+                        Ok(def) => {
+                            impl_default.push(format!(
+                                r#"            {field_name}: {field_ty_str}"#,
+                                field_name = if let Some(name) = member.name {
+                                    name.to_string_lossy()
+                                } else {
+                                    self.get_type_name_handling_anon_types(&field_ty)
+                                },
+                                field_ty_str = def
+                            ));
+                        }
+                        Err(e) => {
+                            if gen_impl_default || !t.is_struct {
+                                bail!("Could not construct a necessary Default Impl: {}", e);
+                            }
+                        }
+                    };
+
+                    // Set `offset` to end of current var
+                    offset = (member_offset / 8) as usize + self.size_of(field_ty)?;
+
+                    let field_ty_str = self.type_declaration(field_ty)?;
+                    let field_name = if let Some(name) = member.name {
+                        name.to_string_lossy()
+                    } else {
+                        field_ty_str.as_str().into()
+                    };
+
+                    agg_content.push(format!(r#"    pub {field_name}: {field_ty_str},"#));
+                }
+
+                if t.is_struct {
+                    let struct_size = t.size();
+                    let padding = self.required_padding(offset, struct_size, &t, packed)?;
+                    if padding != 0 {
+                        agg_content.push(format!(r#"    __pad_{offset}: [u8; {padding}],"#,));
+                        impl_default.push(format!(
+                            r#"            __pad_{offset}: [u8::default(); {padding}]"#,
+                        ));
+                    }
+                }
+
+                if !gen_impl_default && t.is_struct {
+                    writeln!(def, r#"#[derive(Debug, Default, Copy, Clone)]"#)?;
+                } else if t.is_struct {
+                    writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                } else {
+                    writeln!(def, r#"#[derive(Copy, Clone)]"#)?;
+                }
+
+                let aggregate_type = if t.is_struct { "struct" } else { "union" };
+                let packed_repr = if packed { ", packed" } else { "" };
+
+                writeln!(def, r#"#[repr(C{packed_repr})]"#)?;
+                writeln!(
+                    def,
+                    r#"pub {agg_type} {name} {{"#,
+                    agg_type = aggregate_type,
+                    name = self.get_type_name_handling_anon_types(&t),
+                )?;
+
+                for field in agg_content {
+                    writeln!(def, "{field}")?;
+                }
+                writeln!(def, "}}")?;
+
+                // if required write a Default implementation for this struct
+                if gen_impl_default {
+                    writeln!(
+                        def,
+                        r#"impl Default for {} {{"#,
+                        self.get_type_name_handling_anon_types(&t),
+                    )?;
+                    writeln!(def, r#"    fn default() -> Self {{"#)?;
+                    writeln!(
+                        def,
+                        r#"        {} {{"#,
+                        self.get_type_name_handling_anon_types(&t)
+                    )?;
+                    for impl_def in impl_default {
+                        writeln!(def, r#"{impl_def},"#)?;
+                    }
+                    writeln!(def, r#"        }}"#)?;
+                    writeln!(def, r#"    }}"#)?;
+                    writeln!(def, r#"}}"#)?;
+                } else if !t.is_struct {
+                    // write a Debug implementation for a union
+                    writeln!(
+                        def,
+                        r#"impl std::fmt::Debug for {} {{"#,
+                        self.get_type_name_handling_anon_types(&t),
+                    )?;
+                    writeln!(
+                        def,
+                        r#"    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"#
+                    )?;
+                    writeln!(def, r#"        write!(f, "(???)")"#)?;
+                    writeln!(def, r#"    }}"#)?;
+                    writeln!(def, r#"}}"#)?;
+
+                    // write a Default implementation for a union
+                    writeln!(
+                        def,
+                        r#"impl Default for {} {{"#,
+                        self.get_type_name_handling_anon_types(&t),
+                    )?;
+                    writeln!(def, r#"    fn default() -> Self {{"#)?;
+                    writeln!(
+                        def,
+                        r#"        {} {{"#,
+                        self.get_type_name_handling_anon_types(&t)
+                    )?;
+                    writeln!(def, r#"{},"#, impl_default[0])?;
+                    writeln!(def, r#"        }}"#)?;
+                    writeln!(def, r#"    }}"#)?;
+                    writeln!(def, r#"}}"#)?;
+                }
+            } else if let Ok(t) = types::Enum::try_from(ty) {
+                let repr_size = match t.size() {
+                    1 => "8",
+                    2 => "16",
+                    4 => "32",
+                    8 => "64",
+                    16 => "128",
+                    _ => bail!("Invalid enum size: {}", t.size()),
+                };
+
+                let mut signed = "u";
+                for value in t.iter() {
+                    if value.value < 0 {
+                        signed = "i";
+                        break;
+                    }
+                }
+
+                writeln!(
+                    def,
+                    r#"#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]"#
+                )?;
+                writeln!(def, r#"#[repr({signed}{repr_size})]"#)?;
+                writeln!(
+                    def,
+                    r#"pub enum {name} {{"#,
+                    name = self.get_type_name_handling_anon_types(&t),
+                )?;
+
+                for (i, value) in t.iter().enumerate() {
+                    if i == 0 {
+                        writeln!(def, r#"    #[default]"#)?;
+                    }
+                    writeln!(
+                        def,
+                        r#"    {name} = {value},"#,
+                        name = value.name.unwrap().to_string_lossy(),
+                        value = value.value,
+                    )?;
+                }
+
+                writeln!(def, "}}")?;
+            } else if let Ok(t) = types::DataSec::try_from(ty) {
+                let mut sec_name = match t.name().map(|s| s.to_string_lossy()) {
+                    None => bail!("Datasec name is empty"),
+                    Some(s) if !s.starts_with('.') => bail!("Datasec name is invalid: {s}"),
+                    Some(s) => s.into_owned(),
+                };
+                sec_name.remove(0);
+
+                writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+                writeln!(def, r#"#[repr(C)]"#)?;
+                writeln!(def, r#"pub struct {sec_name} {{"#)?;
+
+                let mut offset: u32 = 0;
+                for datasec_var in t.iter() {
+                    let var = self
+                        .type_by_id::<types::Var>(datasec_var.ty)
+                        .ok_or_else(|| {
+                            anyhow!("BTF is invalid! Datasec var does not point to a var")
+                        })?;
+
+                    if var.linkage() == Linkage::Static {
+                        // do not output Static Var
+                        continue;
+                    }
+
+                    if let Some(next_ty) = next_type(*var)? {
+                        dependent_types.push(next_ty);
+                    }
+
+                    let padding = self.required_padding(
+                        offset as usize,
+                        datasec_var.offset as usize,
+                        &var,
+                        false,
+                    )?;
+                    if padding != 0 {
+                        writeln!(def, r#"    __pad_{offset}: [u8; {padding}],"#)?;
+                    }
+
+                    // Set `offset` to end of current var
+                    offset = datasec_var.offset + datasec_var.size as u32;
+
+                    writeln!(
+                        def,
+                        r#"    pub {var_name}: {var_type},"#,
+                        var_name = var.name().unwrap().to_string_lossy(),
+                        var_type = self.type_declaration(*var)?
+                    )?;
+                }
+
+                writeln!(def, "}}")?;
+            } else {
+                bail!("Invalid type: {:?}", ty.kind());
+            }
+        }
+
+        Ok(def)
     }
 }
