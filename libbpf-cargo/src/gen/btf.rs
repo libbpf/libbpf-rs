@@ -1,8 +1,11 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Write;
+use std::mem::size_of;
 use std::ops::Deref;
 
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
 use libbpf_rs::btf::BtfKind;
@@ -11,6 +14,7 @@ use libbpf_rs::btf::TypeId;
 use libbpf_rs::btf_type_match;
 use libbpf_rs::Btf;
 use libbpf_rs::HasSize;
+use libbpf_rs::ReferencesType;
 
 const ANON_PREFIX: &str = "__anon_";
 
@@ -78,5 +82,80 @@ impl<'s> GenBtf<'s> {
             }
             Some(n) => n.to_string_lossy(),
         }
+    }
+
+    /// Returns the rust-ified type declaration of `ty` in string format.
+    ///
+    /// Rule of thumb is `ty` must be a type a variable can have.
+    ///
+    /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
+    fn type_declaration(&self, ty: BtfType<'s>) -> Result<String> {
+        let ty = ty.skip_mods_and_typedefs();
+
+        let s = btf_type_match!(match ty {
+            BtfKind::Void => "std::ffi::c_void".to_string(),
+            BtfKind::Int(t) => {
+                let width = match (t.bits + 7) / 8 {
+                    1 => "8",
+                    2 => "16",
+                    4 => "32",
+                    8 => "64",
+                    16 => "128",
+                    _ => bail!("Invalid integer width"),
+                };
+
+                match t.encoding {
+                    types::IntEncoding::Signed => format!("i{width}"),
+                    types::IntEncoding::Bool => {
+                        assert!(t.bits as usize == (size_of::<bool>() * 8));
+                        "bool".to_string()
+                    }
+                    types::IntEncoding::Char | types::IntEncoding::None => format!("u{width}"),
+                }
+            }
+            BtfKind::Float(t) => {
+                let width = match t.size() {
+                    2 => bail!("Unsupported float width"),
+                    4 => "32",
+                    8 => "64",
+                    12 => bail!("Unsupported float width"),
+                    16 => bail!("Unsupported float width"),
+                    _ => bail!("Invalid float width"),
+                };
+
+                format!("f{width}")
+            }
+            BtfKind::Ptr(t) => {
+                let pointee_ty = self.type_declaration(t.referenced_type())?;
+
+                format!("*mut {pointee_ty}")
+            }
+            BtfKind::Array(t) => {
+                let val_ty = self.type_declaration(t.contained_type())?;
+
+                format!("[{}; {}]", val_ty, t.capacity())
+            }
+            BtfKind::Struct => self.get_type_name_handling_anon_types(&ty).into_owned(),
+            BtfKind::Union => self.get_type_name_handling_anon_types(&ty).into_owned(),
+            BtfKind::Enum => self.get_type_name_handling_anon_types(&ty).into_owned(),
+            BtfKind::Enum64 => self.get_type_name_handling_anon_types(&ty).into_owned(),
+            //    // The only way a variable references a function is through a function pointer.
+            //    // Return c_void here so the final def will look like `*mut c_void`.
+            //    //
+            //    // It's not like rust code can call a function inside a bpf prog either so we don't
+            //    // really need a full definition. `void *` is totally sufficient for sharing a pointer.
+            BtfKind::Func => "std::ffi::c_void".to_string(),
+            BtfKind::Var(t) => self.type_declaration(t.referenced_type())?,
+            BtfKind::Fwd => bail!("Invalid type: {ty:?}"),
+            BtfKind::FuncProto => bail!("Invalid type: {ty:?}"),
+            BtfKind::DataSec => bail!("Invalid type: {ty:?}"),
+            BtfKind::Typedef => bail!("Invalid type: {ty:?}"),
+            BtfKind::Volatile => bail!("Invalid type: {ty:?}"),
+            BtfKind::Const => bail!("Invalid type: {ty:?}"),
+            BtfKind::Restrict => bail!("Invalid type: {ty:?}"),
+            BtfKind::DeclTag => bail!("Invalid type: {ty:?}"),
+            BtfKind::TypeTag => bail!("Invalid type: {ty:?}"),
+        });
+        Ok(s)
     }
 }
