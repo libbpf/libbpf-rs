@@ -158,4 +158,50 @@ impl<'s> GenBtf<'s> {
         });
         Ok(s)
     }
+
+    /// Returns an expression that evaluates to the Default value
+    /// of a type(typeid) in string form.
+    ///
+    /// To be used when creating a impl Default for a structure
+    ///
+    /// Rule of thumb is `ty` must be a type a variable can have.
+    ///
+    /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
+    fn type_default(&self, ty: BtfType<'s>) -> Result<String> {
+        let ty = ty.skip_mods_and_typedefs();
+
+        Ok(btf_type_match!(match ty {
+            BtfKind::Void => bail!("Invalid type: {ty:?}"),
+            BtfKind::Int => format!("{}::default()", self.type_declaration(ty)?),
+            BtfKind::Float => format!("{}::default()", self.type_declaration(ty)?),
+            BtfKind::Ptr => "std::ptr::null_mut()".to_string(),
+            BtfKind::Array(t) => {
+                format!(
+                    "[{}; {}]",
+                    self.type_default(t.contained_type())
+                        .map_err(|err| anyhow!("in {ty:?}: {err}"))?,
+                    t.capacity()
+                )
+            }
+            BtfKind::Struct =>
+                format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
+            BtfKind::Union =>
+                format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
+            BtfKind::Enum => format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
+            BtfKind::Enum64 =>
+                format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
+            BtfKind::Var(t) =>
+                format!("{}::default()", self.type_declaration(t.referenced_type())?),
+            BtfKind::Func => bail!("Invalid type: {ty:?}"),
+            BtfKind::Fwd => bail!("Invalid type: {ty:?}"),
+            BtfKind::FuncProto => bail!("Invalid type: {ty:?}"),
+            BtfKind::DataSec => bail!("Invalid type: {ty:?}"),
+            BtfKind::Typedef => bail!("Invalid type: {ty:?}"),
+            BtfKind::Volatile => bail!("Invalid type: {ty:?}"),
+            BtfKind::Const => bail!("Invalid type: {ty:?}"),
+            BtfKind::Restrict => bail!("Invalid type: {ty:?}"),
+            BtfKind::DeclTag => bail!("Invalid type: {ty:?}"),
+            BtfKind::TypeTag => bail!("Invalid type: {ty:?}"),
+        }))
+    }
 }
