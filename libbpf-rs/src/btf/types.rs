@@ -409,7 +409,7 @@ gen_concrete_type! {
     btf_array as Array
 }
 
-impl Array<'_> {
+impl<'s> Array<'s> {
     /// The type id of the stored type.
     #[inline]
     pub fn ty(&self) -> TypeId {
@@ -426,6 +426,15 @@ impl Array<'_> {
     #[inline]
     pub fn capacity(&self) -> usize {
         self.ptr.nelems as usize
+    }
+
+    /// The type contained in this array.
+    #[inline]
+    pub fn contained_type(&self) -> BtfType<'s> {
+        self.source
+            .source
+            .type_by_id(self.ty())
+            .expect("arrays should always reference an existing type")
     }
 }
 
