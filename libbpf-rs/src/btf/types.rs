@@ -261,6 +261,9 @@ impl Display for Linkage {
     }
 }
 
+// Void
+gen_fieldless_concrete_type!(Void);
+
 // Int
 
 #[derive(Debug)]

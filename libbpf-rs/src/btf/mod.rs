@@ -43,9 +43,8 @@ use num_enum::TryFromPrimitive;
 #[derive(IntoPrimitive, TryFromPrimitive, Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
 pub enum BtfKind {
-    /// An unknown type kind. Usually an error.
-    #[num_enum(default)]
-    Unknown = 0,
+    /// [Void](types::Void)
+    Void = 0,
     /// [Int](types::Int)
     Int,
     /// [Ptr](types::Ptr)
