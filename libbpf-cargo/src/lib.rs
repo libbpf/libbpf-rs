@@ -69,8 +69,6 @@ use thiserror::Error;
 // libbpf-cargo binary is the primary consumer of the following modules. As such,
 // we do not use all the symbols. Silence any unused code warnings.
 #[allow(dead_code)]
-mod btf;
-#[allow(dead_code)]
 mod build;
 #[allow(dead_code)]
 mod gen;

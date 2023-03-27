@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Switched over to using `libbpf-rs`'s BTF support internally for skeleton
+  generation
+
+
 0.20.0
 ------
 - Fixed mismatch in size of generated types with respect to corresponding C

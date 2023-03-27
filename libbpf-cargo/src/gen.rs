@@ -1,6 +1,7 @@
+mod btf;
+
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::convert::TryInto;
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -20,20 +21,20 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use libbpf_rs::btf::types;
+use libbpf_rs::Btf;
 use memmap2::Mmap;
 
-use crate::btf;
+// use crate::btf;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
+
+use self::btf::GenBtf;
 
 #[repr(transparent)]
 pub(crate) struct BpfObj(ptr::NonNull<libbpf_sys::bpf_object>);
 
 impl BpfObj {
-    pub fn new(object: ptr::NonNull<libbpf_sys::bpf_object>) -> BpfObj {
-        Self(object)
-    }
-
     #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut libbpf_sys::bpf_object {
         self.0.as_ptr()
@@ -393,30 +394,33 @@ fn gen_skel_prog_defs(
 }
 
 fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Result<()> {
-    let btf = match btf::Btf::new(obj_name, object)? {
+    let btf = match Btf::from_raw(obj_name, object)? {
         Some(b) => b,
         None => return Ok(()),
     };
+    let btf = GenBtf::from(btf);
 
-    for (idx, ty) in btf.types().iter().enumerate() {
-        if let btf::BtfType::Datasec(d) = ty {
-            let sec_ident = match canonicalize_internal_map_name(d.name) {
-                Some(n) => n,
-                None => continue,
-            };
+    for ty in btf.type_by_kind::<types::DataSec>() {
+        let name = match ty.name() {
+            Some(s) => s.to_str()?,
+            None => "",
+        };
+        let sec_ident = match canonicalize_internal_map_name(name) {
+            Some(n) => n,
+            None => continue,
+        };
 
-            write!(
-                skel,
-                r#"
+        write!(
+            skel,
+            r#"
                 pub mod {obj_name}_{sec_ident}_types {{
                 "#
-            )?;
+        )?;
 
-            let sec_def = btf.type_definition(idx.try_into().unwrap())?;
-            write!(skel, "{sec_def}")?;
+        let sec_def = btf.type_definition(*ty)?;
+        write!(skel, "{sec_def}")?;
 
-            writeln!(skel, "}}")?;
-        }
+        writeln!(skel, "}}")?;
     }
 
     Ok(())
