@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -10,6 +11,8 @@ use libbpf_rs::btf::TypeId;
 use libbpf_rs::btf_type_match;
 use libbpf_rs::Btf;
 use libbpf_rs::HasSize;
+
+const ANON_PREFIX: &str = "__anon_";
 
 pub(super) struct GenBtf<'s> {
     btf: Btf<'s>,
@@ -63,5 +66,17 @@ impl<'s> GenBtf<'s> {
             BtfKind::DeclTag => bail!("Cannot get size of type_id: {ty:?}"),
             BtfKind::TypeTag => bail!("Cannot get size of type_id: {ty:?}"),
         }))
+    }
+
+    fn get_type_name_handling_anon_types(&self, t: &BtfType<'s>) -> Cow<'s, str> {
+        match t.name() {
+            None => {
+                let mut anon_table = self.anon_types.borrow_mut();
+                let len = anon_table.len() + 1; // use 1 index anon ids for backwards compat
+                let anon_id = anon_table.entry(t.type_id()).or_insert(len);
+                format!("{}{}", ANON_PREFIX, anon_id).into()
+            }
+            Some(n) => n.to_string_lossy(),
+        }
     }
 }
