@@ -184,7 +184,7 @@ impl<'btf> Btf<'btf> {
 
     /// Gets a string at a given offset.
     ///
-    /// Returns `None` when the offset is out of bounds.
+    /// Returns [`None`] when the offset is out of bounds or if the name is empty.
     fn name_at(&self, offset: u32) -> Option<&CStr> {
         let name = unsafe {
             // SAFETY:
@@ -196,7 +196,7 @@ impl<'btf> Btf<'btf> {
                 // SAFETY: a non-null pointer comming from libbpf is always valid
                 CStr::from_ptr(p.as_ptr())
             })
-            .filter(|s| s.to_bytes().is_empty()) // treat empty strings as none
+            .filter(|s| !s.to_bytes().is_empty()) // treat empty strings as none
     }
 
     /// Whether this btf instance has no types.
