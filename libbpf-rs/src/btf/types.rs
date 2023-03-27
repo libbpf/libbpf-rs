@@ -130,11 +130,13 @@ macro_rules! gen_collection_members_concrete_type {
 
         impl<'btf> $name<'btf> {
             /// Whether this type has no members
+            #[inline(always)]
             pub fn is_empty(&self) -> bool {
                 self.members.is_empty()
             }
 
             #[doc = ::core::concat!("How many members this [`", ::core::stringify!($name), "`] has")]
+            #[inline(always)]
             pub fn len(&self) -> usize {
                 self.members.len()
             }
@@ -248,10 +250,12 @@ pub enum MemberAttr {
 }
 
 impl MemberAttr {
+    #[inline(always)]
     fn normal(offset: u32) -> Self {
         Self::Normal { offset }
     }
 
+    #[inline(always)]
     fn bif_field(offset: u32) -> Self {
         Self::BitField {
             size: (offset >> 24) as u8,
@@ -374,21 +378,25 @@ gen_concrete_type!(btf_array as Array);
 
 impl<'s> Array<'s> {
     /// The type id of the stored type.
+    #[inline(always)]
     pub fn ty(&self) -> TypeId {
         self.ptr.type_.into()
     }
 
     /// The type of index used.
+    #[inline(always)]
     pub fn index_ty(&self) -> TypeId {
         self.ptr.index_type.into()
     }
 
     /// The capacity of the array.
+    #[inline(always)]
     pub fn capacity(&self) -> usize {
         self.ptr.nelems as usize
     }
 
     /// The type contained in this array.
+    #[inline(always)]
     pub fn contained_type(&self) -> BtfType<'s> {
         self.source
             .source
@@ -598,6 +606,7 @@ gen_fieldless_concrete_type!(Func with ReferencesType);
 
 impl Func<'_> {
     /// This function's linkage.
+    #[inline(always)]
     pub fn linkage(&self) -> Linkage {
         self.source.vlen().try_into().unwrap_or(Linkage::Unknown)
     }
@@ -626,6 +635,7 @@ gen_concrete_type!(btf_var as Var with ReferencesType);
 
 impl Var<'_> {
     /// The kind of linkage this variable has.
+    #[inline(always)]
     pub fn linkage(&self) -> Linkage {
         self.ptr.linkage.try_into().unwrap_or(Linkage::Unknown)
     }
@@ -664,6 +674,7 @@ impl DeclTag<'_> {
     /// The component index is present only when the tag points to a struct/union member or a
     /// function argument.
     /// And component_idx indicates which member or argument, this decl tag refers to.
+    #[inline(always)]
     pub fn component_index(&self) -> Option<u32> {
         self.ptr.component_idx.try_into().ok()
     }

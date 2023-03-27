@@ -382,29 +382,35 @@ impl Debug for BtfType<'_> {
 
 impl<'btf> BtfType<'btf> {
     /// This type's type id.
+    #[inline(always)]
     pub fn type_id(&self) -> TypeId {
         self.type_id
     }
 
     /// This type's name.
+    #[inline(always)]
     pub fn name(&'_ self) -> Option<&'btf CStr> {
         self.name
     }
 
     /// This type's kind.
+    #[inline(always)]
     pub fn kind(&self) -> BtfKind {
         ((self.ty.info >> 24) & 0x1f).try_into().unwrap()
     }
 
+    #[inline(always)]
     fn vlen(&self) -> u32 {
         self.ty.info & 0xffff
     }
 
+    #[inline(always)]
     fn kind_flag(&self) -> bool {
         (self.ty.info >> 31) == 1
     }
 
     /// Whether this represent's a modifier.
+    #[inline(always)]
     pub fn is_mod(&self) -> bool {
         matches!(
             self.kind(),
@@ -413,16 +419,19 @@ impl<'btf> BtfType<'btf> {
     }
 
     /// Whether this represents any kind of enum.
+    #[inline(always)]
     pub fn is_any_enum(&self) -> bool {
         matches!(self.kind(), BtfKind::Enum | BtfKind::Enum64)
     }
 
     /// Whether this btf type is core compatible to `other`.
+    #[inline(always)]
     pub fn is_core_compat(&self, other: &Self) -> bool {
         self.kind() == other.kind() || (self.is_any_enum() && other.is_any_enum())
     }
 
     /// Whether this type represents a composite type (struct/union).
+    #[inline(always)]
     pub fn is_composite(&self) -> bool {
         matches!(self.kind(), BtfKind::Struct | BtfKind::Union)
     }
@@ -439,6 +448,7 @@ impl<'btf> BtfType<'btf> {
     ///   - [`BtfKind::Union`],
     ///   - [`BtfKind::DataSec`],
     ///   - [`BtfKind::Enum64`],
+    #[inline(always)]
     unsafe fn size_unchecked(&self) -> u32 {
         unsafe { self.ty.__bindgen_anon_1.size }
     }
@@ -457,6 +467,7 @@ impl<'btf> BtfType<'btf> {
     ///     - [`BtfKind::Var`],
     ///     - [`BtfKind::DeclTag`],
     ///     - [`BtfKind::TypeTag`],
+    #[inline(always)]
     unsafe fn referenced_type_id_unchecked(&self) -> TypeId {
         unsafe { self.ty.__bindgen_anon_1.type_ }.into()
     }
@@ -589,6 +600,7 @@ impl<'btf> BtfType<'btf> {
 /// [`BtfKind`] can implement this trait.
 pub unsafe trait HasSize<'btf>: Deref<Target = BtfType<'btf>> + sealed::Sealed {
     /// The size of the described type.
+    #[inline(always)]
     fn size(&self) -> usize {
         unsafe { self.size_unchecked() as usize }
     }
@@ -606,11 +618,13 @@ pub unsafe trait ReferencesType<'btf>:
     Deref<Target = BtfType<'btf>> + sealed::Sealed
 {
     /// The refered type.
+    #[inline(always)]
     fn referenced_type_id(&self) -> TypeId {
         unsafe { self.referenced_type_id_unchecked() }
     }
 
     /// The referenced type.
+    #[inline(always)]
     fn referenced_type(&self) -> BtfType<'btf> {
         self.source.type_by_id(self.referenced_type_id()).unwrap()
     }
