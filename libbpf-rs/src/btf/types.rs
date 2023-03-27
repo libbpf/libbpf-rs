@@ -485,6 +485,103 @@ gen_collection_concrete_type! {
     }
 }
 
+/// A Composite type, which can be one of a [`Struct`] or a [`Union`].
+///
+/// Sometimes it's not usefull to distinguish them, in that case, one can use this
+/// type to inspect any of them.
+#[derive(Debug)]
+pub struct Composite<'btf> {
+    source: BtfType<'btf>,
+    /// Whether this type is a struct.
+    pub is_struct: bool,
+    members: &'btf [libbpf_sys::btf_member],
+}
+
+impl<'btf> From<Struct<'btf>> for Composite<'btf> {
+    fn from(s: Struct<'btf>) -> Self {
+        Self {
+            source: s.source,
+            is_struct: true,
+            members: s.members,
+        }
+    }
+}
+
+impl<'btf> From<Union<'btf>> for Composite<'btf> {
+    fn from(s: Union<'btf>) -> Self {
+        Self {
+            source: s.source,
+            is_struct: false,
+            members: s.members,
+        }
+    }
+}
+
+impl<'btf> TryFrom<BtfType<'btf>> for Composite<'btf> {
+    type Error = BtfType<'btf>;
+
+    fn try_from(t: BtfType<'btf>) -> Result<Self, Self::Error> {
+        Struct::try_from(t)
+            .map(Self::from)
+            .or_else(|_| Union::try_from(t).map(Self::from))
+    }
+}
+
+impl<'btf> TryFrom<Composite<'btf>> for Struct<'btf> {
+    type Error = Composite<'btf>;
+
+    fn try_from(value: Composite<'btf>) -> Result<Self, Self::Error> {
+        if value.is_struct {
+            Ok(Self {
+                source: value.source,
+                members: value.members,
+            })
+        } else {
+            Err(value)
+        }
+    }
+}
+
+impl<'btf> TryFrom<Composite<'btf>> for Union<'btf> {
+    type Error = Composite<'btf>;
+
+    fn try_from(value: Composite<'btf>) -> Result<Self, Self::Error> {
+        if !value.is_struct {
+            Ok(Self {
+                source: value.source,
+                members: value.members,
+            })
+        } else {
+            Err(value)
+        }
+    }
+}
+
+// Composite
+gen_collection_members_concrete_type! {
+    btf_member as Composite with HasSize;
+
+    /// A member of a [Struct]
+    struct CompositeMember<'btf> {
+        /// The member's name
+        pub name: Option<&'btf CStr>,
+        /// The member's type
+        pub ty: TypeId,
+        /// If this member is a bifield, these are it's attributes.
+        pub attr: MemberAttr
+    }
+
+    |btf, member, kflag| CompositeMember {
+        name: btf.name_at(member.name_off),
+        ty: member.type_.into(),
+        attr: if kflag {
+            MemberAttr::bif_field(member.offset)
+        } else {
+            MemberAttr::normal(member.offset)
+        },
+    }
+}
+
 // Enum
 gen_collection_concrete_type! {
     /// An Enum of at most 32 bits.
