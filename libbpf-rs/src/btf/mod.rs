@@ -107,6 +107,13 @@ impl Display for TypeId {
     }
 }
 
+#[derive(Debug)]
+enum DropPolicy {
+    Nothing,
+    SelfPtrOnly,
+    ObjPtr(*mut libbpf_sys::bpf_object),
+}
+
 /// The btf information of a bpf object.
 ///
 /// The lifetime bound protects against this object outliving its source. This can happen when it
@@ -116,7 +123,7 @@ impl Display for TypeId {
 #[derive(Debug)]
 pub struct Btf<'source> {
     ptr: NonNull<libbpf_sys::btf>,
-    needs_drop: bool,
+    drop_policy: DropPolicy,
     _marker: PhantomData<&'source ()>,
 }
 
@@ -135,7 +142,7 @@ impl Btf<'static> {
         })?;
         Ok(Self {
             ptr,
-            needs_drop: true,
+            drop_policy: DropPolicy::SelfPtrOnly,
             _marker: PhantomData,
         })
     }
@@ -162,7 +169,7 @@ impl Btf<'static> {
 
         Ok(Self {
             ptr,
-            needs_drop: true,
+            drop_policy: DropPolicy::SelfPtrOnly,
             _marker: PhantomData,
         })
     }
@@ -170,15 +177,51 @@ impl Btf<'static> {
 
 impl<'btf> Btf<'btf> {
     pub(crate) fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Self> {
-        let ptr = create_bpf_entity_checked_opt(|| unsafe {
+        Self::from_bpf_object_raw(obj)
+            .and_then(|opt| opt.ok_or_else(|| Error::Internal("btf not found".into())))
+    }
+
+    fn from_bpf_object_raw(obj: *const libbpf_sys::bpf_object) -> Result<Option<Self>> {
+        create_bpf_entity_checked_opt(|| unsafe {
             // SAFETY: the obj pointer is valid since it's behind a reference.
             libbpf_sys::bpf_object__btf(obj)
-        })?
-        .ok_or_else(|| Error::Internal("btf not found".into()))?;
-        Ok(Self {
-            ptr,
-            needs_drop: false,
-            _marker: PhantomData,
+        })
+        .map(|opt| {
+            opt.map(|ptr| Self {
+                ptr,
+                drop_policy: DropPolicy::Nothing,
+                _marker: PhantomData,
+            })
+        })
+    }
+
+    /// From raw bytes comming from an object file.
+    pub fn from_raw(name: &'btf str, object_file: &'btf [u8]) -> Result<Option<Self>> {
+        let cname = CString::new(name)
+            .map_err(|_| Error::InvalidInput(format!("invalid path {name:?}, has null bytes")))
+            .unwrap();
+
+        let obj_opts = libbpf_sys::bpf_object_open_opts {
+            sz: std::mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            object_name: cname.as_ptr(),
+            ..Default::default()
+        };
+
+        let mut bpf_obj = create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_object__open_mem(
+                object_file.as_ptr() as *const c_void,
+                object_file.len() as std::os::raw::c_ulong,
+                &obj_opts,
+            )
+        })?;
+
+        let bpf_obj = unsafe { bpf_obj.as_mut() };
+
+        Self::from_bpf_object_raw(bpf_obj).map(|opt| {
+            opt.map(|this| Self {
+                drop_policy: DropPolicy::ObjPtr(bpf_obj),
+                ..this
+            })
         })
     }
 
@@ -278,10 +321,20 @@ impl<'btf> Btf<'btf> {
 
 impl Drop for Btf<'_> {
     fn drop(&mut self) {
-        if self.needs_drop {
-            unsafe {
-                // SAFETY: the btf pointer is valid.
-                libbpf_sys::btf__free(self.ptr.as_ptr())
+        match self.drop_policy {
+            DropPolicy::Nothing => {}
+            DropPolicy::SelfPtrOnly => {
+                unsafe {
+                    // SAFETY: the btf pointer is valid.
+                    libbpf_sys::btf__free(self.ptr.as_ptr())
+                }
+            }
+            DropPolicy::ObjPtr(obj) => {
+                unsafe {
+                    // SAFETY: the bpf obj pointer is valid.
+                    // closing the obj automatically frees the associated btf object.
+                    libbpf_sys::bpf_object__close(obj)
+                }
             }
         }
     }
