@@ -5,7 +5,6 @@ use clap::AppSettings;
 use clap::Parser;
 use clap::Subcommand;
 
-mod btf;
 #[doc(hidden)]
 mod build;
 mod gen;
