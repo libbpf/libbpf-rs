@@ -693,3 +693,74 @@ gen_collection_concrete_type! {
         },
     }
 }
+
+/// A macro that allows matching on the type of a [`BtfType`] as if it was an enum.
+///
+/// Each pattern can be of two types.
+///
+/// ```no_run
+/// use libbpf_rs::btf::BtfType;
+/// use libbpf_rs::btf_type_match;
+///
+/// # fn do_something_with_an_int(i: libbpf_rs::btf::types::Int) -> &'static str { "" }
+///
+/// let ty: BtfType;
+/// # ty = todo!();
+/// btf_type_match!(match ty {
+///     BtfKind::Int(i) => do_something_with_an_int(i),
+///     BtfKind::Struct => "it's a struct",
+///     // other fields
+///     # // we have to include these here otherwise the tests fail saying this doesn't compile
+///     # BtfKind::Void => "",
+///     # BtfKind::Int => "",
+///     # BtfKind::Ptr => "",
+///     # BtfKind::Array => "",
+///     # BtfKind::Struct => "",
+///     # BtfKind::Union => "",
+///     # BtfKind::Enum => "",
+///     # BtfKind::Fwd => "",
+///     # BtfKind::Typedef => "",
+///     # BtfKind::Volatile => "",
+///     # BtfKind::Const => "",
+///     # BtfKind::Restrict => "",
+///     # BtfKind::Func => "",
+///     # BtfKind::FuncProto => "",
+///     # BtfKind::Var => "",
+///     # BtfKind::DataSec => "",
+///     # BtfKind::Float => "",
+///     # BtfKind::DeclTag => "",
+///     # BtfKind::TypeTag => "",
+///     # BtfKind::Enum64 => "",
+/// });
+/// ```
+///
+/// Variable Binding.
+///
+/// ```compile_fail
+///     BtfKind::Int(i) => { /* we can use i here and it will be an `Int` */ }
+/// ```
+///
+/// NonBinding.
+/// ```compile_fail
+///     BtfKind::Int => {
+///         /* we don't have access to the variable, but we know the scrutinee is an Int */
+///     }
+/// ```
+#[macro_export]
+macro_rules! btf_type_match {
+    (
+        match $ty:ident {
+            $(BtfKind::$name:ident $(($var:ident))? => $action:expr $(,)?)+
+        }
+    ) => {{
+        let ty: $crate::btf::BtfType = $ty;
+        match ty.kind() {
+            $(
+                $crate::btf::BtfKind::$name => {
+                    $(let $var = $crate::btf::types::$name::try_from(ty).unwrap();)*
+                    $action
+                }
+            )+
+        }
+    }}
+}
