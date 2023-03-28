@@ -17,7 +17,10 @@ libbpf-rs = "0.20"
 
 See [full documentation here](https://docs.rs/libbpf-rs).
 
-This crate adheres to Cargo's [semantic versioning rules][cargo-semver].
+This crate adheres to Cargo's [semantic versioning rules][cargo-semver]. At a
+minimum, it builds with the most recent Rust stable release minus five minor
+versions ("N - 5"). E.g., assuming the most recent Rust stable is `1.68`, the
+crate is guaranteed to build with `1.63` and higher.
 
 ## Contributing
 
