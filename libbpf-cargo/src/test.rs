@@ -1485,18 +1485,13 @@ enum Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Foo {
+    #[default]
     Zero = 0,
     One = 1,
     seven = 7,
-}
-#[allow(clippy::derivable_impls)]
-impl Default for Foo {
-    fn default() -> Self {
-        Foo::Zero
-    }
 }
 "#;
 
@@ -2083,16 +2078,11 @@ struct Foo foo;
 pub struct Foo {
     pub test: __anon_1,
 }
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 #[repr(u32)]
 pub enum __anon_1 {
+    #[default]
     FOO = 1,
-}
-#[allow(clippy::derivable_impls)]
-impl Default for __anon_1 {
-    fn default() -> Self {
-        __anon_1::FOO
-    }
 }
 "#;
 
