@@ -968,11 +968,18 @@ impl Btf {
                         }
                     }
 
-                    writeln!(def, r#"#[derive(Debug, Copy, Clone, PartialEq, Eq)]"#)?;
+                    writeln!(
+                        def,
+                        r#"#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]"#
+                    )?;
                     writeln!(def, r#"#[repr({signed}{repr_size})]"#)?;
                     writeln!(def, r#"pub enum {name} {{"#, name = t.name)?;
 
-                    for value in &t.values {
+                    for (i, value) in t.values.iter().enumerate() {
+                        if i == 0 {
+                            writeln!(def, r#"    #[default]"#)?;
+                        }
+
                         writeln!(
                             def,
                             r#"    {name} = {value},"#,
@@ -982,23 +989,6 @@ impl Btf {
                     }
 
                     writeln!(def, "}}")?;
-
-                    // write an impl Default for this enum
-                    if !t.values.is_empty() {
-                        // TODO: remove #[allow(clippy::derivable_impls)]
-                        //       once minimum rust at 1.62+
-                        writeln!(def, r#"#[allow(clippy::derivable_impls)]"#)?;
-                        writeln!(def, r#"impl Default for {name} {{"#, name = t.name)?;
-                        writeln!(def, r#"    fn default() -> Self {{"#)?;
-                        writeln!(
-                            def,
-                            r#"        {name}::{value}"#,
-                            name = t.name,
-                            value = t.values[0].name
-                        )?;
-                        writeln!(def, r#"    }}"#)?;
-                        writeln!(def, r#"}}"#)?;
-                    }
                 }
                 BtfType::Datasec(t) => {
                     let mut sec_name = t.name.to_string();
