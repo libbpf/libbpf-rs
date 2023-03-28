@@ -23,7 +23,7 @@ use libbpf_rs::ReferencesType;
 
 const ANON_PREFIX: &str = "__anon_";
 
-pub(super) struct GenBtf<'s> {
+pub struct GenBtf<'s> {
     btf: Btf<'s>,
     // We use refcell here because the design of this type unfortunately causes a lot of borrowing
     // issues. (Taking BtfType as an argument of a &mut self method requires having multiple
@@ -94,7 +94,7 @@ impl<'s> GenBtf<'s> {
     /// Rule of thumb is `ty` must be a type a variable can have.
     ///
     /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
-    fn type_declaration(&self, ty: BtfType<'s>) -> Result<String> {
+    pub fn type_declaration(&self, ty: BtfType<'s>) -> Result<String> {
         let ty = ty.skip_mods_and_typedefs();
 
         let s = btf_type_match!(match ty {
