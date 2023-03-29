@@ -1,7 +1,9 @@
 use nix::errno;
 use nix::errno::Errno::EEXIST;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::Error;
+use crate::Result;
 
 /// See [`libbpf_sys::bpf_tc_attach_point`].
 pub type TcAttachPoint = libbpf_sys::bpf_tc_attach_point;
@@ -34,7 +36,7 @@ pub const TC_H_MIN_MASK: u32 = 0x0000FFFF;
 ///
 /// The BPF TC subsystem has different control paths from other BPF programs.
 /// As such a BPF program using a TC Hook (`SEC("classifier")` or `SEC("tc")`) must be operated
-/// more independently from other [`Program`]s.
+/// more independently from other [`Program`][crate::Program]s.
 ///
 /// This struct exposes operations to create, attach, query and destroy
 /// a bpf_tc_hook using the TC subsystem.
@@ -51,7 +53,8 @@ pub struct TcHook {
 }
 
 impl TcHook {
-    /// Create a new [`TcHook`] given the file descriptor of the loaded `SEC("tc")` [`Program`]
+    /// Create a new [`TcHook`] given the file descriptor of the loaded
+    /// `SEC("tc")` [`Program`][crate::Program].
     pub fn new(fd: i32) -> Self {
         let mut tc_hook = TcHook {
             hook: libbpf_sys::bpf_tc_hook::default(),
@@ -245,7 +248,7 @@ impl TcHookBuilder {
     }
 
     /// Set the initial file descriptor for created hooks
-    /// this fd should come from a loaded [`Program`]
+    /// this fd should come from a loaded [`Program`][crate::Program]
     pub fn fd(&mut self, fd: i32) -> &mut Self {
         self.fd = fd;
         self

@@ -3,7 +3,10 @@ use nix::libc;
 use nix::unistd;
 use std::io;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::Error;
+use crate::Link;
+use crate::Result;
 
 /// Represents a bpf iterator for reading kernel data structures. This requires
 /// Linux 5.8.

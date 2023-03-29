@@ -14,7 +14,10 @@ use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
-use crate::*;
+use crate::util;
+use crate::Error;
+use crate::Link;
+use crate::Result;
 
 /// Represents a parsed but not yet loaded BPF map.
 ///
@@ -237,7 +240,7 @@ impl Map {
     /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
     fn percpu_buffer_size(&self) -> Result<usize> {
         let aligned_val_size = self.percpu_aligned_value_size();
-        let ncpu = util::num_possible_cpus()?;
+        let ncpu = crate::num_possible_cpus()?;
         Ok(ncpu * aligned_val_size)
     }
 
@@ -438,8 +441,8 @@ impl Map {
     /// Update an element in an per-cpu map with one value per cpu.
     ///
     /// `key` must have exactly [`Map::key_size()`] elements. `value` must have one
-    /// element per cpu (see [`num_possible_cpus()`]) with exactly [`Map::value_size()`]
-    /// elements each.
+    /// element per cpu (see [`num_possible_cpus`][crate::num_possible_cpus])
+    /// with exactly [`Map::value_size()`] elements each.
     ///
     /// For per-cpu maps, [`Map::update_percpu()`] must be used.
     pub fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
@@ -450,11 +453,11 @@ impl Map {
             )));
         }
 
-        if values.len() != num_possible_cpus()? {
+        if values.len() != crate::num_possible_cpus()? {
             return Err(Error::InvalidInput(format!(
                 "number of values {} != number of cpus {}",
                 values.len(),
-                num_possible_cpus()?
+                crate::num_possible_cpus()?
             )));
         };
 

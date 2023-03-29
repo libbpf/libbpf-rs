@@ -1,4 +1,4 @@
-use crate::*;
+use crate::libbpf_sys;
 use lazy_static::lazy_static;
 use std::io::Write;
 use std::io::{self};
@@ -77,7 +77,7 @@ extern "C" fn outer_print_cb(
 /// * `callback` - Either a tuple `(min_level, function)` where `min_level` is the lowest priority
 ///   log message to handle, or `None` to disable all printing.
 ///
-/// This overrides (and is overridden by) [`ObjectBuilder::debug`]
+/// This overrides (and is overridden by) [`ObjectBuilder::debug`][crate::ObjectBuilder::debug]
 ///
 /// # Examples
 ///

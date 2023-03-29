@@ -9,7 +9,11 @@ use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::util;
+use crate::Error;
+use crate::Link;
+use crate::Result;
 
 /// Options to optionally be provided when attaching to a uprobe.
 #[derive(Clone, Debug, Default)]
@@ -260,7 +264,7 @@ pub enum ProgramType {
     Lsm,
     SkLookup,
     Syscall,
-    /// See [`MapType::Unknown`]
+    /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
 }
 
@@ -344,7 +348,7 @@ pub enum ProgramAttachType {
     SkReuseportSelect,
     SkReuseportSelectOrMigrate,
     PerfEvent,
-    /// See [`MapType::Unknown`]
+    /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
 }
 

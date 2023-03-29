@@ -7,8 +7,17 @@ use std::path::Path;
 use std::ptr::NonNull;
 use std::ptr::{self};
 
+use crate::libbpf_sys;
+use crate::set_print;
 use crate::util;
-use crate::*;
+use crate::Btf;
+use crate::Error;
+use crate::Map;
+use crate::OpenMap;
+use crate::OpenProgram;
+use crate::PrintLevel;
+use crate::Program;
+use crate::Result;
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
 #[derive(Default, Debug)]

@@ -3,7 +3,10 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::util;
+use crate::Program;
+use crate::Result;
 
 /// Represents an attached [`Program`].
 ///

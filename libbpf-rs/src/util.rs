@@ -4,7 +4,9 @@ use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::NonNull;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::Error;
+use crate::Result;
 
 pub fn str_to_cstring(s: &str) -> Result<CString> {
     CString::new(s).map_err(|e| Error::InvalidInput(e.to_string()))

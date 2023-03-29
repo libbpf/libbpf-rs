@@ -69,6 +69,7 @@
 #![warn(
     missing_debug_implementations,
     missing_docs,
+    clippy::wildcard_imports,
     rustdoc::broken_intra_doc_links
 )]
 #![deny(unsafe_op_in_unsafe_fn)]
