@@ -49,6 +49,13 @@ the change does and why it is needed.
 Follow-up changes to the submitted commit should be amended to the commit,
 not pushed out as a separate commit.
 
+- **Document `unsafe` blocks.**
+Please make sure that each `unsafe` block your code requires is accompanied by a
+`SAFETY` comment. Similar for `unsafe` functions. These comments should state
+why required invariants are upheld at the callsite or what invariants exist,
+respectively. Please refer to the [Standard Library Developer's
+Guide](https://std-dev-guide.rust-lang.org/documentation/safety-comments.html#safety-comments).
+
 - **Accompany your code with tests.**
 Please make an effort to add regression tests for bug fixes and unit or
 integration tests for newly added functionality.
