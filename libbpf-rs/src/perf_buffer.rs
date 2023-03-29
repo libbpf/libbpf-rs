@@ -7,7 +7,12 @@ use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::util;
+use crate::Error;
+use crate::Map;
+use crate::MapType;
+use crate::Result;
 
 // Workaround for `trait_alias`
 // (https://doc.rust-lang.org/unstable-book/language-features/trait-alias.html)
@@ -174,7 +179,7 @@ impl Debug for PerfBufferBuilder<'_, '_> {
 }
 
 /// Represents a special kind of [`Map`]. Typically used to transfer data between
-/// [`Program`]s and userspace.
+/// [`Program`][crate::Program]s and userspace.
 #[derive(Debug)]
 pub struct PerfBuffer<'b> {
     ptr: NonNull<libbpf_sys::perf_buffer>,

@@ -18,8 +18,10 @@ use libbpf_sys::bpf_object_skeleton;
 use libbpf_sys::bpf_prog_skeleton;
 use libbpf_sys::bpf_program;
 
+use crate::libbpf_sys;
 use crate::util;
-use crate::*;
+use crate::Error;
+use crate::Result;
 
 #[derive(Debug)]
 struct MapSkelConfig {

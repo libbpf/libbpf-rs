@@ -9,7 +9,12 @@ use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::util;
+use crate::Error;
+use crate::Map;
+use crate::MapType;
+use crate::Result;
 
 type Cb<'a> = Box<dyn FnMut(&[u8]) -> i32 + 'a>;
 
@@ -38,8 +43,8 @@ impl Debug for RingBufferCallback<'_> {
 /// Builds [`RingBuffer`] instances.
 ///
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
-/// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
-/// preferred over the `perf buffer`.
+/// [`Program`][crate::Program]s and userspace. As of Linux 5.8, the `ringbuf`
+/// map is now preferred over the `perf buffer`.
 #[derive(Debug, Default)]
 pub struct RingBufferBuilder<'a> {
     fd_callbacks: Vec<(i32, RingBufferCallback<'a>)>,
@@ -134,8 +139,8 @@ impl<'a> RingBufferBuilder<'a> {
 /// The canonical interface for managing a collection of `ringbuf` maps.
 ///
 /// `ringbuf`s are a special kind of [`Map`], used to transfer data between
-/// [`Program`]s and userspace.  As of Linux 5.8, the `ringbuf` map is now
-/// preferred over the `perf buffer`.
+/// [`Program`][crate::Program]s and userspace. As of Linux 5.8, the `ringbuf`
+/// map is now preferred over the `perf buffer`.
 #[derive(Debug)]
 pub struct RingBuffer<'a> {
     ptr: NonNull<libbpf_sys::ring_buffer>,

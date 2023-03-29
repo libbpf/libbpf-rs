@@ -20,7 +20,11 @@ use std::time::Duration;
 use nix::errno;
 use nix::unistd::close;
 
-use crate::*;
+use crate::libbpf_sys;
+use crate::util;
+use crate::MapType;
+use crate::ProgramAttachType;
+use crate::ProgramType;
 
 macro_rules! gen_info_impl {
     // This magic here allows us to embed doc comments into macro expansions
