@@ -218,13 +218,24 @@ impl<'btf> Btf<'btf> {
         })?;
 
         let bpf_obj = unsafe { bpf_obj.as_mut() };
-
-        Self::from_bpf_object_raw(bpf_obj).map(|opt| {
-            opt.map(|this| Self {
+        match Self::from_bpf_object_raw(bpf_obj) {
+            Ok(Some(this)) => Ok(Some(Self {
                 drop_policy: DropPolicy::ObjPtr(bpf_obj),
                 ..this
-            })
-        })
+            })),
+            x => {
+                unsafe {
+                    // SAFETY:
+                    // The obj pointer is valid, create_bpf_entity_checked has checked it.
+                    //
+                    // We free it here, otherwise it will be a memory leak as this codepath
+                    // (Ok(None) | Err(e)) does not reference it anymore and as such it can be
+                    // dropped.
+                    libbpf_sys::bpf_object__close(bpf_obj)
+                };
+                x
+            }
+        }
     }
 
     /// Gets a string at a given offset.
