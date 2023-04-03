@@ -97,6 +97,36 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v2.2.0
       - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --locked --package capable --features=static
+  build-aarch64:
+    name: Build for aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Add apt sources for arm64
+        run: |
+          dpkg --add-architecture arm64
+          release=$(. /etc/os-release && echo "$UBUNTU_CODENAME")
+          sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          printf 'deb [arch=arm64] http://ports.ubuntu.com/ %s main restricted\n' \
+              $release $release-updates $release-security \
+              >> /etc/apt/sources.list
+        shell: sudo sh -e {0}
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: aarch64-unknown-linux-gnu
+          override: true
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libelf-dev:arm64 zlib1g-dev:arm64 gcc-aarch64-linux-gnu
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Build
+        env:
+          CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
+          RUSTFLAGS: -C linker=/usr/bin/aarch64-linux-gnu-gcc
+        run: cargo build --lib
   clippy:
     name: Lint with clippy
     runs-on: ubuntu-latest
