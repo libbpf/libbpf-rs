@@ -216,7 +216,7 @@ impl<'s> GenBtf<'s> {
             return Ok(false);
         }
 
-        let align = composite.alignment().unwrap();
+        let align = composite.alignment()?;
 
         // Size of a struct has to be a multiple of its alignment
         if composite.size() % align != 0 {
@@ -228,8 +228,7 @@ impl<'s> GenBtf<'s> {
             let align = self
                 .type_by_id::<BtfType>(m.ty)
                 .unwrap()
-                .alignment()
-                .unwrap();
+                .alignment()?;
 
             if let MemberAttr::Normal { offset } = m.attr {
                 if offset as usize % (align.get() * 8) != 0 {
@@ -265,7 +264,7 @@ impl<'s> GenBtf<'s> {
             // arch. Worst case is on a 64-bit arch the compiler will generate
             // extra padding. The final layout will still be identical to what is
             // described by BTF.
-            let a = ty.alignment().unwrap();
+            let a = ty.alignment()?;
 
             if a.get() > 4 {
                 NonZeroUsize::new(4).unwrap()
