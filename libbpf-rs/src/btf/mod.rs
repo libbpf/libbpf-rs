@@ -22,6 +22,7 @@ use std::fmt::Display;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::Deref;
+use std::os::raw::c_char;
 use std::os::raw::c_void;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::FromRawFd;
@@ -236,7 +237,7 @@ impl<'btf> Btf<'btf> {
             // Assuming that btf is a valid pointer, this is always okay to call.
             libbpf_sys::btf__name_by_offset(self.ptr.as_ptr(), offset)
         };
-        NonNull::new(name as *mut i8)
+        NonNull::new(name as *mut c_char)
             .map(|p| unsafe {
                 // SAFETY: a non-null pointer comming from libbpf is always valid
                 CStr::from_ptr(p.as_ptr())
