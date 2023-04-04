@@ -265,11 +265,16 @@ pub fn build_single(
     check_clang(debug, &clang, skip_clang_version_checks)?;
     let header_parent_dir = tempdir()?;
     let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())?;
-    let compiler_options = if let Some(dir) = &header_dir {
+    let mut compiler_options = if let Some(dir) = &header_dir {
         format!("{} -I{}", options, dir.to_str().unwrap())
     } else {
         options.to_string()
     };
+
+    // Explicitly disable stack protector logic, which doesn't work with
+    // BPF. See https://lkml.org/lkml/2020/2/21/1000.
+    compiler_options += " -fno-stack-protector";
+
     compile_one(debug, source, out, &clang, &compiler_options)?;
 
     Ok(())

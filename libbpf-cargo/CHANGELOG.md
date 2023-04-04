@@ -2,6 +2,8 @@ Unreleased
 ----------
 - Switched over to using `libbpf-rs`'s BTF support internally for skeleton
   generation
+- Fixed potential build failures on systems defaulting to stack
+  protector usage by passing `-fno-stack-protector` to `clang`
 
 
 0.20.0
