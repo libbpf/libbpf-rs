@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::mem::size_of;
+use std::num::NonZeroUsize;
 use std::ops::Deref;
 
 use anyhow::anyhow;
@@ -55,7 +56,7 @@ impl<'s> GenBtf<'s> {
 
         Ok(btf_type_match!(match ty {
             BtfKind::Int(t) => ((t.bits + 7) / 8).into(),
-            BtfKind::Ptr => self.ptr_size()?,
+            BtfKind::Ptr => self.ptr_size()?.get(),
             BtfKind::Array(t) => t.capacity() * self.size_of(t.contained_type())?,
             BtfKind::Struct(t) => t.size(),
             BtfKind::Union(t) => t.size(),
@@ -216,11 +217,6 @@ impl<'s> GenBtf<'s> {
         }
 
         let align = composite.alignment().unwrap();
-        ensure!(
-            align != 0,
-            "Failed to get alignment of struct_type_id: {}",
-            composite.type_id(),
-        );
 
         // Size of a struct has to be a multiple of its alignment
         if composite.size() % align != 0 {
@@ -234,10 +230,9 @@ impl<'s> GenBtf<'s> {
                 .unwrap()
                 .alignment()
                 .unwrap();
-            ensure!(align != 0, "Failed to get alignment of m.type_id: {}", m.ty);
 
             if let MemberAttr::Normal { offset } = m.attr {
-                if offset as usize % (align * 8) != 0 {
+                if offset as usize % (align.get() * 8) != 0 {
                     return Ok(true);
                 }
             }
@@ -264,24 +259,23 @@ impl<'s> GenBtf<'s> {
         );
 
         let align = if packed {
-            1
+            NonZeroUsize::new(1).unwrap()
         } else {
             // Assume 32-bit alignment in case we're generating code for 32-bit
             // arch. Worst case is on a 64-bit arch the compiler will generate
             // extra padding. The final layout will still be identical to what is
             // described by BTF.
             let a = ty.alignment().unwrap();
-            ensure!(a != 0, "Failed to get alignment of type_id: {ty:?}");
 
-            if a > 4 {
-                4
+            if a.get() > 4 {
+                NonZeroUsize::new(4).unwrap()
             } else {
                 a
             }
         };
 
         // If we aren't aligning to the natural offset, padding needs to be inserted
-        let aligned_offset = (current_offset + align - 1) / align * align;
+        let aligned_offset = (current_offset + align.get() - 1) / align * align.get();
         if aligned_offset == required_offset {
             Ok(0)
         } else {
