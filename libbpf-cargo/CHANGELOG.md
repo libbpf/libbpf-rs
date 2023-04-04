@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Fixed potential build failures on systems defaulting to stack
+  protector usage by passing `-fno-stack-protector` to `clang`
+
+
 0.20.0
 ------
 - Fixed mismatch in size of generated types with respect to corresponding C
