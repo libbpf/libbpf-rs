@@ -21,6 +21,7 @@ use std::fmt::Debug;
 use std::fmt::Display;
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::num::NonZeroUsize;
 use std::ops::Deref;
 use std::os::raw::c_void;
 use std::os::unix::prelude::AsRawFd;
@@ -269,13 +270,10 @@ impl<'btf> Btf<'btf> {
     }
 
     /// The btf pointer size.
-    pub fn ptr_size(&self) -> Result<usize> {
+    pub fn ptr_size(&self) -> Result<NonZeroUsize> {
         let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) as usize };
-        if sz == 0 {
-            Err(Error::Internal("could not determine pointer size".into()))
-        } else {
-            Ok(sz)
-        }
+        NonZeroUsize::new(sz)
+            .ok_or_else(|| Error::Internal("could not determine pointer size".into()))
     }
 
     /// Find a btf type by name
@@ -535,14 +533,15 @@ impl<'btf> BtfType<'btf> {
     /// will be skipped until the underlying type (with an alignment) is found.
     ///
     /// See [skip_mods_and_typedefs](Self::skip_mods_and_typedefs).
-    pub fn alignment(&self) -> Result<usize> {
+    pub fn alignment(&self) -> Result<NonZeroUsize> {
         let skipped = self.skip_mods_and_typedefs();
         match skipped.kind() {
             BtfKind::Int => {
+                let ptr_size = skipped.source.ptr_size()?;
                 let int = types::Int::try_from(skipped).unwrap();
-                Ok(usize::min(
-                    skipped.source.ptr_size()?,
-                    ((int.bits + 7) / 8).into(),
+                Ok(Ord::min(
+                    ptr_size,
+                    NonZeroUsize::new(((int.bits + 7) / 8).into()).unwrap(),
                 ))
             }
             BtfKind::Ptr => skipped.source.ptr_size(),
@@ -552,9 +551,9 @@ impl<'btf> BtfType<'btf> {
                 .alignment(),
             BtfKind::Struct | BtfKind::Union => {
                 let c = Composite::try_from(skipped).unwrap();
-                let mut align = 1usize;
+                let mut align = NonZeroUsize::new(1usize).unwrap();
                 for m in c.iter() {
-                    align = usize::max(
+                    align = Ord::max(
                         align,
                         skipped
                             .source
@@ -567,9 +566,10 @@ impl<'btf> BtfType<'btf> {
                 Ok(align)
             }
             BtfKind::Enum | BtfKind::Enum64 | BtfKind::Float => {
-                Ok(usize::min(skipped.source.ptr_size()?, unsafe {
+                Ok(Ord::min(skipped.source.ptr_size()?, unsafe {
                     // SAFETY: We checked the type.
-                    skipped.size_unchecked() as usize
+                    // Unwrap: Enums in C have always size >= 1
+                    NonZeroUsize::new_unchecked(skipped.size_unchecked() as usize)
                 }))
             }
             BtfKind::Var => {
@@ -579,10 +579,11 @@ impl<'btf> BtfType<'btf> {
                     .unwrap()
                     .alignment()
             }
-            BtfKind::DataSec => Ok(unsafe {
+            BtfKind::DataSec => unsafe {
                 // SAFETY: We checked the type.
-                skipped.size_unchecked() as usize
-            }),
+                NonZeroUsize::new(skipped.size_unchecked() as usize)
+            }
+            .ok_or_else(|| Error::Internal("DataSec with size of 0".into())),
             BtfKind::Void
             | BtfKind::Volatile
             | BtfKind::Const
