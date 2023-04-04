@@ -236,9 +236,9 @@ impl<'btf> Btf<'btf> {
             // Assuming that btf is a valid pointer, this is always okay to call.
             libbpf_sys::btf__name_by_offset(self.ptr.as_ptr(), offset)
         };
-        NonNull::new(name as *mut i8)
+        NonNull::new(name as *mut _)
             .map(|p| unsafe {
-                // SAFETY: a non-null pointer comming from libbpf is always valid
+                // SAFETY: a non-null pointer coming from libbpf is always valid
                 CStr::from_ptr(p.as_ptr())
             })
             .filter(|s| !s.to_bytes().is_empty()) // treat empty strings as none
