@@ -387,6 +387,45 @@ fn test_object_map_pin() {
 }
 
 #[test]
+fn test_object_loading_pinned_map_from_path() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let map = obj.map_mut("start").expect("failed to find map 'start'");
+
+    let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
+
+    map.pin(path).expect("pinning map failed");
+
+    let pinned_map = Map::from_pinned_path(path).expect("loading a map from a path failed");
+    map.unpin(path).expect("unpinning map failed");
+
+    assert_eq!(map.name(), pinned_map.name());
+    assert_eq!(
+        map.info().unwrap().info.id,
+        pinned_map.info().unwrap().info.id
+    );
+}
+
+#[test]
+fn test_object_loading_loaded_map_from_id() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let map = obj.map_mut("start").expect("failed to find map 'start'");
+
+    let id = map.info().expect("to get info from map 'start'").info.id;
+
+    let map_by_id = Map::from_map_id(id).expect("map to load from id");
+
+    assert_eq!(map.name(), map_by_id.name());
+    assert_eq!(
+        map.info().unwrap().info.id,
+        map_by_id.info().unwrap().info.id
+    );
+}
+
+#[test]
 fn test_object_programs() {
     bump_rlimit_mlock();
 
