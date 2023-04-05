@@ -208,6 +208,16 @@ impl Map {
         })
     }
 
+    /// Fetch extra map information
+    pub fn info(&self) -> Result<MapInfo> {
+        MapInfo::new(unsafe {
+            // SAFETY
+            // This BorrowedFd instance doesn't live longer than this scope, so it satisfies its
+            // invariants.
+            BorrowedFd::borrow_raw(self.fd)
+        })
+    }
+
     /// Retrieve the `Map`'s name.
     pub fn name(&self) -> &str {
         &self.name
