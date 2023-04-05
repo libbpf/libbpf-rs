@@ -1,10 +1,12 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::fmt::Debug;
 use std::mem;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::BorrowedFd;
+use std::os::unix::prelude::OsStrExt;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
@@ -21,6 +23,7 @@ use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
 use crate::util;
+use crate::util::parse_ret_i32;
 use crate::Error;
 use crate::Link;
 use crate::Result;
@@ -206,6 +209,55 @@ impl Map {
             key_size,
             value_size,
             ptr: Some(ptr),
+        })
+    }
+
+    /// Open a previously pinned map from its path.
+    ///
+    /// # Panics
+    /// If the path contains null bytes.
+    pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        fn inner(path: &Path) -> Result<Map> {
+            let mut p = path.as_os_str().as_bytes().to_vec();
+            if p.last() != Some(&0) {
+                p.push(0);
+            }
+            let p = CString::from_vec_with_nul(p).expect("path contained null bytes");
+            let fd = parse_ret_i32(unsafe {
+                // SAFETY
+                // p is never null since we allocated ourselves.
+                libbpf_sys::bpf_obj_get(p.as_ptr())
+            })?;
+            Map::from_fd(fd)
+        }
+
+        inner(path.as_ref())
+    }
+
+    /// Open a loaded map from its map id.
+    pub fn from_map_id(id: u32) -> Result<Self> {
+        parse_ret_i32(unsafe {
+            // SAFETY
+            // This function is always safe to call.
+            libbpf_sys::bpf_map_get_fd_by_id(id)
+        })
+        .and_then(Self::from_fd)
+    }
+
+    fn from_fd(fd: i32) -> Result<Self> {
+        let info = MapInfo::new(unsafe {
+            // SAFETY
+            // This BorrowedFd instance doesn't live longer than this scope, so it satisfies its
+            // invariants.
+            BorrowedFd::borrow_raw(fd)
+        })?;
+        Ok(Self {
+            fd,
+            name: info.name()?.into(),
+            ty: info.map_type(),
+            key_size: info.info.key_size,
+            value_size: info.info.value_size,
+            ptr: None,
         })
     }
 
