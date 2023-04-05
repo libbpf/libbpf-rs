@@ -166,7 +166,7 @@ impl OpenMap {
 pub struct Map {
     fd: i32,
     name: String,
-    ty: libbpf_sys::bpf_map_type,
+    ty: MapType,
     key_size: u32,
     value_size: u32,
 
@@ -194,7 +194,8 @@ impl Map {
             return Err(Error::System(-fd));
         }
 
-        let ty = unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) };
+        let ty = MapType::try_from(unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) })
+            .unwrap_or(MapType::Unknown);
         let key_size = unsafe { libbpf_sys::bpf_map__key_size(ptr.as_ptr()) };
         let value_size = unsafe { libbpf_sys::bpf_map__value_size(ptr.as_ptr()) };
 
@@ -230,10 +231,7 @@ impl Map {
 
     /// Retrieve type of the map.
     pub fn map_type(&self) -> MapType {
-        match MapType::try_from(self.ty) {
-            Ok(t) => t,
-            Err(_) => MapType::Unknown,
-        }
+        self.ty
     }
 
     /// Key size in bytes
@@ -564,7 +562,6 @@ impl Map {
             None => (util::str_to_cstring("")?, "".to_string()),
         };
 
-        let map_type = map_type.into();
         let map_name_ptr = {
             if map_name_str.as_bytes().is_empty() {
                 null()
@@ -575,7 +572,7 @@ impl Map {
 
         let fd = unsafe {
             libbpf_sys::bpf_map_create(
-                map_type,
+                map_type.into(),
                 map_name_ptr,
                 key_size,
                 value_size,
