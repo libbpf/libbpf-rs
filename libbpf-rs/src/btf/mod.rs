@@ -198,7 +198,7 @@ impl<'btf> Btf<'btf> {
         })
     }
 
-    /// From raw bytes comming from an object file.
+    /// From raw bytes coming from an object file.
     pub fn from_raw(name: &'btf str, object_file: &'btf [u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)
             .map_err(|_| Error::InvalidInput(format!("invalid path {name:?}, has null bytes")))
