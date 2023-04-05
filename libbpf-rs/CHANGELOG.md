@@ -1,5 +1,8 @@
 Unreleased
 ----------
+- Added `Map` constructors from pinned paths and from map id.
+- Added `Map::info` to `Map` to make it easier to derive `MapInfo` from a `Map`
+  instance.
 - Added bindings for BTF via newly introduced `btf` module
 - Added `Map::as_libbpf_bpf_map_ptr` and `Object::as_libbpf_bpf_object_ptr`
   accessors
