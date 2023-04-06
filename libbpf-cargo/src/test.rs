@@ -2253,3 +2253,32 @@ double d = 12.15;
         btf.type_declaration(d).expect("Failed to generate d decl")
     );
 }
+
+#[test]
+fn test_btf_dump_enum64() {
+    let prog_text = r#"
+enum LARGE_ENUM {
+	LARGE_ENUM_VALUE = (0xfffffULL << 32),
+};
+
+struct mystruct {
+	enum LARGE_ENUM e;
+};
+
+const struct mystruct *mystruct_ptr = 0;
+"#;
+
+    let btf = build_btf_prog(prog_text);
+    let type_id = find_type_in_btf!(btf, Enum64, "LARGE_ENUM");
+    let type_ = btf.type_by_id(type_id).expect("Failed to lookup enum64");
+    assert!(type_.kind() == btf::BtfKind::Enum64);
+    match type_ {
+        btf::BtfType::Enum64(e) => {
+            assert!(e.name == "LARGE_ENUM");
+            assert!(e.values.len() == 1);
+            assert!(e.values[0].name == "LARGE_ENUM_VALUE");
+            assert!(e.values[0].value == u64::from(0xfffffu32) << 32);
+        }
+        _ => panic!("wrong BTF type"),
+    }
+}
