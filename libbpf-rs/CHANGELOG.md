@@ -8,6 +8,7 @@ Unreleased
   - Added `Map::info` to `Map` to make it easier to derive `MapInfo` from a
     `Map` instance
 - Added `set_log_level`, `log_level`, and `autoload` methods to `OpenProgram`
+- Remove deprecated `Link::get_fd` method
 - Bumped minimum Rust version to `1.63`
 
 
