@@ -22,6 +22,10 @@ minimum, it builds with the most recent Rust stable release minus five minor
 versions ("N - 5"). E.g., assuming the most recent Rust stable is `1.68`, the
 crate is guaranteed to build with `1.63` and higher.
 
+Please note that the generated skeleton files, while guaranteed to be source
+code compatible according to aforementioned versioning rules, are not guaranteed
+to be character identical between releases (including patch releases).
+
 ## Contributing
 
 We welcome all contributions! Please see the [contributor's
