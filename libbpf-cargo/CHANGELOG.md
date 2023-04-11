@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.20.1
+------
 - Switched over to using `libbpf-rs`'s BTF support internally for skeleton
   generation
 - Fixed potential build failures on systems defaulting to stack
