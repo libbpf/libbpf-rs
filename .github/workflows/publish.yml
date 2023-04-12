@@ -39,7 +39,7 @@ jobs:
         toolchain: stable
         override: true
     - name: Dry-run package creation
-      run: cargo package --no-verify
+      run: cargo package --package libbpf-rs --package libbpf-cargo --locked --no-verify
     - name: Create git tag
       env:
         version: ${{ needs.version.outputs.version }}
