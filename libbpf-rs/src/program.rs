@@ -783,6 +783,31 @@ impl Program {
         )
     }
 
+    /// Attach this program to a
+    /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
+    /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
+    pub fn attach_iter(&mut self, map_fd: BorrowedFd) -> Result<Link> {
+        util::create_bpf_entity_checked(|| unsafe {
+            let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
+            linkinfo.map.map_fd = map_fd.as_raw_fd() as u32;
+            let attach_opt = libbpf_sys::bpf_iter_attach_opts {
+                link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
+                link_info_len: std::mem::size_of::<libbpf_sys::bpf_iter_link_info>() as u32,
+                sz: std::mem::size_of::<libbpf_sys::bpf_iter_attach_opts>() as u64,
+                ..Default::default()
+            };
+
+            libbpf_sys::bpf_program__attach_iter(
+                self.ptr.as_ptr(),
+                &attach_opt as *const libbpf_sys::bpf_iter_attach_opts,
+            )
+        })
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
+    }
+
     /// Returns the number of instructions that form the program.
     ///
     /// Please see note in [`OpenProgram::insn_cnt`].
