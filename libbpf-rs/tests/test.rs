@@ -791,6 +791,57 @@ fn test_object_task_iter() {
 }
 
 #[test]
+fn test_object_map_iter() {
+    bump_rlimit_mlock();
+
+    // Create a map for iteration test.
+    let opts = libbpf_sys::bpf_map_create_opts {
+        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
+        ..Default::default()
+    };
+    let map = Map::create(
+        MapType::Hash,
+        Some("mymap_test_object_map_iter"),
+        4,
+        8,
+        8,
+        &opts,
+    )
+    .expect("failed to create map");
+
+    // Insert 3 elements.
+    for i in 0..3 {
+        let key = i32::to_ne_bytes(i);
+        // We can change i to larger for more robust test, that's why we use a and b.
+        let val = [&key[..], &[0_u8; 4]].concat();
+        map.update(&key, val.as_slice(), MapFlags::empty())
+            .expect("failed to write");
+    }
+
+    let mut obj = get_test_object("mapiter.bpf.o");
+    let prog = obj.prog_mut("map_iter").expect("Failed to find program");
+    let link = prog
+        .attach_iter(map.fd())
+        .expect("Failed to attach map iter prog");
+    let mut iter = Iter::new(&link).expect("Failed to create map iterator");
+
+    let mut buf = Vec::new();
+    let bytes_read = iter
+        .read_to_end(&mut buf)
+        .expect("Failed to read from iterator");
+
+    assert!(bytes_read > 0);
+    assert_eq!(bytes_read % std::mem::size_of::<u32>(), 0);
+    // Convert buf to &[u32]
+    let buf =
+        plain::slice_from_bytes::<u32>(buf.as_slice()).expect("Input slice cannot satisfy length");
+    assert!(buf.contains(&0));
+    assert!(buf.contains(&1));
+    assert!(buf.contains(&2));
+}
+
+#[test]
 fn test_object_map_create_and_pin() {
     bump_rlimit_mlock();
 
