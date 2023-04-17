@@ -4,9 +4,13 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt::Debug;
 use std::mem;
-use std::os::unix::prelude::AsRawFd;
-use std::os::unix::prelude::BorrowedFd;
-use std::os::unix::prelude::OsStrExt;
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::AsFd;
+use std::os::unix::io::AsRawFd;
+use std::os::unix::io::BorrowedFd;
+use std::os::unix::io::FromRawFd;
+use std::os::unix::io::OwnedFd;
+use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::ptr;
 use std::ptr::null;
@@ -115,7 +119,7 @@ impl OpenMap {
     }
 
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
-        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner.fd()) };
+        unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner.fd().as_raw_fd()) };
     }
 
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
@@ -161,13 +165,46 @@ impl OpenMap {
     }
 }
 
+#[derive(Debug)]
+enum MapFd {
+    Owned(OwnedFd),
+    Borrowed(RawFd),
+}
+
+impl AsFd for MapFd {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        match self {
+            Self::Owned(o) => o.as_fd(),
+            Self::Borrowed(fd) => unsafe {
+                // SAFETY
+                // This filedescriptor is open because of two invariants:
+                // - This variant is only constructed in `Map::new`, which is the entry point for
+                // when the map doesn't own the descriptor
+                // - That method is crate private and called only by the `Object` which has its own
+                // invariant that it outlives every `Map` it owns and cleans then up when dropped,
+                // thus this fd must be live.
+                BorrowedFd::borrow_raw(*fd)
+            },
+        }
+    }
+}
+
+impl AsRawFd for MapFd {
+    fn as_raw_fd(&self) -> RawFd {
+        match self {
+            Self::Owned(o) => o.as_raw_fd(),
+            Self::Borrowed(fd) => *fd,
+        }
+    }
+}
+
 /// Represents a created map.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 pub struct Map {
-    fd: i32,
+    fd: MapFd,
     name: String,
     ty: MapType,
     key_size: u32,
@@ -203,7 +240,7 @@ impl Map {
         let value_size = unsafe { libbpf_sys::bpf_map__value_size(ptr.as_ptr()) };
 
         Ok(Map {
-            fd,
+            fd: MapFd::Borrowed(fd),
             name,
             ty,
             key_size,
@@ -224,7 +261,12 @@ impl Map {
                 // p is never null since we allocated ourselves.
                 libbpf_sys::bpf_obj_get(p.as_ptr())
             })?;
-            Map::from_fd(fd)
+            Map::from_fd(unsafe {
+                // SAFETY
+                // A file descriptor coming from the bpf_obj_get function is always suitable for
+                // ownership and can be cleaned up with close.
+                OwnedFd::from_raw_fd(fd)
+            })
         }
 
         inner(path.as_ref())
@@ -237,18 +279,19 @@ impl Map {
             // This function is always safe to call.
             libbpf_sys::bpf_map_get_fd_by_id(id)
         })
+        .map(|fd| unsafe {
+            // SAFETY
+            // A file descriptor coming from the bpf_map_get_fd_by_id function is always suitable
+            // for ownership and can be cleaned up with close.
+            OwnedFd::from_raw_fd(fd)
+        })
         .and_then(Self::from_fd)
     }
 
-    fn from_fd(fd: i32) -> Result<Self> {
-        let info = MapInfo::new(unsafe {
-            // SAFETY
-            // This BorrowedFd instance doesn't live longer than this scope, so it satisfies its
-            // invariants.
-            BorrowedFd::borrow_raw(fd)
-        })?;
+    fn from_fd(fd: OwnedFd) -> Result<Self> {
+        let info = MapInfo::new(fd.as_fd())?;
         Ok(Self {
-            fd,
+            fd: MapFd::Owned(fd),
             name: info.name()?.into(),
             ty: info.map_type(),
             key_size: info.info.key_size,
@@ -259,12 +302,7 @@ impl Map {
 
     /// Fetch extra map information
     pub fn info(&self) -> Result<MapInfo> {
-        MapInfo::new(unsafe {
-            // SAFETY
-            // This BorrowedFd instance doesn't live longer than this scope, so it satisfies its
-            // invariants.
-            BorrowedFd::borrow_raw(self.fd)
-        })
+        MapInfo::new(self.fd.as_fd())
     }
 
     /// Retrieve the `Map`'s name.
@@ -273,8 +311,8 @@ impl Map {
     }
 
     /// Returns a file descriptor to the underlying map.
-    pub fn fd(&self) -> i32 {
-        self.fd
+    pub fn fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
     }
 
     /// Retrieve type of the map.
@@ -314,7 +352,7 @@ impl Map {
 
         let ret = match self.ptr {
             Some(ptr) => unsafe { libbpf_sys::bpf_map__pin(ptr.as_ptr(), path_ptr) },
-            None => unsafe { libbpf_sys::bpf_obj_pin(self.fd, path_ptr) },
+            None => unsafe { libbpf_sys::bpf_obj_pin(self.fd.as_raw_fd(), path_ptr) },
         };
 
         util::parse_ret(ret)
@@ -396,7 +434,7 @@ impl Map {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
-                self.fd,
+                self.fd.as_raw_fd(),
                 key.as_ptr() as *const c_void,
                 out.as_mut_ptr() as *mut c_void,
                 flags.bits,
@@ -430,8 +468,9 @@ impl Map {
             )));
         };
 
-        let ret =
-            unsafe { libbpf_sys::bpf_map_delete_elem(self.fd, key.as_ptr() as *const c_void) };
+        let ret = unsafe {
+            libbpf_sys::bpf_map_delete_elem(self.fd.as_raw_fd(), key.as_ptr() as *const c_void)
+        };
         util::parse_ret(ret)
     }
 
@@ -454,7 +493,7 @@ impl Map {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_and_delete_elem(
-                self.fd,
+                self.fd.as_raw_fd(),
                 key.as_ptr() as *const c_void,
                 out.as_mut_ptr() as *mut c_void,
             )
@@ -560,7 +599,7 @@ impl Map {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_update_elem(
-                self.fd,
+                self.fd.as_raw_fd(),
                 key.as_ptr() as *const c_void,
                 value.as_ptr() as *const c_void,
                 flags.bits,
@@ -577,7 +616,7 @@ impl Map {
     /// immutable from user space until its destruction. However, read and write
     /// permissions for BPF programs to the map remain unchanged.
     pub fn freeze(&self) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map_freeze(self.fd) };
+        let ret = unsafe { libbpf_sys::bpf_map_freeze(self.fd.as_raw_fd()) };
 
         util::parse_ret(ret)
     }
@@ -634,7 +673,12 @@ impl Map {
         }
 
         Ok(Map {
-            fd,
+            fd: MapFd::Owned(unsafe {
+                // SAFETY
+                // A file descriptor coming from the bpf_map_create function is always suitable for
+                // ownership and can be cleaned up with close.
+                OwnedFd::from_raw_fd(fd)
+            }),
             name: map_name,
             ty: map_type,
             key_size,
@@ -673,6 +717,25 @@ impl Map {
     /// Retrieve the underlying [`libbpf_sys::bpf_map`].
     pub fn as_libbpf_bpf_map_ptr(&self) -> Option<NonNull<libbpf_sys::bpf_map>> {
         self.ptr
+    }
+}
+
+impl From<Map> for OwnedFd {
+    fn from(map: Map) -> Self {
+        match map.fd {
+            MapFd::Owned(o) => o,
+            MapFd::Borrowed(_) => unreachable!(
+                "it shouldn't be possible to have an owned map that doesn't own its fd"
+            ),
+        }
+    }
+}
+
+impl TryFrom<OwnedFd> for Map {
+    type Error = Error;
+
+    fn try_from(fd: OwnedFd) -> Result<Self> {
+        Map::from_fd(fd)
     }
 }
 
@@ -785,7 +848,11 @@ impl<'a> Iterator for MapKeyIter<'a> {
         let prev = self.prev.as_ref().map_or(ptr::null(), |p| p.as_ptr());
 
         let ret = unsafe {
-            libbpf_sys::bpf_map_get_next_key(self.map.fd(), prev as _, self.next.as_mut_ptr() as _)
+            libbpf_sys::bpf_map_get_next_key(
+                self.map.fd().as_raw_fd(),
+                prev as _,
+                self.next.as_mut_ptr() as _,
+            )
         };
         if ret != 0 {
             None
@@ -890,8 +957,7 @@ mod tests {
         };
 
         let map = Map::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
-        let fd = unsafe { BorrowedFd::borrow_raw(map.fd()) };
-        let map_info = MapInfo::new(fd).unwrap();
+        let map_info = MapInfo::new(map.fd()).unwrap();
         let name_received = map_info.name().unwrap();
         assert_eq!(name_received, "simple_map");
         assert_eq!(map_info.map_type(), MapType::Hash);

@@ -5,6 +5,8 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::ops::Deref as _;
 use std::os::raw::c_ulong;
+use std::os::unix::prelude::AsRawFd;
+use std::os::unix::prelude::BorrowedFd;
 use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
@@ -47,7 +49,7 @@ impl Debug for RingBufferCallback<'_> {
 /// map is now preferred over the `perf buffer`.
 #[derive(Debug, Default)]
 pub struct RingBufferBuilder<'a> {
-    fd_callbacks: Vec<(i32, RingBufferCallback<'a>)>,
+    fd_callbacks: Vec<(BorrowedFd<'a>, RingBufferCallback<'a>)>,
 }
 
 impl<'a> RingBufferBuilder<'a> {
@@ -66,7 +68,7 @@ impl<'a> RingBufferBuilder<'a> {
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
-    pub fn add<NewF>(&mut self, map: &Map, callback: NewF) -> Result<&mut Self>
+    pub fn add<NewF>(&mut self, map: &'a Map, callback: NewF) -> Result<&mut Self>
     where
         NewF: FnMut(&[u8]) -> i32 + 'a,
     {
@@ -91,7 +93,7 @@ impl<'a> RingBufferBuilder<'a> {
                     // Allocate a new ringbuf manager and add a ringbuf to it
                     ptr = Some(util::create_bpf_entity_checked(|| unsafe {
                         libbpf_sys::ring_buffer__new(
-                            fd,
+                            fd.as_raw_fd(),
                             c_sample_cb,
                             sample_cb_ptr as *mut _,
                             std::ptr::null_mut(),
@@ -103,7 +105,7 @@ impl<'a> RingBufferBuilder<'a> {
                     let err = unsafe {
                         libbpf_sys::ring_buffer__add(
                             ptr.as_ptr(),
-                            fd,
+                            fd.as_raw_fd(),
                             c_sample_cb,
                             sample_cb_ptr as *mut _,
                         )

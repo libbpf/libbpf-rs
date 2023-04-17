@@ -1,3 +1,12 @@
+Unreleased
+------
+- Fixed issue where instances of `Map` created or opened without going through
+  `Object` would leak file descriptors
+- Made `Map::fd` return `BorrowedFd` instead of `RawFd`
+- Made `RingBufferBuilder::add` enforce that `self` cannot outlive the maps
+  passed into it
+
+
 0.20.1
 ------
 - Added bindings for BTF via newly introduced `btf` module
