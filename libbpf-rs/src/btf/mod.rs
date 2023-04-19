@@ -133,21 +133,20 @@ pub struct Btf<'source> {
 impl Btf<'static> {
     /// Load the btf information from an ELF file.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = {
-            let mut v = path.as_ref().as_os_str().as_bytes().to_vec();
-            v.push(0);
-            CString::from_vec_with_nul(v).map_err(|_| {
-                Error::InvalidInput(format!("invalid path {:?}, has null bytes", path.as_ref()))
-            })?
-        };
-        let ptr = create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::btf__parse_elf(path.as_ptr(), std::ptr::null_mut())
-        })?;
-        Ok(Self {
-            ptr,
-            drop_policy: DropPolicy::SelfPtrOnly,
-            _marker: PhantomData,
-        })
+        fn inner(path: &Path) -> Result<Btf<'static>> {
+            let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+                Error::InvalidInput(format!("invalid path {:?}, has null bytes", path))
+            })?;
+            let ptr = create_bpf_entity_checked(|| unsafe {
+                libbpf_sys::btf__parse_elf(path.as_ptr(), std::ptr::null_mut())
+            })?;
+            Ok(Btf {
+                ptr,
+                drop_policy: DropPolicy::SelfPtrOnly,
+                _marker: PhantomData,
+            })
+        }
+        inner(path.as_ref())
     }
 
     /// Load the btf information of an bpf object from a program id.
