@@ -218,11 +218,7 @@ impl Map {
     /// If the path contains null bytes.
     pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         fn inner(path: &Path) -> Result<Map> {
-            let mut p = path.as_os_str().as_bytes().to_vec();
-            if p.last() != Some(&0) {
-                p.push(0);
-            }
-            let p = CString::from_vec_with_nul(p).expect("path contained null bytes");
+            let p = CString::new(path.as_os_str().as_bytes()).expect("path contained null bytes");
             let fd = parse_ret_i32(unsafe {
                 // SAFETY
                 // p is never null since we allocated ourselves.
