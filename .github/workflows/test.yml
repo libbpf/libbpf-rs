@@ -137,8 +137,12 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
-          components: clippy
+          # TODO: Move back to `stable` once we are past 1.69
+          # See:
+          # https://github.com/clap-rs/clap/issues/4849
+          # https://github.com/rust-lang/rust-clippy/issues/10421
+          toolchain: 1.68.2
+          components: clippy,rustfmt
           override: true
       - uses: Swatinem/rust-cache@v2.2.0
       - run: cargo clippy --locked --no-deps --all-targets --tests -- -D warnings
