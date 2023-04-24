@@ -135,7 +135,7 @@ impl Btf<'static> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         fn inner(path: &Path) -> Result<Btf<'static>> {
             let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
-                Error::InvalidInput(format!("invalid path {:?}, has null bytes", path))
+                Error::InvalidInput(format!("invalid path {path:?}, has null bytes"))
             })?;
             let ptr = create_bpf_entity_checked(|| unsafe {
                 libbpf_sys::btf__parse_elf(path.as_ptr(), std::ptr::null_mut())
