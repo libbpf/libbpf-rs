@@ -474,6 +474,43 @@ impl Map {
         util::parse_ret(ret)
     }
 
+    /// Deletes many elements in batch mode from the map.
+    ///
+    /// `keys` must have exactly [`Map::key_size()` * count] elements.
+    pub fn delete_batch(
+        &self,
+        keys: &[u8],
+        count: u32,
+        elem_flags: MapFlags,
+        flags: MapFlags,
+    ) -> Result<()> {
+        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
+            return Err(Error::InvalidInput(format!(
+                "batch key_size {} != {} * {}",
+                keys.len(),
+                self.key_size(),
+                count
+            )));
+        };
+
+        let opts = libbpf_sys::bpf_map_batch_opts {
+            sz: std::mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as u64,
+            elem_flags: elem_flags.bits,
+            flags: flags.bits,
+        };
+
+        let mut count = count;
+        let ret = unsafe {
+            libbpf_sys::bpf_map_delete_batch(
+                self.fd.as_raw_fd(),
+                keys.as_ptr() as *const c_void,
+                (&mut count) as *mut u32,
+                &opts as *const libbpf_sys::bpf_map_batch_opts,
+            )
+        };
+        util::parse_ret(ret)
+    }
+
     /// Same as [`Map::lookup()`] except this also deletes the key from the map.
     ///
     /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
