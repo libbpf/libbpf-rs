@@ -174,6 +174,51 @@ fn test_object_map_key_value_size() {
 }
 
 #[test]
+fn test_object_map_delete_batch() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = obj.map_mut("start").expect("failed to find map");
+
+    assert!(start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::ANY)
+        .is_ok());
+    assert!(start
+        .update(&[2, 2, 3, 4], &[2, 2, 3, 4, 5, 6, 7, 8], MapFlags::ANY)
+        .is_ok());
+    assert!(start
+        .update(&[3, 2, 3, 4], &[3, 2, 3, 4, 5, 6, 7, 8], MapFlags::ANY)
+        .is_ok());
+    assert!(start
+        .update(&[4, 2, 3, 4], &[4, 2, 3, 4, 5, 6, 7, 8], MapFlags::ANY)
+        .is_ok());
+
+    // Delete 1 incomplete key.
+    assert!(start
+        .delete_batch(&[4, 2, 3], 1, MapFlags::empty(), MapFlags::empty())
+        .is_err());
+    // Delete keys with wrong count.
+    assert!(start
+        .delete_batch(&[4, 2, 3, 4], 2, MapFlags::empty(), MapFlags::empty())
+        .is_err());
+    // Delete 1 key successfully.
+    assert!(start
+        .delete_batch(&[4, 2, 3, 4], 1, MapFlags::empty(), MapFlags::empty())
+        .is_ok());
+    // Delete left 3 keys.
+    assert!(start
+        .delete_batch(
+            &[1, 2, 3, 4, 2, 2, 3, 4, 3, 2, 3, 4],
+            3,
+            MapFlags::empty(),
+            MapFlags::empty()
+        )
+        .is_ok());
+    // Map should be empty now.
+    assert!(start.keys().collect::<Vec<_>>().is_empty())
+}
+
+#[test]
 fn test_object_percpu_lookup() {
     bump_rlimit_mlock();
 
