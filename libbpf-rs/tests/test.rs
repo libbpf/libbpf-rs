@@ -174,6 +174,55 @@ fn test_object_map_key_value_size() {
 }
 
 #[test]
+fn test_object_map_delete_batch() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = obj.map_mut("start").expect("failed to find map");
+
+    let key1 = 1u32.to_ne_bytes();
+    assert!(start
+        .update(&key1, &9999u64.to_ne_bytes(), MapFlags::ANY)
+        .is_ok());
+    let key2 = 2u32.to_ne_bytes();
+    assert!(start
+        .update(&key2, &42u64.to_ne_bytes(), MapFlags::ANY)
+        .is_ok());
+    let key3 = 3u32.to_ne_bytes();
+    assert!(start
+        .update(&key3, &18u64.to_ne_bytes(), MapFlags::ANY)
+        .is_ok());
+    let key4 = 4u32.to_ne_bytes();
+    assert!(start
+        .update(&key4, &1337u64.to_ne_bytes(), MapFlags::ANY)
+        .is_ok());
+
+    // Delete 1 incomplete key.
+    assert!(start
+        .delete_batch(&[0, 0, 1], 1, MapFlags::empty(), MapFlags::empty())
+        .is_err());
+    // Delete keys with wrong count.
+    assert!(start
+        .delete_batch(&key4, 2, MapFlags::empty(), MapFlags::empty())
+        .is_err());
+    // Delete 1 key successfully.
+    assert!(start
+        .delete_batch(&key4, 1, MapFlags::empty(), MapFlags::empty())
+        .is_ok());
+    // Delete remaining 3 keys.
+    let keys = key1
+        .into_iter()
+        .chain(key2.into_iter())
+        .chain(key3.into_iter())
+        .collect::<Vec<_>>();
+    assert!(start
+        .delete_batch(&keys, 3, MapFlags::empty(), MapFlags::empty())
+        .is_ok());
+    // Map should be empty now.
+    assert!(start.keys().collect::<Vec<_>>().is_empty())
+}
+
+#[test]
 fn test_object_percpu_lookup() {
     bump_rlimit_mlock();
 
