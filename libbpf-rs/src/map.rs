@@ -704,10 +704,7 @@ impl Map {
                 opts,
             )
         };
-
-        if fd < 0 {
-            return Err(Error::System(fd));
-        }
+        let () = util::parse_ret(fd)?;
 
         Ok(Map {
             fd: MapFd::Owned(unsafe {
