@@ -7,6 +7,8 @@ Unreleased
   descriptors
 - Made `RingBufferBuilder::add` enforce that `self` cannot outlive the maps
   passed into it
+- Adjusted `Error::System` variant textual representation to include `errno`
+  string
 
 
 0.20.1
