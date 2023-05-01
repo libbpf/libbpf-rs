@@ -38,6 +38,10 @@ smaller commits. Smaller commits are much easier to review and more likely
 to get merged in. Please make sure each commit is an isolated change (eg if
 the commit does 2 separate things, please split it).
 
+- **Maintain a fully working commit history.**
+Each commit should represent a fully working state, i.e., not be breaking builds
+or causing test failures. Doing so helps when bisecting issues in the future.
+
 - **Use a descriptive title.**
 
 - **Include useful details in the commit messages.**
