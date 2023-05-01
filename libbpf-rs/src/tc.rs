@@ -1,3 +1,6 @@
+use std::os::unix::io::AsRawFd;
+use std::os::unix::io::BorrowedFd;
+
 use nix::errno;
 use nix::errno::Errno::EEXIST;
 
@@ -55,7 +58,7 @@ pub struct TcHook {
 impl TcHook {
     /// Create a new [`TcHook`] given the file descriptor of the loaded
     /// `SEC("tc")` [`Program`][crate::Program].
-    pub fn new(fd: i32) -> Self {
+    pub fn new(fd: BorrowedFd<'_>) -> Self {
         let mut tc_hook = TcHook {
             hook: libbpf_sys::bpf_tc_hook::default(),
             opts: libbpf_sys::bpf_tc_opts::default(),
@@ -63,7 +66,7 @@ impl TcHook {
 
         tc_hook.hook.sz = std::mem::size_of::<libbpf_sys::bpf_tc_hook>() as libbpf_sys::size_t;
         tc_hook.opts.sz = std::mem::size_of::<libbpf_sys::bpf_tc_opts>() as libbpf_sys::size_t;
-        tc_hook.opts.prog_fd = fd;
+        tc_hook.opts.prog_fd = fd.as_raw_fd();
 
         tc_hook
     }
@@ -230,9 +233,9 @@ impl TcHook {
 ///
 /// Once a `TcHook` is created via the [`Self::hook()`] method, the `TcHook`'s values can still
 /// be adjusted before [`TcHook::attach()`] is called.
-#[derive(Debug, Default)]
-pub struct TcHookBuilder {
-    fd: i32,
+#[derive(Debug)]
+pub struct TcHookBuilder<'fd> {
+    fd: BorrowedFd<'fd>,
     ifindex: i32,
     parent_maj: u32,
     parent_min: u32,
@@ -241,17 +244,19 @@ pub struct TcHookBuilder {
     priority: u32,
 }
 
-impl TcHookBuilder {
-    /// Create a new `TcHookBuilder` with no attributes set.
-    pub fn new() -> Self {
-        TcHookBuilder::default()
-    }
-
-    /// Set the initial file descriptor for created hooks
+impl<'fd> TcHookBuilder<'fd> {
+    /// Create a new `TcHookBuilder` with fd
     /// this fd should come from a loaded [`Program`][crate::Program]
-    pub fn fd(&mut self, fd: i32) -> &mut Self {
-        self.fd = fd;
-        self
+    pub fn new(fd: BorrowedFd<'fd>) -> Self {
+        TcHookBuilder {
+            fd,
+            ifindex: 0,
+            parent_maj: 0,
+            parent_min: 0,
+            replace: false,
+            handle: 0,
+            priority: 0,
+        }
     }
 
     /// Set the initial interface index to attach the hook on

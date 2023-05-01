@@ -61,12 +61,11 @@ fn main() -> Result<()> {
     let builder = TcSkelBuilder::default();
     let open = builder.open()?;
     let mut skel = open.load()?;
-    let fd = skel.progs().handle_tc().fd();
+    let progs = skel.progs();
     let ifidx = nix::net::if_::if_nametoindex(opts.iface.as_str())? as i32;
 
-    let mut tc_builder = TcHookBuilder::new();
+    let mut tc_builder = TcHookBuilder::new(progs.handle_tc().fd());
     tc_builder
-        .fd(fd)
         .ifindex(ifidx)
         .replace(true)
         .handle(1)
@@ -78,7 +77,7 @@ fn main() -> Result<()> {
     custom.parent(TC_H_CLSACT, TC_H_MIN_INGRESS).handle(2);
 
     // we can create a TcHook w/o the builder
-    let mut destroy_all = libbpf_rs::TcHook::new(fd);
+    let mut destroy_all = libbpf_rs::TcHook::new(progs.handle_tc().fd());
     destroy_all
         .ifindex(ifidx)
         .attach_point(TC_EGRESS | TC_INGRESS);

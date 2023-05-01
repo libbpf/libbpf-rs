@@ -3,7 +3,8 @@ Unreleased
 - Added `Map::delete_batch` method for bulk deletion of elements
 - Fixed issue where instances of `Map` created or opened without going through
   `Object` would leak file descriptors
-- Made `Map::fd` return `BorrowedFd` instead of `RawFd`
+- Adjusted various methods to work with `BorrowedFd` instead of raw file
+  descriptors
 - Made `RingBufferBuilder::add` enforce that `self` cannot outlive the maps
   passed into it
 

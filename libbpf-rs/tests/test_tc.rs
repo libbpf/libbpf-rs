@@ -1,3 +1,5 @@
+use std::os::unix::io::BorrowedFd;
+
 use serial_test::serial;
 
 mod test;
@@ -8,7 +10,6 @@ use nix::errno::Errno::EINVAL;
 use nix::errno::Errno::ENOENT;
 
 use libbpf_rs::Error;
-use libbpf_rs::Object;
 use libbpf_rs::Result;
 use libbpf_rs::TcHook;
 use libbpf_rs::TcHookBuilder;
@@ -21,7 +22,7 @@ use libbpf_rs::TC_INGRESS;
 // do all TC tests on the lo network interface
 const LO_IFINDEX: i32 = 1;
 
-fn clear_clsact(fd: i32) -> Result<()> {
+fn clear_clsact(fd: BorrowedFd) -> Result<()> {
     // Ensure clean clsact tc qdisc
     let mut destroyer = TcHook::new(fd);
     destroyer
@@ -38,27 +39,20 @@ fn clear_clsact(fd: i32) -> Result<()> {
     Ok(())
 }
 
-fn test_helper_get_tc_builder(handle_str: &str) -> (Object, TcHookBuilder, i32) {
-    let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog(handle_str).unwrap().fd();
-
-    let mut tc_builder = TcHookBuilder::new();
-    tc_builder
-        .fd(fd)
-        .ifindex(LO_IFINDEX)
-        .replace(true)
-        .handle(1)
-        .priority(1);
-
-    (obj, tc_builder, fd)
-}
-
 #[test]
 #[serial]
 fn test_tc_basic_cycle() {
     bump_rlimit_mlock();
 
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     //assert!(!destroyer.destroy().is_err());
     assert!(clear_clsact(fd).is_ok());
 
@@ -92,7 +86,15 @@ fn test_tc_basic_cycle() {
 fn test_tc_attach_no_qdisc() {
     bump_rlimit_mlock();
 
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     let mut egress = tc_builder.hook(TC_EGRESS);
@@ -109,7 +111,15 @@ fn test_tc_attach_no_qdisc() {
 fn test_tc_attach_basic() {
     bump_rlimit_mlock();
 
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     let mut egress = tc_builder.hook(TC_EGRESS);
@@ -130,7 +140,15 @@ fn test_tc_attach_basic() {
 fn test_tc_attach_repeat() {
     bump_rlimit_mlock();
 
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     let mut egress = tc_builder.hook(TC_EGRESS);
@@ -161,7 +179,15 @@ fn test_tc_attach_repeat() {
 #[serial]
 fn test_tc_attach_custom() {
     bump_rlimit_mlock();
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     // destroy() ensures that clsact tc qdisc does not exist
@@ -206,7 +232,15 @@ fn test_tc_attach_custom() {
 #[serial]
 fn test_tc_detach_basic() {
     bump_rlimit_mlock();
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     let mut egress = tc_builder.hook(TC_EGRESS);
@@ -245,7 +279,15 @@ fn test_tc_detach_basic() {
 fn test_tc_query() {
     bump_rlimit_mlock();
 
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     let mut egress = tc_builder.hook(TC_EGRESS);
@@ -309,7 +351,15 @@ fn test_tc_query() {
 fn test_tc_double_create() {
     bump_rlimit_mlock();
 
-    let (_obj, tc_builder, fd) = test_helper_get_tc_builder("handle_tc");
+    let obj = get_test_object("tc-unit.bpf.o");
+    let fd = obj.prog("handle_tc").unwrap().fd();
+
+    let mut tc_builder = TcHookBuilder::new(fd);
+    tc_builder
+        .ifindex(LO_IFINDEX)
+        .replace(true)
+        .handle(1)
+        .priority(1);
     assert!(clear_clsact(fd).is_ok());
 
     let mut ingress = tc_builder.hook(TC_INGRESS);

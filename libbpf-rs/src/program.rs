@@ -1,6 +1,9 @@
 use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem;
+use std::os::unix::io::AsFd;
+use std::os::unix::io::AsRawFd;
+use std::os::unix::io::BorrowedFd;
 use std::path::Path;
 use std::ptr::NonNull;
 use std::ptr::{self};
@@ -366,6 +369,13 @@ pub struct Program {
     section: String,
 }
 
+impl AsFd for Program {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
+        unsafe { BorrowedFd::borrow_raw(fd) }
+    }
+}
+
 impl Program {
     /// Create a [`Program`] from a [`libbpf_sys::bpf_program`]
     ///
@@ -404,8 +414,8 @@ impl Program {
     }
 
     /// Returns a file descriptor to the underlying program.
-    pub fn fd(&self) -> i32 {
-        unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) }
+    pub fn fd(&self) -> BorrowedFd {
+        self.as_fd()
     }
 
     /// Returns flags that have been set for the program.
@@ -670,8 +680,9 @@ impl Program {
 
     /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
     pub fn attach_sockmap(&self, map_fd: i32) -> Result<()> {
-        let err =
-            unsafe { libbpf_sys::bpf_prog_attach(self.fd(), map_fd, self.attach_type() as u32, 0) };
+        let err = unsafe {
+            libbpf_sys::bpf_prog_attach(self.fd().as_raw_fd(), map_fd, self.attach_type() as u32, 0)
+        };
         util::parse_ret(err)
     }
 
