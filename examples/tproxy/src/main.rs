@@ -67,10 +67,9 @@ fn main() -> Result<()> {
 
     // Load into kernel
     let skel = open_skel.load()?;
-
+    let progs = skel.progs();
     // Set up and attach ingress TC hook
-    let mut ingress = TcHookBuilder::new()
-        .fd(skel.progs().tproxy().fd())
+    let mut ingress = TcHookBuilder::new(progs.tproxy().fd())
         .ifindex(opts.ifindex)
         .replace(true)
         .handle(1)
