@@ -361,6 +361,11 @@ impl Drop for Btf<'_> {
 }
 
 /// An undiscriminated btf type
+///
+/// The [`btf_type_match`](crate::btf_type_match) can be used to match on the variants of this type
+/// as if it was a rust enum.
+///
+/// You can also use the [`TryFrom`] trait to convert to any of the possible [`types`].
 #[derive(Clone, Copy)]
 pub struct BtfType<'btf> {
     type_id: TypeId,
