@@ -25,19 +25,19 @@ use tproxy::*;
 #[derive(Debug, Parser)]
 struct Command {
     /// Redirect all packets arriving on this port to the proxy
-    #[clap(short, long, default_value = "1003")]
+    #[arg(short, long, default_value = "1003")]
     port: u16,
     /// Interface index to proxy on
-    #[clap(short, long, default_value = "1")]
+    #[arg(short, long, default_value = "1")]
     ifindex: i32,
     /// Address the proxy is listening on
-    #[clap(long, value_parser, default_value = "127.0.0.1")]
+    #[arg(long, value_parser, default_value = "127.0.0.1")]
     proxy_addr: String,
     /// Port the proxy is listening on
-    #[clap(long, default_value = "9999")]
+    #[arg(long, default_value = "9999")]
     proxy_port: u16,
     /// Verbose debug output
-    #[clap(short, long)]
+    #[arg(short, long)]
     verbose: bool,
 }
 

@@ -17,27 +17,27 @@ use tc::*;
 #[derive(Debug, Parser)]
 struct Command {
     /// list of ports to whitelist
-    #[clap(short, long)]
+    #[arg(short, long)]
     ports: Vec<u16>,
 
     /// attach a hook
-    #[clap(short, long)]
+    #[arg(short, long)]
     attach: bool,
 
     /// detach existing hook
-    #[clap(short, long)]
+    #[arg(short, long)]
     detach: bool,
 
     /// destroy all hooks on clsact
-    #[clap(short = 'D', long = "destroy")]
+    #[arg(short = 'D', long = "destroy")]
     destroy: bool,
 
     /// query existing hook
-    #[clap(short, long)]
+    #[arg(short, long)]
     query: bool,
 
     /// interface to attach to
-    #[clap(short = 'i', long = "interface")]
+    #[arg(short = 'i', long = "interface")]
     iface: String,
 }
 

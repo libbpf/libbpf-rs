@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::AppSettings;
 use clap::Parser;
 use clap::Subcommand;
 
@@ -13,11 +12,10 @@ mod metadata;
 
 #[doc(hidden)]
 #[derive(Debug, Parser)]
-#[clap(version, about)]
-#[clap(propagate_version = true)]
-#[clap(global_setting(AppSettings::DeriveDisplayOrder))]
+#[command(version, about)]
+#[command(propagate_version = true)]
 struct Opt {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     wrapper: Wrapper,
 }
 
@@ -34,7 +32,7 @@ struct Opt {
 #[doc(hidden)]
 #[derive(Debug, Subcommand)]
 enum Wrapper {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Libbpf(Command),
 }
 
@@ -44,29 +42,29 @@ enum Wrapper {
 enum Command {
     /// Build bpf programs
     Build {
-        #[clap(short, long)]
+        #[arg(short, long)]
         debug: bool,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to clang binary
         clang_path: Option<PathBuf>,
-        #[clap(long)]
+        #[arg(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
     },
     /// Generate skeleton files
     Gen {
-        #[clap(short, long)]
+        #[arg(short, long)]
         debug: bool,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Generate skeleton for the specified object file and print results to stdout
         ///
         /// When specified, skeletons for the rest of the project will not be generated
@@ -74,25 +72,25 @@ enum Command {
     },
     /// Build project
     Make {
-        #[clap(short, long)]
+        #[arg(short, long)]
         debug: bool,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to clang binary
         clang_path: Option<PathBuf>,
-        #[clap(long)]
+        #[arg(long)]
         /// Skip clang version checks
         skip_clang_version_checks: bool,
-        #[clap(short, long)]
+        #[arg(short, long)]
         /// Quiet output
         quiet: bool,
         /// Arguments to pass to `cargo build`
         ///
         /// Example: cargo libbpf build -- --package mypackage
         cargo_build_args: Vec<String>,
-        #[clap(long, parse(from_os_str))]
+        #[arg(long, value_parser)]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
     },

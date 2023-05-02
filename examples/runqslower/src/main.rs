@@ -20,16 +20,16 @@ use runqslower::*;
 #[derive(Debug, Parser)]
 struct Command {
     /// Trace latency higher than this value
-    #[clap(default_value = "10000")]
+    #[arg(default_value = "10000")]
     latency: u64,
     /// Process PID to trace
-    #[clap(default_value = "0")]
+    #[arg(default_value = "0")]
     pid: i32,
     /// Thread TID to trace
-    #[clap(default_value = "0")]
+    #[arg(default_value = "0")]
     tid: i32,
     /// Verbose debug output
-    #[clap(short, long)]
+    #[arg(short, long)]
     verbose: bool,
 }
 
