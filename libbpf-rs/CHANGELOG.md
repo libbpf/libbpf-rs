@@ -1,6 +1,8 @@
 Unreleased
 ----------
 - Added `Map::delete_batch` method for bulk deletion of elements
+- Improved `btf_type_match!` macro, adding support for most of Rust's `match`
+  capabilities
 - Fixed issue where instances of `Map` created or opened without going through
   `Object` would leak file descriptors
 - Adjusted various methods to work with `BorrowedFd` instead of raw file

@@ -825,64 +825,343 @@ gen_collection_concrete_type! {
 /// use libbpf_rs::btf_type_match;
 ///
 /// # fn do_something_with_an_int(i: libbpf_rs::btf::types::Int) -> &'static str { "" }
-///
 /// let ty: BtfType;
 /// # ty = todo!();
 /// btf_type_match!(match ty {
 ///     BtfKind::Int(i) => do_something_with_an_int(i),
 ///     BtfKind::Struct => "it's a struct",
-///     // other fields
-///     # // we have to include these here otherwise the tests fail saying this doesn't compile
-///     # BtfKind::Void => "",
-///     # BtfKind::Int => "",
-///     # BtfKind::Ptr => "",
-///     # BtfKind::Array => "",
-///     # BtfKind::Struct => "",
-///     # BtfKind::Union => "",
-///     # BtfKind::Enum => "",
-///     # BtfKind::Fwd => "",
-///     # BtfKind::Typedef => "",
-///     # BtfKind::Volatile => "",
-///     # BtfKind::Const => "",
-///     # BtfKind::Restrict => "",
-///     # BtfKind::Func => "",
-///     # BtfKind::FuncProto => "",
-///     # BtfKind::Var => "",
-///     # BtfKind::DataSec => "",
-///     # BtfKind::Float => "",
-///     # BtfKind::DeclTag => "",
-///     # BtfKind::TypeTag => "",
-///     # BtfKind::Enum64 => "",
+///     BtfKind::Union => {
+///         "it's a union"
+///     },
+///     _ => "default",
 /// });
 /// ```
 ///
 /// Variable Binding.
 ///
 /// ```compile_fail
-///     BtfKind::Int(i) => { /* we can use i here and it will be an `Int` */ }
+///     BtfKind::Int(i) => {
+///         // we can use i here and it will be an `Int`
+///     }
 /// ```
 ///
 /// NonBinding.
+///
 /// ```compile_fail
 ///     BtfKind::Int => {
-///         /* we don't have access to the variable, but we know the scrutinee is an Int */
+///         // we don't have access to the variable, but we know the scrutinee is an Int
 ///     }
 /// ```
+///
+/// Multiple Variants
+/// ```compile_fail
+///     BtfKind::Struct | BtfKind::Union => {
+///         // we don't have access to the variable,
+///         // but we know the scrutinee is either a Struct or a Union
+///     }
+/// ```
+///
+/// Special case for [`Struct`] and [`Union`]: [`Composite`]
+/// ```compile_fail
+///     BtfKind::Composite(c) => {
+///         // we can use `c` as an instance of `Composite`.
+///         // this branch will match if the type is either a Struct or a Union.
+///     }
+/// ```
+// $(BtfKind::$name:ident $(($var:ident))? => $action:expr $(,)?)+
 #[macro_export]
 macro_rules! btf_type_match {
+    // base rule
     (
         match $ty:ident {
-            $(BtfKind::$name:ident $(($var:ident))? => $action:expr $(,)?)+
+            $($pattern:tt)+
         }
     ) => {{
         let ty: $crate::btf::BtfType = $ty;
-        match ty.kind() {
-            $(
-                $crate::btf::BtfKind::$name => {
-                    $(let $var = $crate::btf::types::$name::try_from(ty).unwrap();)*
-                    $action
-                }
-            )+
+        $crate::__btf_type_match!(match ty.kind() { } $($pattern)*)
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __btf_type_match {
+    /*
+     * Composite special case
+     *
+     * This is similar to simple-match but it's hardcoded for composite which matches both structs
+     * and unions.
+     */
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        BtfKind::Composite $( ($var:ident) )? => $action:expr,
+        $($rest:tt)*
+    ) => {
+        $crate::__btf_type_match!(match $ty.kind() { $($p => $a,)* }
+            BtfKind::Composite $( ($var) )* => { $action }
+            $($rest)*
+        )
+    };
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        BtfKind::Composite $(($var:ident))? => $action:block
+        $($rest:tt)*
+    ) => {
+        $crate::__btf_type_match!(match $ty.kind() {
+            $($p => $a,)*
+            $crate::btf::BtfKind::Struct | $crate::btf::BtfKind::Union => {
+                $(let $var = $crate::btf::types::Composite::try_from($ty).unwrap();)*
+                $action
+            }
         }
-    }}
+             $($rest)*
+        )
+    };
+    // simple-match: match on simple patterns that use an expression followed by a comma
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        BtfKind::$name:ident $(($var:ident))? => $action:expr,
+        $($rest:tt)*
+    ) => {
+        $crate::__btf_type_match!(
+            match $ty.kind() { $($p => $a),* }
+            BtfKind::$name $(($var))? => { $action }
+            $($rest)*
+        )
+    };
+    // simple-match: match on simple patterns that use a block without a comma
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        BtfKind::$name:ident $(($var:ident))? => $action:block
+        $($rest:tt)*
+    ) => {
+        $crate::__btf_type_match!(match $ty.kind() {
+            $($p => $a,)*
+            $crate::btf::BtfKind::$name => {
+                $(let $var = $crate::btf::types::$name::try_from($ty).unwrap();)*
+                $action
+            }
+        }
+             $($rest)*
+        )
+    };
+    // or-pattern: match on one or more variants without capturing a variable and using an
+    //             expression followed by a comma.
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        $(BtfKind::$name:ident)|+  => $action:expr,
+        $($rest:tt)*
+    ) => {
+        $crate::__btf_type_match!(
+            match $ty.kind() { $($p => $a),* }
+            $(BtfKind::$name)|* => { $action }
+            $($rest)*
+        )
+    };
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        $(BtfKind::$name:ident)|+  => $action:block
+        $($rest:tt)*
+    ) => {
+        $crate::__btf_type_match!(match $ty.kind() {
+            $($p => $a,)*
+            $($crate::btf::BtfKind::$name)|* => {
+                $action
+            }
+        }
+             $($rest)*
+        )
+    };
+    // default match case
+    //
+    // we only need the expression case here because this case is not followed by a $rest:tt like
+    // the others, which let's us use the $(,)? pattern.
+    (
+        match $ty:ident.kind() { $($p:pat => $a:expr),* }
+        _ => $action:expr $(,)?
+    ) => {
+        $crate::__btf_type_match!(match $ty.kind() {
+            $($p => $a,)*
+            _ => { $action }
+        }
+
+        )
+    };
+    // stop case, where the code is actually generated
+    (match $ty:ident.kind() { $($p:pat => $a:expr),*  } ) => {
+        match $ty.kind() {
+            $($p => $a),*
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    // creates a dummy btftype, not it's not safe to use this type, but it is safe to match on it,
+    // which is all we need for these tests.
+    macro_rules! dummy_type {
+        ($ty:ident) => {
+            let btf = $crate::Btf {
+                ptr: std::ptr::NonNull::dangling(),
+                drop_policy: $crate::btf::DropPolicy::Nothing,
+                _marker: std::marker::PhantomData,
+            };
+            let $ty = BtfType {
+                type_id: $crate::btf::TypeId::from(1),
+                name: None,
+                source: &btf,
+                ty: &libbpf_sys::btf_type::default(),
+            };
+        };
+    }
+
+    fn foo(_: super::Int) -> &'static str {
+        "int"
+    }
+
+    use super::BtfType;
+    use crate::btf_type_match;
+    #[test]
+    fn full_switch_case() {
+        dummy_type!(ty);
+        btf_type_match!(match ty {
+            BtfKind::Int(i) => foo(i),
+            BtfKind::Struct => "it's a struct",
+            BtfKind::Void => "",
+            BtfKind::Ptr => "",
+            BtfKind::Array => "",
+            BtfKind::Union => "",
+            BtfKind::Enum => "",
+            BtfKind::Fwd => "",
+            BtfKind::Typedef => "",
+            BtfKind::Volatile => "",
+            BtfKind::Const => "",
+            BtfKind::Restrict => "",
+            BtfKind::Func => "",
+            BtfKind::FuncProto => "",
+            BtfKind::Var => "",
+            BtfKind::DataSec => "",
+            BtfKind::Float => "",
+            BtfKind::DeclTag => "",
+            BtfKind::TypeTag => "",
+            BtfKind::Enum64 => "",
+        });
+    }
+
+    #[test]
+    fn partial_match() {
+        dummy_type!(ty);
+        btf_type_match!(match ty {
+            BtfKind::Int => "int",
+            _ => "default",
+        });
+    }
+
+    #[test]
+    fn or_pattern_match() {
+        dummy_type!(ty);
+        // we ask rustfmt to not format this block so that we can keep the trailing `,` in the
+        // const | restrict branch.
+        #[rustfmt::skip]
+        btf_type_match!(match ty {
+            BtfKind::Int => "int",
+            BtfKind::Struct | BtfKind::Union => "composite",
+            BtfKind::Typedef | BtfKind::Volatile => {
+                "qualifier"
+            }
+            BtfKind::Const | BtfKind::Restrict => {
+                "const or restrict"
+            },
+            _ => "default",
+        });
+    }
+
+    #[test]
+    fn match_arm_with_brackets() {
+        dummy_type!(ty);
+        // we ask rustfmt to not format this block so that we can keep the trailing `,` in the int
+        // branch.
+        #[rustfmt::skip]
+        btf_type_match!(match ty {
+            BtfKind::Void => {
+                "void"
+            }
+            BtfKind::Int => {
+                "int"
+            },
+            BtfKind::Struct => "struct",
+            _ => "default",
+        });
+    }
+
+    #[test]
+    fn match_on_composite() {
+        dummy_type!(ty);
+        btf_type_match!(match ty {
+            BtfKind::Composite(c) => c.is_struct,
+            _ => false,
+        });
+        btf_type_match!(match ty {
+            BtfKind::Composite(c) => {
+                c.is_struct
+            }
+            _ => false,
+        });
+        // we ask rustfmt to not format this block so that we can keep the trailing `,` in the
+        // composite branch.
+        #[rustfmt::skip]
+        btf_type_match!(match ty {
+            BtfKind::Composite(c) => {
+                c.is_struct
+            },
+            _ => false,
+        });
+    }
+
+    #[test]
+    fn match_arm_with_multiple_statements() {
+        dummy_type!(ty);
+
+        btf_type_match!(match ty {
+            BtfKind::Int(i) => {
+                let _ = i;
+                "int"
+            }
+            _ => {
+                let _ = 1;
+                "default"
+            }
+        });
+    }
+
+    #[test]
+    fn non_expression_guards() {
+        dummy_type!(ty);
+
+        btf_type_match!(match ty {
+            BtfKind::Int => {
+                let _ = 1;
+                "int"
+            }
+            BtfKind::Typedef | BtfKind::Const => {
+                let _ = 1;
+                "qualifier"
+            }
+            _ => {
+                let _ = 1;
+                "default"
+            }
+        });
+
+        btf_type_match!(match ty {
+            BtfKind::Int => {
+                let _ = 1;
+            }
+            BtfKind::Typedef | BtfKind::Const => {
+                let _ = 1;
+            }
+            _ => {
+                let _ = 1;
+            }
+        });
+    }
 }
