@@ -81,22 +81,22 @@ impl FromStr for uniqueness {
 
 /// Trace capabilities
 #[derive(Debug, Copy, Clone, Parser)]
-#[clap(name = "examples", about = "Usage instructions")]
+#[command(name = "examples", about = "Usage instructions")]
 struct Command {
     /// verbose: include non-audit checks
-    #[clap(short, long)]
+    #[arg(short, long)]
     verbose: bool,
     /// only trace `pid`
-    #[clap(short, long, default_value = "0")]
+    #[arg(short, long, default_value = "0")]
     pid: u32,
     /// extra fields: Show TID and INSETID columns
-    #[clap(short = 'x', long = "extra")]
+    #[arg(short = 'x', long = "extra")]
     extra_fields: bool,
     /// don't repeat same info for the same `pid` or `cgroup`
-    #[clap(long = "unique", default_value = "off")]
+    #[arg(long = "unique", default_value = "off")]
     unique_type: uniqueness,
     /// debug output for libbpf-rs
-    #[clap(long)]
+    #[arg(long)]
     debug: bool,
 }
 

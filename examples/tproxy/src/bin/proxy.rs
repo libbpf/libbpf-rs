@@ -24,10 +24,10 @@ use nix::sys::socket::SockaddrIn;
 #[derive(Debug, Parser)]
 struct Command {
     /// Address the proxy is listening on
-    #[clap(long, value_parser, default_value = "127.0.0.1")]
+    #[arg(long, value_parser, default_value = "127.0.0.1")]
     addr: String,
     /// Port to listen on
-    #[clap(long, default_value = "9999")]
+    #[arg(long, default_value = "9999")]
     port: u16,
 }
 
