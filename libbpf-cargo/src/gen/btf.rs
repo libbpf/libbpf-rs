@@ -65,16 +65,7 @@ impl<'s> GenBtf<'s> {
             BtfKind::Var(t) => self.size_of(t.referenced_type())?,
             BtfKind::DataSec(t) => t.size(),
             BtfKind::Float(t) => t.size(),
-            BtfKind::Void => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::Volatile => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::Const => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::Restrict => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::Typedef => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::FuncProto => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::Fwd => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::Func => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::DeclTag => bail!("Cannot get size of type_id: {ty:?}"),
-            BtfKind::TypeTag => bail!("Cannot get size of type_id: {ty:?}"),
+            _ => bail!("Cannot get size of type_id: {ty:?}"),
         }))
     }
 
@@ -141,10 +132,8 @@ impl<'s> GenBtf<'s> {
 
                 format!("[{}; {}]", val_ty, t.capacity())
             }
-            BtfKind::Struct => self.get_type_name_handling_anon_types(&ty).into_owned(),
-            BtfKind::Union => self.get_type_name_handling_anon_types(&ty).into_owned(),
-            BtfKind::Enum => self.get_type_name_handling_anon_types(&ty).into_owned(),
-            BtfKind::Enum64 => self.get_type_name_handling_anon_types(&ty).into_owned(),
+            BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
+                self.get_type_name_handling_anon_types(&ty).into_owned(),
             //    // The only way a variable references a function is through a function pointer.
             //    // Return c_void here so the final def will look like `*mut c_void`.
             //    //
@@ -152,15 +141,7 @@ impl<'s> GenBtf<'s> {
             //    // really need a full definition. `void *` is totally sufficient for sharing a pointer.
             BtfKind::Func => "std::ffi::c_void".to_string(),
             BtfKind::Var(t) => self.type_declaration(t.referenced_type())?,
-            BtfKind::Fwd => bail!("Invalid type: {ty:?}"),
-            BtfKind::FuncProto => bail!("Invalid type: {ty:?}"),
-            BtfKind::DataSec => bail!("Invalid type: {ty:?}"),
-            BtfKind::Typedef => bail!("Invalid type: {ty:?}"),
-            BtfKind::Volatile => bail!("Invalid type: {ty:?}"),
-            BtfKind::Const => bail!("Invalid type: {ty:?}"),
-            BtfKind::Restrict => bail!("Invalid type: {ty:?}"),
-            BtfKind::DeclTag => bail!("Invalid type: {ty:?}"),
-            BtfKind::TypeTag => bail!("Invalid type: {ty:?}"),
+            _ => bail!("Invalid type: {ty:?}"),
         });
         Ok(s)
     }
@@ -189,25 +170,11 @@ impl<'s> GenBtf<'s> {
                     t.capacity()
                 )
             }
-            BtfKind::Struct =>
-                format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
-            BtfKind::Union =>
-                format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
-            BtfKind::Enum => format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
-            BtfKind::Enum64 =>
-                format!("{}::default()", self.get_type_name_handling_anon_types(&ty),),
+            BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
+                format!("{}::default()", self.get_type_name_handling_anon_types(&ty)),
             BtfKind::Var(t) =>
                 format!("{}::default()", self.type_declaration(t.referenced_type())?),
-            BtfKind::Func => bail!("Invalid type: {ty:?}"),
-            BtfKind::Fwd => bail!("Invalid type: {ty:?}"),
-            BtfKind::FuncProto => bail!("Invalid type: {ty:?}"),
-            BtfKind::DataSec => bail!("Invalid type: {ty:?}"),
-            BtfKind::Typedef => bail!("Invalid type: {ty:?}"),
-            BtfKind::Volatile => bail!("Invalid type: {ty:?}"),
-            BtfKind::Const => bail!("Invalid type: {ty:?}"),
-            BtfKind::Restrict => bail!("Invalid type: {ty:?}"),
-            BtfKind::DeclTag => bail!("Invalid type: {ty:?}"),
-            BtfKind::TypeTag => bail!("Invalid type: {ty:?}"),
+            _ => bail!("Invalid type: {ty:?}"),
         }))
     }
 
@@ -324,15 +291,14 @@ impl<'s> GenBtf<'s> {
                 processed.insert(ty.type_id());
             }
 
-            if let Ok(t) = types::Composite::try_from(ty) {
-                self.type_definition_for_composites(&mut def, &mut dependent_types, t)?;
-            } else if let Ok(t) = types::Enum::try_from(ty) {
-                self.type_definition_for_enums(&mut def, t)?;
-            } else if let Ok(t) = types::DataSec::try_from(ty) {
-                self.type_definition_for_datasec(&mut def, &mut dependent_types, t)?;
-            } else {
-                bail!("Invalid type: {:?}", ty.kind());
-            }
+            btf_type_match!(match ty {
+                BtfKind::Composite(t) =>
+                    self.type_definition_for_composites(&mut def, &mut dependent_types, t)?,
+                BtfKind::Enum(t) => self.type_definition_for_enums(&mut def, t)?,
+                BtfKind::DataSec(t) =>
+                    self.type_definition_for_datasec(&mut def, &mut dependent_types, t)?,
+                _ => bail!("Invalid type: {:?}", ty.kind()),
+            });
         }
 
         Ok(def)
