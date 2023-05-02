@@ -1,5 +1,7 @@
 Unreleased
 ------
+- Improved `btf_type_match!` macro, adding support for most of rust's match
+  statement capabilities.
 - Fixed issue where instances of `Map` created or opened without going through
   `Object` would leak file descriptors
 - Made `Map::fd` return `BorrowedFd` instead of `RawFd`
