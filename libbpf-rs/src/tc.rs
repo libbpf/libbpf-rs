@@ -143,11 +143,23 @@ impl TcHook {
         self
     }
 
+    /// Get the handle of a hook.
+    /// Only has meaning after hook is attached
+    pub fn get_handle(&self) -> u32 {
+        self.opts.handle
+    }
+
     /// Set the priority of a hook
     /// If unset upon attach, the kernel will assign a priority for the hook
     pub fn priority(&mut self, priority: u32) -> &mut Self {
         self.opts.priority = priority;
         self
+    }
+
+    /// Get the priority of a hook
+    /// Only has meaning after hook is attached
+    pub fn get_priority(&self) -> u32 {
+        self.opts.priority
     }
 
     /// Query a hook to inspect the program identifier (prog_id)
