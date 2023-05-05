@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Added `Map::is_pinned` and `Map::get_pin_path` methods for getting map pin status
 - Added `Program::attach_iter` for attaching of programs to an iterator
 - Added `Map::delete_batch` method for bulk deletion of elements
 - Improved `btf_type_match!` macro, adding support for most of Rust's `match`

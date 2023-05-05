@@ -1254,3 +1254,22 @@ fn test_object_perf_buffer_raw() {
 
     assert!(found_cookie);
 }
+
+/// Check that we can get map pin status and map pin path
+#[test]
+fn test_object_map_pinned_status() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("map_auto_pin.bpf.o");
+    let map = obj
+        .map("auto_pin_map")
+        .expect("failed to find map 'auto_pin_map'");
+
+    let is_pinned = map.is_pinned().expect("get map pin status failed");
+    assert!(is_pinned);
+    let expected_path = "/sys/fs/bpf/auto_pin_map";
+    let get_path = map.get_pin_path().expect("get map pin path failed");
+    assert_eq!(expected_path, get_path.to_str().unwrap());
+    // cleanup
+    let _ = fs::remove_file(expected_path);
+}
