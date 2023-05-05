@@ -2,6 +2,7 @@ use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::mem;
 use std::os::unix::ffi::OsStrExt;
@@ -373,6 +374,28 @@ impl Map {
                 Err(e) => Err(Error::Internal(format!("remove pin map failed: {e}"))),
             },
         }
+    }
+
+    /// Returns whether map is pinned or not flag
+    pub fn is_pinned(&self) -> Result<bool> {
+        match self.ptr {
+            Some(ptr) => Ok(unsafe { libbpf_sys::bpf_map__is_pinned(ptr.as_ptr()) }),
+            None => Err(Error::InvalidInput(("No map pointer found").to_string())),
+        }
+    }
+
+    /// Returns the pin_path if the map is pinned, otherwise, None is returned
+    pub fn get_pin_path(&self) -> Option<&OsStr> {
+        let path_ptr = match self.ptr {
+            Some(ptr) => unsafe { libbpf_sys::bpf_map__pin_path(ptr.as_ptr()) },
+            None => return None,
+        };
+        if path_ptr.is_null() {
+            // means map is not pinned
+            return None;
+        }
+        let path_c_str = unsafe { CStr::from_ptr(path_ptr) };
+        Some(OsStr::from_bytes(path_c_str.to_bytes()))
     }
 
     /// Returns map value as `Vec` of `u8`.
