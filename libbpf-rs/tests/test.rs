@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::fs;
+use std::hint;
 use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
@@ -1102,7 +1103,8 @@ fn test_object_tracepoint_with_opts() {
 #[inline(never)]
 #[no_mangle]
 extern "C" fn uprobe_target() -> usize {
-    42
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(42)
 }
 
 /// Check that we can attach a BPF program to a uprobe.
