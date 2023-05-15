@@ -80,7 +80,7 @@ pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Res
                                            //
                                            // One way to fix the bug might be to change to calling
                                            // create_bpf_entity_checked_opt and handling Ok(None)
-                                           // as a meaningfull value.
+                                           // as a meaningful value.
             ))
         })
     })

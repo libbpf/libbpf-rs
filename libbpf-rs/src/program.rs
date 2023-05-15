@@ -5,8 +5,8 @@ use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
 use std::path::Path;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 
 use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
@@ -545,7 +545,7 @@ impl Program {
 
         let func_name = util::str_to_cstring(&func_name)?;
         let opts = libbpf_sys::bpf_uprobe_opts {
-            sz: mem::size_of::<Self>() as u64,
+            sz: mem::size_of::<libbpf_sys::bpf_uprobe_opts>() as _,
             ref_ctr_offset: ref_ctr_offset as libbpf_sys::size_t,
             bpf_cookie: cookie,
             retprobe,
