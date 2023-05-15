@@ -6,6 +6,8 @@ Unreleased
   capabilities
 - Fixed issue where instances of `Map` created or opened without going through
   `Object` would leak file descriptors
+- Fixed potential Uprobe attachment failures on optimized builds caused by
+  improper `libbpf_sys::bpf_object_open_opts` object initialization
 - Adjusted various methods to work with `BorrowedFd` instead of raw file
   descriptors
 - Made `RingBufferBuilder::add` enforce that `self` cannot outlive the maps
