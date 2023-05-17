@@ -3,6 +3,7 @@ use std::ffi::c_void;
 use std::fs;
 use std::hint;
 use std::io::Read;
+use std::mem::size_of;
 use std::os::fd::AsRawFd;
 use std::path::Path;
 use std::path::PathBuf;
@@ -23,6 +24,7 @@ use libbpf_rs::Iter;
 use libbpf_rs::Linker;
 use libbpf_rs::Map;
 use libbpf_rs::MapFlags;
+use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
@@ -226,6 +228,41 @@ fn test_object_map_delete_batch() {
     assert!(start.keys().collect::<Vec<_>>().is_empty())
 }
 
+/// Test whether `MapInfo` works properly
+#[test]
+pub fn test_object_map_info() {
+    let opts = libbpf_sys::bpf_map_create_opts {
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        map_flags: libbpf_sys::BPF_ANY,
+        btf_fd: 0,
+        btf_key_type_id: 0,
+        btf_value_type_id: 0,
+        btf_vmlinux_value_type_id: 0,
+        inner_map_fd: 0,
+        map_extra: 0,
+        numa_node: 0,
+        map_ifindex: 0,
+    };
+
+    let map = Map::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
+    let map_info = MapInfo::new(map.fd()).unwrap();
+    let name_received = map_info.name().unwrap();
+    assert_eq!(name_received, "simple_map");
+    assert_eq!(map_info.map_type(), MapType::Hash);
+    assert_eq!(map_info.flags() & MapFlags::ANY, MapFlags::ANY);
+
+    let map_info = &map_info.info;
+    assert_eq!(map_info.key_size, 8);
+    assert_eq!(map_info.value_size, 64);
+    assert_eq!(map_info.max_entries, 1024);
+    assert_eq!(map_info.btf_id, 0);
+    assert_eq!(map_info.btf_key_type_id, 0);
+    assert_eq!(map_info.btf_value_type_id, 0);
+    assert_eq!(map_info.btf_vmlinux_value_type_id, 0);
+    assert_eq!(map_info.map_extra, 0);
+    assert_eq!(map_info.ifindex, 0);
+}
+
 #[test]
 fn test_object_percpu_lookup() {
     bump_rlimit_mlock();
@@ -242,7 +279,7 @@ fn test_object_percpu_lookup() {
         res.len(),
         num_possible_cpus().expect("must be one value per cpu")
     );
-    assert_eq!(res[0].len(), std::mem::size_of::<u32>());
+    assert_eq!(res[0].len(), size_of::<u32>());
 }
 
 #[test]
@@ -783,7 +820,7 @@ fn test_object_task_iter() {
         .expect("Failed to read from iterator");
 
     assert!(bytes_read > 0);
-    assert_eq!(bytes_read % std::mem::size_of::<IndexPidPair>(), 0);
+    assert_eq!(bytes_read % size_of::<IndexPidPair>(), 0);
     let items: &[IndexPidPair] =
         plain::slice_from_bytes(buf.as_slice()).expect("Input slice cannot satisfy length");
 
@@ -800,7 +837,7 @@ fn test_object_map_iter() {
 
     // Create a map for iteration test.
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         ..Default::default()
     };
@@ -836,7 +873,7 @@ fn test_object_map_iter() {
         .expect("Failed to read from iterator");
 
     assert!(bytes_read > 0);
-    assert_eq!(bytes_read % std::mem::size_of::<u32>(), 0);
+    assert_eq!(bytes_read % size_of::<u32>(), 0);
     // Convert buf to &[u32]
     let buf =
         plain::slice_from_bytes::<u32>(buf.as_slice()).expect("Input slice cannot satisfy length");
@@ -850,7 +887,7 @@ fn test_object_map_create_and_pin() {
     bump_rlimit_mlock();
 
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         ..Default::default()
     };
@@ -895,7 +932,7 @@ fn test_object_map_create_without_name() {
     bump_rlimit_mlock();
 
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: std::mem::size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         btf_fd: 0,
         btf_key_type_id: 0,
