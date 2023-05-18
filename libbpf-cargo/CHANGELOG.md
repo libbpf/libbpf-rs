@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Adjusted skeleton generation code to ensure implementation of `libbpf-rs`'s
+  `SkelBuilder`, `OpenSkel`, and `Skel` traits
+
+
 0.20.1
 ------
 - Switched over to using `libbpf-rs`'s BTF support internally for skeleton
