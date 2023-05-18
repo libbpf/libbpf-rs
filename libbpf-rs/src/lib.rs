@@ -87,9 +87,7 @@ mod print;
 mod program;
 pub mod query;
 mod ringbuf;
-/// Used for skeleton -- an end user may not consider this API stable
-#[doc(hidden)]
-pub mod skeleton;
+mod skeleton;
 mod tc;
 mod util;
 
@@ -137,3 +135,16 @@ pub use crate::tc::TC_H_MIN_EGRESS;
 pub use crate::tc::TC_H_MIN_INGRESS;
 pub use crate::tc::TC_INGRESS;
 pub use crate::util::num_possible_cpus;
+
+/// Used for skeleton -- an end user may not consider this API stable
+#[doc(hidden)]
+pub mod __internal_skel {
+    pub use super::skeleton::*;
+}
+
+/// Skeleton related definitions.
+pub mod skel {
+    pub use super::skeleton::OpenSkel;
+    pub use super::skeleton::Skel;
+    pub use super::skeleton::SkelBuilder;
+}

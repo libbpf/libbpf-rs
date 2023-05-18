@@ -9,6 +9,7 @@ Unreleased
 - Added `Map::delete_batch` method for bulk deletion of elements
 - Improved `btf_type_match!` macro, adding support for most of Rust's `match`
   capabilities
+- Added `skel` module exposing skeleton related traits
 - Fixed issue where instances of `Map` created or opened without going through
   `Object` would leak file descriptors
 - Fixed potential Uprobe attachment failures on optimized builds caused by
