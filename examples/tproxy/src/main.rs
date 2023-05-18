@@ -9,6 +9,8 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use clap::Parser;
+use libbpf_rs::skel::OpenSkel;
+use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::TcHookBuilder;
 use libbpf_rs::TC_INGRESS;
 

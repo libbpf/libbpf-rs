@@ -401,6 +401,8 @@ fn test_skeleton_empty_source() {
         r#"
         mod bpf;
         use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
@@ -491,6 +493,9 @@ fn test_skeleton_basic() {
         r#"
         mod bpf;
         use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
+        use libbpf_rs::skel::Skel;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
@@ -633,6 +638,8 @@ fn test_skeleton_datasec() {
         r#"
         mod bpf;
         use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
@@ -744,6 +751,9 @@ fn test_skeleton_builder_basic() {
         #[path = "{skel_path}"]
         mod skel;
         use skel::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
+        use libbpf_rs::skel::Skel;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
@@ -902,6 +912,7 @@ fn test_skeleton_builder_arrays_ptrs() {
         r#"
         mod bpf;
         use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();

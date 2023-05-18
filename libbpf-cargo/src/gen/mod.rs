@@ -606,7 +606,7 @@ fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Re
     write!(
         skel,
         r#"
-        pub fn attach(&mut self) -> libbpf_rs::Result<()> {{
+        fn attach(&mut self) -> libbpf_rs::Result<()> {{
             let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) }};
             if ret != 0 {{
                 return Err(libbpf_rs::Error::System(-ret));
@@ -663,6 +663,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
            #[allow(clippy::upper_case_acronyms)]
            mod imp {{
            use libbpf_rs::libbpf_sys;
+           use libbpf_rs::skel::OpenSkel;
+           use libbpf_rs::skel::Skel;
+           use libbpf_rs::skel::SkelBuilder;
         "#
     )?;
 
@@ -689,8 +692,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj_builder: libbpf_rs::ObjectBuilder,
         }}
 
-        impl<'a> {name}SkelBuilder {{
-            pub fn open(mut self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
+        impl<'a> SkelBuilder<'a> for {name}SkelBuilder {{
+            type Output = Open{name}Skel<'a>;
+            fn open(mut self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
                 let mut skel_config = build_skel_config()?;
                 let open_opts = self.obj_builder.opts(std::ptr::null());
 
@@ -707,7 +711,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 }})
             }}
 
-            pub fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
+            fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
                 let mut skel_config = build_skel_config()?;
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) }};
@@ -721,6 +725,13 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     obj,
                     skel_config
                 }})
+            }}
+
+            fn object_builder(&self) -> &libbpf_rs::ObjectBuilder {{
+                &self.obj_builder
+            }}
+            fn object_builder_mut(&mut self) -> &mut libbpf_rs::ObjectBuilder {{
+                &mut self.obj_builder
             }}
         }}
         "#,
@@ -741,8 +752,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
         }}
 
-        impl<'a> Open{name}Skel<'a> {{
-            pub fn load(mut self) -> libbpf_rs::Result<{name}Skel<'a>> {{
+        impl<'a> OpenSkel for Open{name}Skel<'a> {{
+            type Output = {name}Skel<'a>;
+            fn load(mut self) -> libbpf_rs::Result<{name}Skel<'a>> {{
                 let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::System(-ret));
@@ -756,6 +768,14 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     {links}
                 }})
             }}
+
+            fn open_object(&self) -> &libbpf_rs::OpenObject {{
+                &self.obj
+            }}
+
+            fn open_object_mut(&mut self) -> &mut libbpf_rs::OpenObject {{
+                &mut self.obj
+            }}
         "#,
         name = &obj_name,
         links = if ProgIter::new(object.as_mut_ptr()).next().is_some() {
@@ -764,6 +784,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             "".to_string()
         }
     )?;
+    writeln!(skel, "}}")?;
+    writeln!(skel, "impl<'a> Open{name}Skel<'a> {{", name = &obj_name)?;
+
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, false)?;
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, true)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, true, false)?;
@@ -795,16 +818,26 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         unsafe impl<'a> Send for {name}Skel<'a> {{}}
         unsafe impl<'a> Sync for {name}Skel<'a> {{}}
 
-        impl<'a> {name}Skel<'a> {{
+        impl<'a> Skel for {name}Skel<'a> {{
+            fn object(&self) -> &libbpf_rs::Object {{
+                &self.obj
+            }}
+
+            fn object_mut(&mut self) -> &mut libbpf_rs::Object {{
+                &mut self.obj
+            }}
         "#,
         name = &obj_name,
     )?;
+    gen_skel_attach(&mut skel, &mut object, &obj_name)?;
+    writeln!(skel, "}}")?;
+
+    write!(skel, "impl<'a> {name}Skel<'a> {{", name = &obj_name)?;
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, false)?;
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, true)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, false)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, true)?;
     gen_skel_datasec_getters(&mut skel, &mut object, raw_obj_name, true)?;
-    gen_skel_attach(&mut skel, &mut object, &obj_name)?;
     writeln!(skel, "}}")?;
 
     // Coerce to &[u8] just to be safe, as we'll be using debug formatting
