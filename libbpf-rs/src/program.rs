@@ -1,9 +1,12 @@
+use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
+use std::os::unix::io::FromRawFd;
+use std::os::unix::io::OwnedFd;
 use std::path::Path;
 use std::ptr::NonNull;
 use std::ptr::{self};
@@ -416,6 +419,32 @@ impl Program {
     /// Returns a file descriptor to the underlying program.
     pub fn fd(&self) -> BorrowedFd {
         self.as_fd()
+    }
+
+    /// Returns program fd by id
+    pub fn get_fd_by_id(id: u32) -> Result<OwnedFd> {
+        let ret = unsafe { libbpf_sys::bpf_prog_get_fd_by_id(id) };
+        let fd = util::parse_ret_i32(ret)?;
+        // SAFETY
+        // A file descriptor coming from the bpf_prog_get_fd_by_id function is always suitable for
+        // ownership and can be cleaned up with close.
+        Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    }
+
+    /// Returns program id by fd
+    pub fn get_id_by_fd(fd: BorrowedFd) -> Result<u32> {
+        let mut prog_info = libbpf_sys::bpf_prog_info::default();
+        let prog_info_ptr: *mut libbpf_sys::bpf_prog_info = &mut prog_info;
+        let mut len = mem::size_of::<libbpf_sys::bpf_prog_info>() as u32;
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(
+                fd.as_raw_fd(),
+                prog_info_ptr as *mut c_void,
+                &mut len,
+            )
+        };
+        util::parse_ret(ret)?;
+        Ok(prog_info.id)
     }
 
     /// Returns flags that have been set for the program.

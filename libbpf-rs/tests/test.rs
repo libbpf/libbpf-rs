@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::fs;
 use std::io::Read;
+use std::os::fd::AsRawFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::slice;
@@ -9,6 +10,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use nix::errno;
+use nix::unistd::close;
 use plain::Plain;
 use probe::probe;
 use scopeguard::defer;
@@ -24,6 +26,7 @@ use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::OpenObject;
+use libbpf_rs::Program;
 use libbpf_rs::ProgramType;
 use libbpf_rs::TracepointOpts;
 use libbpf_rs::UprobeOpts;
@@ -1272,4 +1275,20 @@ fn test_object_map_pinned_status() {
     assert_eq!(expected_path, get_path.to_str().unwrap());
     // cleanup
     let _ = fs::remove_file(expected_path);
+}
+
+/// Check that we can get program fd by id and vice versa.
+#[test]
+fn test_object_program_get_fd_and_id() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("runqslower.bpf.o");
+    let prog = obj
+        .prog("handle__sched_wakeup")
+        .expect("failed to find program");
+
+    let prog_fd = prog.fd();
+    let prog_id = Program::get_id_by_fd(prog_fd).expect("failed to get program id by fd");
+    let owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd by id");
+    close(owned_prog_fd.as_raw_fd()).expect("failed to close owned program fd");
 }
