@@ -21,6 +21,9 @@ use libbpf_sys::bpf_program;
 use crate::libbpf_sys;
 use crate::util;
 use crate::Error;
+use crate::Object;
+use crate::ObjectBuilder;
+use crate::OpenObject;
 use crate::Result;
 
 #[derive(Debug)]
@@ -37,6 +40,7 @@ struct ProgSkelConfig {
     link: Box<*mut bpf_link>,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub struct ObjectSkeletonConfigBuilder<'a> {
     data: &'a [u8],
@@ -71,6 +75,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         }
     }
 
+    #[allow(missing_docs)]
     pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.name = Some(name.as_ref().to_string());
         self
@@ -173,6 +178,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
         Some(layout)
     }
 
+    #[allow(missing_docs)]
     pub fn build(mut self) -> Result<ObjectSkeletonConfig<'a>> {
         // Holds `CString`s alive so pointers to them stay valid
         let mut string_pool = Vec::new();
@@ -231,6 +237,7 @@ pub struct ObjectSkeletonConfig<'a> {
 }
 
 impl<'a> ObjectSkeletonConfig<'a> {
+    #[allow(missing_docs)]
     pub fn get(&mut self) -> &mut bpf_object_skeleton {
         &mut self.inner
     }
@@ -312,4 +319,50 @@ impl<'a> Drop for ObjectSkeletonConfig<'a> {
 
         unsafe { Box::from_raw(self.inner.obj) };
     }
+}
+
+/// A trait for skeleton builder.
+pub trait SkelBuilder<'a> {
+    /// Define that when BPF object is opened, the returned type should implement the [`OpenSkel`] trait
+    type Output: OpenSkel;
+
+    /// Open eBPF object and return [`OpenSkel`]
+    fn open(self) -> Result<Self::Output>;
+
+    /// Open eBPF object with [`libbpf_sys::bpf_object_open_opts`] and return [`OpenSkel`]
+    fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> Result<Self::Output>;
+
+    /// Get a reference to [`ObjectBuilder`]
+    fn object_builder(&self) -> &ObjectBuilder;
+
+    /// Get a mutable reference to [`ObjectBuilder`]
+    fn object_builder_mut(&mut self) -> &mut ObjectBuilder;
+}
+
+/// A trait for opened skeleton.
+pub trait OpenSkel {
+    /// Define that when BPF object is loaded, the returned type should implement the [`Skel`] trait
+    type Output: Skel;
+
+    /// Load BPF object and return [`Skel`].
+    fn load(self) -> Result<Self::Output>;
+
+    /// Get a reference to [`OpenObject`].
+    fn open_object(&self) -> &OpenObject;
+
+    /// Get a mutable reference to [`OpenObject`].
+    fn open_object_mut(&mut self) -> &mut OpenObject;
+}
+
+/// A trait for loaded skeleton.
+pub trait Skel {
+    /// Attach BPF object.
+    fn attach(&mut self) -> Result<()> {
+        unimplemented!()
+    }
+    /// Get a reference to [`Object`].
+    fn object(&self) -> &Object;
+
+    /// Get a mutable reference to [`Object`].
+    fn object_mut(&mut self) -> &mut Object;
 }

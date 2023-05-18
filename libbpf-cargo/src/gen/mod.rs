@@ -214,9 +214,9 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &mut BpfObj, name: &st
     write!(
         skel,
         r#"
-        fn build_skel_config() -> libbpf_rs::Result<libbpf_rs::skeleton::ObjectSkeletonConfig<'static>>
+        fn build_skel_config() -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>>
         {{
-            let mut builder = libbpf_rs::skeleton::ObjectSkeletonConfigBuilder::new(DATA);
+            let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(DATA);
             builder
                 .name("{name}")
         "#,
@@ -738,7 +738,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         pub struct Open{name}Skel<'a> {{
             pub obj: libbpf_rs::OpenObject,
-            skel_config: libbpf_rs::skeleton::ObjectSkeletonConfig<'a>,
+            skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
         }}
 
         impl<'a> Open{name}Skel<'a> {{
@@ -782,7 +782,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         pub struct {name}Skel<'a> {{
             pub obj: libbpf_rs::Object,
-            skel_config: libbpf_rs::skeleton::ObjectSkeletonConfig<'a>,
+            skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
         "#,
         name = &obj_name,
     )?;
