@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.21.0
+------
 - Added `TcHook::get_handle` and `TcHook::get_priority` methods for restoring
   TcHook object
 - Added `Program::get_fd_by_id` and `Program::get_id_by_fd` methods for restoring
