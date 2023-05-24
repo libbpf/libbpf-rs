@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.21.0
+------
 - Adjusted skeleton generation code to ensure implementation of `libbpf-rs`'s
   `SkelBuilder`, `OpenSkel`, and `Skel` traits
 - Improved error reporting on BPF C file compilation failure
