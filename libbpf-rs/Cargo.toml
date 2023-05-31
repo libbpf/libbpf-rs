@@ -15,9 +15,9 @@ keywords = ["bpf", "ebpf", "libbpf"]
 maintenance = { status = "actively-developed" }
 
 [features]
-# When turned on, link against system-installed libbpf instead of building
-# and linking against vendored libbpf sources
-novendor = ["libbpf-sys/novendor"]
+# When turned on, compile and link all libbpf library dependencies statically
+# this will vendor the C-libraries libelf, libz, and libbpf
+# When turned off, dynamically link all libbpf library dependencies
 static = ["libbpf-sys/static"]
 
 [dependencies]

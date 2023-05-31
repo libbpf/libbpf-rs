@@ -35,6 +35,29 @@
 //!    libbpf-rs at your BPF object file
 //! 1. Continue regular rust workflow (ie `cargo build`, `cargo run`, etc)
 //!
+//! ## Static Compilation
+//!
+//! By default, programs using libbpf-rs will dynamically link against
+//! non-vendored (system/distrubution provided) shared libraries.  These
+//! non-vendored libraries will include libbpf.so, libz.so, and libelf.so
+//! (please see crate libbpf-sys for more info).
+//!
+//! To use vendored versions of libbpf, libz and libelf please enable
+//! the "static" feature.  With usage of "static", vendored copies of
+//! libbpf, libz, and libelf will be compiled and statically linked to your program.
+//!
+//! Due to the C-library libbpf being tightly coupled to the linux kernel's
+//! headers, musl targets will not work with the "static" feature.
+//! Please see: https://wiki.musl-libc.org/faq.html section
+//! "Why am i getting error: redefinition of..." for more information.
+//!
+//! To have a fully statically compiled binary, you may be able statically link
+//! with the gnu compiler.  To do this, enable the "static" feature
+//! and compile your program with the following command:
+//!
+//! $ RUSTFLAGS='-C target-feature+crt-static' \
+//!     cargo build --target x86_64-unknown-linux-gnu
+//!
 //! ## Design
 //!
 //! libbpf-rs models various "phases":

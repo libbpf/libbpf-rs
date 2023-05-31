@@ -51,7 +51,7 @@ fn extract_version(output: &str) -> Result<&str> {
 /// Extract vendored libbpf header files to a temporary directory.
 ///
 /// Directory and enclosed contents will be removed when return object is dropped.
-#[cfg(not(feature = "novendor"))]
+#[cfg(feature = "static")]
 fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> {
     use std::fs::OpenOptions;
     use std::io::Write;
@@ -68,8 +68,8 @@ fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> 
     Ok(Some(parent_dir))
 }
 
-#[cfg(feature = "novendor")]
-fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> {
+#[cfg(not(feature = "static"))]
+fn extract_libbpf_headers_to_disk(_target_dir: &Path) -> Result<Option<PathBuf>> {
     return Ok(None);
 }
 
