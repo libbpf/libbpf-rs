@@ -19,6 +19,7 @@ maintenance = { status = "actively-developed" }
 # and linking against vendored libbpf sources
 novendor = ["libbpf-sys/novendor"]
 static = ["libbpf-sys/static"]
+vendored = ["libbpf-sys/vendored"]
 
 [dependencies]
 bitflags = "1.3"
