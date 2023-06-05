@@ -51,4 +51,18 @@ int handle__tracepoint_with_cookie_pb(void *ctx)
     return 0;
 }
 
+struct {
+    __uint(type, BPF_MAP_TYPE_QUEUE);
+    __uint(max_entries, 10);
+    __uint(key, 0);
+    __type(value, __u32);
+} queue SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_STACK);
+    __uint(max_entries, 10);
+    __uint(key, 0);
+    __type(value, __u32);
+} stack SEC(".maps");
+
 char LICENSE[] SEC("license") = "GPL";

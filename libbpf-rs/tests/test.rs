@@ -370,6 +370,99 @@ fn test_sudo_object_map_empty_lookup() {
         .is_none());
 }
 
+/// Test CRUD operations on map of type queue.
+#[test]
+fn test_sudo_object_map_queue_crud() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("tracepoint.bpf.o");
+    let queue = obj.map("queue").expect("failed to find queue map");
+
+    let key: [u8; 0] = [];
+    let value1 = 42u32.to_ne_bytes();
+    let value2 = 43u32.to_ne_bytes();
+
+    // Test queue, FIFO expected
+    queue
+        .update(&key, &value1, MapFlags::ANY)
+        .expect("failed to update in queue");
+    queue
+        .update(&key, &value2, MapFlags::ANY)
+        .expect("failed to update in queue");
+
+    let mut val = queue
+        .lookup(&key, MapFlags::ANY)
+        .expect("failed to peek the queue")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 4);
+    assert_eq!(&val, &value1);
+
+    val = queue
+        .lookup_and_delete(&key)
+        .expect("failed to pop from queue")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 4);
+    assert_eq!(&val, &value1);
+
+    val = queue
+        .lookup_and_delete(&key)
+        .expect("failed to pop from queue")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 4);
+    assert_eq!(&val, &value2);
+
+    assert!(queue
+        .lookup_and_delete(&key)
+        .expect("failed to pop from queue")
+        .is_none());
+}
+
+/// Test CRUD operations on map of type stack.
+#[test]
+fn test_sudo_object_map_stack_crud() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("tracepoint.bpf.o");
+    let stack = obj.map("stack").expect("failed to find stack map");
+
+    let key: [u8; 0] = [];
+    let value1 = 1337u32.to_ne_bytes();
+    let value2 = 2674u32.to_ne_bytes();
+
+    stack
+        .update(&key, &value1, MapFlags::ANY)
+        .expect("failed to update in stack");
+    stack
+        .update(&key, &value2, MapFlags::ANY)
+        .expect("failed to update in stack");
+
+    let mut val = stack
+        .lookup(&key, MapFlags::ANY)
+        .expect("failed to pop from stack")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 4);
+    assert_eq!(&val, &value2);
+
+    val = stack
+        .lookup_and_delete(&key)
+        .expect("failed to pop from stack")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 4);
+    assert_eq!(&val, &value2);
+
+    val = stack
+        .lookup_and_delete(&key)
+        .expect("failed to pop from stack")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 4);
+    assert_eq!(&val, &value1);
+
+    assert!(stack
+        .lookup_and_delete(&key)
+        .expect("failed to pop from stack")
+        .is_none());
+}
+
 #[test]
 fn test_sudo_object_map_mutation() {
     bump_rlimit_mlock();
