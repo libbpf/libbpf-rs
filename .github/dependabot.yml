@@ -9,4 +9,4 @@ updates:
     versioning-strategy: "lockfile-only"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
