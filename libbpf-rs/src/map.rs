@@ -444,7 +444,7 @@ impl Map {
     }
 
     /// Apply a key check and return a null pointer in case of dealing with queue/stack map,
-    /// before passing the key to the bpf functions who support the map of type queue/stack.
+    /// before passing the key to the bpf functions that support the map of type queue/stack.
     fn map_key(&self, key: &[u8]) -> *const c_void {
         if self.key_size() == 0 && matches!(self.map_type(), MapType::Queue | MapType::Stack) {
             return ptr::null();
@@ -834,6 +834,99 @@ impl MapHandle {
             key_size: this.key_size,
             value_size: this.value_size,
         })
+    }
+
+    pub fn map_type(&self) -> MapType {
+        self.ty
+    }
+    pub fn key_size(&self) -> u32 {
+        self.key_size
+    }
+    pub fn value_size(&self) -> u32 {
+        self.value_size
+    }
+
+    /// Return the size of one value including padding for interacting with per-cpu
+    /// maps. The values are aligned to 8 bytes.
+    fn percpu_aligned_value_size(&self) -> usize {
+        let val_size = self.value_size() as usize;
+        util::roundup(val_size, 8)
+    }
+
+    /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
+    fn percpu_buffer_size(&self) -> Result<usize> {
+        let aligned_val_size = self.percpu_aligned_value_size();
+        let ncpu = crate::num_possible_cpus()?;
+        Ok(ncpu * aligned_val_size)
+    }
+
+    /// Apply a key check and return a null pointer in case of dealing with queue/stack map,
+    /// before passing the key to the bpf functions that support the map of type queue/stack.
+    fn map_key(&self, key: &[u8]) -> *const c_void {
+        if self.key_size() == 0 && matches!(self.map_type(), MapType::Queue | MapType::Stack) {
+            return ptr::null();
+        }
+
+        key.as_ptr() as *const c_void
+    }
+
+    /// Internal function to return a value from a map into a buffer of the given size.
+    fn lookup_raw(&self, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let mut out: Vec<u8> = Vec::with_capacity(out_size);
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_elem_flags(
+                self.fd.as_raw_fd(),
+                self.map_key(key),
+                out.as_mut_ptr() as *mut c_void,
+                flags.bits,
+            )
+        };
+
+        if ret == 0 {
+            unsafe {
+                out.set_len(out_size);
+            }
+            Ok(Some(out))
+        } else {
+            let errno = errno::errno();
+            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+                Ok(None)
+            } else {
+                Err(Error::System(errno))
+            }
+        }
+    }
+
+    /// Internal function to update a map. This does not check the length of the
+    /// supplied value.
+    fn update_raw(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_update_elem(
+                self.fd.as_raw_fd(),
+                self.map_key(key),
+                value.as_ptr() as *const c_void,
+                flags.bits,
+            )
+        };
+
+        util::parse_ret(ret)
     }
 }
 
