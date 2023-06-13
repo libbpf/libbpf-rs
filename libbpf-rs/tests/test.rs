@@ -24,6 +24,7 @@ use libbpf_rs::Iter;
 use libbpf_rs::Linker;
 use libbpf_rs::Map;
 use libbpf_rs::MapFlags;
+use libbpf_rs::MapHandle;
 use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
@@ -244,7 +245,7 @@ pub fn test_sudo_map_info() {
         map_ifindex: 0,
     };
 
-    let map = Map::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
+    let map = MapHandle::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
     let map_info = MapInfo::new(map.fd()).unwrap();
     let name_received = map_info.name().unwrap();
     assert_eq!(name_received, "simple_map");
@@ -580,7 +581,7 @@ fn test_sudo_object_loading_pinned_map_from_path() {
 
     map.pin(path).expect("pinning map failed");
 
-    let pinned_map = Map::from_pinned_path(path).expect("loading a map from a path failed");
+    let pinned_map = MapHandle::from_pinned_path(path).expect("loading a map from a path failed");
     map.unpin(path).expect("unpinning map failed");
 
     assert_eq!(map.name(), pinned_map.name());
@@ -599,7 +600,7 @@ fn test_sudo_object_loading_loaded_map_from_id() {
 
     let id = map.info().expect("to get info from map 'start'").info.id;
 
-    let map_by_id = Map::from_map_id(id).expect("map to load from id");
+    let map_by_id = MapHandle::from_map_id(id).expect("map to load from id");
 
     assert_eq!(map.name(), map_by_id.name());
     assert_eq!(
@@ -934,7 +935,7 @@ fn test_sudo_object_map_iter() {
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         ..Default::default()
     };
-    let map = Map::create(
+    let map = MapHandle::create(
         MapType::Hash,
         Some("mymap_test_object_map_iter"),
         4,
@@ -985,7 +986,7 @@ fn test_sudo_object_map_create_and_pin() {
         ..Default::default()
     };
 
-    let mut map = Map::create(
+    let mut map = MapHandle::create(
         MapType::Hash,
         Some("mymap_test_sudo_object_map_create_and_pin"),
         4,
@@ -1037,7 +1038,7 @@ fn test_sudo_object_map_create_without_name() {
         map_ifindex: 0,
     };
 
-    let map = Map::create(MapType::Hash, Option::<&str>::None, 4, 8, 8, &opts)
+    let map = MapHandle::create(MapType::Hash, Option::<&str>::None, 4, 8, 8, &opts)
         .expect("failed to create map");
 
     assert!(map.name().is_empty());
@@ -1400,7 +1401,7 @@ fn test_sudo_map_pinned_status() {
         .map("auto_pin_map")
         .expect("failed to find map 'auto_pin_map'");
 
-    let is_pinned = map.is_pinned().expect("get map pin status failed");
+    let is_pinned = map.is_pinned();
     assert!(is_pinned);
     let expected_path = "/sys/fs/bpf/auto_pin_map";
     let get_path = map.get_pin_path().expect("get map pin path failed");
