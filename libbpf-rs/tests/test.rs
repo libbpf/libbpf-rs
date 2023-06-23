@@ -1055,6 +1055,33 @@ fn test_sudo_object_map_create_without_name() {
     assert_eq!(val, res);
 }
 
+/// Test whether we can obtain multiple `MapHandle`s from a `Map
+#[test]
+fn test_sudo_object_map_handle_clone() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("runqslower.bpf.o");
+    let map = obj.map("events").expect("failed to find map");
+    let handle1 = MapHandle::try_clone(map).expect("Failed to create handle from Map");
+    assert_eq!(map.name(), handle1.name());
+    assert_eq!(map.map_type(), handle1.map_type());
+    assert_eq!(map.key_size(), handle1.key_size());
+    assert_eq!(map.value_size(), handle1.value_size());
+
+    let handle2 = MapHandle::try_clone(&handle1).expect("Failed to duplicate existing handle");
+    assert_eq!(handle1.name(), handle2.name());
+    assert_eq!(handle1.map_type(), handle2.map_type());
+    assert_eq!(handle1.key_size(), handle2.key_size());
+    assert_eq!(handle1.value_size(), handle2.value_size());
+
+    let info1 = map.info().expect("Failed to get map info from map");
+    let info2 = handle2.info().expect("Failed to get map info from handle");
+    assert_eq!(
+        info1.info.id, info2.info.id,
+        "Map and MapHandle have different IDs"
+    );
+}
+
 #[test]
 fn test_sudo_object_usdt() {
     bump_rlimit_mlock();
