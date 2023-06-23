@@ -5,6 +5,7 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::ops::Deref as _;
 use std::os::raw::c_ulong;
+use std::os::unix::io::AsFd;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::BorrowedFd;
 use std::ptr::NonNull;
@@ -76,7 +77,7 @@ impl<'a> RingBufferBuilder<'a> {
             return Err(Error::InvalidInput("Must use a RingBuf map".into()));
         }
         self.fd_callbacks
-            .push((map.fd(), RingBufferCallback::new(callback)));
+            .push((map.as_fd(), RingBufferCallback::new(callback)));
         Ok(self)
     }
 

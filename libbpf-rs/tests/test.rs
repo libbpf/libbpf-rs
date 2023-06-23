@@ -5,6 +5,7 @@ use std::hint;
 use std::io::Read;
 use std::mem::size_of;
 use std::os::fd::AsRawFd;
+use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::slice;
@@ -246,7 +247,7 @@ pub fn test_sudo_map_info() {
     };
 
     let map = MapHandle::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
-    let map_info = MapInfo::new(map.fd()).unwrap();
+    let map_info = MapInfo::new(map.as_fd()).unwrap();
     let name_received = map_info.name().unwrap();
     assert_eq!(name_received, "simple_map");
     assert_eq!(map_info.map_type(), MapType::Hash);
@@ -957,7 +958,7 @@ fn test_sudo_object_map_iter() {
     let mut obj = get_test_object("mapiter.bpf.o");
     let prog = obj.prog_mut("map_iter").expect("Failed to find program");
     let link = prog
-        .attach_iter(map.fd())
+        .attach_iter(map.as_fd())
         .expect("Failed to attach map iter prog");
     let mut iter = Iter::new(&link).expect("Failed to create map iterator");
 
