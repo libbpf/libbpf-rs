@@ -8,6 +8,11 @@ Unreleased
 - Added `Program::attach_iter` for attaching of programs to an iterator
 - Added `Map::delete_batch` method for bulk deletion of elements
 - Added read/update/delete support for queue and stack `Map` types
+- Added a new `MapHandle` which provides most functionality previously found in
+  `Map`
+- Removed support for creating `Map` objects standalone (i.e. maps not created
+  by libbpf)
+- Removed `Map::fd()` in favor of `Map::as_fd()`
 - Improved `btf_type_match!` macro, adding support for most of Rust's `match`
   capabilities
 - Added `skel` module exposing skeleton related traits
