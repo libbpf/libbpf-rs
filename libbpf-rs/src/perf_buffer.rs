@@ -3,6 +3,7 @@ use std::boxed::Box;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
+use std::os::unix::io::AsFd;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr::NonNull;
 use std::slice;
@@ -130,7 +131,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
 
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::perf_buffer__new(
-                self.map.fd().as_raw_fd(),
+                self.map.as_fd().as_raw_fd(),
                 self.pages as libbpf_sys::size_t,
                 c_sample_cb,
                 c_lost_cb,
