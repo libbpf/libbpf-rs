@@ -1448,7 +1448,7 @@ fn test_sudo_program_get_fd_and_id() {
         .prog("handle__sched_wakeup")
         .expect("failed to find program");
 
-    let prog_fd = prog.fd();
+    let prog_fd = prog.as_fd();
     let prog_id = Program::get_id_by_fd(prog_fd).expect("failed to get program id by fd");
     let owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd by id");
     close(owned_prog_fd.as_raw_fd()).expect("failed to close owned program fd");

@@ -416,11 +416,6 @@ impl Program {
         }
     }
 
-    /// Returns a file descriptor to the underlying program.
-    pub fn fd(&self) -> BorrowedFd {
-        self.as_fd()
-    }
-
     /// Returns program fd by id
     pub fn get_fd_by_id(id: u32) -> Result<OwnedFd> {
         let ret = unsafe { libbpf_sys::bpf_prog_get_fd_by_id(id) };
@@ -710,7 +705,12 @@ impl Program {
     /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
     pub fn attach_sockmap(&self, map_fd: i32) -> Result<()> {
         let err = unsafe {
-            libbpf_sys::bpf_prog_attach(self.fd().as_raw_fd(), map_fd, self.attach_type() as u32, 0)
+            libbpf_sys::bpf_prog_attach(
+                self.as_fd().as_raw_fd(),
+                map_fd,
+                self.attach_type() as u32,
+                0,
+            )
         };
         util::parse_ret(err)
     }

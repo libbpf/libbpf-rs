@@ -1,6 +1,10 @@
+use std::os::unix::io::AsFd as _;
+
 use anyhow::bail;
 use anyhow::Result;
+
 use clap::Parser;
+
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::MapFlags;
@@ -66,7 +70,7 @@ fn main() -> Result<()> {
     let progs = skel.progs();
     let ifidx = nix::net::if_::if_nametoindex(opts.iface.as_str())? as i32;
 
-    let mut tc_builder = TcHookBuilder::new(progs.handle_tc().fd());
+    let mut tc_builder = TcHookBuilder::new(progs.handle_tc().as_fd());
     tc_builder
         .ifindex(ifidx)
         .replace(true)
@@ -79,7 +83,7 @@ fn main() -> Result<()> {
     custom.parent(TC_H_CLSACT, TC_H_MIN_INGRESS).handle(2);
 
     // we can create a TcHook w/o the builder
-    let mut destroy_all = libbpf_rs::TcHook::new(progs.handle_tc().fd());
+    let mut destroy_all = libbpf_rs::TcHook::new(progs.handle_tc().as_fd());
     destroy_all
         .ifindex(ifidx)
         .attach_point(TC_EGRESS | TC_INGRESS);

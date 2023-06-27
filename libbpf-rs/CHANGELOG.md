@@ -13,6 +13,7 @@ Unreleased
 - Removed support for creating `Map` objects standalone (i.e. maps not created
   by libbpf)
 - Removed `Map::fd()` in favor of `Map::as_fd()`
+- Removed `Program::fd()` in favor of `Program::as_fd()`
 - Improved `btf_type_match!` macro, adding support for most of Rust's `match`
   capabilities
 - Added `skel` module exposing skeleton related traits

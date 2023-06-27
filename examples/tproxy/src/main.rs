@@ -1,4 +1,5 @@
 use std::net::Ipv4Addr;
+use std::os::unix::io::AsFd as _;
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -71,7 +72,7 @@ fn main() -> Result<()> {
     let skel = open_skel.load()?;
     let progs = skel.progs();
     // Set up and attach ingress TC hook
-    let mut ingress = TcHookBuilder::new(progs.tproxy().fd())
+    let mut ingress = TcHookBuilder::new(progs.tproxy().as_fd())
         .ifindex(opts.ifindex)
         .replace(true)
         .handle(1)
