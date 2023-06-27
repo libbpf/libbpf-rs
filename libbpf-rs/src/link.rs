@@ -83,11 +83,6 @@ impl Link {
         util::parse_ret(ret)
     }
 
-    /// Returns the file descriptor of the link.
-    pub fn fd(&self) -> i32 {
-        unsafe { libbpf_sys::bpf_link__fd(self.ptr.as_ptr()) }
-    }
-
     /// Returns path to BPF FS file or `None` if not pinned.
     pub fn pin_path(&self) -> Option<PathBuf> {
         let path_ptr = unsafe { libbpf_sys::bpf_link__pin_path(self.ptr.as_ptr()) };
