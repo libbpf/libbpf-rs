@@ -1,4 +1,6 @@
 use std::fmt::Debug;
+use std::os::unix::io::AsFd;
+use std::os::unix::io::BorrowedFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
@@ -105,6 +107,17 @@ impl Link {
     pub fn detach(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr.as_ptr()) };
         util::parse_ret(ret)
+    }
+}
+
+impl AsFd for Link {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        let fd = unsafe { libbpf_sys::bpf_link__fd(self.ptr.as_ptr()) };
+        // SAFETY: `bpf_link__fd` always returns a valid fd and the underlying
+        //         libbpf object is not destroyed until the object is dropped,
+        //         which means the fd remains valid as well.
+        unsafe { BorrowedFd::borrow_raw(fd) }
     }
 }
 
