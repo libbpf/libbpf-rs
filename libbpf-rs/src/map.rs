@@ -346,6 +346,16 @@ impl AsFd for Map {
 
 /// A handle to a map. Handles can be duplicated and dropped.
 ///
+/// While possible to [created directly][MapHandle::create], in many cases it is
+/// useful to create such a handle from an existing [`Map`]:
+/// ```no_run
+/// # use libbpf_rs::Map;
+/// # use libbpf_rs::MapHandle;
+/// # let get_map = || -> &Map { todo!() };
+/// let map: &Map = get_map();
+/// let map_handle = MapHandle::try_clone(map).unwrap();
+/// ```
+///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
