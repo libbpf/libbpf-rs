@@ -192,7 +192,7 @@ impl<'s> GenBtf<'s> {
 
         // All the non-bitfield fields have to be naturally aligned
         for m in composite.iter() {
-            let align = self.type_by_id::<BtfType>(m.ty).unwrap().alignment()?;
+            let align = self.type_by_id::<BtfType<'_>>(m.ty).unwrap().alignment()?;
 
             if let MemberAttr::Normal { offset } = m.attr {
                 if offset as usize % (align.get() * 8) != 0 {
@@ -250,7 +250,7 @@ impl<'s> GenBtf<'s> {
     ///
     /// `ty` must be a struct, union, enum, or datasec type.
     pub fn type_definition(&self, ty: BtfType<'s>) -> Result<String> {
-        let is_terminal = |ty: BtfType| -> bool {
+        let is_terminal = |ty: BtfType<'_>| -> bool {
             matches!(
                 ty.kind(),
                 BtfKind::Void
@@ -308,7 +308,7 @@ impl<'s> GenBtf<'s> {
         &'a self,
         def: &mut String,
         dependent_types: &mut Vec<BtfType<'a>>,
-        t: types::Composite,
+        t: types::Composite<'_>,
     ) -> Result<()> {
         let packed = self.is_struct_packed(&t)?;
 
@@ -328,7 +328,7 @@ impl<'s> GenBtf<'s> {
             };
 
             let field_ty = self
-                .type_by_id::<BtfType>(member.ty)
+                .type_by_id::<BtfType<'_>>(member.ty)
                 .unwrap()
                 .skip_mods_and_typedefs();
             if let Some(next_ty_id) = next_type(field_ty)? {
@@ -340,7 +340,7 @@ impl<'s> GenBtf<'s> {
                 let padding = self.required_padding(
                     offset,
                     member_offset as usize / 8,
-                    &self.type_by_id::<BtfType>(member.ty).unwrap(),
+                    &self.type_by_id::<BtfType<'_>>(member.ty).unwrap(),
                     packed,
                 )?;
 
@@ -352,7 +352,7 @@ impl<'s> GenBtf<'s> {
                     ));
                 }
 
-                if let Some(ft) = self.type_by_id::<types::Array>(field_ty.type_id()) {
+                if let Some(ft) = self.type_by_id::<types::Array<'_>>(field_ty.type_id()) {
                     if ft.capacity() > 32 {
                         gen_impl_default = true
                     }
@@ -480,7 +480,7 @@ impl<'s> GenBtf<'s> {
         Ok(())
     }
 
-    fn type_definition_for_enums(&self, def: &mut String, t: types::Enum) -> Result<()> {
+    fn type_definition_for_enums(&self, def: &mut String, t: types::Enum<'_>) -> Result<()> {
         let repr_size = match t.size() {
             1 => "8",
             2 => "16",
@@ -529,7 +529,7 @@ impl<'s> GenBtf<'s> {
         &'a self,
         def: &mut String,
         dependent_types: &mut Vec<BtfType<'a>>,
-        t: types::DataSec,
+        t: types::DataSec<'_>,
     ) -> Result<()> {
         let mut sec_name = match t.name().map(|s| s.to_string_lossy()) {
             None => bail!("Datasec name is empty"),
@@ -545,7 +545,7 @@ impl<'s> GenBtf<'s> {
         let mut offset: u32 = 0;
         for datasec_var in t.iter() {
             let var = self
-                .type_by_id::<types::Var>(datasec_var.ty)
+                .type_by_id::<types::Var<'_>>(datasec_var.ty)
                 .ok_or_else(|| anyhow!("BTF is invalid! Datasec var does not point to a var"))?;
 
             if var.linkage() == Linkage::Static {

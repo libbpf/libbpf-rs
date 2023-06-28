@@ -427,7 +427,7 @@ impl Program {
     }
 
     /// Returns program id by fd
-    pub fn get_id_by_fd(fd: BorrowedFd) -> Result<u32> {
+    pub fn get_id_by_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         let mut prog_info = libbpf_sys::bpf_prog_info::default();
         let prog_info_ptr: *mut libbpf_sys::bpf_prog_info = &mut prog_info;
         let mut len = mem::size_of::<libbpf_sys::bpf_prog_info>() as u32;
@@ -815,7 +815,7 @@ impl Program {
     /// Attach this program to a
     /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
-    pub fn attach_iter(&mut self, map_fd: BorrowedFd) -> Result<Link> {
+    pub fn attach_iter(&mut self, map_fd: BorrowedFd<'_>) -> Result<Link> {
         util::create_bpf_entity_checked(|| unsafe {
             let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
             linkinfo.map.map_fd = map_fd.as_raw_fd() as u32;

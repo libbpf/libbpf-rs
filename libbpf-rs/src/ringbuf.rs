@@ -131,7 +131,7 @@ impl<'a> RingBufferBuilder<'a> {
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
-        let callback_struct = ctx as *mut RingBufferCallback;
+        let callback_struct = ctx as *mut RingBufferCallback<'_>;
         let callback = unsafe { (*callback_struct).cb.as_mut() };
         let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
 
@@ -151,7 +151,7 @@ pub struct RingBuffer<'a> {
     _cbs: Vec<Box<RingBufferCallback<'a>>>,
 }
 
-impl<'a> RingBuffer<'a> {
+impl RingBuffer<'_> {
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
     /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
@@ -206,6 +206,6 @@ mod test {
         {
         }
 
-        test::<RingBuffer>();
+        test::<RingBuffer<'_>>();
     }
 }

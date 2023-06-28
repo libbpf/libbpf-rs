@@ -300,7 +300,7 @@ fn gen_skel_map_defs(
             inner: &'a {mut_prefix}{inner_ty},
         }}
 
-        impl<'a> {struct_name}<'a> {{
+        impl {struct_name}<'_> {{
         "#,
     )?;
 
@@ -368,7 +368,7 @@ fn gen_skel_prog_defs(
             inner: &'a {mut_prefix}{inner_ty},
         }}
 
-        impl<'a> {struct_name}<'a> {{
+        impl {struct_name}<'_> {{
         "#,
     )?;
 
@@ -399,7 +399,7 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
     };
     let btf = GenBtf::from(btf);
 
-    for ty in btf.type_by_kind::<types::DataSec>() {
+    for ty in btf.type_by_kind::<types::DataSec<'_>>() {
         let name = match ty.name() {
             Some(s) => s.to_str()?,
             None => "",
@@ -451,7 +451,7 @@ fn gen_skel_map_getter(
     write!(
         skel,
         r#"
-        pub fn {map_fn}(&{mut_prefix}self) -> {return_ty} {{
+        pub fn {map_fn}(&{mut_prefix}self) -> {return_ty}<'_> {{
             {return_ty} {{
                 inner: &{mut_prefix}self.obj,
             }}
@@ -488,7 +488,7 @@ fn gen_skel_prog_getter(
     write!(
         skel,
         r#"
-        pub fn {prog_fn}(&{mut_prefix}self) -> {return_ty} {{
+        pub fn {prog_fn}(&{mut_prefix}self) -> {return_ty}<'_> {{
             {return_ty} {{
                 inner: &{mut_prefix}self.obj,
             }}
@@ -524,9 +524,9 @@ fn gen_skel_datasec_getters(
         write!(
             skel,
             r#"
-            pub fn {name}(&mut self) -> &'a {mutability} {struct_name} {{
+            pub fn {name}(&mut self) -> &'_ {mutability} {struct_name} {{
                 unsafe {{
-                    std::mem::transmute::<*mut std::ffi::c_void, &'a {mutability} {struct_name}>(
+                    std::mem::transmute::<*mut std::ffi::c_void, &'_ {mutability} {struct_name}>(
                         self.skel_config.map_mmap_ptr({idx}).unwrap()
                     )
                 }}
@@ -661,6 +661,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
            #[allow(non_camel_case_types)]
            #[allow(clippy::transmute_ptr_to_ref)]
            #[allow(clippy::upper_case_acronyms)]
+           #[warn(single_use_lifetimes)]
            mod imp {{
            use libbpf_rs::libbpf_sys;
            use libbpf_rs::skel::OpenSkel;
@@ -785,7 +786,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         }
     )?;
     writeln!(skel, "}}")?;
-    writeln!(skel, "impl<'a> Open{name}Skel<'a> {{", name = &obj_name)?;
+    writeln!(skel, "impl Open{name}Skel<'_> {{", name = &obj_name)?;
 
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, false)?;
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, true)?;
@@ -815,10 +816,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         }}
 
-        unsafe impl<'a> Send for {name}Skel<'a> {{}}
-        unsafe impl<'a> Sync for {name}Skel<'a> {{}}
+        unsafe impl Send for {name}Skel<'_> {{}}
+        unsafe impl Sync for {name}Skel<'_> {{}}
 
-        impl<'a> Skel for {name}Skel<'a> {{
+        impl Skel for {name}Skel<'_> {{
             fn object(&self) -> &libbpf_rs::Object {{
                 &self.obj
             }}
@@ -832,7 +833,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     gen_skel_attach(&mut skel, &mut object, &obj_name)?;
     writeln!(skel, "}}")?;
 
-    write!(skel, "impl<'a> {name}Skel<'a> {{", name = &obj_name)?;
+    write!(skel, "impl {name}Skel<'_> {{", name = &obj_name)?;
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, false)?;
     gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, true)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, false)?;
@@ -859,7 +860,7 @@ fn gen_skel(
     debug: bool,
     name: &str,
     obj: &Path,
-    out: OutputDest,
+    out: OutputDest<'_>,
     rustfmt_path: Option<&PathBuf>,
 ) -> Result<()> {
     ensure!(!name.is_empty(), "Object file has no name");
@@ -936,7 +937,7 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
 pub fn gen_single(
     debug: bool,
     obj_file: &Path,
-    output: OutputDest,
+    output: OutputDest<'_>,
     rustfmt_path: Option<&PathBuf>,
 ) -> Result<()> {
     let filename = match obj_file.file_name() {

@@ -55,7 +55,11 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
-#![warn(clippy::wildcard_imports)]
+#![warn(
+    elided_lifetimes_in_paths,
+    single_use_lifetimes,
+    clippy::wildcard_imports
+)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use std::path::Path;

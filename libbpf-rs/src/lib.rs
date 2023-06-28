@@ -68,8 +68,10 @@
 
 #![allow(clippy::let_unit_value)]
 #![warn(
+    elided_lifetimes_in_paths,
     missing_debug_implementations,
     missing_docs,
+    single_use_lifetimes,
     clippy::wildcard_imports,
     rustdoc::broken_intra_doc_links
 )]

@@ -399,6 +399,7 @@ fn test_skeleton_empty_source() {
     write!(
         source,
         r#"
+        #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
@@ -421,6 +422,7 @@ fn test_skeleton_empty_source() {
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
         .status()
         .expect("failed to spawn cargo-build");
     assert!(status.success());
@@ -491,6 +493,7 @@ fn test_skeleton_basic() {
     write!(
         source,
         r#"
+        #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
@@ -534,6 +537,7 @@ fn test_skeleton_basic() {
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
         .status()
         .expect("failed to spawn cargo-build");
     assert!(status.success());
@@ -636,6 +640,7 @@ fn test_skeleton_datasec() {
     write!(
         source,
         r#"
+        #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
@@ -672,6 +677,7 @@ fn test_skeleton_datasec() {
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
         .status()
         .expect("failed to spawn cargo-build");
     assert!(status.success());
@@ -794,6 +800,7 @@ fn test_skeleton_builder_basic() {
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
         .status()
         .expect("failed to spawn cargo-build");
     assert!(status.success());
@@ -910,6 +917,7 @@ fn test_skeleton_builder_arrays_ptrs() {
     write!(
         source,
         r#"
+        #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
@@ -935,6 +943,7 @@ fn test_skeleton_builder_arrays_ptrs() {
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
         .status()
         .expect("failed to spawn cargo-build");
 
@@ -1021,8 +1030,8 @@ fn test_skeleton_builder_deterministic() {
 macro_rules! find_type_in_btf {
     // match for a named BtfType::Var inside all vars in a Datasec
     ($btf:ident, Var, $name:literal) => {{
-        let mut asserted_type: Option<BtfType> = None;
-        for ty in $btf.type_by_kind::<types::DataSec>() {
+        let mut asserted_type: Option<BtfType<'_>> = None;
+        for ty in $btf.type_by_kind::<types::DataSec<'_>>() {
             for var in ty.iter() {
                 let var_ty = $btf
                     .type_by_id(var.ty)
@@ -1102,7 +1111,7 @@ fn btf_from_mmap(mmap: &Mmap) -> GenBtf<'_> {
         .expect("Failed to initialize Btf")
         .expect("Did not find .BTF section");
 
-    assert_ne!(btf.type_by_kind::<BtfType>().count(), 0);
+    assert_ne!(btf.type_by_kind::<BtfType<'_>>().count(), 0);
 
     GenBtf::from(btf)
 }
@@ -1111,7 +1120,7 @@ fn btf_from_mmap(mmap: &Mmap) -> GenBtf<'_> {
 /// Will trim leading and trailing whitespace from both expected output and from
 /// the generated type_definition
 /// fails calling text if type_definition does not match expected_output
-fn assert_definition(btf: &GenBtf, btf_item: &BtfType, expected_output: &str) {
+fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: &str) {
     let actual_output = btf
         .type_definition(*btf_item)
         .expect("Failed to generate struct Foo defn");
@@ -1160,7 +1169,7 @@ pub struct Foo {
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
 
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
     let foo = find_type_in_btf!(btf, Var, "foo");
     let myglobal = find_type_in_btf!(btf, Var, "myglobal");
 
@@ -1202,7 +1211,7 @@ pub struct Foo {
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1247,7 +1256,7 @@ impl Default for Foo {
     let btf = btf_from_mmap(&mmap);
 
     // Find our types
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
     let foo = find_type_in_btf!(btf, Var, "foo");
     let myglobal = find_type_in_btf!(btf, Var, "myglobal");
 
@@ -1314,7 +1323,7 @@ pub struct Bar {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1378,7 +1387,7 @@ impl Default for Bar {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1412,7 +1421,7 @@ pub struct Foo {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1455,7 +1464,7 @@ impl Default for Foo {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1477,7 +1486,7 @@ struct Foo foo;
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert!(btf.type_definition(*struct_foo).is_err());
 }
@@ -1512,7 +1521,7 @@ pub enum Foo {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let enum_foo = find_type_in_btf!(btf, types::Enum, "Foo");
+    let enum_foo = find_type_in_btf!(btf, types::Enum<'_>, "Foo");
 
     assert_definition(&btf, &enum_foo, expected_output);
 }
@@ -1558,7 +1567,7 @@ impl Default for Foo {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let union_foo = find_type_in_btf!(btf, types::Union, "Foo");
+    let union_foo = find_type_in_btf!(btf, types::Union<'_>, "Foo");
 
     assert_definition(&btf, &union_foo, expected_output);
 }
@@ -1599,7 +1608,7 @@ pub struct Bar {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1648,8 +1657,8 @@ pub struct rodata {
     let btf = btf_from_mmap(&mmap);
 
     // Find out types
-    let bss = find_type_in_btf!(btf, types::DataSec, "bss", true);
-    let rodata = find_type_in_btf!(btf, types::DataSec, "rodata", true);
+    let bss = find_type_in_btf!(btf, types::DataSec<'_>, "bss", true);
+    let rodata = find_type_in_btf!(btf, types::DataSec<'_>, "rodata", true);
 
     assert_definition(&btf, &bss, bss_output);
     assert_definition(&btf, &rodata, rodata_output);
@@ -1708,8 +1717,8 @@ pub struct rodata {
     let btf = btf_from_mmap(&mmap);
 
     // Find our types
-    let bss = find_type_in_btf!(btf, types::DataSec, "bss", true);
-    let rodata = find_type_in_btf!(btf, types::DataSec, "rodata", true);
+    let bss = find_type_in_btf!(btf, types::DataSec<'_>, "bss", true);
+    let rodata = find_type_in_btf!(btf, types::DataSec<'_>, "rodata", true);
 
     assert_definition(&btf, &bss, bss_output);
     assert_definition(&btf, &rodata, rodata_output);
@@ -1767,8 +1776,8 @@ pub struct rodata {
     let btf = btf_from_mmap(&mmap);
 
     // Find our types
-    let bss = find_type_in_btf!(btf, types::DataSec, "bss", true);
-    let rodata = find_type_in_btf!(btf, types::DataSec, "rodata", true);
+    let bss = find_type_in_btf!(btf, types::DataSec<'_>, "bss", true);
+    let rodata = find_type_in_btf!(btf, types::DataSec<'_>, "rodata", true);
 
     assert_definition(&btf, &bss, bss_output);
     assert_definition(&btf, &rodata, rodata_output);
@@ -1835,8 +1844,8 @@ pub struct rodata {
     let btf = btf_from_mmap(&mmap);
 
     // Find our types
-    let bss = find_type_in_btf!(btf, types::DataSec, "bss", true);
-    let rodata = find_type_in_btf!(btf, types::DataSec, "rodata", true);
+    let bss = find_type_in_btf!(btf, types::DataSec<'_>, "bss", true);
+    let rodata = find_type_in_btf!(btf, types::DataSec<'_>, "rodata", true);
 
     assert_definition(&btf, &bss, bss_output);
     assert_definition(&btf, &rodata, rodata_output);
@@ -1917,7 +1926,7 @@ impl Default for __anon_2 {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -1973,7 +1982,7 @@ pub struct __anon_2 {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -2075,7 +2084,7 @@ impl Default for __anon_4 {
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -2113,7 +2122,7 @@ pub enum __anon_1 {
     let btf = btf_from_mmap(&mmap);
 
     // Find the struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -2150,7 +2159,7 @@ pub struct Foo {
     let btf = btf_from_mmap(&mmap);
 
     // Find the struct
-    let struct_foo = find_type_in_btf!(btf, types::Struct, "Foo");
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
     assert_definition(&btf, &struct_foo, expected_output);
 }
@@ -2253,7 +2262,7 @@ pub struct __anon_4 {
     let btf = btf_from_mmap(&mmap);
 
     // Find the struct
-    let struct_bpf_sock_tuple = find_type_in_btf!(btf, types::Struct, "bpf_sock_tuple_5_15");
+    let struct_bpf_sock_tuple = find_type_in_btf!(btf, types::Struct<'_>, "bpf_sock_tuple_5_15");
 
     assert_definition(&btf, &struct_bpf_sock_tuple, expected_output);
 }
