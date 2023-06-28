@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -128,6 +130,29 @@ fn strip_dwarf_info(file: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Concatenate a command and its arguments into a single string.
+fn concat_command<C, A, S>(command: C, args: A) -> OsString
+where
+    C: AsRef<OsStr>,
+    A: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    args.into_iter()
+        .fold(command.as_ref().to_os_string(), |mut cmd, arg| {
+            cmd.push(OsStr::new(" "));
+            cmd.push(arg.as_ref());
+            cmd
+        })
+}
+
+/// Format a command with the given list of arguments as a string.
+fn format_command(command: &Command) -> String {
+    let prog = command.get_program();
+    let args = command.get_args();
+
+    concat_command(prog, args).to_string_lossy().to_string()
+}
+
 /// We're essentially going to run:
 ///
 ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
@@ -164,17 +189,22 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
 
     let output = cmd.output().context("Failed to execute clang")?;
     if !output.status.success() {
-        bail!(
-            "Failed to compile obj={} with status={}\n \
-            stdout=\n \
-            {}\n \
-            stderr=\n \
-            {}\n",
-            out.to_string_lossy(),
-            output.status,
-            String::from_utf8(output.stdout).unwrap(),
-            String::from_utf8(output.stderr).unwrap()
-        );
+        let err = Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()))
+            .with_context(|| {
+                format!(
+                    "Command `{}` failed ({})",
+                    format_command(&cmd),
+                    output.status
+                )
+            })
+            .with_context(|| {
+                format!(
+                    "Failed to compile {} from {}",
+                    out.display(),
+                    source.display()
+                )
+            });
+        return err;
     }
 
     // Compilation with clang may contain DWARF information that references
@@ -240,13 +270,9 @@ pub fn build(
     check_progs(&to_compile)?;
 
     let clang = extract_clang_or_default(clang);
-    if let Err(e) = check_clang(debug, &clang, skip_clang_version_checks) {
-        bail!("{} is invalid: {}", clang.display(), e);
-    }
-
-    if let Err(e) = compile(debug, &to_compile, &clang, &target_dir) {
-        bail!("Failed to compile progs: {}", e);
-    }
+    check_clang(debug, &clang, skip_clang_version_checks)
+        .with_context(|| anyhow!("{} is invalid", clang.display()))?;
+    compile(debug, &to_compile, &clang, &target_dir).context("Failed to compile progs")?;
 
     Ok(())
 }
