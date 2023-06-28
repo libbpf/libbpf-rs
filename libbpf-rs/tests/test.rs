@@ -1,3 +1,5 @@
+#![allow(clippy::let_unit_value)]
+
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::fs;
@@ -889,6 +891,57 @@ fn test_sudo_object_ringbuf_closure() {
 
     assert_eq!(v1, 1);
     assert_eq!(v2, 2);
+}
+
+/// Check that `RingBuffer` works correctly even if the map file descriptors
+/// provided during construction are closed. This test validates that `libbpf`'s
+/// refcount behavior is correctly reflected in our `RingBuffer` lifetimes.
+#[test]
+fn test_sudo_object_ringbuf_with_closed_map() {
+    bump_rlimit_mlock();
+
+    fn test(poll_fn: impl FnOnce(&libbpf_rs::RingBuffer)) {
+        let mut value = 0i32;
+
+        {
+            let mut obj = get_test_object("tracepoint.bpf.o");
+            let prog = obj
+                .prog_mut("handle__tracepoint")
+                .expect("Failed to find program");
+
+            let _link = prog
+                .attach_tracepoint("syscalls", "sys_enter_getpid")
+                .expect("Failed to attach prog");
+
+            let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+
+            let callback = |data: &[u8]| {
+                plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+                0
+            };
+
+            let mut builder = libbpf_rs::RingBufferBuilder::new();
+            builder.add(map, callback).expect("Failed to add ringbuf");
+            let ringbuf = builder.build().expect("Failed to build");
+
+            drop(obj);
+
+            // Trigger the tracepoint. At this point `map` along with the containing
+            // `obj` have been destroyed.
+            let _pid = unsafe { libc::getpid() };
+            let () = poll_fn(&ringbuf);
+        }
+
+        // If we see a 1 here the ring buffer was still working as expected.
+        assert_eq!(value, 1);
+    }
+
+    test(|ringbuf| ringbuf.consume().expect("Failed to consume ringbuf"));
+    test(|ringbuf| {
+        ringbuf
+            .poll(Duration::from_secs(5))
+            .expect("Failed to poll ringbuf")
+    });
 }
 
 #[test]
