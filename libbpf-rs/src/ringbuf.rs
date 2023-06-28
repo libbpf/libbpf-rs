@@ -49,11 +49,11 @@ impl Debug for RingBufferCallback<'_> {
 /// between [`Program`][crate::Program]s and userspace. As of Linux 5.8, the
 /// `ringbuf` map is now preferred over the `perf buffer`.
 #[derive(Debug, Default)]
-pub struct RingBufferBuilder<'a> {
-    fd_callbacks: Vec<(BorrowedFd<'a>, RingBufferCallback<'a>)>,
+pub struct RingBufferBuilder<'slf, 'cb> {
+    fd_callbacks: Vec<(BorrowedFd<'slf>, RingBufferCallback<'cb>)>,
 }
 
-impl<'a> RingBufferBuilder<'a> {
+impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     /// Create a new `RingBufferBuilder` object.
     pub fn new() -> Self {
         RingBufferBuilder {
@@ -69,9 +69,9 @@ impl<'a> RingBufferBuilder<'a> {
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
-    pub fn add<NewF>(&mut self, map: &'a MapHandle, callback: NewF) -> Result<&mut Self>
+    pub fn add<NewF>(&mut self, map: &'slf MapHandle, callback: NewF) -> Result<&mut Self>
     where
-        NewF: FnMut(&[u8]) -> i32 + 'a,
+        NewF: FnMut(&[u8]) -> i32 + 'cb,
     {
         if map.map_type() != MapType::RingBuf {
             return Err(Error::InvalidInput("Must use a RingBuf map".into()));
@@ -82,7 +82,7 @@ impl<'a> RingBufferBuilder<'a> {
     }
 
     /// Build a new [`RingBuffer`]. Must have added at least one ringbuf.
-    pub fn build(self) -> Result<RingBuffer<'a>> {
+    pub fn build(self) -> Result<RingBuffer<'cb>> {
         let mut cbs = vec![];
         let mut ptr: Option<NonNull<libbpf_sys::ring_buffer>> = None;
         let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
@@ -145,10 +145,10 @@ impl<'a> RingBufferBuilder<'a> {
 /// between [`Program`][crate::Program]s and userspace. As of Linux 5.8, the
 /// `ringbuf` map is now preferred over the `perf buffer`.
 #[derive(Debug)]
-pub struct RingBuffer<'a> {
+pub struct RingBuffer<'cb> {
     ptr: NonNull<libbpf_sys::ring_buffer>,
     #[allow(clippy::vec_box)]
-    _cbs: Vec<Box<RingBufferCallback<'a>>>,
+    _cbs: Vec<Box<RingBufferCallback<'cb>>>,
 }
 
 impl RingBuffer<'_> {
@@ -199,7 +199,7 @@ mod test {
 
     /// Check that `RingBuffer` is `Send`.
     #[test]
-    fn perfbuffer_is_send() {
+    fn ringbuffer_is_send() {
         fn test<T>()
         where
             T: Send,
