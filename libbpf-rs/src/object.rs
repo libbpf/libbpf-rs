@@ -373,7 +373,7 @@ impl Object {
     }
 
     /// Parse the btf information associated with this bpf object.
-    pub fn btf(&self) -> Result<Btf> {
+    pub fn btf(&self) -> Result<Btf<'_>> {
         Btf::from_bpf_object(unsafe { &*self.ptr.as_ptr() })
     }
 

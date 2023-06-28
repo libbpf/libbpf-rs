@@ -48,7 +48,7 @@ pub struct PerfBufferBuilder<'a, 'b> {
     lost_cb: Option<Box<dyn LostCb + 'b>>,
 }
 
-impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
+impl<'a> PerfBufferBuilder<'a, '_> {
     /// Create a new `PerfBufferBuilder` using the provided `Map`.
     pub fn new(map: &'a Map) -> Self {
         Self {
@@ -146,7 +146,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {
-        let callback_struct = ctx as *mut CbStruct;
+        let callback_struct = ctx as *mut CbStruct<'_>;
 
         if let Some(cb) = unsafe { &mut (*callback_struct).sample_cb } {
             let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
@@ -155,7 +155,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     }
 
     unsafe extern "C" fn call_lost_cb(ctx: *mut c_void, cpu: i32, count: u64) {
-        let callback_struct = ctx as *mut CbStruct;
+        let callback_struct = ctx as *mut CbStruct<'_>;
 
         if let Some(cb) = unsafe { &mut (*callback_struct).lost_cb } {
             cb(cpu, count);
@@ -191,7 +191,7 @@ pub struct PerfBuffer<'b> {
 
 // TODO: Document methods.
 #[allow(missing_docs)]
-impl<'b> PerfBuffer<'b> {
+impl PerfBuffer<'_> {
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr.as_ptr()) }
     }
@@ -258,6 +258,6 @@ mod test {
         {
         }
 
-        test::<PerfBuffer>();
+        test::<PerfBuffer<'_>>();
     }
 }

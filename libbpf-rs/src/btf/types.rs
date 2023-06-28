@@ -877,7 +877,7 @@ macro_rules! btf_type_match {
             $($pattern:tt)+
         }
     ) => {{
-        let ty: $crate::btf::BtfType = $ty;
+        let ty: $crate::btf::BtfType<'_> = $ty;
         $crate::__btf_type_match!(match ty.kind() { } $($pattern)*)
     }};
 }
@@ -1014,7 +1014,7 @@ mod test {
         };
     }
 
-    fn foo(_: super::Int) -> &'static str {
+    fn foo(_: super::Int<'_>) -> &'static str {
         "int"
     }
 

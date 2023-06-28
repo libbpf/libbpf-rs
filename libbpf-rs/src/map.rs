@@ -290,7 +290,7 @@ impl Map {
     /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
     /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
     /// iteration becomes unpredictable.
-    pub fn keys(&self) -> MapKeyIter {
+    pub fn keys(&self) -> MapKeyIter<'_> {
         MapKeyIter::new(self, self.key_size())
     }
 
@@ -953,7 +953,7 @@ impl<'a> MapKeyIter<'a> {
     }
 }
 
-impl<'a> Iterator for MapKeyIter<'a> {
+impl Iterator for MapKeyIter<'_> {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -985,7 +985,7 @@ pub struct MapInfo {
 
 impl MapInfo {
     /// Create a `MapInfo` object from a fd.
-    pub fn new(fd: BorrowedFd) -> Result<Self> {
+    pub fn new(fd: BorrowedFd<'_>) -> Result<Self> {
         // SAFETY: `bpf_map_info` is valid for any bit pattern.
         let mut map_info = unsafe { mem::zeroed::<bpf_map_info>() };
         let mut size = mem::size_of_val(&map_info) as u32;

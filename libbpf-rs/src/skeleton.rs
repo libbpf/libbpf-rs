@@ -236,7 +236,7 @@ pub struct ObjectSkeletonConfig<'a> {
     _string_pool: Vec<CString>,
 }
 
-impl<'a> ObjectSkeletonConfig<'a> {
+impl ObjectSkeletonConfig<'_> {
     #[allow(missing_docs)]
     pub fn get(&mut self) -> &mut bpf_object_skeleton {
         &mut self.inner
@@ -289,7 +289,7 @@ impl<'a> ObjectSkeletonConfig<'a> {
     }
 }
 
-impl<'a> Drop for ObjectSkeletonConfig<'a> {
+impl Drop for ObjectSkeletonConfig<'_> {
     // Note we do *not* run `libbpf_sys::bpf_object__destroy_skeleton` here.
     //
     // Couple reasons:
@@ -317,7 +317,7 @@ impl<'a> Drop for ObjectSkeletonConfig<'a> {
             }
         }
 
-        unsafe { Box::from_raw(self.inner.obj) };
+        let _ = unsafe { Box::from_raw(self.inner.obj) };
     }
 }
 
