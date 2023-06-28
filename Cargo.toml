@@ -2,10 +2,11 @@
 members = [
   "libbpf-cargo",
   "libbpf-rs",
-  "examples/runqslower",
   "examples/bpf_query",
   "examples/capable",
+  "examples/runqslower",
   "examples/tc_port_whitelist",
+  "examples/tcp_ca",
   "examples/tproxy",
 ]
 resolver = "2"

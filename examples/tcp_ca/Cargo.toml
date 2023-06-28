@@ -1,0 +1,14 @@
+[package]
+name = "tcp_ca"
+version = "0.0.0"
+authors = ["Daniel Müller <deso@posteo.net>"]
+license = "LGPL-2.1-only OR BSD-2-Clause"
+edition = "2021"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
+
+[dependencies]
+clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
+libbpf-rs = { path = "../../libbpf-rs" }
+libc = "0.2"
