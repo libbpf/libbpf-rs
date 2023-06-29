@@ -8,3 +8,4 @@ members = [
   "examples/tc_port_whitelist",
   "examples/tproxy",
 ]
+resolver = "2"
