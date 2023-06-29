@@ -18,6 +18,8 @@ jobs:
         include:
           - rust: stable
             profile: release
+    # Anything nightly is treated as informational-only.
+    continue-on-error: ${{ matrix.rust == 'nightly' }}
     steps:
     - name: "Set environmental variables"
       shell: bash
