@@ -134,6 +134,36 @@ jobs:
           CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
           RUSTFLAGS: -C linker=/usr/bin/aarch64-linux-gnu-gcc
         run: cargo build --lib
+  build-armhf:
+    name: Build for aarch32
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Add apt sources for armhf
+        run: |
+          dpkg --add-architecture armhf
+          release=$(. /etc/os-release && echo "$UBUNTU_CODENAME")
+          sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          printf 'deb [arch=armhf] http://ports.ubuntu.com/ %s main restricted\n' \
+              $release $release-updates $release-security \
+              >> /etc/apt/sources.list
+        shell: sudo sh -e {0}
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: armv7-unknown-linux-gnueabihf
+          override: true
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libelf-dev:armhf zlib1g-dev:armhf gcc-arm-linux-gnueabihf
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Build
+        env:
+          CARGO_BUILD_TARGET: armv7-unknown-linux-gnueabihf
+          RUSTFLAGS: -C linker=/usr/bin/armhf-linux-gnu-gcc
+        run: cargo build --lib
   clippy:
     name: Lint with clippy
     runs-on: ubuntu-latest
