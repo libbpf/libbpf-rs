@@ -92,9 +92,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.73"
+version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fff2a6927b3bb87f9595d67196a70493f627687a71d87a0d692242c33f58c11"
+checksum = "50d30906286121d95be3d479533b458f87493b30a4b5f79a607db8f5d11aa91f"
 
 [[package]]
 name = "cfg-if"
@@ -284,11 +284,13 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "1.1.1+v1.1.0"
+version = "1.2.0+v1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f0bfc74513824996a8f689cae8b40445c9a54bc9f57a31d9778b281b9970868"
+checksum = "616bf3199fb438327bb9c9aa3233be761308e307a675328f44a61aa76fc01fbe"
 dependencies = [
  "cc",
+ "nix",
+ "num_cpus",
  "pkg-config",
 ]
 
@@ -360,7 +362,18 @@ dependencies = [
  "cfg-if",
  "libc",
  "memoffset",
+ "pin-utils",
  "static_assertions",
+]
+
+[[package]]
+name = "num_cpus"
+version = "1.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
+dependencies = [
+ "hermit-abi",
+ "libc",
 ]
 
 [[package]]
@@ -467,10 +480,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "pkg-config"
-version = "0.3.25"
+name = "pin-utils"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1df8c4ec4b0627e53bdf214615ad287367e482558cf84b109250b37464dc03ae"
+checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pkg-config"
+version = "0.3.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "plain"
