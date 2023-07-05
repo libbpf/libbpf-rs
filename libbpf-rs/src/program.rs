@@ -59,7 +59,7 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
             _non_exhaustive,
         } = opts;
         libbpf_sys::bpf_usdt_opts {
-            sz: mem::size_of::<Self>() as u64,
+            sz: mem::size_of::<Self>() as _,
             usdt_cookie: cookie,
         }
     }
@@ -82,7 +82,7 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
         } = opts;
 
         libbpf_sys::bpf_tracepoint_opts {
-            sz: mem::size_of::<Self>() as u64,
+            sz: mem::size_of::<Self>() as _,
             bpf_cookie: cookie,
         }
     }
@@ -818,11 +818,11 @@ impl Program {
     pub fn attach_iter(&mut self, map_fd: BorrowedFd<'_>) -> Result<Link> {
         util::create_bpf_entity_checked(|| unsafe {
             let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
-            linkinfo.map.map_fd = map_fd.as_raw_fd() as u32;
+            linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
             let attach_opt = libbpf_sys::bpf_iter_attach_opts {
                 link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
-                link_info_len: std::mem::size_of::<libbpf_sys::bpf_iter_link_info>() as u32,
-                sz: std::mem::size_of::<libbpf_sys::bpf_iter_attach_opts>() as u64,
+                link_info_len: std::mem::size_of::<libbpf_sys::bpf_iter_link_info>() as _,
+                sz: std::mem::size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
                 ..Default::default()
             };
 
