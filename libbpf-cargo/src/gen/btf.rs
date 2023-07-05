@@ -345,7 +345,7 @@ impl<'s> GenBtf<'s> {
                 )?;
 
                 if padding != 0 {
-                    agg_content.push(format!(r#"    __pad_{offset}: [u8; {padding}],"#,));
+                    agg_content.push(format!(r#"    pub __pad_{offset}: [u8; {padding}],"#,));
 
                     impl_default.push(format!(
                         r#"            __pad_{offset}: [u8::default(); {padding}]"#,
@@ -395,7 +395,7 @@ impl<'s> GenBtf<'s> {
             let struct_size = t.size();
             let padding = self.required_padding(offset, struct_size, &t, packed)?;
             if padding != 0 {
-                agg_content.push(format!(r#"    __pad_{offset}: [u8; {padding}],"#,));
+                agg_content.push(format!(r#"    pub __pad_{offset}: [u8; {padding}],"#,));
                 impl_default.push(format!(
                     r#"            __pad_{offset}: [u8::default(); {padding}]"#,
                 ));

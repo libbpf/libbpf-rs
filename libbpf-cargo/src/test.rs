@@ -1205,7 +1205,7 @@ struct Foo foo = {1};
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
-    __pad_4: [u8; 12],
+    pub __pad_4: [u8; 12],
 }
 "#;
 
@@ -1306,7 +1306,7 @@ pub struct Foo {
     pub ip: *mut i32,
     pub ipp: *mut *mut i32,
     pub bar: Bar,
-    __pad_18: [u8; 6],
+    pub __pad_18: [u8; 6],
     pub pb: *mut Bar,
     pub v: u64,
     pub cv: i64,
@@ -1361,7 +1361,7 @@ pub struct Foo {
     pub ip: *mut i32,
     pub ipp: *mut *mut i32,
     pub bar: Bar,
-    __pad_84: [u8; 4],
+    pub __pad_84: [u8; 4],
     pub pb: *mut Bar,
     pub v: u64,
     pub cv: i64,
@@ -1879,10 +1879,10 @@ struct Foo foo;
 pub struct Foo {
     pub x: i32,
     pub bar: __anon_1,
-    __pad_36: [u8; 4],
+    pub __pad_36: [u8; 4],
     pub baz: __anon_2,
     pub w: i32,
-    __pad_52: [u8; 4],
+    pub __pad_52: [u8; 4],
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1961,7 +1961,7 @@ pub struct Foo {
     pub bar: __anon_1,
     pub baz: __anon_2,
     pub w: i32,
-    __pad_68: [u8; 4],
+    pub __pad_68: [u8; 4],
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
@@ -1973,7 +1973,7 @@ pub struct __anon_1 {
 #[repr(C)]
 pub struct __anon_2 {
     pub w: u32,
-    __pad_4: [u8; 4],
+    pub __pad_4: [u8; 4],
     pub u: *mut u64,
 }
 "#;
@@ -2026,7 +2026,7 @@ pub struct Foo {
     pub zerg: __anon_2,
     pub baz: __anon_3,
     pub w: i32,
-    __pad_76: [u8; 4],
+    pub __pad_76: [u8; 4],
     pub flarg: __anon_4,
 }
 #[derive(Debug, Default, Copy, Clone)]
@@ -2057,7 +2057,7 @@ impl Default for __anon_2 {
 #[repr(C)]
 pub struct __anon_3 {
     pub w: u32,
-    __pad_4: [u8; 4],
+    pub __pad_4: [u8; 4],
     pub u: *mut u64,
 }
 #[derive(Copy, Clone)]
@@ -2201,7 +2201,7 @@ struct bpf_sock_tuple_5_15 tup;
 #[repr(C)]
 pub struct bpf_sock_tuple_5_15 {
     pub __anon_1: __anon_1,
-    __pad_36: [u8; 4],
+    pub __pad_36: [u8; 4],
     pub __anon_2: __anon_2,
 }
 #[derive(Copy, Clone)]
