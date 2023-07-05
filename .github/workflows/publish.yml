@@ -39,7 +39,8 @@ jobs:
         toolchain: stable
         override: true
     - name: Dry-run package creation
-      run: cargo package --package libbpf-rs --package libbpf-cargo --locked --no-verify
+      # Can't verify libbpf-cargo for it may depend on yet-to-be-published libbpf-rs.
+      run: cargo package --package libbpf-rs --locked --no-verify
     - name: Create git tag
       env:
         version: ${{ needs.version.outputs.version }}
