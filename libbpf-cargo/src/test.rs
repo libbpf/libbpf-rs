@@ -1120,6 +1120,7 @@ fn btf_from_mmap(mmap: &Mmap) -> GenBtf<'_> {
 /// Will trim leading and trailing whitespace from both expected output and from
 /// the generated type_definition
 /// fails calling text if type_definition does not match expected_output
+#[track_caller]
 fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: &str) {
     let actual_output = btf
         .type_definition(*btf_item)
