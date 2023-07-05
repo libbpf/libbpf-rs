@@ -683,7 +683,7 @@ impl MapHandle {
         };
 
         let opts = libbpf_sys::bpf_map_batch_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as u64,
+            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
             elem_flags: elem_flags.bits,
             flags: flags.bits,
         };
