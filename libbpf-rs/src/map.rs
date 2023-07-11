@@ -285,15 +285,6 @@ impl Map {
         util::parse_ret(ret)
     }
 
-    /// Returns an iterator over keys in this map
-    ///
-    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
-    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
-    /// iteration becomes unpredictable.
-    pub fn keys(&self) -> MapKeyIter<'_> {
-        MapKeyIter::new(self, self.key_size())
-    }
-
     /// Attach a struct ops map
     pub fn attach_struct_ops(&self) -> Result<Link> {
         if self.map_type() != MapType::StructOps {
@@ -842,6 +833,15 @@ impl MapHandle {
             Err(e) => Err(Error::Internal(format!("remove pin map failed: {e}"))),
         }
     }
+
+    /// Returns an iterator over keys in this map
+    ///
+    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
+    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
+    /// iteration becomes unpredictable.
+    pub fn keys(&self) -> MapKeyIter<'_> {
+        MapKeyIter::new(self, self.key_size())
+    }
 }
 
 impl AsFd for MapHandle {
@@ -938,13 +938,13 @@ impl MapType {
 
 #[derive(Debug)]
 pub struct MapKeyIter<'a> {
-    map: &'a Map,
+    map: &'a MapHandle,
     prev: Option<Vec<u8>>,
     next: Vec<u8>,
 }
 
 impl<'a> MapKeyIter<'a> {
-    fn new(map: &'a Map, key_size: u32) -> Self {
+    fn new(map: &'a MapHandle, key_size: u32) -> Self {
         Self {
             map,
             prev: None,
