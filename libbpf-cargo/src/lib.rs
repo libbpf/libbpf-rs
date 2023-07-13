@@ -66,6 +66,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::result;
 
+use anyhow::anyhow;
 use tempfile::tempdir;
 use tempfile::TempDir;
 use thiserror::Error;
@@ -87,10 +88,10 @@ mod test;
 /// Canonical error type for this crate.
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Error building BPF object file: {0}")]
-    Build(String),
-    #[error("Error generating skeleton: {0}")]
-    Generate(String),
+    #[error("Error building BPF object file")]
+    Build(#[source] anyhow::Error),
+    #[error("Error generating skeleton")]
+    Generate(#[source] anyhow::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -223,16 +224,16 @@ impl SkeletonBuilder {
         let source = self
             .source
             .as_ref()
-            .ok_or_else(|| Error::Build("No source file".into()))?;
+            .ok_or_else(|| Error::Build(anyhow!("No source file")))?;
 
         let filename = source
             .file_name()
-            .ok_or_else(|| Error::Build("Missing file name".into()))?
+            .ok_or_else(|| Error::Build(anyhow!("Missing file name")))?
             .to_str()
-            .ok_or_else(|| Error::Build("Invalid unicode in file name".into()))?;
+            .ok_or_else(|| Error::Build(anyhow!("Invalid unicode in file name")))?;
 
         if !filename.ends_with(".bpf.c") {
-            return Err(Error::Build(format!(
+            return Err(Error::Build(anyhow!(
                 "Source file={} does not have .bpf.c suffix",
                 source.display()
             )));
@@ -240,7 +241,7 @@ impl SkeletonBuilder {
 
         if self.obj.is_none() {
             let name = filename.split('.').next().unwrap();
-            let dir = tempdir().map_err(|e| Error::Build(e.to_string()))?;
+            let dir = tempdir().map_err(|e| Error::Build(e.into()))?;
             let objfile = dir.path().join(format!("{name}.o"));
             self.obj = Some(objfile);
             // Hold onto tempdir so that it doesn't get deleted early
@@ -256,7 +257,7 @@ impl SkeletonBuilder {
             self.skip_clang_version_check,
             &self.clang_args,
         )
-        .map_err(|e| Error::Build(e.to_string()))?;
+        .map_err(Error::Build)?;
 
         Ok(())
     }
@@ -268,7 +269,7 @@ impl SkeletonBuilder {
         let objfile = self
             .obj
             .as_ref()
-            .ok_or_else(|| Error::Generate("No object file".into()))?;
+            .ok_or_else(|| Error::Generate(anyhow!("No object file")))?;
 
         gen::gen_single(
             self.debug,
@@ -276,7 +277,7 @@ impl SkeletonBuilder {
             gen::OutputDest::File(output.as_ref()),
             Some(&self.rustfmt),
         )
-        .map_err(|e| Error::Generate(e.to_string()))?;
+        .map_err(Error::Generate)?;
 
         Ok(())
     }

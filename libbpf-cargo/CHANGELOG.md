@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Improved error reporting in build script usage
+
+
 0.21.1
 ------
 - Adjusted named padding members in generated types to have `pub` visibility
