@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Improved error reporting in build script usage
+- Bumped minimum Rust version to `1.64`
 
 
 0.21.1
