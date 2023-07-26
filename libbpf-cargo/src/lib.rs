@@ -59,6 +59,7 @@
 #![warn(
     elided_lifetimes_in_paths,
     single_use_lifetimes,
+    clippy::absolute_paths,
     clippy::wildcard_imports
 )]
 #![deny(unsafe_op_in_unsafe_fn)]

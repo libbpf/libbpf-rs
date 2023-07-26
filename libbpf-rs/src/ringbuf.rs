@@ -8,6 +8,7 @@ use std::os::raw::c_ulong;
 use std::os::unix::io::AsFd;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::BorrowedFd;
+use std::ptr::null_mut;
 use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
@@ -98,7 +99,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
                             fd.as_raw_fd(),
                             c_sample_cb,
                             sample_cb_ptr as *mut _,
-                            std::ptr::null_mut(),
+                            null_mut(),
                         )
                     })?);
                 }

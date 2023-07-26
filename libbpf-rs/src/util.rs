@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::io;
@@ -95,12 +96,12 @@ pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Res
                 io::ErrorKind::Other,
                 format!(
                     "bpf call {:?} returned NULL",
-                    std::any::type_name::<F>() // this is usually a library bug, hopefully this will
-                                               // help diagnose the bug.
-                                               //
-                                               // One way to fix the bug might be to change to calling
-                                               // create_bpf_entity_checked_opt and handling Ok(None)
-                                               // as a meaningful value.
+                    type_name::<F>() // this is usually a library bug, hopefully this will
+                                     // help diagnose the bug.
+                                     //
+                                     // One way to fix the bug might be to change to calling
+                                     // create_bpf_entity_checked_opt and handling Ok(None)
+                                     // as a meaningful value.
                 ),
             )
         })

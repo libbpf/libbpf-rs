@@ -5,6 +5,7 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::os::unix::io::AsFd;
 use std::os::unix::prelude::AsRawFd;
+use std::ptr;
 use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
@@ -133,7 +134,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
                 c_sample_cb,
                 c_lost_cb,
                 callback_struct_ptr as *mut _,
-                std::ptr::null(),
+                ptr::null(),
             )
         })
         .map(|ptr| PerfBuffer {

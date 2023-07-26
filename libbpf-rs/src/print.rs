@@ -2,6 +2,7 @@ use crate::libbpf_sys;
 use lazy_static::lazy_static;
 use std::io;
 use std::io::Write;
+use std::mem;
 use std::os::raw::c_char;
 use std::sync::Mutex;
 
@@ -117,7 +118,7 @@ pub fn set_print(
     mut callback: Option<(PrintLevel, PrintCallback)>,
 ) -> Option<(PrintLevel, PrintCallback)> {
     let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(Some(outer_print_cb));
-    std::mem::swap(&mut callback, &mut *PRINT_CB.lock().unwrap());
+    mem::swap(&mut callback, &mut *PRINT_CB.lock().unwrap());
     unsafe { libbpf_sys::libbpf_set_print(real_cb) };
     callback
 }

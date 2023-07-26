@@ -171,7 +171,7 @@ impl OpenObject {
         };
 
         // Populate obj.maps
-        let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+        let mut map: *mut libbpf_sys::bpf_map = ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
             let map_ptr = {
@@ -190,7 +190,7 @@ impl OpenObject {
         }
 
         // Populate obj.progs
-        let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
+        let mut prog: *mut libbpf_sys::bpf_program = ptr::null_mut();
         loop {
             // Get the pointer to the next BPF program
             let prog_ptr = {
@@ -233,12 +233,12 @@ impl OpenObject {
             // using destructuring we make sure we'll get a compiler error if anything in
             // Self changes, which will alert us to change this function as well
             let Self { ptr, maps, progs } = &mut self;
-            std::mem::take(maps);
-            std::mem::take(progs);
+            mem::take(maps);
+            mem::take(progs);
             *ptr
         };
         // avoid double free of self.ptr
-        std::mem::forget(self);
+        mem::forget(self);
         ptr
     }
 
@@ -354,7 +354,7 @@ impl Object {
         };
 
         // Populate obj.maps
-        let mut map: *mut libbpf_sys::bpf_map = std::ptr::null_mut();
+        let mut map: *mut libbpf_sys::bpf_map = ptr::null_mut();
         loop {
             // Get the pointer to the next BPF map
             let map_ptr = {
@@ -373,7 +373,7 @@ impl Object {
         }
 
         // Populate obj.progs
-        let mut prog: *mut libbpf_sys::bpf_program = std::ptr::null_mut();
+        let mut prog: *mut libbpf_sys::bpf_program = ptr::null_mut();
         loop {
             // Get the pointer to the next BPF program
             let prog_ptr = {

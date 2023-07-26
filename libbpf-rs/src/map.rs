@@ -16,7 +16,6 @@ use std::os::unix::io::OwnedFd;
 use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::ptr;
-use std::ptr::null;
 use std::ptr::NonNull;
 use std::slice::from_raw_parts;
 
@@ -83,7 +82,7 @@ impl OpenMap {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_initial_value(
                 self.ptr.as_ptr(),
-                data.as_ptr() as *const std::ffi::c_void,
+                data.as_ptr() as *const c_void,
                 data.len() as libbpf_sys::size_t,
             )
         };
@@ -393,7 +392,7 @@ impl MapHandle {
 
         let map_name_ptr = {
             if map_name_str.as_bytes().is_empty() {
-                null()
+                ptr::null()
             } else {
                 map_name_str.as_ptr()
             }
@@ -934,7 +933,7 @@ impl MapType {
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
     pub fn is_supported(&self) -> Result<bool> {
-        let ret = unsafe { libbpf_sys::libbpf_probe_bpf_map_type(*self as u32, std::ptr::null()) };
+        let ret = unsafe { libbpf_sys::libbpf_probe_bpf_map_type(*self as u32, ptr::null()) };
         match ret {
             0 => Ok(false),
             1 => Ok(true),
