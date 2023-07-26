@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 use std::convert::TryFrom;
 use std::ffi::CStr;
-use std::mem;
+use std::mem::size_of;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
@@ -10,6 +10,7 @@ use std::os::unix::io::OwnedFd;
 use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
+use std::slice;
 
 use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
@@ -60,7 +61,7 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
             _non_exhaustive,
         } = opts;
         libbpf_sys::bpf_usdt_opts {
-            sz: mem::size_of::<Self>() as _,
+            sz: size_of::<Self>() as _,
             usdt_cookie: cookie,
         }
     }
@@ -83,7 +84,7 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
         } = opts;
 
         libbpf_sys::bpf_tracepoint_opts {
-            sz: mem::size_of::<Self>() as _,
+            sz: size_of::<Self>() as _,
             bpf_cookie: cookie,
         }
     }
@@ -226,7 +227,7 @@ impl OpenProgram {
     pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
-        unsafe { std::slice::from_raw_parts(ptr, count) }
+        unsafe { slice::from_raw_parts(ptr, count) }
     }
 }
 
@@ -288,7 +289,7 @@ impl ProgramType {
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
     pub fn is_supported(&self) -> Result<bool> {
-        let ret = unsafe { libbpf_sys::libbpf_probe_bpf_prog_type(*self as u32, std::ptr::null()) };
+        let ret = unsafe { libbpf_sys::libbpf_probe_bpf_prog_type(*self as u32, ptr::null()) };
         match ret {
             0 => Ok(false),
             1 => Ok(true),
@@ -302,9 +303,8 @@ impl ProgramType {
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
     pub fn is_helper_supported(&self, helper_id: bpf_func_id) -> Result<bool> {
-        let ret = unsafe {
-            libbpf_sys::libbpf_probe_bpf_helper(*self as u32, helper_id, std::ptr::null())
-        };
+        let ret =
+            unsafe { libbpf_sys::libbpf_probe_bpf_helper(*self as u32, helper_id, ptr::null()) };
         match ret {
             0 => Ok(false),
             1 => Ok(true),
@@ -438,7 +438,7 @@ impl Program {
     pub fn get_id_by_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         let mut prog_info = libbpf_sys::bpf_prog_info::default();
         let prog_info_ptr: *mut libbpf_sys::bpf_prog_info = &mut prog_info;
-        let mut len = mem::size_of::<libbpf_sys::bpf_prog_info>() as u32;
+        let mut len = size_of::<libbpf_sys::bpf_prog_info>() as u32;
         let ret = unsafe {
             libbpf_sys::bpf_obj_get_info_by_fd(
                 fd.as_raw_fd(),
@@ -577,7 +577,7 @@ impl Program {
 
         let func_name = util::str_to_cstring(&func_name)?;
         let opts = libbpf_sys::bpf_uprobe_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_uprobe_opts>() as _,
+            sz: size_of::<libbpf_sys::bpf_uprobe_opts>() as _,
             ref_ctr_offset: ref_ctr_offset as libbpf_sys::size_t,
             bpf_cookie: cookie,
             retprobe,
@@ -829,8 +829,8 @@ impl Program {
             linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
             let attach_opt = libbpf_sys::bpf_iter_attach_opts {
                 link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
-                link_info_len: std::mem::size_of::<libbpf_sys::bpf_iter_link_info>() as _,
-                sz: std::mem::size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
+                link_info_len: size_of::<libbpf_sys::bpf_iter_link_info>() as _,
+                sz: size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
                 ..Default::default()
             };
 
@@ -859,6 +859,6 @@ impl Program {
     pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
-        unsafe { std::slice::from_raw_parts(ptr, count) }
+        unsafe { slice::from_raw_parts(ptr, count) }
     }
 }

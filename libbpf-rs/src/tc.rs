@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
 
@@ -64,8 +65,8 @@ impl TcHook {
             opts: libbpf_sys::bpf_tc_opts::default(),
         };
 
-        tc_hook.hook.sz = std::mem::size_of::<libbpf_sys::bpf_tc_hook>() as libbpf_sys::size_t;
-        tc_hook.opts.sz = std::mem::size_of::<libbpf_sys::bpf_tc_opts>() as libbpf_sys::size_t;
+        tc_hook.hook.sz = size_of::<libbpf_sys::bpf_tc_hook>() as libbpf_sys::size_t;
+        tc_hook.opts.sz = size_of::<libbpf_sys::bpf_tc_opts>() as libbpf_sys::size_t;
         tc_hook.opts.prog_fd = fd.as_raw_fd();
 
         tc_hook

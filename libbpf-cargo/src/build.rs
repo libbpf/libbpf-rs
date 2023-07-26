@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::env::consts::ARCH;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs;
@@ -170,10 +171,10 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
     }
 
     if !options.contains("-D__TARGET_ARCH_") {
-        let arch = match std::env::consts::ARCH {
+        let arch = match ARCH {
             "x86_64" => "x86",
             "aarch64" => "arm64",
-            _ => std::env::consts::ARCH,
+            _ => ARCH,
         };
         cmd.arg(format!("-D__TARGET_ARCH_{arch}"));
     }

@@ -15,6 +15,7 @@ use std::ffi::c_void;
 use std::ffi::CString;
 use std::mem::size_of_val;
 use std::os::raw::c_char;
+use std::ptr;
 use std::time::Duration;
 
 use nix::errno;
@@ -337,7 +338,7 @@ impl ProgramInfo {
         }
 
         if opts.include_jited_line_info {
-            jited_line_info.resize(item.nr_jited_line_info as usize, std::ptr::null());
+            jited_line_info.resize(item.nr_jited_line_info as usize, ptr::null());
             item.jited_line_info = jited_line_info.as_mut_ptr() as *mut c_void as u64;
         } else {
             item.nr_jited_line_info = 0;
@@ -358,7 +359,7 @@ impl ProgramInfo {
         }
 
         if opts.include_jited_ksyms {
-            jited_ksyms.resize(item.nr_jited_ksyms as usize, std::ptr::null());
+            jited_ksyms.resize(item.nr_jited_ksyms as usize, ptr::null());
             item.jited_ksyms = jited_ksyms.as_mut_ptr() as *mut c_void as u64;
         } else {
             item.nr_jited_ksyms = 0;

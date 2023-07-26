@@ -1,4 +1,4 @@
-#![allow(clippy::let_unit_value)]
+#![allow(clippy::absolute_paths, clippy::let_unit_value)]
 
 use std::path::PathBuf;
 

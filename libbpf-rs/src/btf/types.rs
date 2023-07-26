@@ -339,7 +339,7 @@ pub enum IntEncoding {
 impl<'btf> TryFrom<BtfType<'btf>> for Int<'btf> {
     type Error = BtfType<'btf>;
 
-    fn try_from(t: BtfType<'btf>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(t: BtfType<'btf>) -> Result<Self, Self::Error> {
         if t.kind() == BtfKind::Int {
             let int = {
                 let base_ptr = t.ty as *const libbpf_sys::btf_type;
