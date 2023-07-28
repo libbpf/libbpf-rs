@@ -357,6 +357,15 @@ impl<'s> GenBtf<'s> {
                         gen_impl_default = true
                     }
                 }
+
+                // Rust does not implement `Default` for pointers, no matter if
+                // the pointee implements it.
+                if self
+                    .type_by_id::<types::Ptr<'_>>(field_ty.type_id())
+                    .is_some()
+                {
+                    gen_impl_default = true
+                }
             }
 
             match self.type_default(field_ty) {
