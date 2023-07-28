@@ -1438,6 +1438,46 @@ pub struct Bar {
 }
 
 #[test]
+fn test_btf_dump_struct_definition_func_proto() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct with_func_proto {
+	struct with_func_proto *next;
+	void (*func)(struct with_func_proto *);
+};
+
+struct with_func_proto w;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct with_func_proto {
+    pub next: *mut with_func_proto,
+    pub func: *mut std::ffi::c_void,
+}
+impl Default for with_func_proto {
+    fn default() -> Self {
+        with_func_proto {
+            next: std::ptr::null_mut(),
+            func: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    // Find our struct
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "with_func_proto");
+
+    assert_definition(&btf, &struct_foo, expected_output);
+}
+
+#[test]
 fn test_btf_dump_struct_definition_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"

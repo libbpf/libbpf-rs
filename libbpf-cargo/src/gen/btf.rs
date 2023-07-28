@@ -134,12 +134,12 @@ impl<'s> GenBtf<'s> {
             }
             BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
                 self.get_type_name_handling_anon_types(&ty).into_owned(),
-            //    // The only way a variable references a function is through a function pointer.
-            //    // Return c_void here so the final def will look like `*mut c_void`.
-            //    //
-            //    // It's not like rust code can call a function inside a bpf prog either so we don't
-            //    // really need a full definition. `void *` is totally sufficient for sharing a pointer.
-            BtfKind::Func => "std::ffi::c_void".to_string(),
+            // The only way a variable references a function is through a function pointer.
+            // Return c_void here so the final def will look like `*mut c_void`.
+            //
+            // It's not like rust code can call a function inside a bpf prog either so we don't
+            // really need a full definition. `void *` is totally sufficient for sharing a pointer.
+            BtfKind::Func | BtfKind::FuncProto => "std::ffi::c_void".to_string(),
             BtfKind::Var(t) => self.type_declaration(t.referenced_type())?,
             _ => bail!("Invalid type: {ty:?}"),
         });

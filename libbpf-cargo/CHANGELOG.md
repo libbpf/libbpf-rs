@@ -1,6 +1,8 @@
 Unreleased
 ----------
 - Added `Default` impl for generated `struct` types containing pointers
+- Fixed handling of function prototype type declaration inference in BTF and
+  skeleton generation
 - Improved error reporting in build script usage
 - Bumped minimum Rust version to `1.64`
 
