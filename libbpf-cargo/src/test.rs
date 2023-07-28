@@ -950,6 +950,91 @@ fn test_skeleton_builder_arrays_ptrs() {
     assert!(status.success());
 }
 
+#[test]
+fn test_skeleton_generate_struct_with_pointer() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct list {{
+            struct list *next;
+        }};
+
+        struct list l;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_vmlinux_header(&proj_dir);
+
+    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+
+        fn main() {{
+            let builder = ProgSkelBuilder::default();
+            let _open_skel = builder
+                .open()
+                .expect("failed to open skel");
+        }}
+        "#,
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
+        .status()
+        .expect("failed to spawn cargo-build");
+
+    assert!(status.success());
+}
+
 /// Check that skeleton creation is deterministic, i.e., that no temporary paths
 /// change the output between invocations.
 #[test]
@@ -1158,12 +1243,21 @@ struct Foo foo = {{0}};
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
     pub y: [i8; 10],
     pub z: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: [i8::default(); 10],
+            z: std::ptr::null_mut(),
+        }
+    }
 }
 "#;
 
@@ -1301,7 +1395,7 @@ struct Foo foo;
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
     let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub ip: *mut i32,
@@ -1312,6 +1406,20 @@ pub struct Foo {
     pub v: u64,
     pub cv: i64,
     pub r: *mut i8,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            ip: std::ptr::null_mut(),
+            ipp: std::ptr::null_mut(),
+            bar: Bar::default(),
+            __pad_18: [u8::default(); 6],
+            pb: std::ptr::null_mut(),
+            v: u64::default(),
+            cv: i64::default(),
+            r: std::ptr::null_mut(),
+        }
+    }
 }
 #[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
@@ -1356,7 +1464,7 @@ struct Foo foo;
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
     let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub ip: *mut i32,
@@ -1367,6 +1475,20 @@ pub struct Foo {
     pub v: u64,
     pub cv: i64,
     pub r: *mut i8,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            ip: std::ptr::null_mut(),
+            ipp: std::ptr::null_mut(),
+            bar: Bar::default(),
+            __pad_84: [u8::default(); 4],
+            pb: std::ptr::null_mut(),
+            v: u64::default(),
+            cv: i64::default(),
+            r: std::ptr::null_mut(),
+        }
+    }
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
@@ -1637,12 +1759,21 @@ const int myconstglobal = 0;
 pub struct bss {
     pub foo: Foo,
 }
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
     pub y: [i8; 10],
     pub z: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: [i8::default(); 10],
+            z: std::ptr::null_mut(),
+        }
+    }
 }
 "#;
 
@@ -1754,12 +1885,21 @@ pub struct bss {
     pub foo2: Foo,
     pub foo3: Foo,
 }
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub x: i32,
     pub y: [i8; 10],
     pub z: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            y: [i8::default(); 10],
+            z: std::ptr::null_mut(),
+        }
+    }
 }
 "#;
 
@@ -1970,12 +2110,21 @@ pub struct __anon_1 {
     pub y: [u8; 10],
     pub z: [u16; 16],
 }
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct __anon_2 {
     pub w: u32,
     pub __pad_4: [u8; 4],
     pub u: *mut u64,
+}
+impl Default for __anon_2 {
+    fn default() -> Self {
+        __anon_2 {
+            w: u32::default(),
+            __pad_4: [u8::default(); 4],
+            u: std::ptr::null_mut(),
+        }
+    }
 }
 "#;
 
@@ -2054,12 +2203,21 @@ impl Default for __anon_2 {
         }
     }
 }
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct __anon_3 {
     pub w: u32,
     pub __pad_4: [u8; 4],
     pub u: *mut u64,
+}
+impl Default for __anon_3 {
+    fn default() -> Self {
+        __anon_3 {
+            w: u32::default(),
+            __pad_4: [u8::default(); 4],
+            u: std::ptr::null_mut(),
+        }
+    }
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
