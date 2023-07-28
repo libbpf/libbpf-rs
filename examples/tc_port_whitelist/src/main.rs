@@ -1,6 +1,9 @@
+#![allow(clippy::let_unit_value)]
+
 use std::os::unix::io::AsFd as _;
 
 use anyhow::bail;
+use anyhow::Context as _;
 use anyhow::Result;
 
 use clap::Parser;
@@ -119,9 +122,11 @@ fn main() -> Result<()> {
         for (i, port) in opts.ports.iter().enumerate() {
             let key = (i as u32).to_ne_bytes();
             let val = port.to_ne_bytes();
-            if let Err(e) = skel.maps_mut().ports().update(&key, &val, MapFlags::ANY) {
-                bail!("Example limited to 10 ports: {e}");
-            }
+            let () = skel
+                .maps_mut()
+                .ports()
+                .update(&key, &val, MapFlags::ANY)
+                .context("Example limited to 10 ports")?;
         }
         ingress.create()?;
 

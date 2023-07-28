@@ -963,13 +963,12 @@ pub fn gen_single(
         ),
     };
 
-    if let Err(e) = gen_skel(debug, name, obj_file, output, rustfmt_path) {
-        bail!(
-            "Failed to generate skeleton for {}: {}",
+    let () = gen_skel(debug, name, obj_file, output, rustfmt_path).with_context(|| {
+        format!(
+            "Failed to generate skeleton for {}",
             obj_file.to_string_lossy(),
-            e
-        );
-    }
+        )
+    })?;
 
     Ok(())
 }
@@ -999,20 +998,19 @@ fn gen_project(
         let mut skel_path = obj.path.clone();
         skel_path.pop();
 
-        match gen_skel(
+        let () = gen_skel(
             debug,
             &obj.name,
             obj_file_path.as_path(),
             OutputDest::Directory(skel_path.as_path()),
             rustfmt_path,
-        ) {
-            Ok(_) => (),
-            Err(e) => bail!(
-                "Failed to generate skeleton for {}: {}",
-                obj.path.as_path().display(),
-                e
-            ),
-        }
+        )
+        .with_context(|| {
+            format!(
+                "Failed to generate skeleton for {}",
+                obj.path.as_path().display()
+            )
+        })?;
 
         match package_objs.get_mut(&obj.package) {
             Some(v) => v.push(obj.clone()),
@@ -1023,9 +1021,8 @@ fn gen_project(
     }
 
     for (package, objs) in package_objs {
-        if let Err(e) = gen_mods(&objs, rustfmt_path) {
-            bail!("Failed to generate mod.rs for package={}: {}", package, e);
-        }
+        let () = gen_mods(&objs, rustfmt_path)
+            .with_context(|| format!("Failed to generate mod.rs for package={package}"))?;
     }
 
     Ok(())

@@ -3,6 +3,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::bail;
+use anyhow::Context as _;
 use anyhow::Result;
 use cargo_metadata::MetadataCommand;
 use cargo_metadata::Package;
@@ -97,7 +98,7 @@ fn get_package(
                     );
                 }
             } else {
-                bail!(e);
+                return Err(e.into());
             }
         }
     };
@@ -148,11 +149,7 @@ pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec
         cmd.manifest_path(path);
     }
 
-    let metadata = match cmd.exec() {
-        Ok(m) => m,
-        Err(e) => bail!("Failed to get cargo metadata: {}", e),
-    };
-
+    let metadata = cmd.exec().context("Failed to get cargo metadata")?;
     if metadata.workspace_members.is_empty() {
         bail!("Failed to find targets")
     }
@@ -162,10 +159,9 @@ pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec
     for id in &metadata.workspace_members {
         for package in &metadata.packages {
             if id == &package.id {
-                match &mut get_package(debug, package, &target_directory) {
-                    Ok(vv) => v.append(vv),
-                    Err(e) => bail!("Failed to process package={}, error={}", package.name, e),
-                }
+                let vv = &mut get_package(debug, package, &target_directory)
+                    .with_context(|| format!("Failed to process package={}", package.name))?;
+                let () = v.append(vv);
             }
         }
     }

@@ -373,7 +373,7 @@ impl<'s> GenBtf<'s> {
                 }
                 Err(e) => {
                     if gen_impl_default || !t.is_struct {
-                        bail!("Could not construct a necessary Default Impl: {}", e);
+                        return Err(e.context("Could not construct a necessary Default Impl"));
                     }
                 }
             };
