@@ -549,7 +549,7 @@ impl MapHandle {
                 self.fd.as_raw_fd(),
                 self.map_key(key),
                 out.as_mut_ptr() as *mut c_void,
-                flags.bits,
+                flags.bits(),
             )
         };
 
@@ -584,7 +584,7 @@ impl MapHandle {
                 self.fd.as_raw_fd(),
                 self.map_key(key),
                 value.as_ptr() as *const c_void,
-                flags.bits,
+                flags.bits(),
             )
         };
 
@@ -675,8 +675,8 @@ impl MapHandle {
 
         let opts = libbpf_sys::bpf_map_batch_opts {
             sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
-            elem_flags: elem_flags.bits,
-            flags: flags.bits,
+            elem_flags: elem_flags.bits(),
+            flags: flags.bits(),
         };
 
         let mut count = count;
@@ -853,6 +853,7 @@ impl AsFd for MapHandle {
 
 bitflags! {
     /// Flags to configure [`Map`] operations.
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     pub struct MapFlags: u64 {
         /// See [`libbpf_sys::BPF_ANY`].
         const ANY      = libbpf_sys::BPF_ANY as _;
