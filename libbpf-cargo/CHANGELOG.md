@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.21.2
+------
 - Added `Default` impl for generated `struct` types containing pointers
 - Fixed handling of function prototype type declaration inference in BTF and
   skeleton generation

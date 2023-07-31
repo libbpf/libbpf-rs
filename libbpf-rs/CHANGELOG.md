@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.21.2
+------
 - Enabled key iteration on `MapHandle` objects (formerly possible only on `Map`
   objects)
 - Bumped minimum Rust version to `1.64`
