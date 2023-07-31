@@ -2,7 +2,6 @@ Unreleased
 ----------
 - Enabled key iteration on `MapHandle` objects (formerly possible only on `Map`
   objects)
-- Updated `bitflags` dependency to `2.0`
 - Bumped minimum Rust version to `1.64`
 
 
