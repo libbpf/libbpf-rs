@@ -12,8 +12,6 @@
 
 use core::ffi::c_void;
 use std::convert::TryFrom;
-// TODO: convert remaining instances of size_of to size_of_val for clarity
-use std::mem::size_of;
 use std::mem::size_of_val;
 use std::os::raw::c_char;
 use std::string::String;
@@ -77,7 +75,7 @@ macro_rules! gen_info_impl {
                 // and will return E2BIG otherwise.
                 let mut item: $uapi_info_ty = unsafe { std::mem::zeroed() };
                 let item_ptr: *mut $uapi_info_ty = &mut item;
-                let mut len = size_of::<$uapi_info_ty>() as u32;
+                let mut len = size_of_val(&item) as u32;
 
                 let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
                 let parsed_uapi = if ret != 0 {
@@ -514,7 +512,7 @@ impl BtfInfo {
         let mut name: Vec<u8> = Vec::new();
 
         let item_ptr: *mut libbpf_sys::bpf_btf_info = &mut item;
-        let mut len = size_of::<libbpf_sys::bpf_btf_info>() as u32;
+        let mut len = size_of_val(&item) as u32;
 
         let ret =
             unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
@@ -636,7 +634,7 @@ impl LinkInfo {
                 s.__bindgen_anon_1.raw_tracepoint.tp_name = buf.as_mut_ptr() as u64;
                 s.__bindgen_anon_1.raw_tracepoint.tp_name_len = buf.len() as u32;
                 let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
-                let mut len = size_of::<libbpf_sys::bpf_link_info>() as u32;
+                let mut len = size_of_val(&s) as u32;
 
                 let ret = unsafe {
                     libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len)
