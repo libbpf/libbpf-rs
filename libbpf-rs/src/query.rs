@@ -6,15 +6,15 @@
 //!
 //! let mut iter = ProgInfoIter::default();
 //! for prog in iter {
-//!     println!("{}", prog.name);
+//!     println!("{}", prog.name.to_string_lossy());
 //! }
 //! ```
 
-use core::ffi::c_void;
 use std::convert::TryFrom;
+use std::ffi::c_void;
+use std::ffi::CString;
 use std::mem::size_of_val;
 use std::os::raw::c_char;
-use std::string::String;
 use std::time::Duration;
 
 use nix::errno;
@@ -91,19 +91,6 @@ macro_rules! gen_info_impl {
     };
 }
 
-fn name_arr_to_string(a: &[c_char], default: &str) -> String {
-    let converted_arr: Vec<u8> = a
-        .iter()
-        .take_while(|x| **x != 0)
-        .map(|x| *x as u8)
-        .collect();
-    if !converted_arr.is_empty() {
-        String::from_utf8(converted_arr).unwrap_or_else(|_| default.to_string())
-    } else {
-        default.to_string()
-    }
-}
-
 /// BTF Line information
 #[derive(Clone, Debug)]
 pub struct LineInfo {
@@ -131,9 +118,9 @@ impl From<&libbpf_sys::bpf_line_info> for LineInfo {
     }
 }
 
+/// Bpf identifier tag
 #[derive(Debug, Clone, Default)]
 #[repr(C)]
-/// Bpf identifier tag
 pub struct Tag([u8; 8]);
 
 /// Information about a BPF program
@@ -141,7 +128,7 @@ pub struct Tag([u8; 8]);
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct ProgramInfo {
-    pub name: String,
+    pub name: CString,
     pub ty: ProgramType,
     pub tag: Tag,
     pub id: u32,
@@ -169,15 +156,15 @@ pub struct ProgramInfo {
     pub run_cnt: u64,
 }
 
-#[derive(Default, Debug)]
 /// An iterator for the information of loaded bpf programs
+#[derive(Default, Debug)]
 pub struct ProgInfoIter {
     cur_id: u32,
     opts: ProgInfoQueryOptions,
 }
 
-#[derive(Clone, Default, Debug)]
 /// Options to query the program info currently loaded
+#[derive(Clone, Default, Debug)]
 pub struct ProgInfoQueryOptions {
     /// Include the vector of bpf instructions in the result
     include_xlated_prog_insns: bool,
@@ -264,17 +251,19 @@ impl ProgInfoQueryOptions {
         self
     }
 
-    /// Include all
+    /// Include everything there is in the query results
     pub fn include_all(self) -> Self {
-        self.include_xlated_prog_insns(true)
-            .include_jited_prog_insns(true)
-            .include_map_ids(true)
-            .include_line_info(true)
-            .include_func_info(true)
-            .include_jited_line_info(true)
-            .include_jited_func_lens(true)
-            .include_prog_tags(true)
-            .include_jited_ksyms(true)
+        Self {
+            include_xlated_prog_insns: true,
+            include_jited_prog_insns: true,
+            include_map_ids: true,
+            include_line_info: true,
+            include_func_info: true,
+            include_jited_line_info: true,
+            include_jited_func_lens: true,
+            include_prog_tags: true,
+            include_jited_ksyms: true,
+        }
     }
 }
 
@@ -299,7 +288,8 @@ impl ProgramInfo {
             unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
         util::parse_ret(ret)?;
 
-        let name = name_arr_to_string(&item.name, "(?)");
+        // SANITY: `libbpf` should guarantee NUL termination.
+        let name = util::c_char_slice_to_cstr(&item.name).unwrap();
         let ty = match ProgramType::try_from(item.type_) {
             Ok(ty) => ty,
             Err(_) => ProgramType::Unknown,
@@ -379,7 +369,7 @@ impl ProgramInfo {
         util::parse_ret(ret)?;
 
         return Ok(ProgramInfo {
-            name,
+            name: name.to_owned(),
             ty,
             tag: Tag(item.tag),
             id: item.id,
@@ -430,7 +420,8 @@ impl Iterator for ProgInfoIter {
 
             match prog {
                 Ok(p) => return Some(p),
-                Err(e) => eprintln!("Failed to load program: {}", e),
+                // TODO: We should consider bubbling up errors properly.
+                Err(_err) => (),
             }
         }
     }
@@ -441,7 +432,7 @@ impl Iterator for ProgInfoIter {
 // TODO: Document members.
 #[allow(missing_docs)]
 pub struct MapInfo {
-    pub name: String,
+    pub name: CString,
     pub ty: MapType,
     pub id: u32,
     pub key_size: u32,
@@ -459,14 +450,15 @@ pub struct MapInfo {
 
 impl MapInfo {
     fn from_uapi(_fd: i32, s: libbpf_sys::bpf_map_info) -> Option<Self> {
-        let name = name_arr_to_string(&s.name, "(?)");
+        // SANITY: `libbpf` should guarantee NUL termination.
+        let name = util::c_char_slice_to_cstr(&s.name).unwrap();
         let ty = match MapType::try_from(s.type_) {
             Ok(ty) => ty,
             Err(_) => MapType::Unknown,
         };
 
         Some(Self {
-            name,
+            name: name.to_owned(),
             ty,
             id: s.id,
             key_size: s.key_size,
@@ -495,10 +487,9 @@ gen_info_impl!(
 
 /// Information about BPF type format
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub struct BtfInfo {
     /// The name associated with this btf information in the kernel
-    pub name: String,
+    pub name: CString,
     /// The raw btf bytes from the kernel
     pub btf: Vec<u8>,
     /// The btf id associated with this btf information in the kernel
@@ -532,7 +523,10 @@ impl BtfInfo {
         util::parse_ret(ret)?;
 
         Ok(BtfInfo {
-            name: String::from_utf8(name).unwrap_or_else(|_| "(?)".to_string()),
+            // SANITY: Our buffer contained space for a NUL byte and we set its
+            //         contents to 0. Barring a `libbpf` bug a NUL byte will be
+            //         present.
+            name: CString::from_vec_with_nul(name).unwrap(),
             btf,
             id: item.id,
         })
@@ -568,7 +562,8 @@ impl Iterator for BtfInfoIter {
 
             match info {
                 Ok(i) => return Some(i),
-                Err(e) => eprintln!("Failed to load btf information: {}", e),
+                // TODO: We should consider bubbling up errors properly.
+                Err(_err) => (),
             }
         }
     }

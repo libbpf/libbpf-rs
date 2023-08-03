@@ -1,5 +1,6 @@
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::mem::transmute;
 use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::NonNull;
@@ -30,6 +31,22 @@ pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
         .to_str()
         .map_err(|e| Error::Internal(e.to_string()))?
         .to_owned())
+}
+
+/// Convert a `[c_char]` into a `CStr`.
+pub fn c_char_slice_to_cstr(s: &[c_char]) -> Option<&CStr> {
+    // TODO: Switch to using `CStr::from_bytes_until_nul` once we require
+    //       Rust 1.69.0.
+    let nul_idx = s
+        .iter()
+        .enumerate()
+        .find_map(|(idx, b)| (*b == 0).then_some(idx))?;
+    let cstr =
+        // SAFETY: `c_char` and `u8` are both just one byte plain old data
+        //         types.
+        CStr::from_bytes_with_nul(unsafe { transmute::<&[c_char], &[u8]>(&s[0..=nul_idx]) })
+            .unwrap();
+    Some(cstr)
 }
 
 /// Round up a number to the next multiple of `r`
@@ -128,5 +145,28 @@ mod tests {
     fn test_num_possible_cpus() {
         let num = num_possible_cpus().unwrap();
         assert!(num > 0);
+    }
+
+    /// Check that we can convert a `[c_char]` into a `CStr`.
+    #[test]
+    fn c_char_slice_conversion() {
+        let slice = [];
+        assert_eq!(c_char_slice_to_cstr(&slice), None);
+
+        let slice = [0];
+        assert_eq!(
+            c_char_slice_to_cstr(&slice).unwrap(),
+            CStr::from_bytes_with_nul(b"\0").unwrap()
+        );
+
+        let slice = ['a' as _, 'b' as _, 'c' as _, 0 as _];
+        assert_eq!(
+            c_char_slice_to_cstr(&slice).unwrap(),
+            CStr::from_bytes_with_nul(b"abc\0").unwrap()
+        );
+
+        // Missing terminating NUL byte.
+        let slice = ['a' as _, 'b' as _, 'c' as _];
+        assert_eq!(c_char_slice_to_cstr(&slice), None);
     }
 }
