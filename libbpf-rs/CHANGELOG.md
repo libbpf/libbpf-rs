@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Overhauled `query::ProgramInfo` and `query::ProgInfoIter` to make them more
+  readily usable
+
+
 0.21.2
 ------
 - Enabled key iteration on `MapHandle` objects (formerly possible only on `Map`

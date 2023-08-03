@@ -28,7 +28,10 @@ fn prog(args: ProgArgs) {
     for prog in query::ProgInfoIter::with_query_opts(opts) {
         println!(
             "name={:<16} type={:<15} run_count={:<2} runtime_ns={}",
-            prog.name, prog.ty, prog.run_cnt, prog.run_time_ns
+            prog.name.to_string_lossy(),
+            prog.ty,
+            prog.run_cnt,
+            prog.run_time_ns
         );
         if args.disassemble {
             #[cfg(target_arch = "x86_64")]
@@ -56,13 +59,18 @@ fn prog(args: ProgArgs) {
 
 fn map() {
     for map in query::MapInfoIter::default() {
-        println!("name={:<16} type={}", map.name, map.ty);
+        println!("name={:<16} type={}", map.name.to_string_lossy(), map.ty);
     }
 }
 
 fn btf() {
     for btf in query::BtfInfoIter::default() {
-        println!("id={:4} name={} size={}", btf.id, btf.name, btf.btf.len());
+        println!(
+            "id={:4} name={} size={}",
+            btf.id,
+            btf.name.to_string_lossy(),
+            btf.btf.len()
+        );
     }
 }
 
