@@ -120,10 +120,26 @@ fn test_object_build_from_memory() {
     let contents = fs::read(obj_path).expect("failed to read object file");
     let mut builder = ObjectBuilder::default();
     let obj = builder
-        .open_memory("memory name", &contents)
+        .name("memory name")
+        .unwrap()
+        .open_memory(&contents)
         .expect("failed to build object");
     let name = obj.name().expect("failed to get object name");
     assert!(name == "memory name");
+}
+
+#[test]
+fn test_object_build_from_memory_empty_name() {
+    let obj_path = get_test_object_path("runqslower.bpf.o");
+    let contents = fs::read(obj_path).expect("failed to read object file");
+    let mut builder = ObjectBuilder::default();
+    let obj = builder
+        .name("")
+        .unwrap()
+        .open_memory(&contents)
+        .expect("failed to build object");
+    let name = obj.name().expect("failed to get object name");
+    assert!(name.is_empty());
 }
 
 /// Check that loading an object from an empty file fails as expected.
@@ -140,7 +156,7 @@ fn test_sudo_object_load_invalid() {
 fn test_object_name() {
     let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
-    builder.name("test name");
+    builder.name("test name").unwrap();
     let obj = builder.open_file(obj_path).expect("failed to build object");
     let obj_name = obj.name().expect("failed to get object name");
     assert!(obj_name == "test name");

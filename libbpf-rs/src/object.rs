@@ -1,8 +1,8 @@
 use core::ffi::c_void;
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::mem;
-use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::NonNull;
 use std::ptr::{self};
@@ -20,22 +20,42 @@ use crate::Program;
 use crate::Result;
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct ObjectBuilder {
-    name: String,
-    relaxed_maps: bool,
+    name: Option<CString>,
+
+    opts: libbpf_sys::bpf_object_open_opts,
+}
+
+impl Default for ObjectBuilder {
+    fn default() -> Self {
+        let opts = libbpf_sys::bpf_object_open_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            object_name: ptr::null(),
+            relaxed_maps: false,
+            pin_root_path: ptr::null(),
+            kconfig: ptr::null(),
+            btf_custom_path: ptr::null(),
+            kernel_log_buf: ptr::null_mut(),
+            kernel_log_size: 0,
+            kernel_log_level: 0,
+            ..Default::default()
+        };
+        Self { name: None, opts }
+    }
 }
 
 impl ObjectBuilder {
     /// Override the generated name that would have been inferred from the constructor.
-    pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
-        self.name = name.as_ref().to_string();
-        self
+    pub fn name<T: AsRef<str>>(&mut self, name: T) -> Result<&mut Self> {
+        self.name = Some(util::str_to_cstring(name.as_ref())?);
+        self.opts.object_name = self.name.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        Ok(self)
     }
 
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
     pub fn relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
-        self.relaxed_maps = relaxed_maps;
+        self.opts.relaxed_maps = relaxed_maps;
         self
     }
 
@@ -52,20 +72,13 @@ impl ObjectBuilder {
         self
     }
 
-    /// Get an instance of libbpf_sys::bpf_object_open_opts.
-    pub fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
-        libbpf_sys::bpf_object_open_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
-            object_name: name,
-            relaxed_maps: self.relaxed_maps,
-            pin_root_path: ptr::null(),
-            kconfig: ptr::null(),
-            btf_custom_path: ptr::null(),
-            kernel_log_buf: ptr::null_mut(),
-            kernel_log_size: 0,
-            kernel_log_level: 0,
-            ..Default::default()
-        }
+    /// Get the raw libbpf_sys::bpf_object_open_opts.
+    ///
+    /// The internal pointers are tied to the lifetime of the
+    /// ObjectBuilder, so be wary when copying the struct or otherwise
+    /// handing the lifetime over to C.
+    pub fn opts(&self) -> &libbpf_sys::bpf_object_open_opts {
+        &self.opts
     }
 
     /// Open an object using the provided path on the file system.
@@ -77,43 +90,23 @@ impl ObjectBuilder {
         let path_c = util::str_to_cstring(path_str)?;
         let path_ptr = path_c.as_ptr();
 
-        // Convert name to a C style pointer
-        //
-        // NB: we must hold onto a CString otherwise our pointer dangles
-        let name = util::str_to_cstring(&self.name)?;
-        let name_ptr = if !self.name.is_empty() {
-            name.as_ptr()
-        } else {
-            ptr::null()
-        };
-
-        let opts = self.opts(name_ptr);
+        let opts = self.opts();
 
         util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_object__open_file(path_ptr, &opts)
+            libbpf_sys::bpf_object__open_file(path_ptr, opts)
         })
         .and_then(|ptr| unsafe { OpenObject::new(ptr) })
     }
 
     /// Open an object from memory.
-    pub fn open_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
-        // Convert name to a C style pointer
-        //
-        // NB: we must hold onto a CString otherwise our pointer dangles
-        let name = util::str_to_cstring(name.as_ref())?;
-        let name_ptr = if !name.to_bytes().is_empty() {
-            name.as_ptr()
-        } else {
-            ptr::null()
-        };
-
-        let opts = self.opts(name_ptr);
+    pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
+        let opts = self.opts();
 
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_object__open_mem(
                 mem.as_ptr() as *const c_void,
                 mem.len() as libbpf_sys::size_t,
-                &opts,
+                opts,
             )
         })
         .and_then(|ptr| unsafe { OpenObject::new(ptr) })
