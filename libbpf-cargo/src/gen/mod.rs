@@ -695,11 +695,11 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
         impl<'a> SkelBuilder<'a> for {name}SkelBuilder {{
             type Output = Open{name}Skel<'a>;
-            fn open(mut self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
+            fn open(self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
                 let mut skel_config = build_skel_config()?;
-                let open_opts = self.obj_builder.opts(std::ptr::null());
+                let open_opts = self.obj_builder.opts();
 
-                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) }};
+                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), open_opts) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::System(-ret));
                 }}
