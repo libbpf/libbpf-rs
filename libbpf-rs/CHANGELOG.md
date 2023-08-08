@@ -2,9 +2,11 @@ Unreleased
 ----------
 - Overhauled `query::ProgramInfo` and `query::ProgInfoIter` to make them more
   readily usable
-- Reworked `ObjectBuilder`, making `name` method fallible, `opts` to return a
-  reference to `libbpf_sys::bpf_object_open_opts`, and `open_memory` to no
-  longer require the object name
+- Reworked `ObjectBuilder`:
+  - Made `name` method fallible
+  - Adjusted `opts` to return a reference to `libbpf_sys::bpf_object_open_opts`
+  - Removed object name argument from `open_memory` constructor
+  - Added `pin_root_path` setter
 
 
 0.21.2
