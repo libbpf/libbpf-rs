@@ -1507,6 +1507,35 @@ fn test_sudo_map_pinned_status() {
     let _ = fs::remove_file(expected_path);
 }
 
+/// Change the root_pin_path and see if it works.
+#[test]
+fn test_sudo_map_pinned_status_with_pin_root_path() {
+    bump_rlimit_mlock();
+
+    let obj_path = get_test_object_path("map_auto_pin.bpf.o");
+    let obj = ObjectBuilder::default()
+        .debug(true)
+        .pin_root_path("/sys/fs/bpf/test_namespace")
+        .expect("root_pin_path failed")
+        .open_file(obj_path)
+        .expect("failed to open object")
+        .load()
+        .expect("failed to load object");
+
+    let map = obj
+        .map("auto_pin_map")
+        .expect("failed to find map 'auto_pin_map'");
+
+    let is_pinned = map.is_pinned();
+    assert!(is_pinned);
+    let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
+    let get_path = map.get_pin_path().expect("get map pin path failed");
+    assert_eq!(expected_path, get_path.to_str().unwrap());
+    // cleanup
+    let _ = fs::remove_file(expected_path);
+    let _ = fs::remove_dir("/sys/fs/bpf/test_namespace");
+}
+
 /// Check that we can get program fd by id and vice versa.
 #[test]
 fn test_sudo_program_get_fd_and_id() {
