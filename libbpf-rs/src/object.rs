@@ -23,6 +23,7 @@ use crate::Result;
 #[derive(Debug)]
 pub struct ObjectBuilder {
     name: Option<CString>,
+    pin_root_path: Option<CString>,
 
     opts: libbpf_sys::bpf_object_open_opts,
 }
@@ -41,7 +42,11 @@ impl Default for ObjectBuilder {
             kernel_log_level: 0,
             ..Default::default()
         };
-        Self { name: None, opts }
+        Self {
+            name: None,
+            pin_root_path: None,
+            opts,
+        }
     }
 }
 
@@ -50,6 +55,18 @@ impl ObjectBuilder {
     pub fn name<T: AsRef<str>>(&mut self, name: T) -> Result<&mut Self> {
         self.name = Some(util::str_to_cstring(name.as_ref())?);
         self.opts.object_name = self.name.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        Ok(self)
+    }
+
+    /// Set the pin_root_path for maps that are pinned by name.
+    ///
+    /// By default, this is NULL which bpf translates to /sys/fs/bpf
+    pub fn pin_root_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {
+        self.pin_root_path = Some(util::path_to_cstring(path)?);
+        self.opts.pin_root_path = self
+            .pin_root_path
+            .as_ref()
+            .map_or(ptr::null(), |p| p.as_ptr());
         Ok(self)
     }
 
