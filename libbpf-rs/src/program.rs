@@ -854,3 +854,5 @@ impl Program {
         unsafe { std::slice::from_raw_parts(ptr, count) }
     }
 }
+
+unsafe impl Send for Program {}
