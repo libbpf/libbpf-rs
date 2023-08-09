@@ -121,3 +121,5 @@ impl Drop for Link {
         let _ = unsafe { libbpf_sys::bpf_link__destroy(self.ptr.as_ptr()) };
     }
 }
+
+unsafe impl Send for Link {}
