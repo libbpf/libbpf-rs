@@ -7,13 +7,13 @@ Unreleased
   - Adjusted `opts` to return a reference to `libbpf_sys::bpf_object_open_opts`
   - Removed object name argument from `open_memory` constructor
   - Added `pin_root_path` setter
+- Updated `bitflags` dependency to `2.0`
 
 
 0.21.2
 ------
 - Enabled key iteration on `MapHandle` objects (formerly possible only on `Map`
   objects)
-- Updated `bitflags` dependency to `2.0`
 - Bumped minimum Rust version to `1.64`
 
 
