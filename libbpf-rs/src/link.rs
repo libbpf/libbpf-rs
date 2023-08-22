@@ -105,6 +105,9 @@ impl Link {
     }
 }
 
+// SAFETY: `bpf_link` objects can safely be sent to a different thread.
+unsafe impl Send for Link {}
+
 impl AsFd for Link {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
