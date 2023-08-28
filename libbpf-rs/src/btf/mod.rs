@@ -149,6 +149,17 @@ impl Btf<'static> {
         inner(path.as_ref())
     }
 
+    /// Load the vmlinux btf information from few well-known locations.
+    pub fn from_vmlinux() -> Result<Self> {
+        let ptr = create_bpf_entity_checked(|| unsafe { libbpf_sys::btf__load_vmlinux_btf() })?;
+
+        Ok(Btf {
+            ptr,
+            drop_policy: DropPolicy::SelfPtrOnly,
+            _marker: PhantomData,
+        })
+    }
+
     /// Load the btf information of an bpf object from a program id.
     pub fn from_prog_id(id: u32) -> Result<Self> {
         let fd = parse_ret_i32(unsafe { libbpf_sys::bpf_prog_get_fd_by_id(id) })?;
@@ -648,4 +659,14 @@ pub unsafe trait ReferencesType<'btf>:
 
 mod sealed {
     pub trait Sealed {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_vmlinux() {
+        assert!(Btf::from_vmlinux().is_ok());
+    }
 }
