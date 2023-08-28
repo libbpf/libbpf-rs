@@ -131,14 +131,14 @@ pub struct Btf<'source> {
 }
 
 impl Btf<'static> {
-    /// Load the btf information from an ELF file.
+    /// Load the btf information from specified path.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         fn inner(path: &Path) -> Result<Btf<'static>> {
             let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
                 Error::InvalidInput(format!("invalid path {path:?}, has null bytes"))
             })?;
             let ptr = create_bpf_entity_checked(|| unsafe {
-                libbpf_sys::btf__parse_elf(path.as_ptr(), std::ptr::null_mut())
+                libbpf_sys::btf__parse(path.as_ptr(), std::ptr::null_mut())
             })?;
             Ok(Btf {
                 ptr,
