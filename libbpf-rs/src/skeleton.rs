@@ -340,6 +340,36 @@ pub trait SkelBuilder<'a> {
 }
 
 /// A trait for opened skeleton.
+///
+/// In addition to the methods defined in this trait, skeletons that implement this trait will also
+/// have bespoke implementations of a few additional methods to facilitate access to global
+/// variables of the BPF program. These methods will be named `bss()`, `data()`, and `rodata()`.
+/// Each corresponds to the variables stored in the BPF ELF program section of the same name.
+/// However if your BPF program lacks one of these sections the corresponding rust method will not
+/// be generated.
+///
+/// The type of the value returned by each of these methods will be specific to your BPF program.
+/// A common convention is to define a single global variable in the BPF program with a struct type
+/// containing a field for each configuration parameter <sup>\[[source]\]</sup>.  libbpf-rs
+/// auto-generates this pattern for you without you having to define such a struct type in your BPF
+/// program. It does this by examining each of the global variables in your BPF program's `.bss`,
+/// `.data`, and `.rodata` sections and then creating rust struct types `<yourprogram>_bss_types`,
+/// `<yourprogram>_data_types`, and `<yourprogram>_rodata_types`. Since these struct types are
+/// specific to the layout of your BPF program, they are not documented in this crate. However you
+/// can see documentation for them by running `cargo doc` in your own project and looking at the
+/// `imp` module. You can also view their implementation by looking at the generated skeleton rust
+/// source file. The use of these methods can also be seen in the examples 'capable', 'runqslower',
+/// and 'tproxy'.
+///
+/// If you ever doubt whether libbpf-rs has placed a particular variable in the correct struct
+/// type, you can see which section each global variable is stored in by examing the output of the
+/// following command (after a successful build):
+///
+/// ```sh
+/// bpf-objdump --syms ./target/bpf/*.bpf.o
+/// ```
+///
+/// [source]: https://nakryiko.com/posts/bcc-to-libbpf-howto-guide/#application-configuration
 pub trait OpenSkel {
     /// Define that when BPF object is loaded, the returned type should implement the [`Skel`] trait
     type Output: Skel;
