@@ -42,7 +42,7 @@ jobs:
         tc_var RUSTFLAGS
         tc_var CFLAGS
         tc_var CXXFLAGS
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Rust
       uses: actions-rs/toolchain@v1.0.6
       with:
@@ -68,7 +68,7 @@ jobs:
     name: Build using minimum versions of dependencies
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
       - name: Install Nightly Rust
@@ -94,7 +94,7 @@ jobs:
     name: Build capable example with static libelf and libz
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
       - uses: actions-rs/toolchain@v1
@@ -108,7 +108,7 @@ jobs:
     name: Build for aarch64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Add apt sources for arm64
         run: |
           dpkg --add-architecture arm64
@@ -138,7 +138,7 @@ jobs:
     name: Build for aarch32
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Add apt sources for armhf
         run: |
           dpkg --add-architecture armhf
@@ -168,7 +168,7 @@ jobs:
     name: Lint with clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
       - uses: actions-rs/toolchain@v1
@@ -187,7 +187,7 @@ jobs:
     name: Check code formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -201,7 +201,7 @@ jobs:
     env:
       RUSTDOCFLAGS: '-D warnings'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
       - uses: actions-rs/toolchain@v1
