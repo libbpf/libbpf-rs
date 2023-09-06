@@ -7,8 +7,8 @@ use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_char;
 use std::os::raw::c_ulong;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 
 use libbpf_sys::bpf_link;
 use libbpf_sys::bpf_map;

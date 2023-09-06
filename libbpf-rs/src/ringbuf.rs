@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::MapHandle;
 use crate::MapType;
@@ -179,6 +180,15 @@ impl RingBuffer<'_> {
     /// Get an fd that can be used to sleep until data is available
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::ring_buffer__epoll_fd(self.ptr.as_ptr()) }
+    }
+}
+
+impl AsRawLibbpf for RingBuffer<'_> {
+    type LibbpfType = libbpf_sys::ring_buffer;
+
+    /// Retrieve the underlying [`libbpf_sys::ring_buffer`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
     }
 }
 

@@ -7,6 +7,7 @@ use std::ptr::NonNull;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Program;
 use crate::Result;
 
@@ -102,6 +103,15 @@ impl Link {
     pub fn detach(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr.as_ptr()) };
         util::parse_ret(ret)
+    }
+}
+
+impl AsRawLibbpf for Link {
+    type LibbpfType = libbpf_sys::bpf_link;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_link`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
     }
 }
 

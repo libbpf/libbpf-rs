@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Map;
 use crate::MapType;
@@ -227,9 +228,13 @@ impl PerfBuffer<'_> {
         };
         util::parse_ret_i32(ret)
     }
+}
+
+impl AsRawLibbpf for PerfBuffer<'_> {
+    type LibbpfType = libbpf_sys::perf_buffer;
 
     /// Retrieve the underlying [`libbpf_sys::perf_buffer`].
-    pub fn as_libbpf_perf_buffer_ptr(&self) -> NonNull<libbpf_sys::perf_buffer> {
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
     }
 }

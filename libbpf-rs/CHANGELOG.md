@@ -9,6 +9,8 @@ Unreleased
   - Adjusted `opts` to return a reference to `libbpf_sys::bpf_object_open_opts`
   - Removed object name argument from `open_memory` constructor
   - Added `pin_root_path` setter
+- Added `AsRawLibbpf` trait as a unified way to retrieve `libbpf` equivalents
+  for `libbpf-rs` objects
 - Implemented `Send` for `Link`
 - Updated `bitflags` dependency to `2.0`
 
