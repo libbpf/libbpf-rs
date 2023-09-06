@@ -31,6 +31,7 @@ use strum_macros::Display;
 
 use crate::util;
 use crate::util::parse_ret_i32;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Link;
 use crate::Result;
@@ -170,6 +171,15 @@ impl OpenMap {
     }
 }
 
+impl AsRawLibbpf for OpenMap {
+    type LibbpfType = libbpf_sys::bpf_map;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_map`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
+    }
+}
+
 #[derive(Debug)]
 enum MapFd {
     Owned(OwnedFd),
@@ -302,9 +312,13 @@ impl Map {
             Link::new(ptr)
         })
     }
+}
+
+impl AsRawLibbpf for Map {
+    type LibbpfType = libbpf_sys::bpf_map;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_map`].
-    pub fn as_libbpf_bpf_map_ptr(&self) -> NonNull<libbpf_sys::bpf_map> {
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
     }
 }

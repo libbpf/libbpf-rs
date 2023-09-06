@@ -23,6 +23,7 @@ use std::ptr;
 use tempfile::NamedTempFile;
 
 use libbpf_rs::num_possible_cpus;
+use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::Linker;
 use libbpf_rs::Map;
@@ -1430,7 +1431,7 @@ fn test_object_link_files() {
 
 /// Get access to the underlying per-cpu ring buffer data.
 fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
-    let perf_buff_ptr = perf.as_libbpf_perf_buffer_ptr();
+    let perf_buff_ptr = perf.as_libbpf_object();
     let mut buffer_data_ptr: *mut c_void = ptr::null_mut();
     let mut buffer_size: usize = 0;
     let ret = unsafe {

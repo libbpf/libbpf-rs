@@ -2,8 +2,9 @@ use std::path::Path;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
 
+use crate::util;
 use crate::util::path_to_cstring;
-use crate::util::{self};
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Result;
 
@@ -59,6 +60,15 @@ impl Linker {
             return Err(Error::System(err));
         }
         Ok(())
+    }
+}
+
+impl AsRawLibbpf for Linker {
+    type LibbpfType = libbpf_sys::bpf_linker;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_linker`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.linker
     }
 }
 

@@ -4,8 +4,8 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::mem;
 use std::path::Path;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 
 use crate::libbpf_sys;
 use crate::set_print;
@@ -18,6 +18,26 @@ use crate::OpenProgram;
 use crate::PrintLevel;
 use crate::Program;
 use crate::Result;
+
+/// A trait implemented for types that are thin wrappers around `libbpf` types.
+///
+/// The trait provides access to the underlying `libbpf` (or `libbpf-sys`)
+/// object. In many cases, this enables direct usage of `libbpf-sys`
+/// functionality when higher-level bindings are not yet provided by this crate.
+pub trait AsRawLibbpf {
+    /// The underlying `libbpf` type.
+    type LibbpfType;
+
+    /// Retrieve the underlying `libbpf` object.
+    ///
+    /// # Warning
+    /// By virtue of working with a mutable raw pointer this method effectively
+    /// circumvents mutability and liveness checks. While by-design, usage is
+    /// meant as an escape-hatch more than anything else. If you find yourself
+    /// making use of it, please consider discussing your workflow with crate
+    /// maintainers to see if it would make sense to provide safer wrappers.
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType>;
+}
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
 #[derive(Debug)]
@@ -430,9 +450,13 @@ impl Object {
     pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut Program> {
         self.progs.values_mut()
     }
+}
+
+impl AsRawLibbpf for Object {
+    type LibbpfType = libbpf_sys::bpf_object;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_object`].
-    pub fn as_libbpf_bpf_object_ptr(&self) -> NonNull<libbpf_sys::bpf_object> {
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
     }
 }

@@ -31,14 +31,16 @@ use std::os::unix::prelude::OwnedFd;
 use std::path::Path;
 use std::ptr::NonNull;
 
+use num_enum::IntoPrimitive;
+use num_enum::TryFromPrimitive;
+
 use crate::libbpf_sys;
 use crate::util::create_bpf_entity_checked;
 use crate::util::create_bpf_entity_checked_opt;
 use crate::util::parse_ret_i32;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Result;
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
 
 use self::types::Composite;
 
@@ -347,6 +349,15 @@ impl<'btf> Btf<'btf> {
             .map(TypeId::from)
             .filter_map(|id| self.type_by_id(id))
             .filter_map(|t| K::try_from(t).ok())
+    }
+}
+
+impl AsRawLibbpf for Btf<'_> {
+    type LibbpfType = libbpf_sys::btf;
+
+    /// Retrieve the underlying [`libbpf_sys::btf`] object.
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
     }
 }
 
