@@ -349,27 +349,24 @@ pub trait SkelBuilder<'a> {
 /// be generated.
 ///
 /// The type of the value returned by each of these methods will be specific to your BPF program.
-/// A common convention for BPF CO-RE programs is to define a single global variable in the BPF
-/// program with a struct type containing a field for each configuration parameter
-/// <sup>\[[source]\]</sup>.  libbpf-rs auto-generates this pattern for you without you having to
-/// define such a struct type in your BPF program. It does this by examining each of the global
-/// variables in your BPF program's `.bss`, `.data`, and `.rodata` sections and then creating rust
-/// struct types `yourprogram_bss_types`, `yourprogram_data_types`, and `yourprogram_rodata_types`.
-/// Since these struct types are specific to the layout of your BPF program, they are not
-/// documented in this crate. However you can see documentation for them by running `cargo doc` in
-/// your own project and looking at the `imp` module. You can also view their implementation by
-/// looking at the `*.skel.rs` files in your `target` directory. To find the latest one you can run
-/// a command such as:
-///
-/// `find target -name '*.skel.rs' | xargs -- ls -1tr | tail -n1`
+/// A common convention is to define a single global variable in the BPF program with a struct type
+/// containing a field for each configuration parameter <sup>\[[source]\]</sup>.  libbpf-rs
+/// auto-generates this pattern for you without you having to define such a struct type in your BPF
+/// program. It does this by examining each of the global variables in your BPF program's `.bss`,
+/// `.data`, and `.rodata` sections and then creating rust struct types `<yourprogram>_bss_types`,
+/// `<yourprogram>_data_types`, and `<yourprogram>_rodata_types`. Since these struct types are
+/// specific to the layout of your BPF program, they are not documented in this crate. However you
+/// can see documentation for them by running `cargo doc` in your own project and looking at the
+/// `imp` module. You can also view their implementation by looking at the generated skeleton rust
+/// source file.
 ///
 /// If you ever doubt whether libbpf-rs has placed a particular variable in the correct struct
 /// type, you can see which section each global variable is stored in by examing the output of the
 /// following command (after a successful build):
 ///
-/// `bpf-objdump --sym s ./target/bpf/*.bpf.o`
+/// `bpf-objdump --syms ./target/bpf/*.bpf.o`
 ///
-/// [source]: https://facebookmicrosites.github.io/bpf/blog/2020/02/20/bcc-to-libbpf-howto-guide.html#application-configuration
+/// [source]: https://nakryiko.com/posts/bcc-to-libbpf-howto-guide/#application-configuration
 pub trait OpenSkel {
     /// Define that when BPF object is loaded, the returned type should implement the [`Skel`] trait
     type Output: Skel;
