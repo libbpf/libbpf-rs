@@ -358,7 +358,8 @@ pub trait SkelBuilder<'a> {
 /// specific to the layout of your BPF program, they are not documented in this crate. However you
 /// can see documentation for them by running `cargo doc` in your own project and looking at the
 /// `imp` module. You can also view their implementation by looking at the generated skeleton rust
-/// source file.
+/// source file. The use of these methods can also be seen in the examples 'capable', 'runqslower',
+/// and 'tproxy'.
 ///
 /// If you ever doubt whether libbpf-rs has placed a particular variable in the correct struct
 /// type, you can see which section each global variable is stored in by examing the output of the
