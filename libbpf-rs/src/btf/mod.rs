@@ -19,6 +19,7 @@ use std::ffi::CString;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::io;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
@@ -137,7 +138,7 @@ impl Btf<'static> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         fn inner(path: &Path) -> Result<Btf<'static>> {
             let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
-                Error::InvalidInput(format!("invalid path {path:?}, has null bytes"))
+                Error::with_invalid_data(format!("invalid path {path:?}, has null bytes"))
             })?;
             let ptr = create_bpf_entity_checked(|| unsafe {
                 libbpf_sys::btf__parse(path.as_ptr(), std::ptr::null_mut())
@@ -192,8 +193,9 @@ impl Btf<'static> {
 
 impl<'btf> Btf<'btf> {
     pub(crate) fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Self> {
-        Self::from_bpf_object_raw(obj)
-            .and_then(|opt| opt.ok_or_else(|| Error::Internal("btf not found".into())))
+        Self::from_bpf_object_raw(obj).and_then(|opt| {
+            opt.ok_or_else(|| Error::with_io_error(io::ErrorKind::NotFound, "btf not found"))
+        })
     }
 
     fn from_bpf_object_raw(obj: *const libbpf_sys::bpf_object) -> Result<Option<Self>> {
@@ -213,7 +215,7 @@ impl<'btf> Btf<'btf> {
     /// From raw bytes coming from an object file.
     pub fn from_raw(name: &'btf str, object_file: &'btf [u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)
-            .map_err(|_| Error::InvalidInput(format!("invalid path {name:?}, has null bytes")))
+            .map_err(|_| Error::with_invalid_data(format!("invalid path {name:?}, has null bytes")))
             .unwrap();
 
         let obj_opts = libbpf_sys::bpf_object_open_opts {
@@ -284,8 +286,9 @@ impl<'btf> Btf<'btf> {
     /// The btf pointer size.
     pub fn ptr_size(&self) -> Result<NonZeroUsize> {
         let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) as usize };
-        NonZeroUsize::new(sz)
-            .ok_or_else(|| Error::Internal("could not determine pointer size".into()))
+        NonZeroUsize::new(sz).ok_or_else(|| {
+            Error::with_io_error(io::ErrorKind::Other, "could not determine pointer size")
+        })
     }
 
     /// Find a btf type by name
@@ -297,7 +300,7 @@ impl<'btf> Btf<'btf> {
         K: TryFrom<BtfType<'s>>,
     {
         let c_string = CString::new(name)
-            .map_err(|_| Error::InvalidInput(format!("{name:?} contains null bytes")))
+            .map_err(|_| Error::with_invalid_data(format!("{name:?} contains null bytes")))
             .unwrap();
         let ty = unsafe {
             // SAFETY: the btf pointer is valid and the c_string pointer was created from safe code
@@ -609,7 +612,7 @@ impl<'btf> BtfType<'btf> {
                 // SAFETY: We checked the type.
                 NonZeroUsize::new(skipped.size_unchecked() as usize)
             }
-            .ok_or_else(|| Error::Internal("DataSec with size of 0".into())),
+            .ok_or_else(|| Error::with_invalid_data("DataSec with size of 0")),
             BtfKind::Void
             | BtfKind::Volatile
             | BtfKind::Const
@@ -619,7 +622,7 @@ impl<'btf> BtfType<'btf> {
             | BtfKind::Fwd
             | BtfKind::Func
             | BtfKind::DeclTag
-            | BtfKind::TypeTag => Err(Error::InvalidInput(format!(
+            | BtfKind::TypeTag => Err(Error::with_invalid_data(format!(
                 "Cannot get alignment of type with kind {:?}. TypeId is {}",
                 skipped.kind(),
                 skipped.type_id(),

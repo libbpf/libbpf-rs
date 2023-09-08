@@ -609,7 +609,7 @@ fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Re
         fn attach(&mut self) -> libbpf_rs::Result<()> {{
             let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) }};
             if ret != 0 {{
-                return Err(libbpf_rs::Error::System(-ret));
+                return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }}
 
             self.links = {obj_name}Links {{
@@ -621,12 +621,8 @@ fn gen_skel_attach(skel: &mut String, object: &mut BpfObj, obj_name: &str) -> Re
 
         write!(
             skel,
-            r#"{prog_name}: (|| {{
-                Ok(
-                    core::ptr::NonNull::new(self.skel_config.prog_link_ptr({idx})?)
-                        .map(|ptr| unsafe {{ libbpf_rs::Link::from_ptr(ptr) }})
-                )
-            }})()?,
+            r#"{prog_name}: core::ptr::NonNull::new(self.skel_config.prog_link_ptr({idx})?)
+                        .map(|ptr| unsafe {{ libbpf_rs::Link::from_ptr(ptr) }}),
             "#
         )?;
     }
@@ -701,7 +697,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), open_opts) }};
                 if ret != 0 {{
-                    return Err(libbpf_rs::Error::System(-ret));
+                    return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
                 let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
@@ -717,7 +713,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) }};
                 if ret != 0 {{
-                    return Err(libbpf_rs::Error::System(-ret));
+                    return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
                 let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
@@ -758,7 +754,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             fn load(mut self) -> libbpf_rs::Result<{name}Skel<'a>> {{
                 let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) }};
                 if ret != 0 {{
-                    return Err(libbpf_rs::Error::System(-ret));
+                    return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
                 let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr())? }};

@@ -1,5 +1,6 @@
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::io;
 use std::mem::transmute;
 use std::os::raw::c_char;
 use std::path::Path;
@@ -10,12 +11,12 @@ use crate::Error;
 use crate::Result;
 
 pub fn str_to_cstring(s: &str) -> Result<CString> {
-    CString::new(s).map_err(|e| Error::InvalidInput(e.to_string()))
+    CString::new(s).map_err(|e| Error::with_invalid_data(e.to_string()))
 }
 
 pub fn path_to_cstring<P: AsRef<Path>>(path: P) -> Result<CString> {
     let path_str = path.as_ref().to_str().ok_or_else(|| {
-        Error::InvalidInput(format!("{} is not valid unicode", path.as_ref().display()))
+        Error::with_invalid_data(format!("{} is not valid unicode", path.as_ref().display()))
     })?;
 
     str_to_cstring(path_str)
@@ -23,13 +24,13 @@ pub fn path_to_cstring<P: AsRef<Path>>(path: P) -> Result<CString> {
 
 pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
     if p.is_null() {
-        return Err(Error::Internal("Null string".to_owned()));
+        return Err(Error::with_invalid_data("Null string"));
     }
 
     let c_str = unsafe { CStr::from_ptr(p) };
     Ok(c_str
         .to_str()
-        .map_err(|e| Error::Internal(e.to_string()))?
+        .map_err(|e| Error::with_invalid_data(e.to_string()))?
         .to_owned())
 }
 
@@ -63,7 +64,7 @@ pub fn num_possible_cpus() -> Result<usize> {
 pub fn parse_ret(ret: i32) -> Result<()> {
     if ret < 0 {
         // Error code is returned negative, flip to positive to match errno
-        Err(Error::System(-ret))
+        Err(Error::from_raw_os_error(-ret))
     } else {
         Ok(())
     }
@@ -72,7 +73,7 @@ pub fn parse_ret(ret: i32) -> Result<()> {
 pub fn parse_ret_i32(ret: i32) -> Result<i32> {
     if ret < 0 {
         // Error code is returned negative, flip to positive to match errno
-        Err(Error::System(-ret))
+        Err(Error::from_raw_os_error(-ret))
     } else {
         Ok(ret)
     }
@@ -81,7 +82,7 @@ pub fn parse_ret_i32(ret: i32) -> Result<i32> {
 pub fn parse_ret_usize(ret: i32) -> Result<usize> {
     if ret < 0 {
         // Error code is returned negative, flip to positive to match errno
-        Err(Error::System(-ret))
+        Err(Error::from_raw_os_error(-ret))
     } else {
         Ok(ret as usize)
     }
@@ -90,15 +91,18 @@ pub fn parse_ret_usize(ret: i32) -> Result<usize> {
 pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Result<NonNull<B>> {
     create_bpf_entity_checked_opt(f).and_then(|ptr| {
         ptr.ok_or_else(|| {
-            Error::Internal(format!(
-                "bpf call {:?} returned NULL",
-                std::any::type_name::<F>() // this is usually a library bug, hopefully this will
-                                           // help diagnose the bug.
-                                           //
-                                           // One way to fix the bug might be to change to calling
-                                           // create_bpf_entity_checked_opt and handling Ok(None)
-                                           // as a meaningful value.
-            ))
+            Error::with_io_error(
+                io::ErrorKind::Other,
+                format!(
+                    "bpf call {:?} returned NULL",
+                    std::any::type_name::<F>() // this is usually a library bug, hopefully this will
+                                               // help diagnose the bug.
+                                               //
+                                               // One way to fix the bug might be to change to calling
+                                               // create_bpf_entity_checked_opt and handling Ok(None)
+                                               // as a meaningful value.
+                ),
+            )
         })
     })
 }
@@ -116,7 +120,7 @@ pub fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
             // SAFETY: We checked if the pointer was non null before.
             NonNull::new_unchecked(ptr)
         })),
-        err => Err(Error::System(err as i32)),
+        err => Err(Error::from_raw_os_error(err as i32)),
     }
 }
 

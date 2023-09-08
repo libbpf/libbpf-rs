@@ -81,7 +81,7 @@ impl TcHook {
         let err = unsafe { libbpf_sys::bpf_tc_hook_create(&mut self.hook as *mut _) };
         // the hook may already exist, this is not an error
         if err != 0 && err != -(EEXIST as i32) {
-            Err(Error::System(err))
+            Err(Error::from_raw_os_error(-err))
         } else {
             Ok(*self)
         }
@@ -171,7 +171,7 @@ impl TcHook {
 
         let err = unsafe { libbpf_sys::bpf_tc_query(&self.hook as *const _, &mut opts as *mut _) };
         if err != 0 {
-            Err(Error::System(errno::errno()))
+            Err(Error::from_raw_os_error(errno::errno()))
         } else {
             Ok(opts.prog_id)
         }
@@ -193,7 +193,7 @@ impl TcHook {
         let err =
             unsafe { libbpf_sys::bpf_tc_attach(&self.hook as *const _, &mut self.opts as *mut _) };
         if err != 0 {
-            Err(Error::System(errno::errno()))
+            Err(Error::from_raw_os_error(errno::errno()))
         } else {
             Ok(*self)
         }
@@ -208,7 +208,7 @@ impl TcHook {
 
         let err = unsafe { libbpf_sys::bpf_tc_detach(&self.hook as *const _, &opts as *const _) };
         if err != 0 {
-            Err(Error::System(err))
+            Err(Error::from_raw_os_error(-err))
         } else {
             self.opts.prog_id = 0;
             Ok(())
@@ -231,7 +231,7 @@ impl TcHook {
     pub fn destroy(&mut self) -> Result<()> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_destroy(&mut self.hook as *mut _) };
         if err != 0 {
-            Err(Error::System(err))
+            Err(Error::from_raw_os_error(-err))
         } else {
             Ok(())
         }

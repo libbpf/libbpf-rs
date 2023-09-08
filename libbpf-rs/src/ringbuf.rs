@@ -75,7 +75,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
         NewF: FnMut(&[u8]) -> i32 + 'cb,
     {
         if map.map_type() != MapType::RingBuf {
-            return Err(Error::InvalidInput("Must use a RingBuf map".into()));
+            return Err(Error::with_invalid_data("Must use a RingBuf map"));
         }
         self.fd_callbacks
             .push((map.as_fd(), RingBufferCallback::new(callback)));
@@ -115,7 +115,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 
                     // Handle errors
                     if err != 0 {
-                        return Err(Error::System(err));
+                        return Err(Error::from_raw_os_error(err));
                     }
                 }
             }
@@ -125,8 +125,8 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 
         match ptr {
             Some(ptr) => Ok(RingBuffer { ptr, _cbs: cbs }),
-            None => Err(Error::InvalidInput(
-                "You must add at least one ring buffer map and callback before building".into(),
+            None => Err(Error::with_invalid_data(
+                "You must add at least one ring buffer map and callback before building",
             )),
         }
     }

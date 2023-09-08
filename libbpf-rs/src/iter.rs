@@ -28,17 +28,17 @@ impl Iter {
         let link_fd = link.as_fd().as_raw_fd();
         let fd = unsafe { libbpf_sys::bpf_iter_create(link_fd) };
         if fd < 0 {
-            return Err(Error::System(errno::errno()));
+            return Err(Error::from_raw_os_error(errno::errno()));
         }
         Ok(Self { fd })
     }
 }
 
 impl io::Read for Iter {
-    fn read(&mut self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let bytes_read = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut _, buf.len()) };
         if bytes_read < 0 {
-            return Err(std::io::Error::last_os_error());
+            return Err(io::Error::last_os_error());
         }
         Ok(bytes_read as usize)
     }
