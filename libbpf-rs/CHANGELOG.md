@@ -2,6 +2,8 @@ Unreleased
 ----------
 - Overhauled `query::ProgramInfo` and `query::ProgInfoIter` to make them more
   readily usable
+- Added `Btf::from_vmlinux` constructor and adjusted `Btf::from_path` to work
+  with both raw and ELF files
 - Reworked `ObjectBuilder`:
   - Made `name` method fallible
   - Adjusted `opts` to return a reference to `libbpf_sys::bpf_object_open_opts`
