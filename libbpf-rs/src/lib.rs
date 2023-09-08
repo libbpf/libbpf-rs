@@ -79,7 +79,6 @@
 
 pub mod btf;
 mod error;
-mod error2;
 mod iter;
 mod link;
 mod linker;
@@ -99,10 +98,10 @@ pub use libbpf_sys;
 pub use crate::btf::Btf;
 pub use crate::btf::HasSize;
 pub use crate::btf::ReferencesType;
-pub use crate::error2::Error;
-pub use crate::error2::ErrorExt;
-pub use crate::error2::ErrorKind;
-pub use crate::error2::Result;
+pub use crate::error::Error;
+pub use crate::error::ErrorExt;
+pub use crate::error::ErrorKind;
+pub use crate::error::Result;
 pub use crate::iter::Iter;
 pub use crate::link::Link;
 pub use crate::linker::Linker;
