@@ -79,6 +79,7 @@
 
 pub mod btf;
 mod error;
+mod error2;
 mod iter;
 mod link;
 mod linker;
