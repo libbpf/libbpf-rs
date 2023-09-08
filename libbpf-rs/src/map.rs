@@ -33,6 +33,7 @@ use crate::util;
 use crate::util::parse_ret_i32;
 use crate::AsRawLibbpf;
 use crate::Error;
+use crate::ErrorExt as _;
 use crate::Link;
 use crate::Result;
 
@@ -62,9 +63,7 @@ impl OpenMap {
     pub fn name(&self) -> Result<&str> {
         let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        name_c_str
-            .to_str()
-            .map_err(|e| Error::Internal(e.to_string()))
+        name_c_str.to_str().map_err(Error::with_invalid_data)
     }
 
     /// Retrieve type of the map.
@@ -158,7 +157,7 @@ impl OpenMap {
 
         let fd = unsafe { libbpf_sys::bpf_obj_get(cstring.as_ptr()) };
         if fd < 0 {
-            return Err(Error::System(errno::errno()));
+            return Err(Error::from_raw_os_error(errno::errno()));
         }
         let reuse_result = self.reuse_fd(fd);
 
@@ -240,7 +239,7 @@ impl Map {
         // Get the map fd
         let fd = unsafe { libbpf_sys::bpf_map__fd(ptr.as_ptr()) };
         if fd < 0 {
-            return Err(Error::System(-fd));
+            return Err(Error::from_raw_os_error(-fd));
         }
 
         let ty = MapType::try_from(unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) })
@@ -298,7 +297,7 @@ impl Map {
     /// Attach a struct ops map
     pub fn attach_struct_ops(&self) -> Result<Link> {
         if self.map_type() != MapType::StructOps {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "Invalid map type ({}) for attach_struct_ops()",
                 self.map_type(),
             )));
@@ -478,10 +477,7 @@ impl MapHandle {
 
     /// Try cloning this handle by duplicating its underlying file descriptor.
     pub fn try_clone(this: &MapHandle) -> Result<Self> {
-        let new_fd = this
-            .as_fd()
-            .try_clone_to_owned()
-            .map_err(|e| Error::Internal(e.to_string()))?;
+        let new_fd = this.as_fd().try_clone_to_owned()?;
         let fd = MapFd::Owned(new_fd);
         Ok(MapHandle {
             fd,
@@ -549,7 +545,7 @@ impl MapHandle {
     /// Internal function to return a value from a map into a buffer of the given size.
     fn lookup_raw(&self, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "key_size {} != {}",
                 key.len(),
                 self.key_size()
@@ -577,7 +573,7 @@ impl MapHandle {
             if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
                 Ok(None)
             } else {
-                Err(Error::System(errno))
+                Err(Error::from_raw_os_error(errno))
             }
         }
     }
@@ -586,7 +582,7 @@ impl MapHandle {
     /// supplied value.
     fn update_raw(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "key_size {} != {}",
                 key.len(),
                 self.key_size()
@@ -613,7 +609,7 @@ impl MapHandle {
     /// must be used.
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         if self.map_type().is_percpu() {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "lookup_percpu() must be used for per-cpu maps (type of the map is {})",
                 self.map_type(),
             )));
@@ -628,7 +624,7 @@ impl MapHandle {
     /// For normal maps, [`MapHandle::lookup()`] must be used.
     pub fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "lookup() must be used for maps that are not per-cpu (type of the map is {})",
                 self.map_type(),
             )));
@@ -655,7 +651,7 @@ impl MapHandle {
     /// `key` must have exactly [`MapHandle::key_size()`] elements.
     pub fn delete(&self, key: &[u8]) -> Result<()> {
         if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "key_size {} != {}",
                 key.len(),
                 self.key_size()
@@ -679,7 +675,7 @@ impl MapHandle {
         flags: MapFlags,
     ) -> Result<()> {
         if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "batch key_size {} != {} * {}",
                 keys.len(),
                 self.key_size(),
@@ -713,7 +709,7 @@ impl MapHandle {
     /// `key` must have exactly [`MapHandle::key_size()`] elements.
     pub fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "key_size {} != {}",
                 key.len(),
                 self.key_size()
@@ -740,7 +736,7 @@ impl MapHandle {
             if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
                 Ok(None)
             } else {
-                Err(Error::System(errno))
+                Err(Error::from_raw_os_error(errno))
             }
         }
     }
@@ -753,14 +749,14 @@ impl MapHandle {
     /// For per-cpu maps, [`MapHandle::update_percpu()`] must be used.
     pub fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if self.map_type().is_percpu() {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "update_percpu() must be used for per-cpu maps (type of the map is {})",
                 self.map_type(),
             )));
         }
 
         if value.len() != self.value_size() as usize {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "value_size {} != {}",
                 value.len(),
                 self.value_size()
@@ -779,14 +775,14 @@ impl MapHandle {
     /// For per-cpu maps, [`MapHandle::update_percpu()`] must be used.
     pub fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "update() must be used for maps that are not per-cpu (type of the map is {})",
                 self.map_type(),
             )));
         }
 
         if values.len() != crate::num_possible_cpus()? {
-            return Err(Error::InvalidInput(format!(
+            return Err(Error::with_invalid_data(format!(
                 "number of values {} != number of cpus {}",
                 values.len(),
                 crate::num_possible_cpus()?
@@ -802,7 +798,7 @@ impl MapHandle {
 
         for (i, val) in values.iter().enumerate() {
             if val.len() != val_size {
-                return Err(Error::InvalidInput(format!(
+                return Err(Error::with_invalid_data(format!(
                     "value size for cpu {} is {} != {}",
                     i,
                     val.len(),
@@ -842,10 +838,7 @@ impl MapHandle {
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map from bpffs.
     pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        match remove_file(path) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(Error::Internal(format!("remove pin map failed: {e}"))),
-        }
+        remove_file(path).context("failed to remove pin map")
     }
 
     /// Returns an iterator over keys in this map
@@ -946,7 +939,7 @@ impl MapType {
         match ret {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(Error::System(-ret)),
+            _ => Err(Error::from_raw_os_error(-ret)),
         }
     }
 }
@@ -1030,25 +1023,13 @@ impl MapInfo {
     /// utf-8 string.
     pub fn name<'a>(&self) -> Result<&'a str> {
         // SAFETY: convert &[i8] to &[u8], and then cast that to &str. i8 and u8 has the same size.
-        let char_slice = unsafe {
-            from_raw_parts(
-                self.info.name[..].as_ptr() as *const u8,
-                self.info.name.len(),
-            )
-        };
-        let mut zero_idx = 0;
-        while zero_idx < char_slice.len() && char_slice[zero_idx] != 0 {
-            zero_idx += 1;
-        }
-        if zero_idx == char_slice.len() {
-            return Err(Error::Internal(
-                "No nul found in `bpf_map_info::name`".to_string(),
-            ));
-        }
-        CStr::from_bytes_with_nul(&char_slice[..=zero_idx])
-            .map_err(|e| Error::Internal(format!("Failed to cast name to CStr: {e}")))?
+        let char_slice =
+            unsafe { from_raw_parts(self.info.name[..].as_ptr().cast(), self.info.name.len()) };
+
+        util::c_char_slice_to_cstr(char_slice)
+            .ok_or_else(|| Error::with_invalid_data("no nul byte found"))?
             .to_str()
-            .map_err(|e| Error::Internal(format!("Failed to cast name to str: {e}")))
+            .map_err(Error::with_invalid_data)
     }
 
     /// Get the map flags.

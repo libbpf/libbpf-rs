@@ -1,5 +1,9 @@
 Unreleased
 ----------
+- Reworked `Error` type:
+  - Replaced `enum` with data variants with `struct` hiding internal structure
+  - Added support for chaining of errors
+  - Overhauled how errors are displayed
 - Overhauled `query::ProgramInfo` and `query::ProgInfoIter` to make them more
   readily usable
 - Added `Btf::from_vmlinux` constructor and adjusted `Btf::from_path` to work

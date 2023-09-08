@@ -162,9 +162,7 @@ impl OpenProgram {
     pub fn name(&self) -> Result<&str> {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        name_c_str
-            .to_str()
-            .map_err(|e| Error::Internal(e.to_string()))
+        name_c_str.to_str().map_err(Error::with_invalid_data)
     }
 
     /// Set whether a bpf program should be automatically loaded by default
@@ -294,7 +292,7 @@ impl ProgramType {
         match ret {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(Error::System(-ret)),
+            _ => Err(Error::from_raw_os_error(-ret)),
         }
     }
 
@@ -310,7 +308,7 @@ impl ProgramType {
         match ret {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(Error::System(-ret)),
+            _ => Err(Error::from_raw_os_error(-ret)),
         }
     }
 }

@@ -237,11 +237,7 @@ fn test_sudo_object_map_delete_batch() {
         .delete_batch(&key4, 1, MapFlags::empty(), MapFlags::empty())
         .is_ok());
     // Delete remaining 3 keys.
-    let keys = key1
-        .into_iter()
-        .chain(key2.into_iter())
-        .chain(key3.into_iter())
-        .collect::<Vec<_>>();
+    let keys = key1.into_iter().chain(key2).chain(key3).collect::<Vec<_>>();
     assert!(start
         .delete_batch(&keys, 3, MapFlags::empty(), MapFlags::empty())
         .is_ok());

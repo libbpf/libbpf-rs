@@ -120,11 +120,7 @@ impl ObjectBuilder {
 
     /// Open an object using the provided path on the file system.
     pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
-        // Convert path to a C style pointer
-        let path_str = path.as_ref().to_str().ok_or_else(|| {
-            Error::InvalidInput(format!("{} is not valid unicode", path.as_ref().display()))
-        })?;
-        let path_c = util::str_to_cstring(path_str)?;
+        let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
         let opts = self.opts();
@@ -252,12 +248,12 @@ impl OpenObject {
             let ptr = libbpf_sys::bpf_object__name(self.ptr.as_ptr());
             let err = libbpf_sys::libbpf_get_error(ptr as *const _);
             if err != 0 {
-                return Err(Error::System(err as i32));
+                return Err(Error::from_raw_os_error(err as i32));
             }
 
             CStr::from_ptr(ptr)
                 .to_str()
-                .map_err(|e| Error::Internal(e.to_string()))
+                .map_err(Error::with_invalid_data)
         }
     }
 
@@ -308,10 +304,7 @@ impl OpenObject {
     /// Load the maps and programs contained in this BPF object into the system.
     pub fn load(self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr.as_ptr()) };
-        if ret != 0 {
-            // bpf_object__load() returns errno as negative, so flip
-            return Err(Error::System(-ret));
-        }
+        let () = util::parse_ret(ret)?;
 
         let obj = unsafe { Object::from_ptr(self.take_ptr())? };
 

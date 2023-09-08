@@ -6,6 +6,7 @@ use crate::util;
 use crate::util::path_to_cstring;
 use crate::AsRawLibbpf;
 use crate::Error;
+use crate::ErrorExt as _;
 use crate::Result;
 
 /// A type used for linking multiple BPF object files into a single one.
@@ -45,7 +46,7 @@ impl Linker {
         let err =
             unsafe { libbpf_sys::bpf_linker__add_file(self.linker.as_ptr(), file.as_ptr(), opts) };
         if err != 0 {
-            Err(Error::System(err))
+            Err(Error::from_raw_os_error(err)).context("bpf_linker__add_file failed")
         } else {
             Ok(())
         }
@@ -57,7 +58,7 @@ impl Linker {
         // SAFETY: `linker` is a valid pointer.
         let err = unsafe { libbpf_sys::bpf_linker__finalize(self.linker.as_ptr()) };
         if err != 0 {
-            return Err(Error::System(err));
+            return Err(Error::from_raw_os_error(err)).context("bpf_linker__finalize failed");
         }
         Ok(())
     }

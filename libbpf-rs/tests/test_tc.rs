@@ -7,10 +7,7 @@ mod test;
 use test::bump_rlimit_mlock;
 use test::get_test_object;
 
-use nix::errno::Errno::EINVAL;
-use nix::errno::Errno::ENOENT;
-
-use libbpf_rs::Error;
+use libbpf_rs::ErrorKind;
 use libbpf_rs::Result;
 use libbpf_rs::TcHook;
 use libbpf_rs::TcHookBuilder;
@@ -31,8 +28,8 @@ fn clear_clsact(fd: BorrowedFd) -> Result<()> {
         .attach_point(TC_EGRESS | TC_INGRESS);
 
     let res = destroyer.destroy();
-    if let Err(Error::System(err)) = res {
-        if err != -(ENOENT as i32) && err != -(EINVAL as i32) {
+    if let Err(err) = &res {
+        if !matches!(err.kind(), ErrorKind::NotFound | ErrorKind::InvalidInput) {
             return res;
         }
     }
@@ -261,8 +258,8 @@ fn test_sudo_tc_detach_basic() {
 
     // test for double detach, error is ENOENT
     let is_enoent = |hook: &mut TcHook| {
-        if let Err(Error::System(err)) = hook.detach() {
-            err == -(ENOENT as i32)
+        if let Err(err) = hook.detach() {
+            err.kind() == ErrorKind::NotFound
         } else {
             false
         }
