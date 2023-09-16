@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Map;
 use crate::MapType;
@@ -101,15 +102,11 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     /// Build the `PerfBuffer` object as configured.
     pub fn build(self) -> Result<PerfBuffer<'b>> {
         if self.map.map_type() != MapType::PerfEventArray {
-            return Err(Error::InvalidInput(
-                "Must use a PerfEventArray map".to_string(),
-            ));
+            return Err(Error::with_invalid_data("Must use a PerfEventArray map"));
         }
 
         if !self.pages.is_power_of_two() {
-            return Err(Error::InvalidInput(
-                "Page count must be power of two".to_string(),
-            ));
+            return Err(Error::with_invalid_data("Page count must be power of two"));
         }
 
         let c_sample_cb: libbpf_sys::perf_buffer_sample_fn = if self.sample_cb.is_some() {
@@ -227,9 +224,13 @@ impl PerfBuffer<'_> {
         };
         util::parse_ret_i32(ret)
     }
+}
+
+impl AsRawLibbpf for PerfBuffer<'_> {
+    type LibbpfType = libbpf_sys::perf_buffer;
 
     /// Retrieve the underlying [`libbpf_sys::perf_buffer`].
-    pub fn as_libbpf_perf_buffer_ptr(&self) -> NonNull<libbpf_sys::perf_buffer> {
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
     }
 }

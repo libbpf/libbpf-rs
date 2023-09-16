@@ -1,8 +1,28 @@
 Unreleased
 ----------
+- Reworked `Error` type:
+  - Replaced `enum` with data variants with `struct` hiding internal structure
+  - Added support for chaining of errors
+  - Overhauled how errors are displayed
+- Overhauled `query::ProgramInfo` and `query::ProgInfoIter` to make them more
+  readily usable
+- Added `Btf::from_vmlinux` constructor and adjusted `Btf::from_path` to work
+  with both raw and ELF files
+- Reworked `ObjectBuilder`:
+  - Made `name` method fallible
+  - Adjusted `opts` to return a reference to `libbpf_sys::bpf_object_open_opts`
+  - Removed object name argument from `open_memory` constructor
+  - Added `pin_root_path` setter
+- Added `AsRawLibbpf` trait as a unified way to retrieve `libbpf` equivalents
+  for `libbpf-rs` objects
+- Implemented `Send` for `Link`
+- Updated `bitflags` dependency to `2.0`
+
+
+0.21.2
+------
 - Enabled key iteration on `MapHandle` objects (formerly possible only on `Map`
   objects)
-- Updated `bitflags` dependency to `2.0`
 - Bumped minimum Rust version to `1.64`
 
 

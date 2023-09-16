@@ -1,11 +1,11 @@
 use core::ffi::c_void;
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::mem;
-use std::os::raw::c_char;
 use std::path::Path;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 
 use crate::libbpf_sys;
 use crate::set_print;
@@ -19,23 +19,80 @@ use crate::PrintLevel;
 use crate::Program;
 use crate::Result;
 
+/// A trait implemented for types that are thin wrappers around `libbpf` types.
+///
+/// The trait provides access to the underlying `libbpf` (or `libbpf-sys`)
+/// object. In many cases, this enables direct usage of `libbpf-sys`
+/// functionality when higher-level bindings are not yet provided by this crate.
+pub trait AsRawLibbpf {
+    /// The underlying `libbpf` type.
+    type LibbpfType;
+
+    /// Retrieve the underlying `libbpf` object.
+    ///
+    /// # Warning
+    /// By virtue of working with a mutable raw pointer this method effectively
+    /// circumvents mutability and liveness checks. While by-design, usage is
+    /// meant as an escape-hatch more than anything else. If you find yourself
+    /// making use of it, please consider discussing your workflow with crate
+    /// maintainers to see if it would make sense to provide safer wrappers.
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType>;
+}
+
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct ObjectBuilder {
-    name: String,
-    relaxed_maps: bool,
+    name: Option<CString>,
+    pin_root_path: Option<CString>,
+
+    opts: libbpf_sys::bpf_object_open_opts,
+}
+
+impl Default for ObjectBuilder {
+    fn default() -> Self {
+        let opts = libbpf_sys::bpf_object_open_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            object_name: ptr::null(),
+            relaxed_maps: false,
+            pin_root_path: ptr::null(),
+            kconfig: ptr::null(),
+            btf_custom_path: ptr::null(),
+            kernel_log_buf: ptr::null_mut(),
+            kernel_log_size: 0,
+            kernel_log_level: 0,
+            ..Default::default()
+        };
+        Self {
+            name: None,
+            pin_root_path: None,
+            opts,
+        }
+    }
 }
 
 impl ObjectBuilder {
     /// Override the generated name that would have been inferred from the constructor.
-    pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
-        self.name = name.as_ref().to_string();
-        self
+    pub fn name<T: AsRef<str>>(&mut self, name: T) -> Result<&mut Self> {
+        self.name = Some(util::str_to_cstring(name.as_ref())?);
+        self.opts.object_name = self.name.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        Ok(self)
+    }
+
+    /// Set the pin_root_path for maps that are pinned by name.
+    ///
+    /// By default, this is NULL which bpf translates to /sys/fs/bpf
+    pub fn pin_root_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {
+        self.pin_root_path = Some(util::path_to_cstring(path)?);
+        self.opts.pin_root_path = self
+            .pin_root_path
+            .as_ref()
+            .map_or(ptr::null(), |p| p.as_ptr());
+        Ok(self)
     }
 
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
     pub fn relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
-        self.relaxed_maps = relaxed_maps;
+        self.opts.relaxed_maps = relaxed_maps;
         self
     }
 
@@ -52,68 +109,37 @@ impl ObjectBuilder {
         self
     }
 
-    /// Get an instance of libbpf_sys::bpf_object_open_opts.
-    pub fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
-        libbpf_sys::bpf_object_open_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
-            object_name: name,
-            relaxed_maps: self.relaxed_maps,
-            pin_root_path: ptr::null(),
-            kconfig: ptr::null(),
-            btf_custom_path: ptr::null(),
-            kernel_log_buf: ptr::null_mut(),
-            kernel_log_size: 0,
-            kernel_log_level: 0,
-            ..Default::default()
-        }
+    /// Get the raw libbpf_sys::bpf_object_open_opts.
+    ///
+    /// The internal pointers are tied to the lifetime of the
+    /// ObjectBuilder, so be wary when copying the struct or otherwise
+    /// handing the lifetime over to C.
+    pub fn opts(&self) -> &libbpf_sys::bpf_object_open_opts {
+        &self.opts
     }
 
     /// Open an object using the provided path on the file system.
     pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
-        // Convert path to a C style pointer
-        let path_str = path.as_ref().to_str().ok_or_else(|| {
-            Error::InvalidInput(format!("{} is not valid unicode", path.as_ref().display()))
-        })?;
-        let path_c = util::str_to_cstring(path_str)?;
+        let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
 
-        // Convert name to a C style pointer
-        //
-        // NB: we must hold onto a CString otherwise our pointer dangles
-        let name = util::str_to_cstring(&self.name)?;
-        let name_ptr = if !self.name.is_empty() {
-            name.as_ptr()
-        } else {
-            ptr::null()
-        };
-
-        let opts = self.opts(name_ptr);
+        let opts = self.opts();
 
         util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_object__open_file(path_ptr, &opts)
+            libbpf_sys::bpf_object__open_file(path_ptr, opts)
         })
         .and_then(|ptr| unsafe { OpenObject::new(ptr) })
     }
 
     /// Open an object from memory.
-    pub fn open_memory<T: AsRef<str>>(&mut self, name: T, mem: &[u8]) -> Result<OpenObject> {
-        // Convert name to a C style pointer
-        //
-        // NB: we must hold onto a CString otherwise our pointer dangles
-        let name = util::str_to_cstring(name.as_ref())?;
-        let name_ptr = if !name.to_bytes().is_empty() {
-            name.as_ptr()
-        } else {
-            ptr::null()
-        };
-
-        let opts = self.opts(name_ptr);
+    pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
+        let opts = self.opts();
 
         util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_object__open_mem(
                 mem.as_ptr() as *const c_void,
                 mem.len() as libbpf_sys::size_t,
-                &opts,
+                opts,
             )
         })
         .and_then(|ptr| unsafe { OpenObject::new(ptr) })
@@ -222,12 +248,12 @@ impl OpenObject {
             let ptr = libbpf_sys::bpf_object__name(self.ptr.as_ptr());
             let err = libbpf_sys::libbpf_get_error(ptr as *const _);
             if err != 0 {
-                return Err(Error::System(err as i32));
+                return Err(Error::from_raw_os_error(err as i32));
             }
 
             CStr::from_ptr(ptr)
                 .to_str()
-                .map_err(|e| Error::Internal(e.to_string()))
+                .map_err(Error::with_invalid_data)
         }
     }
 
@@ -278,10 +304,7 @@ impl OpenObject {
     /// Load the maps and programs contained in this BPF object into the system.
     pub fn load(self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr.as_ptr()) };
-        if ret != 0 {
-            // bpf_object__load() returns errno as negative, so flip
-            return Err(Error::System(-ret));
-        }
+        let () = util::parse_ret(ret)?;
 
         let obj = unsafe { Object::from_ptr(self.take_ptr())? };
 
@@ -420,9 +443,13 @@ impl Object {
     pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut Program> {
         self.progs.values_mut()
     }
+}
+
+impl AsRawLibbpf for Object {
+    type LibbpfType = libbpf_sys::bpf_object;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_object`].
-    pub fn as_libbpf_bpf_object_ptr(&self) -> NonNull<libbpf_sys::bpf_object> {
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
     }
 }

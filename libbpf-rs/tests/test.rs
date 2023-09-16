@@ -23,6 +23,7 @@ use std::ptr;
 use tempfile::NamedTempFile;
 
 use libbpf_rs::num_possible_cpus;
+use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::Linker;
 use libbpf_rs::Map;
@@ -120,10 +121,26 @@ fn test_object_build_from_memory() {
     let contents = fs::read(obj_path).expect("failed to read object file");
     let mut builder = ObjectBuilder::default();
     let obj = builder
-        .open_memory("memory name", &contents)
+        .name("memory name")
+        .unwrap()
+        .open_memory(&contents)
         .expect("failed to build object");
     let name = obj.name().expect("failed to get object name");
     assert!(name == "memory name");
+}
+
+#[test]
+fn test_object_build_from_memory_empty_name() {
+    let obj_path = get_test_object_path("runqslower.bpf.o");
+    let contents = fs::read(obj_path).expect("failed to read object file");
+    let mut builder = ObjectBuilder::default();
+    let obj = builder
+        .name("")
+        .unwrap()
+        .open_memory(&contents)
+        .expect("failed to build object");
+    let name = obj.name().expect("failed to get object name");
+    assert!(name.is_empty());
 }
 
 /// Check that loading an object from an empty file fails as expected.
@@ -140,7 +157,7 @@ fn test_sudo_object_load_invalid() {
 fn test_object_name() {
     let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
-    builder.name("test name");
+    builder.name("test name").unwrap();
     let obj = builder.open_file(obj_path).expect("failed to build object");
     let obj_name = obj.name().expect("failed to get object name");
     assert!(obj_name == "test name");
@@ -220,11 +237,7 @@ fn test_sudo_object_map_delete_batch() {
         .delete_batch(&key4, 1, MapFlags::empty(), MapFlags::empty())
         .is_ok());
     // Delete remaining 3 keys.
-    let keys = key1
-        .into_iter()
-        .chain(key2.into_iter())
-        .chain(key3.into_iter())
-        .collect::<Vec<_>>();
+    let keys = key1.into_iter().chain(key2).chain(key3).collect::<Vec<_>>();
     assert!(start
         .delete_batch(&keys, 3, MapFlags::empty(), MapFlags::empty())
         .is_ok());
@@ -1414,7 +1427,7 @@ fn test_object_link_files() {
 
 /// Get access to the underlying per-cpu ring buffer data.
 fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
-    let perf_buff_ptr = perf.as_libbpf_perf_buffer_ptr();
+    let perf_buff_ptr = perf.as_libbpf_object();
     let mut buffer_data_ptr: *mut c_void = ptr::null_mut();
     let mut buffer_size: usize = 0;
     let ret = unsafe {
@@ -1489,6 +1502,35 @@ fn test_sudo_map_pinned_status() {
     assert_eq!(expected_path, get_path.to_str().unwrap());
     // cleanup
     let _ = fs::remove_file(expected_path);
+}
+
+/// Change the root_pin_path and see if it works.
+#[test]
+fn test_sudo_map_pinned_status_with_pin_root_path() {
+    bump_rlimit_mlock();
+
+    let obj_path = get_test_object_path("map_auto_pin.bpf.o");
+    let obj = ObjectBuilder::default()
+        .debug(true)
+        .pin_root_path("/sys/fs/bpf/test_namespace")
+        .expect("root_pin_path failed")
+        .open_file(obj_path)
+        .expect("failed to open object")
+        .load()
+        .expect("failed to load object");
+
+    let map = obj
+        .map("auto_pin_map")
+        .expect("failed to find map 'auto_pin_map'");
+
+    let is_pinned = map.is_pinned();
+    assert!(is_pinned);
+    let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
+    let get_path = map.get_pin_path().expect("get map pin path failed");
+    assert_eq!(expected_path, get_path.to_str().unwrap());
+    // cleanup
+    let _ = fs::remove_file(expected_path);
+    let _ = fs::remove_dir("/sys/fs/bpf/test_namespace");
 }
 
 /// Check that we can get program fd by id and vice versa.

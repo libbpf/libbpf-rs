@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::MapHandle;
 use crate::MapType;
@@ -74,7 +75,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
         NewF: FnMut(&[u8]) -> i32 + 'cb,
     {
         if map.map_type() != MapType::RingBuf {
-            return Err(Error::InvalidInput("Must use a RingBuf map".into()));
+            return Err(Error::with_invalid_data("Must use a RingBuf map"));
         }
         self.fd_callbacks
             .push((map.as_fd(), RingBufferCallback::new(callback)));
@@ -114,7 +115,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 
                     // Handle errors
                     if err != 0 {
-                        return Err(Error::System(err));
+                        return Err(Error::from_raw_os_error(err));
                     }
                 }
             }
@@ -124,8 +125,8 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 
         match ptr {
             Some(ptr) => Ok(RingBuffer { ptr, _cbs: cbs }),
-            None => Err(Error::InvalidInput(
-                "You must add at least one ring buffer map and callback before building".into(),
+            None => Err(Error::with_invalid_data(
+                "You must add at least one ring buffer map and callback before building",
             )),
         }
     }
@@ -179,6 +180,15 @@ impl RingBuffer<'_> {
     /// Get an fd that can be used to sleep until data is available
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::ring_buffer__epoll_fd(self.ptr.as_ptr()) }
+    }
+}
+
+impl AsRawLibbpf for RingBuffer<'_> {
+    type LibbpfType = libbpf_sys::ring_buffer;
+
+    /// Retrieve the underlying [`libbpf_sys::ring_buffer`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
     }
 }
 

@@ -17,6 +17,7 @@ use strum_macros::Display;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Link;
 use crate::Result;
@@ -161,9 +162,7 @@ impl OpenProgram {
     pub fn name(&self) -> Result<&str> {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        name_c_str
-            .to_str()
-            .map_err(|e| Error::Internal(e.to_string()))
+        name_c_str.to_str().map_err(Error::with_invalid_data)
     }
 
     /// Set whether a bpf program should be automatically loaded by default
@@ -231,6 +230,15 @@ impl OpenProgram {
     }
 }
 
+impl AsRawLibbpf for Program {
+    type LibbpfType = libbpf_sys::bpf_program;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_program`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
+    }
+}
+
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
@@ -284,7 +292,7 @@ impl ProgramType {
         match ret {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(Error::System(-ret)),
+            _ => Err(Error::from_raw_os_error(-ret)),
         }
     }
 
@@ -300,7 +308,7 @@ impl ProgramType {
         match ret {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(Error::System(-ret)),
+            _ => Err(Error::from_raw_os_error(-ret)),
         }
     }
 }

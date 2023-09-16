@@ -7,6 +7,7 @@ use std::ptr::NonNull;
 
 use crate::libbpf_sys;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Program;
 use crate::Result;
 
@@ -104,6 +105,18 @@ impl Link {
         util::parse_ret(ret)
     }
 }
+
+impl AsRawLibbpf for Link {
+    type LibbpfType = libbpf_sys::bpf_link;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_link`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
+    }
+}
+
+// SAFETY: `bpf_link` objects can safely be sent to a different thread.
+unsafe impl Send for Link {}
 
 impl AsFd for Link {
     #[inline]

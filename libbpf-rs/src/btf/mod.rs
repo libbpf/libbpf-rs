@@ -19,6 +19,7 @@ use std::ffi::CString;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::io;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
@@ -31,14 +32,16 @@ use std::os::unix::prelude::OwnedFd;
 use std::path::Path;
 use std::ptr::NonNull;
 
+use num_enum::IntoPrimitive;
+use num_enum::TryFromPrimitive;
+
 use crate::libbpf_sys;
 use crate::util::create_bpf_entity_checked;
 use crate::util::create_bpf_entity_checked_opt;
 use crate::util::parse_ret_i32;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Result;
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
 
 use self::types::Composite;
 
@@ -131,14 +134,14 @@ pub struct Btf<'source> {
 }
 
 impl Btf<'static> {
-    /// Load the btf information from an ELF file.
+    /// Load the btf information from specified path.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         fn inner(path: &Path) -> Result<Btf<'static>> {
             let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
-                Error::InvalidInput(format!("invalid path {path:?}, has null bytes"))
+                Error::with_invalid_data(format!("invalid path {path:?}, has null bytes"))
             })?;
             let ptr = create_bpf_entity_checked(|| unsafe {
-                libbpf_sys::btf__parse_elf(path.as_ptr(), std::ptr::null_mut())
+                libbpf_sys::btf__parse(path.as_ptr(), std::ptr::null_mut())
             })?;
             Ok(Btf {
                 ptr,
@@ -147,6 +150,17 @@ impl Btf<'static> {
             })
         }
         inner(path.as_ref())
+    }
+
+    /// Load the vmlinux btf information from few well-known locations.
+    pub fn from_vmlinux() -> Result<Self> {
+        let ptr = create_bpf_entity_checked(|| unsafe { libbpf_sys::btf__load_vmlinux_btf() })?;
+
+        Ok(Btf {
+            ptr,
+            drop_policy: DropPolicy::SelfPtrOnly,
+            _marker: PhantomData,
+        })
     }
 
     /// Load the btf information of an bpf object from a program id.
@@ -179,8 +193,9 @@ impl Btf<'static> {
 
 impl<'btf> Btf<'btf> {
     pub(crate) fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Self> {
-        Self::from_bpf_object_raw(obj)
-            .and_then(|opt| opt.ok_or_else(|| Error::Internal("btf not found".into())))
+        Self::from_bpf_object_raw(obj).and_then(|opt| {
+            opt.ok_or_else(|| Error::with_io_error(io::ErrorKind::NotFound, "btf not found"))
+        })
     }
 
     fn from_bpf_object_raw(obj: *const libbpf_sys::bpf_object) -> Result<Option<Self>> {
@@ -200,7 +215,7 @@ impl<'btf> Btf<'btf> {
     /// From raw bytes coming from an object file.
     pub fn from_raw(name: &'btf str, object_file: &'btf [u8]) -> Result<Option<Self>> {
         let cname = CString::new(name)
-            .map_err(|_| Error::InvalidInput(format!("invalid path {name:?}, has null bytes")))
+            .map_err(|_| Error::with_invalid_data(format!("invalid path {name:?}, has null bytes")))
             .unwrap();
 
         let obj_opts = libbpf_sys::bpf_object_open_opts {
@@ -271,8 +286,9 @@ impl<'btf> Btf<'btf> {
     /// The btf pointer size.
     pub fn ptr_size(&self) -> Result<NonZeroUsize> {
         let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) as usize };
-        NonZeroUsize::new(sz)
-            .ok_or_else(|| Error::Internal("could not determine pointer size".into()))
+        NonZeroUsize::new(sz).ok_or_else(|| {
+            Error::with_io_error(io::ErrorKind::Other, "could not determine pointer size")
+        })
     }
 
     /// Find a btf type by name
@@ -284,7 +300,7 @@ impl<'btf> Btf<'btf> {
         K: TryFrom<BtfType<'s>>,
     {
         let c_string = CString::new(name)
-            .map_err(|_| Error::InvalidInput(format!("{name:?} contains null bytes")))
+            .map_err(|_| Error::with_invalid_data(format!("{name:?} contains null bytes")))
             .unwrap();
         let ty = unsafe {
             // SAFETY: the btf pointer is valid and the c_string pointer was created from safe code
@@ -336,6 +352,15 @@ impl<'btf> Btf<'btf> {
             .map(TypeId::from)
             .filter_map(|id| self.type_by_id(id))
             .filter_map(|t| K::try_from(t).ok())
+    }
+}
+
+impl AsRawLibbpf for Btf<'_> {
+    type LibbpfType = libbpf_sys::btf;
+
+    /// Retrieve the underlying [`libbpf_sys::btf`] object.
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
     }
 }
 
@@ -587,7 +612,7 @@ impl<'btf> BtfType<'btf> {
                 // SAFETY: We checked the type.
                 NonZeroUsize::new(skipped.size_unchecked() as usize)
             }
-            .ok_or_else(|| Error::Internal("DataSec with size of 0".into())),
+            .ok_or_else(|| Error::with_invalid_data("DataSec with size of 0")),
             BtfKind::Void
             | BtfKind::Volatile
             | BtfKind::Const
@@ -597,7 +622,7 @@ impl<'btf> BtfType<'btf> {
             | BtfKind::Fwd
             | BtfKind::Func
             | BtfKind::DeclTag
-            | BtfKind::TypeTag => Err(Error::InvalidInput(format!(
+            | BtfKind::TypeTag => Err(Error::with_invalid_data(format!(
                 "Cannot get alignment of type with kind {:?}. TypeId is {}",
                 skipped.kind(),
                 skipped.type_id(),
@@ -648,4 +673,14 @@ pub unsafe trait ReferencesType<'btf>:
 
 mod sealed {
     pub trait Sealed {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_vmlinux() {
+        assert!(Btf::from_vmlinux().is_ok());
+    }
 }

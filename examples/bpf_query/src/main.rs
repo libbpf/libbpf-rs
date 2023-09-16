@@ -4,11 +4,17 @@ use clap::Parser;
 use libbpf_rs::query;
 use nix::unistd::Uid;
 
+#[derive(Debug, Parser)]
+struct ProgArgs {
+    #[arg(short, long)]
+    disassemble: bool,
+}
+
 /// Query the system about BPF-related information
 #[derive(Debug, Parser)]
 enum Command {
     /// Display information about progs
-    Prog,
+    Prog(ProgArgs),
     /// Display information about maps
     Map,
     /// Display information about BTF
@@ -17,24 +23,54 @@ enum Command {
     Link,
 }
 
-fn prog() {
-    for prog in query::ProgInfoIter::default() {
+fn prog(args: ProgArgs) {
+    let opts = query::ProgInfoQueryOptions::default().include_all();
+    for prog in query::ProgInfoIter::with_query_opts(opts) {
         println!(
             "name={:<16} type={:<15} run_count={:<2} runtime_ns={}",
-            prog.name, prog.ty, prog.run_cnt, prog.run_time_ns
+            prog.name.to_string_lossy(),
+            prog.ty,
+            prog.run_cnt,
+            prog.run_time_ns
         );
+        if args.disassemble {
+            #[cfg(target_arch = "x86_64")]
+            {
+                use iced_x86::Formatter;
+
+                let mut d = iced_x86::Decoder::new(32, &prog.jited_prog_insns, 0);
+                let mut f = iced_x86::GasFormatter::new();
+                while d.can_decode() {
+                    let ip = d.ip();
+                    let insn = d.decode();
+                    let mut f_insn = String::new();
+                    f.format(&insn, &mut f_insn);
+                    println!("  {}: {}", ip, f_insn);
+                }
+            }
+
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                println!("   Unable to disassemble on non-x86_64");
+            }
+        }
     }
 }
 
 fn map() {
     for map in query::MapInfoIter::default() {
-        println!("name={:<16} type={}", map.name, map.ty);
+        println!("name={:<16} type={}", map.name.to_string_lossy(), map.ty);
     }
 }
 
 fn btf() {
     for btf in query::BtfInfoIter::default() {
-        println!("id={:4} size={}", btf.id, btf.btf_size);
+        println!(
+            "id={:4} name={} size={}",
+            btf.id,
+            btf.name.to_string_lossy(),
+            btf.btf.len()
+        );
     }
 }
 
@@ -65,7 +101,7 @@ fn main() {
     let opts = Command::parse();
 
     match opts {
-        Command::Prog => prog(),
+        Command::Prog(args) => prog(args),
         Command::Map => map(),
         Command::Btf => btf(),
         Command::Link => link(),
