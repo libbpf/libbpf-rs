@@ -462,40 +462,45 @@ fn gen_skel_map_getter(
     Ok(())
 }
 
-fn gen_skel_prog_getter(
+fn gen_skel_prog_getters(
     skel: &mut String,
     object: &mut BpfObj,
     obj_name: &str,
     open: bool,
-    mutable: bool,
 ) -> Result<()> {
-    if ProgIter::new(object.as_mut_ptr()).next().is_none() {
-        return Ok(());
-    }
+    let mut gen = |mutable| -> Result<()> {
+        if ProgIter::new(object.as_mut_ptr()).next().is_none() {
+            return Ok(());
+        }
 
-    let (struct_suffix, mut_prefix, prog_fn) = if mutable {
-        ("Mut", "mut ", "progs_mut")
-    } else {
-        ("", "", "progs")
-    };
+        let (struct_suffix, mut_prefix, prog_fn) = if mutable {
+            ("Mut", "mut ", "progs_mut")
+        } else {
+            ("", "", "progs")
+        };
 
-    let return_ty = if open {
-        format!("Open{obj_name}Progs{struct_suffix}")
-    } else {
-        format!("{obj_name}Progs{struct_suffix}")
-    };
+        let return_ty = if open {
+            format!("Open{obj_name}Progs{struct_suffix}")
+        } else {
+            format!("{obj_name}Progs{struct_suffix}")
+        };
 
-    write!(
-        skel,
-        r#"
-        pub fn {prog_fn}(&{mut_prefix}self) -> {return_ty}<'_> {{
-            {return_ty} {{
-                inner: &{mut_prefix}self.obj,
+        write!(
+            skel,
+            r#"
+            pub fn {prog_fn}(&{mut_prefix}self) -> {return_ty}<'_> {{
+                {return_ty} {{
+                    inner: &{mut_prefix}self.obj,
+                }}
             }}
-        }}
-        "#,
-    )?;
+            "#,
+        )?;
 
+        Ok(())
+    };
+
+    let () = gen(true)?;
+    let () = gen(false)?;
     Ok(())
 }
 
@@ -784,8 +789,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     writeln!(skel, "}}")?;
     writeln!(skel, "impl Open{name}Skel<'_> {{", name = &obj_name)?;
 
-    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, false)?;
-    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, true, true)?;
+    gen_skel_prog_getters(&mut skel, &mut object, &obj_name, true)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, true, false)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, true, true)?;
     gen_skel_datasec_getters(&mut skel, &mut object, raw_obj_name, false)?;
@@ -830,8 +834,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     writeln!(skel, "}}")?;
 
     write!(skel, "impl {name}Skel<'_> {{", name = &obj_name)?;
-    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, false)?;
-    gen_skel_prog_getter(&mut skel, &mut object, &obj_name, false, true)?;
+    gen_skel_prog_getters(&mut skel, &mut object, &obj_name, false)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, false)?;
     gen_skel_map_getter(&mut skel, &mut object, &obj_name, false, true)?;
     gen_skel_datasec_getters(&mut skel, &mut object, raw_obj_name, true)?;
