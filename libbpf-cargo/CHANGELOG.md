@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Removed `Error` enum in favor of `anyhow::Error`
 - Bumped minimum Rust version to `1.65`
 
 
