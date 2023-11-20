@@ -524,9 +524,9 @@ fn gen_skel_datasec_getters(
         write!(
             skel,
             r#"
-            pub fn {name}(&mut self) -> &'_ {mutability} {struct_name} {{
+            pub fn {name}(&{mutability} self) -> &{mutability} {struct_name} {{
                 unsafe {{
-                    std::mem::transmute::<*mut std::ffi::c_void, &'_ {mutability} {struct_name}>(
+                    std::mem::transmute::<*mut std::ffi::c_void, &{mutability} {struct_name}>(
                         self.skel_config.map_mmap_ptr({idx}).unwrap()
                     )
                 }}
