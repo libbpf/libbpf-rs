@@ -530,24 +530,33 @@ fn gen_skel_datasec_getters(
             None => continue,
         };
         let struct_name = format!("{obj_name}_{name}_types::{name}");
-        let mutability = if loaded && map_is_readonly(map) {
-            ""
+        let immutable = loaded && map_is_readonly(map);
+        let mutabilities = if immutable {
+            [false].as_ref()
         } else {
-            "mut"
+            [false, true].as_ref()
         };
 
-        write!(
-            skel,
-            r#"
-            pub fn {name}(&{mutability} self) -> &{mutability} {struct_name} {{
-                unsafe {{
-                    std::mem::transmute::<*mut std::ffi::c_void, &{mutability} {struct_name}>(
-                        self.skel_config.map_mmap_ptr({idx}).unwrap()
-                    )
+        for mutable in mutabilities {
+            let (ref_suffix, ptr_suffix, fn_suffix) = if *mutable {
+                ("mut", "mut", "_mut")
+            } else {
+                ("", "const", "")
+            };
+
+            write!(
+                skel,
+                r#"
+                pub fn {name}{fn_suffix}(&{ref_suffix} self) -> &{ref_suffix} {struct_name} {{
+                    unsafe {{
+                        std::mem::transmute::<*{ptr_suffix} std::ffi::c_void, &{ref_suffix} {struct_name}>(
+                            self.skel_config.map_mmap_ptr{fn_suffix}({idx}).unwrap()
+                        )
+                    }}
                 }}
-            }}
-            "#
-        )?;
+                "#
+            )?;
+        }
     }
 
     Ok(())
