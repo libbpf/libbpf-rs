@@ -1,6 +1,6 @@
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::os::unix::io::FromRawFd;
+use std::os::unix::io::AsRawFd as _;
 use std::str::FromStr;
 
 use anyhow::Context;
@@ -56,17 +56,17 @@ fn main() -> Result<()> {
     .context("Failed to create listener socket")?;
 
     // Set some sockopts
-    setsockopt(fd, ReuseAddr, &true).context("Failed to set SO_REUSEADDR")?;
-    setsockopt(fd, IpTransparent, &true).context("Failed to set IP_TRANSPARENT")?;
+    setsockopt(&fd, ReuseAddr, &true).context("Failed to set SO_REUSEADDR")?;
+    setsockopt(&fd, IpTransparent, &true).context("Failed to set IP_TRANSPARENT")?;
 
     // Bind to addr
     let addr = format!("{}:{}", opts.addr, opts.port);
     let addr = SockaddrIn::from_str(&addr).context("Failed to parse socketaddr")?;
-    bind(fd, &addr).context("Failed to bind listener")?;
+    bind(fd.as_raw_fd(), &addr).context("Failed to bind listener")?;
 
     // Start listening
-    listen(fd, 128).context("Failed to listen")?;
-    let listener = unsafe { TcpListener::from_raw_fd(fd) };
+    listen(&fd, 128).context("Failed to listen")?;
+    let listener = TcpListener::from(fd);
 
     for client in listener.incoming() {
         let client = client.context("Failed to connect to client")?;
