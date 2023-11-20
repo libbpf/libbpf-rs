@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Bumped minimum Rust version to `1.65`
+
+
 0.21.2
 ------
 - Added `Default` impl for generated `struct` types containing pointers

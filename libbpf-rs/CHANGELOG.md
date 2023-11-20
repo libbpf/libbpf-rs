@@ -16,6 +16,7 @@ Unreleased
 - Added `AsRawLibbpf` trait as a unified way to retrieve `libbpf` equivalents
   for `libbpf-rs` objects
 - Implemented `Send` for `Link`
+- Bumped minimum Rust version to `1.65`
 - Updated `bitflags` dependency to `2.0`
 
 
