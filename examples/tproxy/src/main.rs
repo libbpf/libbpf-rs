@@ -64,9 +64,9 @@ fn main() -> Result<()> {
 
     // Set constants
     let mut open_skel = skel_builder.open()?;
-    open_skel.rodata().target_port = opts.port.to_be();
-    open_skel.rodata().proxy_addr = proxy_addr.to_be();
-    open_skel.rodata().proxy_port = opts.proxy_port.to_be();
+    open_skel.rodata_mut().target_port = opts.port.to_be();
+    open_skel.rodata_mut().proxy_addr = proxy_addr.to_be();
+    open_skel.rodata_mut().proxy_port = opts.proxy_port.to_be();
 
     // Load into kernel
     let skel = open_skel.load()?;
