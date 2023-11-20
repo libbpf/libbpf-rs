@@ -267,66 +267,71 @@ fn gen_skel_map_defs(
     object: &mut BpfObj,
     obj_name: &str,
     open: bool,
-    mutable: bool,
 ) -> Result<()> {
-    if MapIter::new(object.as_mut_ptr()).next().is_none() {
-        return Ok(());
-    }
+    let mut gen = |mutable| -> Result<()> {
+        if MapIter::new(object.as_mut_ptr()).next().is_none() {
+            return Ok(());
+        }
 
-    let (struct_suffix, mut_prefix, map_fn) = if mutable {
-        ("Mut", "mut ", "map_mut")
-    } else {
-        ("", "", "map")
-    };
+        let (struct_suffix, mut_prefix, map_fn) = if mutable {
+            ("Mut", "mut ", "map_mut")
+        } else {
+            ("", "", "map")
+        };
 
-    let (struct_name, inner_ty, return_ty) = if open {
-        (
-            format!("Open{obj_name}Maps{struct_suffix}"),
-            "libbpf_rs::OpenObject",
-            "libbpf_rs::OpenMap",
-        )
-    } else {
-        (
-            format!("{obj_name}Maps{struct_suffix}"),
-            "libbpf_rs::Object",
-            "libbpf_rs::Map",
-        )
-    };
-
-    write!(
-        skel,
-        r#"
-        pub struct {struct_name}<'a> {{
-            inner: &'a {mut_prefix}{inner_ty},
-        }}
-
-        impl {struct_name}<'_> {{
-        "#,
-    )?;
-
-    for map in MapIter::new(object.as_mut_ptr()) {
-        let map_name = match get_map_name(map)? {
-            Some(n) => n,
-            None => continue,
+        let (struct_name, inner_ty, return_ty) = if open {
+            (
+                format!("Open{obj_name}Maps{struct_suffix}"),
+                "libbpf_rs::OpenObject",
+                "libbpf_rs::OpenMap",
+            )
+        } else {
+            (
+                format!("{obj_name}Maps{struct_suffix}"),
+                "libbpf_rs::Object",
+                "libbpf_rs::Map",
+            )
         };
 
         write!(
             skel,
             r#"
-            pub fn {map_name}(&{mut_prefix}self) -> &{mut_prefix}{return_ty} {{
-                self.inner.{map_fn}("{raw_map_name}").unwrap()
+            pub struct {struct_name}<'a> {{
+                inner: &'a {mut_prefix}{inner_ty},
             }}
+
+            impl {struct_name}<'_> {{
             "#,
-            map_name = map_name,
-            raw_map_name = get_raw_map_name(map)?,
-            return_ty = return_ty,
-            mut_prefix = mut_prefix,
-            map_fn = map_fn
         )?;
-    }
 
-    writeln!(skel, "}}")?;
+        for map in MapIter::new(object.as_mut_ptr()) {
+            let map_name = match get_map_name(map)? {
+                Some(n) => n,
+                None => continue,
+            };
 
+            write!(
+                skel,
+                r#"
+                pub fn {map_name}(&{mut_prefix}self) -> &{mut_prefix}{return_ty} {{
+                    self.inner.{map_fn}("{raw_map_name}").unwrap()
+                }}
+                "#,
+                map_name = map_name,
+                raw_map_name = get_raw_map_name(map)?,
+                return_ty = return_ty,
+                mut_prefix = mut_prefix,
+                map_fn = map_fn
+            )?;
+        }
+
+        writeln!(skel, "}}")?;
+
+        Ok(())
+    };
+
+    let () = gen(true)?;
+    let () = gen(false)?;
     Ok(())
 }
 
@@ -745,8 +750,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         name = obj_name
     )?;
 
-    gen_skel_map_defs(&mut skel, &mut object, &obj_name, true, false)?;
-    gen_skel_map_defs(&mut skel, &mut object, &obj_name, true, true)?;
+    gen_skel_map_defs(&mut skel, &mut object, &obj_name, true)?;
     gen_skel_prog_defs(&mut skel, &mut object, &obj_name, true, false)?;
     gen_skel_prog_defs(&mut skel, &mut object, &obj_name, true, true)?;
     gen_skel_datasec_defs(&mut skel, raw_obj_name, &mmap)?;
@@ -799,8 +803,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     gen_skel_datasec_getters(&mut skel, &mut object, raw_obj_name, false)?;
     writeln!(skel, "}}")?;
 
-    gen_skel_map_defs(&mut skel, &mut object, &obj_name, false, false)?;
-    gen_skel_map_defs(&mut skel, &mut object, &obj_name, false, true)?;
+    gen_skel_map_defs(&mut skel, &mut object, &obj_name, false)?;
     gen_skel_prog_defs(&mut skel, &mut object, &obj_name, false, false)?;
     gen_skel_prog_defs(&mut skel, &mut object, &obj_name, false, true)?;
     gen_skel_link_defs(&mut skel, &mut object, &obj_name)?;
