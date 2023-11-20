@@ -18,6 +18,7 @@ use libbpf_sys::bpf_object_skeleton;
 use libbpf_sys::bpf_prog_skeleton;
 use libbpf_sys::bpf_program;
 
+use crate::error::IntoError as _;
 use crate::libbpf_sys;
 use crate::util;
 use crate::Error;
@@ -263,17 +264,28 @@ impl ObjectSkeletonConfig<'_> {
     /// `ObjectSkeletonConfigBuilder::map`. Index starts at 0.
     ///
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
-    pub fn map_mmap_ptr(&mut self, index: usize) -> Result<*mut c_void> {
+    pub fn map_mmap_ptr(&self, index: usize) -> Result<*const c_void> {
         if index >= self.maps.len() {
             return Err(Error::with_invalid_data(format!(
                 "Invalid map index: {index}"
             )));
         }
 
-        self.maps[index].mmaped.as_ref().map_or_else(
-            || Err(Error::with_invalid_data("Map does not have mmaped ptr")),
-            |p| Ok(**p),
-        )
+        let p = self.maps[index]
+            .mmaped
+            .as_ref()
+            .ok_or_invalid_data(|| "Map does not have mmaped ptr")?;
+        Ok(**p)
+    }
+
+    /// Returns the `mmaped` pointer for a map at the specified `index`.
+    ///
+    /// The index is determined by the order in which the map was passed to
+    /// `ObjectSkeletonConfigBuilder::map`. Index starts at 0.
+    ///
+    /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
+    pub fn map_mmap_ptr_mut(&mut self, index: usize) -> Result<*mut c_void> {
+        self.map_mmap_ptr(index).map(|p| p.cast_mut())
     }
 
     /// Returns the link pointer for a prog at the specified `index`.

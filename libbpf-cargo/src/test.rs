@@ -653,17 +653,17 @@ fn test_skeleton_datasec() {
                 .expect("failed to open skel");
 
             // Check that we set rodata vars before load
-            open_skel.rodata().myconst = std::ptr::null_mut();
+            open_skel.rodata_mut().myconst = std::ptr::null_mut();
 
             // We can always set bss vars
-            open_skel.bss().myglobal = 42;
+            open_skel.bss_mut().myglobal = 42;
 
             let mut skel = open_skel
                 .load()
                 .expect("failed to load skel");
 
             // We can always set bss vars
-            skel.bss().myglobal = 24;
+            skel.bss_mut().myglobal = 24;
 
             // Read only for rodata after load
             let _rodata: &prog_rodata_types::rodata = skel.rodata();
@@ -924,7 +924,7 @@ fn test_skeleton_builder_arrays_ptrs() {
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
-            let mut open_skel = builder
+            let open_skel = builder
                 .open()
                 .expect("failed to open skel");
 

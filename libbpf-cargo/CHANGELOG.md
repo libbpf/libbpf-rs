@@ -1,5 +1,7 @@
 Unreleased
 ----------
+- Adjusted skeleton creation logic to generate shared and exclusive datasec
+  accessor functions
 - Bumped minimum Rust version to `1.65`
 
 
