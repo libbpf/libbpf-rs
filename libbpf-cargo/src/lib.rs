@@ -120,6 +120,9 @@ pub struct SkeletonBuilder {
     clang: Option<PathBuf>,
     clang_args: String,
     skip_clang_version_check: bool,
+    bpftool: Option<PathBuf>,
+    extract_vmlinux_header: bool,
+    vmlinux_h: Option<PathBuf>,
     rustfmt: PathBuf,
     dir: Option<TempDir>,
 }
@@ -139,6 +142,9 @@ impl SkeletonBuilder {
             clang: None,
             clang_args: String::new(),
             skip_clang_version_check: false,
+            bpftool: None,
+            extract_vmlinux_header: false,
+            vmlinux_h: None,
             rustfmt: "rustfmt".into(),
             dir: None,
         }
@@ -202,6 +208,22 @@ impl SkeletonBuilder {
         self
     }
 
+    /// Specify which `bpftool` binary to use
+    ///
+    /// Default searchs `$PATH` for `bpftool`
+    pub fn bpftool<P: AsRef<Path>>(&mut self, bpftool: P) -> &mut SkeletonBuilder {
+        self.bpftool = Some(bpftool.as_ref().to_path_buf());
+        self
+    }
+
+    /// Tell whether to extract vmlinux.h from the running kernel
+    ///
+    /// Default is off
+    pub fn extract_vmlinux_header(&mut self, extract: bool) -> &mut SkeletonBuilder {
+        self.extract_vmlinux_header = extract;
+        self
+    }
+
     /// Specify which `rustfmt` binary to use
     ///
     /// Default searches `$PATH` for `rustfmt`
@@ -240,13 +262,23 @@ impl SkeletonBuilder {
             )));
         }
 
-        if self.obj.is_none() {
-            let name = filename.split('.').next().unwrap();
+        if self.obj.is_none() || self.extract_vmlinux_header {
             let dir = tempdir().map_err(|e| Error::Build(e.into()))?;
-            let objfile = dir.path().join(format!("{name}.o"));
-            self.obj = Some(objfile);
             // Hold onto tempdir so that it doesn't get deleted early
             self.dir = Some(dir);
+        }
+
+        if self.obj.is_none() {
+            let name = filename.split('.').next().unwrap();
+            // SANITY: `dir` is guaranteed to be `Some` at this point.
+            let objfile = self.dir.as_ref().unwrap().path().join(format!("{name}.o"));
+            self.obj = Some(objfile);
+        }
+
+        if self.extract_vmlinux_header {
+            // SANITY: `dir` is guaranteed to be `Some` at this point.
+            let vmlinux_h = self.dir.as_ref().unwrap().path().join("vmlinux.h");
+            self.vmlinux_h = Some(vmlinux_h);
         }
 
         build::build_single(
@@ -257,6 +289,8 @@ impl SkeletonBuilder {
             self.clang.as_ref(),
             self.skip_clang_version_check,
             &self.clang_args,
+            self.bpftool.as_deref(),
+            self.vmlinux_h.as_deref(),
         )
         .map_err(Error::Build)?;
 

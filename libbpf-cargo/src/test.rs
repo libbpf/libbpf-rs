@@ -850,6 +850,47 @@ fn test_skeleton_builder_clang_opts() {
         .unwrap();
 }
 
+#[cfg(feature = "bpftool")]
+#[test]
+fn test_skeleton_builder_bpftool() {
+    let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    let skel = NamedTempFile::new().unwrap();
+
+    // Should fail b/c vmlinux.h is not present
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .build_and_generate(skel.path())
+        .unwrap_err();
+
+    // Should succeed b/c vmlinux.h is extracted
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .extract_vmlinux_header(true)
+        .build_and_generate(skel.path())
+        .unwrap();
+}
+
 #[test]
 fn test_skeleton_builder_arrays_ptrs() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();

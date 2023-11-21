@@ -28,6 +28,7 @@ path = "src/lib.rs"
 # When turned on, link against system-installed libbpf instead of building
 # and linking against vendored libbpf sources
 novendor = ["libbpf-sys/novendor"]
+bpftool = []
 
 [dependencies]
 anyhow = "1.0.1"

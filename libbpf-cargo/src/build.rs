@@ -279,6 +279,7 @@ pub fn build(
 
 // Only used in libbpf-cargo library
 #[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 pub fn build_single(
     debug: bool,
     source: &Path,
@@ -286,6 +287,8 @@ pub fn build_single(
     clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
     options: &str,
+    bpftool: Option<&Path>,
+    vmlinux_h: Option<&Path>,
 ) -> Result<()> {
     let clang = extract_clang_or_default(clang);
     check_clang(debug, &clang, skip_clang_version_checks)?;
@@ -296,6 +299,24 @@ pub fn build_single(
     } else {
         options.to_string()
     };
+
+    if let Some(vmlinux_h) = vmlinux_h {
+        let file = fs::File::create(vmlinux_h)?;
+        let bpftool = bpftool.unwrap_or_else(|| Path::new("bpftool"));
+        Command::new(bpftool)
+            .arg("btf")
+            .arg("dump")
+            .arg("file")
+            .arg("/sys/kernel/btf/vmlinux")
+            .arg("format")
+            .arg("c")
+            .stdout(file)
+            .status()?;
+        compiler_options += &vmlinux_h
+            .parent()
+            .map(|dir| format!(" -I{}", dir.display()))
+            .ok_or_else(|| anyhow!("Failed to find include directory for vmlinux.h"))?;
+    }
 
     // Explicitly disable stack protector logic, which doesn't work with
     // BPF. See https://lkml.org/lkml/2020/2/21/1000.
