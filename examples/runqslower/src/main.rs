@@ -90,9 +90,9 @@ fn main() -> Result<()> {
     let mut open_skel = skel_builder.open()?;
 
     // Write arguments into prog
-    open_skel.rodata().min_us = opts.latency;
-    open_skel.rodata().targ_pid = opts.pid;
-    open_skel.rodata().targ_tgid = opts.tid;
+    open_skel.rodata_mut().min_us = opts.latency;
+    open_skel.rodata_mut().targ_pid = opts.pid;
+    open_skel.rodata_mut().targ_tgid = opts.tid;
 
     // Begin tracing
     let mut skel = open_skel.load()?;

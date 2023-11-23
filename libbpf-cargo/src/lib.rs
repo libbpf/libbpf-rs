@@ -65,12 +65,13 @@
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::result;
 
 use anyhow::anyhow;
+use anyhow::Context as _;
+use anyhow::Result;
+
 use tempfile::tempdir;
 use tempfile::TempDir;
-use thiserror::Error;
 
 // libbpf-cargo binary is the primary consumer of the following modules. As such,
 // we do not use all the symbols. Silence any unused code warnings.
@@ -85,17 +86,6 @@ mod metadata;
 
 #[cfg(test)]
 mod test;
-
-/// Canonical error type for this crate.
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Error building BPF object file")]
-    Build(#[source] anyhow::Error),
-    #[error("Error generating skeleton")]
-    Generate(#[source] anyhow::Error),
-}
-
-pub type Result<T> = result::Result<T, Error>;
 
 /// `SkeletonBuilder` builds and generates a single skeleton.
 ///
@@ -225,24 +215,24 @@ impl SkeletonBuilder {
         let source = self
             .source
             .as_ref()
-            .ok_or_else(|| Error::Build(anyhow!("No source file")))?;
+            .ok_or_else(|| anyhow!("No source file provided"))?;
 
         let filename = source
             .file_name()
-            .ok_or_else(|| Error::Build(anyhow!("Missing file name")))?
+            .ok_or_else(|| anyhow!("Missing file name"))?
             .to_str()
-            .ok_or_else(|| Error::Build(anyhow!("Invalid unicode in file name")))?;
+            .ok_or_else(|| anyhow!("Invalid unicode in file name"))?;
 
         if !filename.ends_with(".bpf.c") {
-            return Err(Error::Build(anyhow!(
-                "Source file={} does not have .bpf.c suffix",
+            return Err(anyhow!(
+                "Source `{}` does not have .bpf.c suffix",
                 source.display()
-            )));
+            ));
         }
 
         if self.obj.is_none() {
             let name = filename.split('.').next().unwrap();
-            let dir = tempdir().map_err(|e| Error::Build(e.into()))?;
+            let dir = tempdir().context("failed to create temporary directory")?;
             let objfile = dir.path().join(format!("{name}.o"));
             self.obj = Some(objfile);
             // Hold onto tempdir so that it doesn't get deleted early
@@ -258,7 +248,7 @@ impl SkeletonBuilder {
             self.skip_clang_version_check,
             &self.clang_args,
         )
-        .map_err(Error::Build)?;
+        .with_context(|| format!("failed to build `{}`", source.display()))?;
 
         Ok(())
     }
@@ -267,10 +257,7 @@ impl SkeletonBuilder {
     //
     // [`SkeletonBuilder::obj`] must be set for this to succeed.
     pub fn generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
-        let objfile = self
-            .obj
-            .as_ref()
-            .ok_or_else(|| Error::Generate(anyhow!("No object file")))?;
+        let objfile = self.obj.as_ref().ok_or_else(|| anyhow!("No object file"))?;
 
         gen::gen_single(
             self.debug,
@@ -278,7 +265,7 @@ impl SkeletonBuilder {
             gen::OutputDest::File(output.as_ref()),
             Some(&self.rustfmt),
         )
-        .map_err(Error::Generate)?;
+        .with_context(|| format!("failed to generate `{}`", objfile.display()))?;
 
         Ok(())
     }
