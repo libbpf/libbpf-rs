@@ -765,6 +765,56 @@ impl MapHandle {
         self.update_raw(key, value, flags)
     }
 
+    /// Updates many elements in batch mode in the map
+    ///
+    /// `keys` must have exactly [`MapHandle::key_size()` * count] elements. `value` must have exactly
+    /// [`MapHandle::key_size()` * count] elements
+    pub fn update_batch(
+        &self,
+        keys: &[u8],
+        values: &[u8],
+        count: u32,
+        elem_flags: MapFlags,
+        flags: MapFlags,
+    ) -> Result<()> {
+        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
+            return Err(Error::with_invalid_data(format!(
+                "batch key_size {} != {} * {}",
+                keys.len(),
+                self.key_size(),
+                count
+            )));
+        };
+
+        if values.len() as u32 / count != self.value_size() || (values.len() as u32) % count != 0 {
+            return Err(Error::with_invalid_data(format!(
+                "batch value_size {} != {} * {}",
+                values.len(),
+                self.value_size(),
+                count
+            )));
+        }
+
+        let opts = libbpf_sys::bpf_map_batch_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+            elem_flags: elem_flags.bits(),
+            flags: flags.bits(),
+        };
+
+        let mut count = count;
+        let ret = unsafe {
+            libbpf_sys::bpf_map_update_batch(
+                self.fd.as_raw_fd(),
+                keys.as_ptr() as *const c_void,
+                values.as_ptr() as *const c_void,
+                (&mut count) as *mut u32,
+                &opts as *const libbpf_sys::bpf_map_batch_opts,
+            )
+        };
+
+        util::parse_ret(ret)
+    }
+
     /// Update an element in an per-cpu map with one value per cpu.
     ///
     /// `key` must have exactly [`MapHandle::key_size()`] elements. `value` must have one
