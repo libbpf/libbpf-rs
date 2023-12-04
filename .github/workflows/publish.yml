@@ -32,12 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1.0.6
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
     - name: Dry-run package creation
       # Can't verify libbpf-cargo for it may depend on yet-to-be-published libbpf-rs.
       run: cargo package --package libbpf-rs --locked --no-verify

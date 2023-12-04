@@ -43,13 +43,10 @@ jobs:
         tc_var CFLAGS
         tc_var CXXFLAGS
     - uses: actions/checkout@v4
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1.0.6
+    - uses: dtolnay/rust-toolchain@master
       with:
-        profile: minimal
         toolchain: ${{ matrix.rust }}
         components: rustfmt
-        override: true
     - name: Install deps
       run: |
         sudo apt-get install -y clang-14 libelf-dev zlib1g-dev linux-headers-$(uname -r)
@@ -72,20 +69,15 @@ jobs:
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
       - name: Install Nightly Rust
-        uses: actions-rs/toolchain@v1.0.6
-        with:
-          profile: minimal
-          toolchain: nightly
+        uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly -Z minimal-versions update
       - name: Install minimum Rust
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           # Please adjust README and rust-version field in Cargo.toml files when
           # bumping version.
           toolchain: 1.65.0
           components: rustfmt
-          default: true
       - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --verbose --workspace --exclude runqslower
@@ -97,11 +89,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --locked --package capable --features=static
   build-aarch64:
@@ -118,12 +106,9 @@ jobs:
               $release $release-updates $release-security \
               >> /etc/apt/sources.list
         shell: sudo sh -e {0}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
-          override: true
+          targets: aarch64-unknown-linux-gnu
       - name: Install deps
         run: |
           sudo apt-get update
@@ -148,12 +133,9 @@ jobs:
               $release $release-updates $release-security \
               >> /etc/apt/sources.list
         shell: sudo sh -e {0}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: armv7-unknown-linux-gnueabihf
-          override: true
+          targets: armv7-unknown-linux-gnueabihf
       - name: Install deps
         run: |
           sudo apt-get update
@@ -171,16 +153,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          # TODO: Move back to `stable` once we are past 1.69
-          # See:
-          # https://github.com/clap-rs/clap/issues/4849
-          # https://github.com/rust-lang/rust-clippy/issues/10421
-          toolchain: 1.68.2
-          components: clippy,rustfmt
-          override: true
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked --no-deps --all-targets --tests -- -D warnings
   rustfmt:
@@ -188,12 +163,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: nightly
           components: rustfmt
-          override: true
       - run: cargo fmt --package libbpf-cargo libbpf-rs -- --check
   cargo-doc:
     name: Check documentation
@@ -204,9 +176,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo doc --locked --no-deps
