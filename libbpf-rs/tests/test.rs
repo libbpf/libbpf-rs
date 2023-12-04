@@ -1434,7 +1434,7 @@ fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
         libbpf_sys::perf_buffer__buffer(
             perf_buff_ptr.as_ptr(),
             buf_idx as i32,
-            ptr::addr_of_mut!(buffer_data_ptr) as *mut *mut c_void,
+            ptr::addr_of_mut!(buffer_data_ptr),
             ptr::addr_of_mut!(buffer_size) as *mut libbpf_sys::size_t,
         )
     };
