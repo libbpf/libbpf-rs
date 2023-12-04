@@ -793,8 +793,7 @@ impl MapHandle {
         let aligned_val_size = self.percpu_aligned_value_size();
         let buf_size = self.percpu_buffer_size()?;
 
-        let mut value_buf = Vec::new();
-        value_buf.resize(buf_size, 0);
+        let mut value_buf = vec![0; buf_size];
 
         for (i, val) in values.iter().enumerate() {
             if val.len() != val_size {
