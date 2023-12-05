@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.22.0
+------
 - Adjusted skeleton creation logic to generate shared and exclusive datasec
   accessor functions
 - Removed `Error` enum in favor of `anyhow::Error`

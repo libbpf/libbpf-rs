@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.22.0
+------
 - Reworked `Error` type:
   - Replaced `enum` with data variants with `struct` hiding internal structure
   - Added support for chaining of errors
