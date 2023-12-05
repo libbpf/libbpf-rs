@@ -124,6 +124,7 @@ impl ErrorImpl {
                 io::ErrorKind::InvalidData => ErrorKind::InvalidData,
                 io::ErrorKind::TimedOut => ErrorKind::TimedOut,
                 io::ErrorKind::WriteZero => ErrorKind::WriteZero,
+                io::ErrorKind::Interrupted => ErrorKind::Interrupted,
                 io::ErrorKind::Unsupported => ErrorKind::Unsupported,
                 io::ErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
                 io::ErrorKind::OutOfMemory => ErrorKind::OutOfMemory,
@@ -242,6 +243,10 @@ pub enum ErrorKind {
     /// An error returned when an operation could not be completed
     /// because a call to [`write`] returned [`Ok(0)`].
     WriteZero,
+    /// This operation was interrupted.
+    ///
+    /// Interrupted operations can typically be retried.
+    Interrupted,
     /// This operation is unsupported on this platform.
     Unsupported,
     /// An error returned when an operation could not be completed
