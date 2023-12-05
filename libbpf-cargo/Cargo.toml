@@ -5,7 +5,7 @@ repository = "https://github.com/libbpf/libbpf-rs"
 homepage = "https://github.com/libbpf/libbpf-rs"
 documentation = "https://docs.rs/crate/libbpf-cargo"
 readme = "README.md"
-version = "0.21.2"
+version = "0.22.0"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>", "Daniel Müller <deso@posteo.net>"]
 edition = "2021"
 rust-version = "1.65"
@@ -33,7 +33,7 @@ novendor = ["libbpf-sys/novendor"]
 anyhow = "1.0.1"
 cargo_metadata = "0.15.0"
 libbpf-sys = { version = "1.0.3" }
-libbpf-rs = { version = "0.21", path = "../libbpf-rs" }
+libbpf-rs = { version = "0.22", path = "../libbpf-rs" }
 memmap2 = "0.5"
 num_enum = "0.5"
 regex = { version = "1.6.0", default-features = false, features = ["std", "unicode-perl"] }
