@@ -174,6 +174,8 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
         let arch = match ARCH {
             "x86_64" => "x86",
             "aarch64" => "arm64",
+            "powerpc64" => "powerpc",
+            "s390x" => "s390",
             _ => ARCH,
         };
         cmd.arg(format!("-D__TARGET_ARCH_{arch}"));
