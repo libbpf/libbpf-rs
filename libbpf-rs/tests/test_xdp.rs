@@ -1,6 +1,8 @@
-mod test;
-use scopeguard::defer;
 use std::os::fd::AsFd;
+
+use scopeguard::defer;
+
+mod test;
 use test::bump_rlimit_mlock;
 use test::get_test_object;
 
