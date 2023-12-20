@@ -9,6 +9,8 @@ use crate::Result;
 bitflags! {
     /// Flags to configure the `XDP` operations
     pub struct XdpFlags: u32 {
+        /// No flags.
+        const NONE              = 0;
         /// See [`libbpf_sys::XDP_FLAGS_UPDATE_IF_NOEXIST`].
         const UPDATE_IF_NOEXIST = libbpf_sys::XDP_FLAGS_UPDATE_IF_NOEXIST as _;
         /// See [`libbpf_sys::XDP_FLAGS_SKB_MODE`].
@@ -23,8 +25,6 @@ bitflags! {
         const MODES             = libbpf_sys::XDP_FLAGS_MODES as _;
         /// See [`libbpf_sys::XDP_FLAGS_MASK`].
         const MASK              = libbpf_sys::XDP_FLAGS_MASK as _;
-        /// Support for no flags. Refer: https://github.com/libbpf/libbpf-rs/pull/625#discussion_r1427057344
-        const ANY               = 0;
     }
 
 }
@@ -40,7 +40,8 @@ pub struct Xdp<'fd> {
 }
 
 impl<'fd> Xdp<'fd> {
-    /// Create a new xdp instance with the given file descriptor of the `SEC("xdp")` [`Program`][crate::Program].
+    /// Create a new XDP instance with the given file descriptor of the
+    /// `SEC("xdp")` [`Program`][crate::Program].
     pub fn new(fd: BorrowedFd<'fd>) -> Self {
         let mut xdp = Xdp {
             fd,
@@ -52,9 +53,12 @@ impl<'fd> Xdp<'fd> {
         xdp
     }
 
-    /// Attach the XDP program to the given interface to start processing the packets
-    /// Note: Once  a program is attached, it will outlive the userspace program.
-    /// Make sure to detach the program if its not desired.
+    /// Attach the XDP program to the given interface to start processing the
+    /// packets
+    ///
+    /// # Notes
+    /// Once a program is attached, it will outlive the userspace program. Make
+    /// sure to detach the program if its not desired.
     pub fn attach(&self, ifindex: i32, flags: XdpFlags) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_xdp_attach(
@@ -77,20 +81,14 @@ impl<'fd> Xdp<'fd> {
     pub fn query(&self, ifindex: i32, flags: XdpFlags) -> Result<libbpf_sys::bpf_xdp_query_opts> {
         let mut opts = self.query_opts;
         let err = unsafe { libbpf_sys::bpf_xdp_query(ifindex, flags.bits() as i32, &mut opts) };
-        match util::parse_ret(err) {
-            Ok(_) => Ok(opts),
-            Err(e) => Err(e),
-        }
+        util::parse_ret(err).map(|()| opts)
     }
 
     /// Query to inspect the program identifier (prog_id)
     pub fn query_id(&self, ifindex: i32, flags: XdpFlags) -> Result<u32> {
-        let mut prog_id: u32 = 0;
+        let mut prog_id = 0;
         let err =
             unsafe { libbpf_sys::bpf_xdp_query_id(ifindex, flags.bits() as i32, &mut prog_id) };
-        match util::parse_ret(err) {
-            Ok(_) => Ok(prog_id),
-            Err(e) => Err(e),
-        }
+        util::parse_ret(err).map(|()| prog_id)
     }
 }
