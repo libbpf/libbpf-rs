@@ -1,4 +1,5 @@
-#![allow(clippy::absolute_paths, clippy::let_unit_value)]
+#![allow(clippy::let_unit_value)]
+#![warn(clippy::absolute_paths)]
 
 use std::path::PathBuf;
 
