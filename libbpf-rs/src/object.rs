@@ -365,10 +365,11 @@ impl Object {
                 }
             };
 
-            let map_obj = unsafe { Map::new(map_ptr) }?;
+            if unsafe { libbpf_sys::bpf_map__autocreate(map_ptr.as_ptr()) } {
+                let map_obj = unsafe { Map::new(map_ptr) }?;
+                obj.maps.insert(map_obj.name().into(), map_obj);
+            }
 
-            // Add the map to the hashmap
-            obj.maps.insert(map_obj.name().into(), map_obj);
             map = map_ptr.as_ptr();
         }
 

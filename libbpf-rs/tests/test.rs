@@ -1636,3 +1636,19 @@ fn test_sudo_program_get_fd_and_id() {
     let owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd by id");
     close(owned_prog_fd.as_raw_fd()).expect("failed to close owned program fd");
 }
+
+/// Check that autocreate disabled maps don't prevent object loading
+#[test]
+fn test_sudo_map_autocreate_disable() {
+    bump_rlimit_mlock();
+
+    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
+
+    open_obj
+        .map_mut("auto_pin_map")
+        .expect("map wasn't found")
+        .set_autocreate(false)
+        .expect("set_autocreate() failed");
+
+    open_obj.load().expect("failed to load object");
+}
