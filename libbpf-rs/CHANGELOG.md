@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Introduced `Xdp` type for working with XDP programs
+- Fixed handling of autocreate maps with `Object` type
 
 
 0.22.0
