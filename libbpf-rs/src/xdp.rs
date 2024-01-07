@@ -91,4 +91,19 @@ impl<'fd> Xdp<'fd> {
             unsafe { libbpf_sys::bpf_xdp_query_id(ifindex, flags.bits() as i32, &mut prog_id) };
         util::parse_ret(err).map(|()| prog_id)
     }
+
+    /// Replace an existing xdp program (identified by old_prog_fd) with this xdp program
+    pub fn replace(&self, ifindex: i32, old_prog_fd: BorrowedFd<'_>) -> Result<()> {
+        let mut opts = self.attach_opts;
+        opts.old_prog_fd = old_prog_fd.as_raw_fd();
+        let ret = unsafe {
+            libbpf_sys::bpf_xdp_attach(
+                ifindex,
+                self.fd.as_raw_fd(),
+                XdpFlags::REPLACE.bits(),
+                &opts,
+            )
+        };
+        util::parse_ret(ret)
+    }
 }
