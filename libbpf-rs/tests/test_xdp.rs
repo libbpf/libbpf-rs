@@ -18,7 +18,11 @@ fn test_sudo_xdp() {
     let obj = get_test_object("xdp.bpf.o");
     let fd = obj.prog("xdp_filter").unwrap().as_fd();
 
+    let obj1 = get_test_object("xdp.bpf.o");
+    let fd1 = obj1.prog("xdp_filter").unwrap().as_fd();
+
     let xdp_prog = Xdp::new(fd);
+    let xdp_prog1 = Xdp::new(fd1);
 
     defer! {
         xdp_prog.detach(LO_IFINDEX, XdpFlags::UPDATE_IF_NOEXIST).unwrap();
@@ -40,6 +44,14 @@ fn test_sudo_xdp() {
     assert!(xdp_prog
         .query(LO_IFINDEX, XdpFlags::UPDATE_IF_NOEXIST)
         .is_ok());
+
+    let old_prog_id = xdp_prog
+        .query_id(LO_IFINDEX, XdpFlags::UPDATE_IF_NOEXIST)
+        .unwrap();
+    assert!(xdp_prog1.replace(LO_IFINDEX, fd).is_ok());
+    let new_prog_id = xdp_prog1.query_id(LO_IFINDEX, XdpFlags::NONE).unwrap();
+    // If xdp prog is replaced, prog id should change.
+    assert!(old_prog_id != new_prog_id);
 
     assert!(xdp_prog
         .detach(LO_IFINDEX, XdpFlags::UPDATE_IF_NOEXIST)
