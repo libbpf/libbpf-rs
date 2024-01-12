@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Added `replace` functionality to `Xdp` type
+
+
 0.22.1
 ------
 - Introduced `Xdp` type for working with XDP programs

@@ -49,7 +49,9 @@ fn test_sudo_xdp() {
         .query_id(LO_IFINDEX, XdpFlags::UPDATE_IF_NOEXIST)
         .unwrap();
     assert!(xdp_prog1.replace(LO_IFINDEX, fd).is_ok());
-    let new_prog_id = xdp_prog1.query_id(LO_IFINDEX, XdpFlags::NONE).unwrap();
+    let new_prog_id = xdp_prog1
+        .query_id(LO_IFINDEX, XdpFlags::UPDATE_IF_NOEXIST)
+        .unwrap();
     // If xdp prog is replaced, prog id should change.
     assert!(old_prog_id != new_prog_id);
 
