@@ -301,6 +301,7 @@ version = "0.23.3"
 dependencies = [
  "bitflags 2.6.0",
  "cc",
+ "libbpf-rs",
  "libbpf-sys",
  "libc",
  "log",

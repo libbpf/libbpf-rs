@@ -2,6 +2,8 @@
 #ifndef __RUNQSLOWER_H
 #define __RUNQSLOWER_H
 
+#include "vmlinux.h"
+
 #define TASK_COMM_LEN 16
 
 struct event {
