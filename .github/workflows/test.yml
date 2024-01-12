@@ -209,7 +209,11 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --locked --no-deps --all-targets --tests -- -D warnings -D clippy::absolute_paths
+      - run: |
+          # We want the old resolver here as it has more suitable feature
+          # unification logic for this invocation.
+          sed -i 's@resolver = "2"@resolver = "1"@' Cargo.toml
+          cargo clippy --locked --no-deps --all-targets --tests --features=dont-generate-test-files -- -D warnings -D clippy::absolute_paths
 
   rustfmt:
     name: Check code formatting
