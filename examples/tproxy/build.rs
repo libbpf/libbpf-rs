@@ -1,6 +1,9 @@
-use libbpf_cargo::SkeletonBuilder;
 use std::env;
+use std::env::consts::ARCH;
+use std::path::Path;
 use std::path::PathBuf;
+
+use libbpf_cargo::SkeletonBuilder;
 
 const SRC: &str = "src/bpf/tproxy.bpf.c";
 
@@ -10,7 +13,10 @@ fn main() {
     out.push("tproxy.skel.rs");
     SkeletonBuilder::new()
         .source(SRC)
-        .clang_args("-Wno-compare-distinct-pointer-types")
+        .clang_args(format!(
+            "-Wno-compare-distinct-pointer-types -I{}",
+            Path::new("../vmlinux").join(ARCH).display()
+        ))
         .build_and_generate(&out)
         .unwrap();
     println!("cargo:rerun-if-changed={SRC}");

@@ -1,6 +1,9 @@
-use libbpf_cargo::SkeletonBuilder;
 use std::env;
+use std::env::consts::ARCH;
+use std::path::Path;
 use std::path::PathBuf;
+
+use libbpf_cargo::SkeletonBuilder;
 
 const SRC: &str = "src/bpf/capable.bpf.c";
 
@@ -10,6 +13,10 @@ fn main() {
     out.push("capable.skel.rs");
     SkeletonBuilder::new()
         .source(SRC)
+        .clang_args(format!(
+            "-I{}",
+            Path::new("../vmlinux").join(ARCH).display()
+        ))
         .build_and_generate(&out)
         .unwrap();
     println!("cargo:rerun-if-changed={SRC}");
