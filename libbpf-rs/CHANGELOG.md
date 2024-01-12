@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Added `replace` functionality to `Xdp` type
+- Fixed examples not building on non-x86 architectures
 
 
 0.22.1
