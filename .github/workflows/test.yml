@@ -76,7 +76,7 @@ jobs:
         with:
           # Please adjust README and rust-version field in Cargo.toml files when
           # bumping version.
-          toolchain: 1.65.0
+          toolchain: 1.66.0
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Build

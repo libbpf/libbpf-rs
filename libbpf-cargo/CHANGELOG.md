@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Bumped minimum Rust version to `1.66`
+
+
 0.22.0
 ------
 - Adjusted skeleton creation logic to generate shared and exclusive datasec
