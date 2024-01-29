@@ -2,6 +2,7 @@ Unreleased
 ----------
 - Added `replace` functionality to `Xdp` type
 - Fixed examples not building on non-x86 architectures
+- Bumped minimum Rust version to `1.66`
 
 
 0.22.1
