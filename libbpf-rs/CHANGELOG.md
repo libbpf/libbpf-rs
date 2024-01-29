@@ -1,5 +1,8 @@
 Unreleased
 ----------
+- Overhauled crate feature set:
+  - Removed `novendor` feature
+  - Added `vendored` feature to use vendored copies of all needed libraries
 - Added `replace` functionality to `Xdp` type
 - Fixed examples not building on non-x86 architectures
 - Bumped minimum Rust version to `1.66`

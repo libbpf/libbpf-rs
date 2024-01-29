@@ -15,15 +15,18 @@ keywords = ["bpf", "ebpf", "libbpf"]
 maintenance = { status = "actively-developed" }
 
 [features]
-# When turned on, link against system-installed libbpf instead of building
-# and linking against vendored libbpf sources
-novendor = ["libbpf-sys/novendor"]
+# By default the crate uses a vendored libbpf, but requires other necessary libs
+# to be present on the system.
+default = ["libbpf-sys/vendored-libbpf"]
+# Link all required libraries statically.
 static = ["libbpf-sys/static"]
+# Use vendored versions of all required libraries.
+vendored = ["libbpf-sys/vendored"]
 
 [dependencies]
 bitflags = "2.0"
 lazy_static = "1.4"
-libbpf-sys = { version = "1.0.3" }
+libbpf-sys = { version = "1.3", default-features = false }
 libc = "0.2"
 nix = { version = "0.27", default-features = false, features = ["net", "user"] }
 num_enum = "0.5"
