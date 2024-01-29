@@ -61,6 +61,39 @@ jobs:
     - name: Run root tests
       run: cd libbpf-rs && cargo test --profile=${{ matrix.profile }} --locked --verbose -- test_sudo_
 
+  build-features:
+    name: Build [${{ matrix.args }}]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - args: "features = ['vendored']"
+          - args: "features = ['static']"
+          # TODO: Should build without features, but that requires system
+          #       libbpf and ubuntu 22.04 only has 0.5 (..?)
+          #- args: "default-features = false"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: sudo apt-get install -y libelf-dev autopoint
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build libbpf-rs sample
+        run: |
+          cargo init --bin libbpf-rs-test-project
+          cd libbpf-rs-test-project
+          cat >> Cargo.toml <<EOF
+          libbpf-rs = { version = "*", path = "../libbpf-rs", ${{ matrix.args }} }
+          EOF
+          cat > src/main.rs <<EOF
+          fn main() {
+              // Use *some* libbpf API so that we actually link against the library.
+              let _linker = libbpf_rs::Linker::new("/tmp/foobar").unwrap();
+          }
+          EOF
+          RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build
+
   build-minimum:
     name: Build using minimum versions of dependencies
     runs-on: ubuntu-latest
