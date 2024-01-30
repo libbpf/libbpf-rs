@@ -12,6 +12,8 @@ updates:
     schedule:
       interval: "daily"
   - package-ecosystem: "cargo"
+    # Limited to 1 to eliminate risk of accidental merge conflicts.
+    open-pull-requests-limit: 1
     versioning-strategy: "lockfile-only"
     directory: "/"
     schedule:
