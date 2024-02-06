@@ -163,13 +163,13 @@ impl SkeletonBuilder {
 
     /// Specify which `clang` binary to use
     ///
-    /// Default searchs `$PATH` for `clang`
+    /// Default searches `$PATH` for `clang`
     pub fn clang<P: AsRef<Path>>(&mut self, clang: P) -> &mut SkeletonBuilder {
         self.clang = Some(clang.as_ref().to_path_buf());
         self
     }
 
-    /// Pass additional arguments to `clang` when buildling BPF object file
+    /// Pass additional arguments to `clang` when building BPF object file
     ///
     /// # Examples
     ///
