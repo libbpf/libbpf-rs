@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 
@@ -42,6 +43,17 @@ enum Wrapper {
     Libbpf(Command),
 }
 
+/// A grouping of clang specific options.
+#[derive(Debug, Args)]
+pub struct ClangOpts {
+    /// Path to clang binary
+    #[arg(long, value_parser)]
+    clang_path: Option<PathBuf>,
+    /// Skip clang version checks
+    #[arg(long)]
+    skip_clang_version_checks: bool,
+}
+
 /// cargo-libbpf is a cargo subcommand that helps develop and build eBPF (BPF) programs.
 #[doc(hidden)]
 #[derive(Debug, Subcommand)]
@@ -51,12 +63,8 @@ enum Command {
         #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[arg(long, value_parser)]
-        /// Path to clang binary
-        clang_path: Option<PathBuf>,
-        #[arg(long)]
-        /// Skip clang version checks
-        skip_clang_version_checks: bool,
+        #[command(flatten)]
+        clang_opts: ClangOpts,
     },
     /// Generate skeleton files
     Gen {
@@ -77,12 +85,8 @@ enum Command {
         #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[arg(long, value_parser)]
-        /// Path to clang binary
-        clang_path: Option<PathBuf>,
-        #[arg(long)]
-        /// Skip clang version checks
-        skip_clang_version_checks: bool,
+        #[command(flatten)]
+        clang_opts: ClangOpts,
         #[arg(short, long)]
         /// Quiet output
         quiet: bool,
@@ -105,8 +109,11 @@ fn main() -> Result<()> {
         Wrapper::Libbpf(cmd) => match cmd {
             Command::Build {
                 manifest_path,
-                clang_path,
-                skip_clang_version_checks,
+                clang_opts:
+                    ClangOpts {
+                        clang_path,
+                        skip_clang_version_checks,
+                    },
             } => build::build(
                 debug,
                 manifest_path.as_ref(),
@@ -125,8 +132,11 @@ fn main() -> Result<()> {
             ),
             Command::Make {
                 manifest_path,
-                clang_path,
-                skip_clang_version_checks,
+                clang_opts:
+                    ClangOpts {
+                        clang_path,
+                        skip_clang_version_checks,
+                    },
                 quiet,
                 cargo_build_args,
                 rustfmt_path,
