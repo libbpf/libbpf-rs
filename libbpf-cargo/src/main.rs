@@ -20,6 +20,9 @@ mod metadata;
 struct Opt {
     #[command(subcommand)]
     wrapper: Wrapper,
+    /// Enable debug output.
+    #[clap(short, long, global = true)]
+    debug: bool,
 }
 
 // cargo invokes subcommands with the first argument as
@@ -45,8 +48,6 @@ enum Wrapper {
 enum Command {
     /// Build bpf programs
     Build {
-        #[arg(short, long)]
-        debug: bool,
         #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
@@ -59,8 +60,6 @@ enum Command {
     },
     /// Generate skeleton files
     Gen {
-        #[arg(short, long)]
-        debug: bool,
         #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
@@ -75,8 +74,6 @@ enum Command {
     },
     /// Build project
     Make {
-        #[arg(short, long)]
-        debug: bool,
         #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
@@ -102,11 +99,11 @@ enum Command {
 #[doc(hidden)]
 fn main() -> Result<()> {
     let opts = Opt::parse();
+    let Opt { wrapper, debug } = opts;
 
-    match opts.wrapper {
+    match wrapper {
         Wrapper::Libbpf(cmd) => match cmd {
             Command::Build {
-                debug,
                 manifest_path,
                 clang_path,
                 skip_clang_version_checks,
@@ -117,7 +114,6 @@ fn main() -> Result<()> {
                 skip_clang_version_checks,
             ),
             Command::Gen {
-                debug,
                 manifest_path,
                 rustfmt_path,
                 object,
@@ -128,7 +124,6 @@ fn main() -> Result<()> {
                 object.as_ref(),
             ),
             Command::Make {
-                debug,
                 manifest_path,
                 clang_path,
                 skip_clang_version_checks,
