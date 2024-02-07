@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -8,10 +9,12 @@ use anyhow::Result;
 use crate::build;
 use crate::gen;
 
+#[allow(clippy::too_many_arguments)]
 pub fn make(
     debug: bool,
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
+    clang_args: Vec<OsString>,
     skip_clang_version_checks: bool,
     quiet: bool,
     cargo_build_args: Vec<String>,
@@ -20,8 +23,14 @@ pub fn make(
     if !quiet {
         println!("Compiling BPF objects");
     }
-    build::build(debug, manifest_path, clang, skip_clang_version_checks)
-        .context("Failed to compile BPF objects")?;
+    build::build(
+        debug,
+        manifest_path,
+        clang,
+        clang_args,
+        skip_clang_version_checks,
+    )
+    .context("Failed to compile BPF objects")?;
 
     if !quiet {
         println!("Generating skeletons");
