@@ -845,7 +845,7 @@ fn test_skeleton_builder_clang_opts() {
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
         .debug(true)
         .clang("clang")
-        .clang_args("-DPURPOSE=you_pass_the_butter")
+        .clang_args(["-DPURPOSE=you_pass_the_butter"])
         .build_and_generate(skel.path())
         .unwrap();
 }

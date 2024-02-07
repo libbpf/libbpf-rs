@@ -64,6 +64,8 @@
 )]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -109,7 +111,7 @@ pub struct SkeletonBuilder {
     source: Option<PathBuf>,
     obj: Option<PathBuf>,
     clang: Option<PathBuf>,
-    clang_args: String,
+    clang_args: Vec<OsString>,
     skip_clang_version_check: bool,
     rustfmt: PathBuf,
     dir: Option<TempDir>,
@@ -128,7 +130,7 @@ impl SkeletonBuilder {
             source: None,
             obj: None,
             clang: None,
-            clang_args: String::new(),
+            clang_args: Vec::new(),
             skip_clang_version_check: false,
             rustfmt: "rustfmt".into(),
             dir: None,
@@ -176,12 +178,22 @@ impl SkeletonBuilder {
     ///
     /// SkeletonBuilder::new()
     ///     .source("myobject.bpf.c")
-    ///     .clang_args("-DMACRO=value -I/some/include/dir")
+    ///     .clang_args([
+    ///         "-DMACRO=value",
+    ///         "-I/some/include/dir",
+    ///     ])
     ///     .build_and_generate("/output/path")
     ///     .unwrap();
     /// ```
-    pub fn clang_args<S: AsRef<str>>(&mut self, opts: S) -> &mut SkeletonBuilder {
-        self.clang_args = opts.as_ref().to_string();
+    pub fn clang_args<A, S>(&mut self, args: A) -> &mut SkeletonBuilder
+    where
+        A: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        self.clang_args = args
+            .into_iter()
+            .map(|arg| arg.as_ref().to_os_string())
+            .collect();
         self
     }
 
@@ -247,7 +259,7 @@ impl SkeletonBuilder {
             self.obj.as_ref().unwrap(),
             self.clang.as_ref(),
             self.skip_clang_version_check,
-            &self.clang_args,
+            self.clang_args.clone(),
         )
         .with_context(|| format!("failed to build `{}`", source.display()))?;
 
