@@ -1,5 +1,6 @@
 use std::env;
 use std::env::consts::ARCH;
+use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -13,10 +14,10 @@ fn main() {
     out.push("capable.skel.rs");
     SkeletonBuilder::new()
         .source(SRC)
-        .clang_args(format!(
-            "-I{}",
-            Path::new("../vmlinux").join(ARCH).display()
-        ))
+        .clang_args([
+            OsStr::new("-I"),
+            Path::new("../vmlinux").join(ARCH).as_os_str(),
+        ])
         .build_and_generate(&out)
         .unwrap();
     println!("cargo:rerun-if-changed={SRC}");

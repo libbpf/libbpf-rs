@@ -2,6 +2,8 @@ Unreleased
 ----------
 - Removed `novendor` feature in favor of having disableable default
   feature
+- Adjusted `SkeletonBuilder::clang_args` to accept an iterator of
+  arguments instead of a string
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.70`
 

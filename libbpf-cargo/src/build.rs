@@ -159,18 +159,24 @@ fn format_command(command: &Command) -> String {
 ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
 ///
 /// for each prog.
-fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &str) -> Result<()> {
+fn compile_one(
+    debug: bool,
+    source: &Path,
+    out: &Path,
+    clang: &Path,
+    clang_args: &[OsString],
+) -> Result<()> {
     if debug {
         println!("Building {}", source.display());
     }
 
     let mut cmd = Command::new(clang.as_os_str());
+    cmd.args(clang_args);
 
-    if !options.is_empty() {
-        cmd.args(options.split_whitespace());
-    }
-
-    if !options.contains("-D__TARGET_ARCH_") {
+    if !clang_args
+        .iter()
+        .any(|arg| arg.as_os_str() == OsStr::new("-D__TARGET_ARCH_"))
+    {
         let arch = match ARCH {
             "x86_64" => "x86",
             "aarch64" => "arm64",
@@ -220,9 +226,9 @@ fn compile_one(debug: bool, source: &Path, out: &Path, clang: &Path, options: &s
 fn compile(debug: bool, objs: &[UnprocessedObj], clang: &Path, target_dir: &Path) -> Result<()> {
     let header_dir = extract_libbpf_headers_to_disk(target_dir)?;
     let compiler_options = if let Some(dir) = &header_dir {
-        format!("-I{}", dir.to_str().unwrap())
+        vec![OsString::from(format!("-I{}", dir.to_str().unwrap()))]
     } else {
-        "".to_string()
+        Vec::new()
     };
 
     for obj in objs {
@@ -288,23 +294,23 @@ pub fn build_single(
     out: &Path,
     clang: Option<&PathBuf>,
     skip_clang_version_checks: bool,
-    options: &str,
+    mut clang_args: Vec<OsString>,
 ) -> Result<()> {
     let clang = extract_clang_or_default(clang);
     check_clang(debug, &clang, skip_clang_version_checks)?;
     let header_parent_dir = tempdir()?;
     let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())?;
-    let mut compiler_options = if let Some(dir) = &header_dir {
-        format!("{} -I{}", options, dir.to_str().unwrap())
-    } else {
-        options.to_string()
-    };
+
+    if let Some(dir) = header_dir {
+        clang_args.push(OsString::from("-I"));
+        clang_args.push(dir.into_os_string());
+    }
 
     // Explicitly disable stack protector logic, which doesn't work with
     // BPF. See https://lkml.org/lkml/2020/2/21/1000.
-    compiler_options += " -fno-stack-protector";
+    clang_args.push(OsString::from("-fno-stack-protector"));
 
-    compile_one(debug, source, out, &clang, &compiler_options)?;
+    compile_one(debug, source, out, &clang, &clang_args)?;
 
     Ok(())
 }
