@@ -1,6 +1,7 @@
 #![allow(clippy::let_unit_value)]
 #![warn(clippy::absolute_paths)]
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -49,6 +50,9 @@ pub struct ClangOpts {
     /// Path to clang binary
     #[arg(long, value_parser)]
     clang_path: Option<PathBuf>,
+    /// Additional arguments to pass to `clang`.
+    #[arg(long, value_parser)]
+    clang_args: Vec<OsString>,
     /// Skip clang version checks
     #[arg(long)]
     skip_clang_version_checks: bool,
@@ -112,12 +116,14 @@ fn main() -> Result<()> {
                 clang_opts:
                     ClangOpts {
                         clang_path,
+                        clang_args,
                         skip_clang_version_checks,
                     },
             } => build::build(
                 debug,
                 manifest_path.as_ref(),
                 clang_path.as_ref(),
+                clang_args,
                 skip_clang_version_checks,
             ),
             Command::Gen {
@@ -135,6 +141,7 @@ fn main() -> Result<()> {
                 clang_opts:
                     ClangOpts {
                         clang_path,
+                        clang_args,
                         skip_clang_version_checks,
                     },
                 quiet,
@@ -144,6 +151,7 @@ fn main() -> Result<()> {
                 debug,
                 manifest_path.as_ref(),
                 clang_path.as_ref(),
+                clang_args,
                 skip_clang_version_checks,
                 quiet,
                 cargo_build_args,

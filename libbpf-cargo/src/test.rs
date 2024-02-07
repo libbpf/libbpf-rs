@@ -135,17 +135,17 @@ fn test_build_default() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // No bpf progs yet
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 
     // Add a prog
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    build(true, Some(&cargo_toml), None, true).unwrap();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -163,7 +163,7 @@ fn test_build_invalid_prog() {
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
     writeln!(prog_file, "1").expect("write to prog file failed");
 
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 }
 
 #[test]
@@ -182,14 +182,14 @@ fn test_build_custom() {
         .expect("write to Cargo.toml failed");
 
     // No bpf progs yet
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 
     // Add a prog
     create_dir(proj_dir.join("src/other_bpf_dir")).expect("failed to create prog dir");
     let _prog_file = File::create(proj_dir.join("src/other_bpf_dir/prog.bpf.c"))
         .expect("failed to create prog file");
 
-    build(true, Some(&cargo_toml), None, true).unwrap();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(
@@ -219,13 +219,13 @@ fn test_unknown_metadata_section() {
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 
     // Add a prog
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    build(true, Some(&cargo_toml), None, true).unwrap();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -237,15 +237,15 @@ fn test_enforce_file_extension() {
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 
     let _prog_file = File::create(proj_dir.join("src/bpf/prog_BAD_EXTENSION.c"))
         .expect("failed to create prog file");
-    build(true, Some(&cargo_toml), None, true).unwrap_err();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap_err();
 
     let _prog_file_again = File::create(proj_dir.join("src/bpf/prog_GOOD_EXTENSION.bpf.c"))
         .expect("failed to create prog file");
-    build(true, Some(&cargo_toml), None, true).unwrap();
+    build(true, Some(&cargo_toml), None, Vec::new(), true).unwrap();
 }
 
 #[test]
@@ -253,7 +253,7 @@ fn test_build_workspace() {
     let (_dir, _, workspace_cargo_toml, proj_one_dir, proj_two_dir) = setup_temp_workspace();
 
     // No bpf progs yet
-    build(true, Some(&workspace_cargo_toml), None, true).unwrap_err();
+    build(true, Some(&workspace_cargo_toml), None, Vec::new(), true).unwrap_err();
 
     // Create bpf prog for project one
     create_dir(proj_one_dir.join("src/bpf")).expect("failed to create prog dir");
@@ -265,7 +265,7 @@ fn test_build_workspace() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog2.bpf.c"))
         .expect("failed to create prog file 2");
 
-    build(true, Some(&workspace_cargo_toml), None, true).unwrap();
+    build(true, Some(&workspace_cargo_toml), None, Vec::new(), true).unwrap();
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn test_build_workspace_collision() {
     let _prog_file_2 = File::create(proj_two_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to create prog file 2");
 
-    build(true, Some(&workspace_cargo_toml), None, true).unwrap_err();
+    build(true, Some(&workspace_cargo_toml), None, Vec::new(), true).unwrap_err();
 }
 
 #[test]
@@ -296,7 +296,17 @@ fn test_make_basic() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -328,6 +338,7 @@ fn test_make_workspace() {
         true,
         Some(&workspace_cargo_toml),
         None,
+        Vec::new(),
         true,
         true,
         Vec::new(),
@@ -373,7 +384,17 @@ fn test_skeleton_empty_source() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -467,7 +488,17 @@ fn test_skeleton_basic() {
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -576,7 +607,17 @@ fn test_skeleton_generate_datasec_static() {
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 }
 
 #[test]
@@ -614,7 +655,17 @@ fn test_skeleton_datasec() {
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -891,7 +942,17 @@ fn test_skeleton_builder_arrays_ptrs() {
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -982,7 +1043,17 @@ fn test_skeleton_generate_struct_with_pointer() {
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
 
-    make(true, Some(&cargo_toml), None, true, true, Vec::new(), None).unwrap();
+    make(
+        true,
+        Some(&cargo_toml),
+        None,
+        Vec::new(),
+        true,
+        true,
+        Vec::new(),
+        None,
+    )
+    .unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)
@@ -1182,7 +1253,7 @@ fn build_btf_mmap(prog_text: &str) -> Mmap {
     add_vmlinux_header(&proj_dir);
 
     // Build the .bpf.o
-    build(true, Some(&cargo_toml), None, true).expect("failed to compile");
+    build(true, Some(&cargo_toml), None, Vec::new(), true).expect("failed to compile");
 
     let obj = OpenOptions::new()
         .read(true)
