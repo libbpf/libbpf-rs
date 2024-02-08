@@ -3,7 +3,7 @@ Unreleased
 - Removed `novendor` feature in favor of having disableable default
   feature
 - Updated `libbpf-sys` dependency to `1.3.0`
-- Bumped minimum Rust version to `1.66`
+- Bumped minimum Rust version to `1.70`
 
 
 0.22.0

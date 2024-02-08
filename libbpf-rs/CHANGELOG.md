@@ -6,7 +6,7 @@ Unreleased
 - Added `replace` functionality to `Xdp` type
 - Fixed examples not building on non-x86 architectures
 - Updated `libbpf-sys` dependency to `1.3.0`
-- Bumped minimum Rust version to `1.66`
+- Bumped minimum Rust version to `1.70`
 
 
 0.22.1
