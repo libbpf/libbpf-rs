@@ -516,24 +516,6 @@ where
     {
         self.ok_or_error(io::ErrorKind::InvalidData, f)
     }
-
-    #[inline]
-    fn ok_or_invalid_input<C, F>(self, f: F) -> Result<T, Error>
-    where
-        C: ToString,
-        F: FnOnce() -> C,
-    {
-        self.ok_or_error(io::ErrorKind::InvalidInput, f)
-    }
-
-    #[inline]
-    fn ok_or_unexpected_eof<C, F>(self, f: F) -> Result<T, Error>
-    where
-        C: ToString,
-        F: FnOnce() -> C,
-    {
-        self.ok_or_error(io::ErrorKind::UnexpectedEof, f)
-    }
 }
 
 impl<T> IntoError<T> for Option<T> {
