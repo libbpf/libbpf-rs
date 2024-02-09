@@ -2375,10 +2375,17 @@ struct Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
-    pub test: __anon_1,
+    pub test: std::mem::MaybeUninit<__anon_1>,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            test: std::mem::MaybeUninit::new(__anon_1::default()),
+        }
+    }
 }
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 #[repr(u32)]
@@ -2414,14 +2421,25 @@ struct Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
     pub a: i32,
     pub b: u16,
     pub c: i16,
-    pub d: bool,
+    pub d: std::mem::MaybeUninit<bool>,
     pub e: i8,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            a: i32::default(),
+            b: u16::default(),
+            c: i16::default(),
+            d: std::mem::MaybeUninit::new(bool::default()),
+            e: i8::default(),
+        }
+    }
 }
 "#;
 
