@@ -24,6 +24,20 @@ use libbpf_rs::ReferencesType;
 
 const ANON_PREFIX: &str = "__anon_";
 
+/// Check whether the provided type is "unsafe" to use.
+///
+/// A type is considered unsafe by this function if it is not valid for
+/// any bit pattern.
+fn is_unsafe(ty: BtfType<'_>) -> bool {
+    let ty = ty.skip_mods_and_typedefs();
+
+    btf_type_match!(match ty {
+        BtfKind::Int(t) => matches!(t.encoding, types::IntEncoding::Bool),
+        BtfKind::Enum | BtfKind::Enum64 => true,
+        _ => false,
+    })
+}
+
 pub struct GenBtf<'s> {
     btf: Btf<'s>,
     // We use refcell here because the design of this type unfortunately causes a lot of borrowing
@@ -359,17 +373,23 @@ impl<'s> GenBtf<'s> {
                 }
 
                 // Rust does not implement `Default` for pointers, no matter if
-                // the pointee implements it.
+                // the pointee implements it, and it also doesn't do it for
+                // `MaybeUninit` constructs, which we use for "unsafe" types.
                 if self
                     .type_by_id::<types::Ptr<'_>>(field_ty.type_id())
                     .is_some()
+                    || is_unsafe(field_ty)
                 {
                     gen_impl_default = true
                 }
             }
 
             match self.type_default(field_ty) {
-                Ok(def) => {
+                Ok(mut def) => {
+                    if is_unsafe(field_ty) {
+                        def = format!("std::mem::MaybeUninit::new({def})")
+                    }
+
                     impl_default.push(format!(
                         r#"            {field_name}: {field_ty_str}"#,
                         field_name = if let Some(name) = member.name {
@@ -394,7 +414,13 @@ impl<'s> GenBtf<'s> {
             let field_name = if let Some(name) = member.name {
                 name.to_string_lossy()
             } else {
-                field_ty_str.as_str().into()
+                Cow::Borrowed(field_ty_str.as_str())
+            };
+
+            let field_ty_str = if is_unsafe(field_ty) {
+                Cow::Owned(format!("std::mem::MaybeUninit<{field_ty_str}>"))
+            } else {
+                Cow::Borrowed(field_ty_str.as_str())
             };
 
             agg_content.push(format!(r#"    pub {field_name}: {field_ty_str},"#));

@@ -5,6 +5,8 @@ Unreleased
 - Adjusted `SkeletonBuilder::clang_args` to accept an iterator of
   arguments instead of a string
 - Added `--clang-args` argument to `make` and `build` sub-commands
+- Fixed potential unsoundness issues in generated skeletons by wrapping "unsafe"
+  type in `MaybeUninit`
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.70`
 

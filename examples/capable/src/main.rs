@@ -187,8 +187,16 @@ fn main() -> Result<()> {
     let mut open_skel = skel_builder.open()?;
     //Pass configuration to BPF
     open_skel.rodata_mut().tool_config.tgid = opts.pid; //tgid in kernel is pid in userland
-    open_skel.rodata_mut().tool_config.verbose = opts.verbose;
-    open_skel.rodata_mut().tool_config.unique_type = opts.unique_type;
+    open_skel
+        .rodata_mut()
+        .tool_config
+        .verbose
+        .write(opts.verbose);
+    open_skel
+        .rodata_mut()
+        .tool_config
+        .unique_type
+        .write(opts.unique_type);
 
     let mut skel = open_skel.load()?;
     skel.attach()?;
