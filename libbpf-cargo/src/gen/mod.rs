@@ -699,7 +699,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     let obj_name = capitalize_first_letter(raw_obj_name);
 
     // Open bpf_object so we can iterate over maps and progs
-    let file = File::open(obj_file_path)?;
+    let file = File::open(obj_file_path)
+        .with_context(|| format!("failed to open BPF object `{}`", obj_file_path.display()))?;
     let mmap = unsafe { Mmap::map(&file)? };
     let mut object = open_bpf_object(&libbpf_obj_name, &mmap)?;
 
