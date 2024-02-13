@@ -2,6 +2,7 @@ pub mod btf;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -422,7 +423,8 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
                 "#
         )?;
 
-        let sec_def = btf.type_definition(*ty)?;
+        let mut processed = HashSet::new();
+        let sec_def = btf.type_definition(*ty, &mut processed)?;
         write!(skel, "{sec_def}")?;
 
         writeln!(skel, "}}")?;

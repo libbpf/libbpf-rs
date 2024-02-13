@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::BTreeSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Write;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
@@ -263,7 +263,11 @@ impl<'s> GenBtf<'s> {
     /// Returns rust type definition of `ty` in string format, including dependent types.
     ///
     /// `ty` must be a struct, union, enum, or datasec type.
-    pub fn type_definition(&self, ty: BtfType<'s>) -> Result<String> {
+    pub fn type_definition(
+        &self,
+        ty: BtfType<'s>,
+        processed: &mut HashSet<TypeId>,
+    ) -> Result<String> {
         let is_terminal = |ty: BtfType<'_>| -> bool {
             matches!(
                 ty.kind(),
@@ -296,13 +300,10 @@ impl<'s> GenBtf<'s> {
         // the queue.
         let mut def = String::new();
         let mut dependent_types = vec![ty];
-        let mut processed = BTreeSet::new();
         while !dependent_types.is_empty() {
             let ty = dependent_types.remove(0);
-            if processed.contains(&ty.type_id()) {
+            if !processed.insert(ty.type_id()) {
                 continue;
-            } else {
-                processed.insert(ty.type_id());
             }
 
             btf_type_match!(match ty {
