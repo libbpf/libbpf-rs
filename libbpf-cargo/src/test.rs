@@ -718,7 +718,7 @@ fn test_skeleton_datasec() {
             skel.bss_mut().myglobal = 24;
 
             // Read only for rodata after load
-            let _rodata: &prog_rodata_types::rodata = skel.rodata();
+            let _rodata: &prog_types::rodata = skel.rodata();
         }}
         "#,
     )

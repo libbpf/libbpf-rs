@@ -406,30 +406,28 @@ fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Re
     };
     let btf = GenBtf::from(btf);
 
+    write!(
+        skel,
+        r#"
+            pub mod {obj_name}_types {{
+            "#
+    )?;
+
+    let mut processed = HashSet::new();
     for ty in btf.type_by_kind::<types::DataSec<'_>>() {
         let name = match ty.name() {
             Some(s) => s.to_str()?,
             None => "",
         };
-        let sec_ident = match canonicalize_internal_map_name(name) {
-            Some(n) => n,
-            None => continue,
-        };
+        if canonicalize_internal_map_name(name).is_none() {
+            continue;
+        }
 
-        write!(
-            skel,
-            r#"
-                pub mod {obj_name}_{sec_ident}_types {{
-                "#
-        )?;
-
-        let mut processed = HashSet::new();
         let sec_def = btf.type_definition(*ty, &mut processed)?;
         write!(skel, "{sec_def}")?;
-
-        writeln!(skel, "}}")?;
     }
 
+    writeln!(skel, "}}")?;
     Ok(())
 }
 
@@ -532,7 +530,7 @@ fn gen_skel_datasec_getters(
             Some(n) => n,
             None => continue,
         };
-        let struct_name = format!("{obj_name}_{name}_types::{name}");
+        let struct_name = format!("{obj_name}_types::{name}");
         let immutable = loaded && map_is_readonly(map);
         let mutabilities = if immutable {
             [false].as_ref()
