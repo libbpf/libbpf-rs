@@ -36,7 +36,7 @@ struct Command {
     verbose: bool,
 }
 
-unsafe impl Plain for runqslower_bss_types::event {}
+unsafe impl Plain for runqslower_types::event {}
 
 fn bump_memlock_rlimit() -> Result<()> {
     let rlimit = libc::rlimit {
@@ -52,7 +52,7 @@ fn bump_memlock_rlimit() -> Result<()> {
 }
 
 fn handle_event(_cpu: i32, data: &[u8]) {
-    let mut event = runqslower_bss_types::event::default();
+    let mut event = runqslower_types::event::default();
     plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
 
     let now = if let Ok(now) = OffsetDateTime::now_local() {
