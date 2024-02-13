@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::create_dir;
 use std::fs::read;
 use std::fs::read_to_string;
@@ -1279,7 +1280,7 @@ fn btf_from_mmap(mmap: &Mmap) -> GenBtf<'_> {
 #[track_caller]
 fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: &str) {
     let actual_output = btf
-        .type_definition(*btf_item)
+        .type_definition(*btf_item, &mut HashSet::new())
         .expect("Failed to generate struct Foo defn");
     let ao = actual_output.trim_end().trim_start();
     let eo = expected_output.trim_end().trim_start();
@@ -1722,7 +1723,9 @@ struct Foo foo;
     // Find our struct
     let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
-    assert!(btf.type_definition(*struct_foo).is_err());
+    assert!(btf
+        .type_definition(*struct_foo, &mut HashSet::new())
+        .is_err());
 }
 
 #[test]
