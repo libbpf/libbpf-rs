@@ -718,20 +718,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         impl<'a> SkelBuilder<'a> for {name}SkelBuilder {{
             type Output = Open{name}Skel<'a>;
             fn open(self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
-                let mut skel_config = build_skel_config()?;
-                let open_opts = self.obj_builder.opts();
-
-                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), open_opts) }};
-                if ret != 0 {{
-                    return Err(libbpf_rs::Error::from_raw_os_error(-ret));
-                }}
-
-                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
-
-                Ok(Open{name}Skel {{
-                    obj,
-                    skel_config
-                }})
+                let opts = *self.obj_builder.opts();
+                self.open_opts(opts)
             }}
 
             fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
