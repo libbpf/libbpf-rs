@@ -845,6 +845,147 @@ fn test_sudo_object_reuse_pined_map() {
 }
 
 #[test]
+fn test_sudo_object_ringbuf_raw() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("ringbuf.bpf.o");
+    let prog = obj
+        .prog_mut("handle__sys_enter_getpid")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+
+    static mut V1: i32 = 0;
+    static mut V2: i32 = 0;
+
+    fn callback1(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V1 = value;
+        }
+
+        0
+    }
+
+    fn callback2(data: &[u8]) -> i32 {
+        let mut value: i32 = 0;
+        plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+
+        unsafe {
+            V2 = value;
+        }
+
+        0
+    }
+
+    // Test trying to build without adding any ringbufs
+    // Can't use expect_err here since RingBuffer does not implement Debug
+    let builder = libbpf_rs::RingBufferBuilder::new();
+    assert!(
+        builder.build().is_err(),
+        "Should not be able to build without adding at least one ringbuf"
+    );
+
+    // Test building with multiple map objects
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+
+    // Add a first map and callback
+    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
+
+    builder.add(map1, callback1).expect("Failed to add ringbuf");
+
+    // Add a second map and callback
+    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
+
+    builder.add(map2, callback2).expect("Failed to add ringbuf");
+
+    let mgr = builder.build().expect("Failed to build");
+
+    // Call getpid to ensure the BPF program runs
+    unsafe { libc::getpid() };
+
+    // Test raw primitives
+    let ret = mgr.consume_raw();
+
+    // We can't check for exact return values, since other tasks in the system may call getpid(),
+    // triggering the BPF program
+    assert!(ret >= 2);
+
+    unsafe { assert_eq!(V1, 1) };
+    unsafe { assert_eq!(V2, 2) };
+
+    // Consume from a (potentially) empty ring buffer
+    let ret = mgr.consume_raw();
+    assert!(ret >= 0);
+
+    // Consume from a (potentially) empty ring buffer using poll()
+    let ret = mgr.poll_raw(Duration::from_millis(100));
+    assert!(ret >= 0);
+}
+
+#[test]
+fn test_sudo_object_ringbuf_err_callback() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("ringbuf.bpf.o");
+    let prog = obj
+        .prog_mut("handle__sys_enter_getpid")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+
+    // Immediately trigger an error that should be reported back to the consume_raw() or poll_raw()
+    fn callback1(_data: &[u8]) -> i32 {
+        -libc::ENOENT
+    }
+
+    // Immediately trigger an error that should be reported back to the consume_raw() or poll_raw()
+    fn callback2(_data: &[u8]) -> i32 {
+        -libc::EPERM
+    }
+
+    // Test trying to build without adding any ringbufs
+    // Can't use expect_err here since RingBuffer does not implement Debug
+    let builder = libbpf_rs::RingBufferBuilder::new();
+    assert!(
+        builder.build().is_err(),
+        "Should not be able to build without adding at least one ringbuf"
+    );
+
+    // Test building with multiple map objects
+    let mut builder = libbpf_rs::RingBufferBuilder::new();
+
+    // Add a first map and callback
+    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
+
+    builder.add(map1, callback1).expect("Failed to add ringbuf");
+
+    // Add a second map and callback
+    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
+
+    builder.add(map2, callback2).expect("Failed to add ringbuf");
+
+    let mgr = builder.build().expect("Failed to build");
+
+    // Call getpid to ensure the BPF program runs
+    unsafe { libc::getpid() };
+
+    // Test raw primitives
+    let ret = mgr.consume_raw();
+
+    // The error originated from the first callback executed should be reported here, either
+    // from callback1() or callback2()
+    assert!(ret == -libc::ENOENT || ret == -libc::EPERM);
+
+    unsafe { libc::getpid() };
+
+    // The same behavior should happen with poll_raw()
+    let ret = mgr.poll_raw(Duration::from_millis(100));
+
+    assert!(ret == -libc::ENOENT || ret == -libc::EPERM);
+}
+
+#[test]
 fn test_sudo_object_ringbuf() {
     bump_rlimit_mlock();
 

@@ -156,13 +156,23 @@ impl RingBuffer<'_> {
     /// each one. Polls continually until we either run out of events to consume
     /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
     /// indefinitely until an event occurs.
-    pub fn poll(&self, timeout: Duration) -> Result<()> {
+    ///
+    /// Return the amount of events consumed, or a negative value in case of error.
+    pub fn poll_raw(&self, timeout: Duration) -> i32 {
         let mut timeout_ms = -1;
         if timeout != Duration::MAX {
             timeout_ms = timeout.as_millis() as i32;
         }
 
-        let ret = unsafe { libbpf_sys::ring_buffer__poll(self.ptr.as_ptr(), timeout_ms) };
+        unsafe { libbpf_sys::ring_buffer__poll(self.ptr.as_ptr(), timeout_ms) }
+    }
+
+    /// Poll from all open ring buffers, calling the registered callback for
+    /// each one. Polls continually until we either run out of events to consume
+    /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
+    /// indefinitely until an event occurs.
+    pub fn poll(&self, timeout: Duration) -> Result<()> {
+        let ret = self.poll_raw(timeout);
 
         util::parse_ret(ret)
     }
@@ -170,8 +180,17 @@ impl RingBuffer<'_> {
     /// Greedily consume from all open ring buffers, calling the registered
     /// callback for each one. Consumes continually until we run out of events
     /// to consume or one of the callbacks returns a non-zero integer.
+    ///
+    /// Return the amount of events consumed, or a negative value in case of error.
+    pub fn consume_raw(&self) -> i32 {
+        unsafe { libbpf_sys::ring_buffer__consume(self.ptr.as_ptr()) }
+    }
+
+    /// Greedily consume from all open ring buffers, calling the registered
+    /// callback for each one. Consumes continually until we run out of events
+    /// to consume or one of the callbacks returns a non-zero integer.
     pub fn consume(&self) -> Result<()> {
-        let ret = unsafe { libbpf_sys::ring_buffer__consume(self.ptr.as_ptr()) };
+        let ret = self.consume_raw();
 
         util::parse_ret(ret)
     }
