@@ -37,7 +37,6 @@ use std::ptr::NonNull;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
-use crate::libbpf_sys;
 use crate::util::create_bpf_entity_checked;
 use crate::util::create_bpf_entity_checked_opt;
 use crate::util::parse_ret_i32;

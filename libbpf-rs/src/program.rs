@@ -1,5 +1,4 @@
 use core::ffi::c_void;
-use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem::size_of;
 use std::os::unix::io::AsFd;
@@ -16,7 +15,6 @@ use libbpf_sys::bpf_func_id;
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
-use crate::libbpf_sys;
 use crate::util;
 use crate::AsRawLibbpf;
 use crate::Error;

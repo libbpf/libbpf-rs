@@ -3,10 +3,8 @@ use std::os::unix::io::AsFd as _;
 use std::os::unix::io::AsRawFd as _;
 
 use nix::errno;
-use nix::libc;
 use nix::unistd;
 
-use crate::libbpf_sys;
 use crate::Error;
 use crate::Link;
 use crate::Result;

@@ -1,10 +1,10 @@
-use crate::libbpf_sys;
-use lazy_static::lazy_static;
 use std::io;
 use std::io::Write;
 use std::mem;
 use std::os::raw::c_char;
 use std::sync::Mutex;
+
+use lazy_static::lazy_static;
 
 /// An enum representing the different supported print levels.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]

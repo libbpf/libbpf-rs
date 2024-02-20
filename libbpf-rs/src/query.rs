@@ -10,7 +10,6 @@
 //! }
 //! ```
 
-use std::convert::TryFrom;
 use std::ffi::c_void;
 use std::ffi::CString;
 use std::mem::size_of_val;
@@ -21,7 +20,6 @@ use std::time::Duration;
 use nix::errno;
 use nix::unistd::close;
 
-use crate::libbpf_sys;
 use crate::util;
 use crate::MapType;
 use crate::ProgramAttachType;

@@ -1,5 +1,4 @@
 use core::ffi::c_void;
-use std::boxed::Box;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
@@ -13,7 +12,6 @@ use std::ptr::NonNull;
 use std::slice;
 use std::time::Duration;
 
-use crate::libbpf_sys;
 use crate::util;
 use crate::AsRawLibbpf;
 use crate::Error;

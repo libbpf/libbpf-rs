@@ -2,7 +2,6 @@ use core::ffi::c_void;
 use std::alloc::alloc_zeroed;
 use std::alloc::dealloc;
 use std::alloc::Layout;
-use std::boxed::Box;
 use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_char;
@@ -19,7 +18,6 @@ use libbpf_sys::bpf_prog_skeleton;
 use libbpf_sys::bpf_program;
 
 use crate::error::IntoError as _;
-use crate::libbpf_sys;
 use crate::util;
 use crate::Error;
 use crate::Object;

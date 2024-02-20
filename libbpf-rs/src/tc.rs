@@ -5,7 +5,6 @@ use std::os::unix::io::BorrowedFd;
 use nix::errno;
 use nix::errno::Errno::EEXIST;
 
-use crate::libbpf_sys;
 use crate::Error;
 use crate::Result;
 
