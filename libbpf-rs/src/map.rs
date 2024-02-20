@@ -1,5 +1,4 @@
 use core::ffi::c_void;
-use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::OsStr;

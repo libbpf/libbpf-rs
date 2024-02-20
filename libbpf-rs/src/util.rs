@@ -7,7 +7,6 @@ use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::NonNull;
 
-use crate::libbpf_sys;
 use crate::Error;
 use crate::Result;
 

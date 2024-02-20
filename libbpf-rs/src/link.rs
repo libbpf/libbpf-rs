@@ -5,7 +5,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
-use crate::libbpf_sys;
 use crate::util;
 use crate::AsRawLibbpf;
 use crate::Program;

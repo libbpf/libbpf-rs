@@ -7,7 +7,6 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
-use crate::libbpf_sys;
 use crate::set_print;
 use crate::util;
 use crate::Btf;
