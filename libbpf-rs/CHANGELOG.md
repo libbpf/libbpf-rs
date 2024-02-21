@@ -4,6 +4,7 @@ Unreleased
   - Removed `novendor` feature
   - Added `vendored` feature to use vendored copies of all needed libraries
 - Added `replace` functionality to `Xdp` type
+- Added low-level `consume_raw` and `poll_raw` methods to `RingBuffer` type
 - Fixed examples not building on non-x86 architectures
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.70`
