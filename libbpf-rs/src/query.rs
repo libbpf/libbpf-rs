@@ -153,6 +153,7 @@ pub struct ProgramInfo {
     pub prog_tags: Vec<Tag>,
     pub run_time_ns: u64,
     pub run_cnt: u64,
+    pub recursion_misses: u64,
 }
 
 /// An iterator for the information of loaded bpf programs
@@ -393,6 +394,7 @@ impl ProgramInfo {
             prog_tags,
             run_time_ns: item.run_time_ns,
             run_cnt: item.run_cnt,
+            recursion_misses: item.recursion_misses,
         });
     }
 }
