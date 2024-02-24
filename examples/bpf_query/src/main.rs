@@ -27,11 +27,12 @@ fn prog(args: ProgArgs) {
     let opts = query::ProgInfoQueryOptions::default().include_all();
     for prog in query::ProgInfoIter::with_query_opts(opts) {
         println!(
-            "name={:<16} type={:<15} run_count={:<2} runtime_ns={}",
+            "name={:<16} type={:<15} run_count={:<2} runtime_ns={} recursion_misses={:<2}",
             prog.name.to_string_lossy(),
             prog.ty,
             prog.run_cnt,
-            prog.run_time_ns
+            prog.run_time_ns,
+            prog.recursion_misses,
         );
         if args.disassemble {
             #[cfg(target_arch = "x86_64")]
