@@ -153,6 +153,7 @@ pub struct ProgramInfo {
     pub prog_tags: Vec<Tag>,
     pub run_time_ns: u64,
     pub run_cnt: u64,
+    /// Skipped BPF executions due to recursion or concurrent execution prevention.
     pub recursion_misses: u64,
 }
 
