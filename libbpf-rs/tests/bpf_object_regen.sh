@@ -49,7 +49,7 @@ function compile() {
 if [[ ! -z $BPFTOOL ]]; then
     bpftool btf dump file /sys/kernel/btf/vmlinux format c > bin/src/vmlinux.h
 else
-    cp ../../examples/vmlinux_515.h bin/src/vmlinux.h
+    cp ../../examples/vmlinux/x86/vmlinux_601.h bin/src/vmlinux.h
 fi
 
 for file in $SRC
