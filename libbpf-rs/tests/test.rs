@@ -1793,3 +1793,30 @@ fn test_sudo_map_autocreate_disable() {
 
     open_obj.load().expect("failed to load object");
 }
+
+/// Check that we are able to attach using ksyscall
+#[test]
+fn test_sudo_attach_ksyscall() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("ksyscall.bpf.o");
+    let prog = obj
+        .prog_mut("handle__ksyscall")
+        .expect("Failed to find program");
+
+    let _link = prog
+        .attach_ksyscall(false, "kill")
+        .expect("Failed to attach prog");
+
+    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let action = || {
+        // Send `SIGCHLD`, which is ignored by default, to our process.
+        let ret = unsafe { libc::kill(libc::getpid(), libc::SIGCHLD) };
+        if ret < 0 {
+            panic!("kill failed: {}", std::io::Error::last_os_error());
+        }
+    };
+    let result = with_ringbuffer(map, action);
+
+    assert_eq!(result, 1);
+}
