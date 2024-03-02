@@ -612,6 +612,29 @@ impl Program {
         })
     }
 
+    /// Attach this program to the specified syscall
+    pub fn attach_ksyscall<T: AsRef<str>>(
+        &mut self,
+        retprobe: bool,
+        syscall_name: T,
+    ) -> Result<Link> {
+        let opts = libbpf_sys::bpf_ksyscall_opts {
+            sz: size_of::<libbpf_sys::bpf_ksyscall_opts>() as _,
+            retprobe,
+            ..Default::default()
+        };
+        // opts.retprobe = retprobe;
+        let syscall_name = util::str_to_cstring(syscall_name.as_ref())?;
+        let syscall_name_ptr = syscall_name.as_ptr();
+        util::create_bpf_entity_checked(|| unsafe {
+            libbpf_sys::bpf_program__attach_ksyscall(self.ptr.as_ptr(), syscall_name_ptr, &opts)
+        })
+        .map(|ptr| unsafe {
+            // SAFETY: the pointer came from libbpf and has been checked for errors
+            Link::new(ptr)
+        })
+    }
+
     fn attach_tracepoint_impl(
         &mut self,
         tp_category: &str,
