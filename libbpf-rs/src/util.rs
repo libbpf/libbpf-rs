@@ -120,7 +120,7 @@ pub fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
             // SAFETY: We checked if the pointer was non null before.
             NonNull::new_unchecked(ptr)
         })),
-        err => Err(Error::from_raw_os_error(err as i32)),
+        err => Err(Error::from_raw_os_error(-err as i32)),
     }
 }
 
