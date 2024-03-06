@@ -9,6 +9,7 @@ Unreleased
   having multiple modules for various sections (`.bss`, `.rodata`, etc.)
 - Fixed potential unsoundness issues in generated skeletons by wrapping "unsafe"
   type in `MaybeUninit`
+- Added pointer based ("raw") access to datasec type to generated skeletons
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.70`
 

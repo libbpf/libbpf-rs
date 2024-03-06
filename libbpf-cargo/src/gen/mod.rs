@@ -548,12 +548,12 @@ fn gen_skel_datasec_getters(
             write!(
                 skel,
                 r#"
+                pub fn {name}{fn_suffix}_raw(&{ref_suffix} self) -> *{ptr_suffix} {struct_name} {{
+                    self.skel_config.map_mmap_ptr{fn_suffix}({idx}).unwrap().cast::<{struct_name}>()
+                }}
+
                 pub fn {name}{fn_suffix}(&{ref_suffix} self) -> &{ref_suffix} {struct_name} {{
-                    unsafe {{
-                        std::mem::transmute::<*{ptr_suffix} std::ffi::c_void, &{ref_suffix} {struct_name}>(
-                            self.skel_config.map_mmap_ptr{fn_suffix}({idx}).unwrap()
-                        )
-                    }}
+                    unsafe {{&{ref_suffix}*self.{name}{fn_suffix}_raw()}}
                 }}
                 "#
             )?;
