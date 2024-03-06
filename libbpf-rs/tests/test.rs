@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::fs;
 use std::hint;
+use std::io;
 use std::io::Read;
 use std::mem::size_of;
 use std::os::fd::AsRawFd;
@@ -1813,7 +1814,7 @@ fn test_sudo_attach_ksyscall() {
         // Send `SIGCHLD`, which is ignored by default, to our process.
         let ret = unsafe { libc::kill(libc::getpid(), libc::SIGCHLD) };
         if ret < 0 {
-            panic!("kill failed: {}", std::io::Error::last_os_error());
+            panic!("kill failed: {}", io::Error::last_os_error());
         }
     };
     let result = with_ringbuffer(map, action);

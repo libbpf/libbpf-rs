@@ -623,7 +623,7 @@ impl Program {
             retprobe,
             ..Default::default()
         };
-        // opts.retprobe = retprobe;
+
         let syscall_name = util::str_to_cstring(syscall_name.as_ref())?;
         let syscall_name_ptr = syscall_name.as_ptr();
         util::create_bpf_entity_checked(|| unsafe {
