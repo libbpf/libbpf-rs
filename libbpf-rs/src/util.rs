@@ -58,7 +58,7 @@ pub fn roundup(num: usize, r: usize) -> usize {
 /// Get the number of CPUs in the system, e.g., to interact with per-cpu maps.
 pub fn num_possible_cpus() -> Result<usize> {
     let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
-    parse_ret_usize(ret)
+    parse_ret(ret).map(|()| ret as usize)
 }
 
 pub fn parse_ret(ret: i32) -> Result<()> {
@@ -71,21 +71,7 @@ pub fn parse_ret(ret: i32) -> Result<()> {
 }
 
 pub fn parse_ret_i32(ret: i32) -> Result<i32> {
-    if ret < 0 {
-        // Error code is returned negative, flip to positive to match errno
-        Err(Error::from_raw_os_error(-ret))
-    } else {
-        Ok(ret)
-    }
-}
-
-pub fn parse_ret_usize(ret: i32) -> Result<usize> {
-    if ret < 0 {
-        // Error code is returned negative, flip to positive to match errno
-        Err(Error::from_raw_os_error(-ret))
-    } else {
-        Ok(ret as usize)
-    }
+    parse_ret(ret).map(|()| ret)
 }
 
 pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Result<NonNull<B>> {
