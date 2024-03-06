@@ -96,7 +96,7 @@ used both at the same time to include user and kernel stack).
 
 -->
 Some processes can do a lot of security capability checks, generating a lot of
-ouput. In this case, the --unique option is useful to only print once the same
+output. In this case, the --unique option is useful to only print once the same
 set of capability, pid(1) or cgroup (2) <!-- and kernel/user
 stacks (if -K or -U are used). -->
 ```

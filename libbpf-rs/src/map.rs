@@ -236,9 +236,7 @@ impl Map {
 
         // Get the map fd
         let fd = unsafe { libbpf_sys::bpf_map__fd(ptr.as_ptr()) };
-        if fd < 0 {
-            return Err(Error::from_raw_os_error(-fd));
-        }
+        let fd = util::parse_ret_i32(fd)?;
 
         let ty = MapType::try_from(unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) })
             .unwrap_or(MapType::Unknown);
