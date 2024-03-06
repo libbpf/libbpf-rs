@@ -3,6 +3,7 @@ Unreleased
 - Overhauled crate feature set:
   - Removed `novendor` feature
   - Added `vendored` feature to use vendored copies of all needed libraries
+- Added `Program::attach_ksyscall` for attaching to ksyscall handlers
 - Added `replace` functionality to `Xdp` type
 - Added low-level `consume_raw` and `poll_raw` methods to `RingBuffer` type
 - Added `recursion_misses` attribute to `query::ProgramInfo` type
