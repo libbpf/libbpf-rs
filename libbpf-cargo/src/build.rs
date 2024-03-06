@@ -62,7 +62,11 @@ fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> 
     fs::create_dir_all(&dir)?;
     for (filename, contents) in libbpf_sys::API_HEADERS.iter() {
         let path = dir.as_path().join(filename);
-        let mut file = OpenOptions::new().write(true).create(true).open(path)?;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)?;
         file.write_all(contents.as_bytes())?;
     }
 
