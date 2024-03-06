@@ -1,6 +1,8 @@
 #![allow(clippy::let_unit_value)]
+#![warn(clippy::absolute_paths)]
 
 use std::collections::HashSet;
+use std::env::current_exe;
 use std::ffi::c_void;
 use std::fs;
 use std::hint;
@@ -1387,7 +1389,7 @@ fn test_sudo_object_usdt() {
         .prog_mut("handle__usdt")
         .expect("Failed to find program");
 
-    let path = std::env::current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("Failed to find executable name");
     let _link = prog
         .attach_usdt(
             unsafe { libc::getpid() },
@@ -1417,7 +1419,7 @@ fn test_sudo_object_usdt_cookie() {
         .prog_mut("handle__usdt_with_cookie")
         .expect("Failed to find program");
 
-    let path = std::env::current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("Failed to find executable name");
     let _link = prog
         .attach_usdt_with_opts(
             unsafe { libc::getpid() },
@@ -1576,7 +1578,7 @@ fn test_sudo_object_uprobe_with_opts() {
         .expect("Failed to find program");
 
     let pid = unsafe { libc::getpid() };
-    let path = std::env::current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("Failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
         func_name: "uprobe_target".to_string(),
@@ -1608,7 +1610,7 @@ fn test_sudo_object_uprobe_with_cookie() {
         .expect("Failed to find program");
 
     let pid = unsafe { libc::getpid() };
-    let path = std::env::current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("Failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
         func_name: "uprobe_target".to_string(),
