@@ -996,6 +996,8 @@ macro_rules! __btf_type_match {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
     // creates a dummy btftype, not it's not safe to use this type, but it is safe to match on it,
     // which is all we need for these tests.
     macro_rules! dummy_type {
@@ -1018,8 +1020,6 @@ mod test {
         "int"
     }
 
-    use super::BtfType;
-    use crate::btf_type_match;
     #[test]
     fn full_switch_case() {
         dummy_type!(ty);
