@@ -16,6 +16,7 @@ use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
+use std::slice;
 use std::slice::from_raw_parts;
 
 use bitflags::bitflags;
@@ -70,6 +71,20 @@ impl OpenMap {
         match MapType::try_from(ty) {
             Ok(t) => t,
             Err(_) => MapType::Unknown,
+        }
+    }
+
+    /// Retrieve the initial value of the map.
+    pub fn initial_value(&self) -> Option<&[u8]> {
+        let mut size = 0u64;
+        let value = unsafe {
+            libbpf_sys::bpf_map__initial_value(self.ptr.as_ptr(), &mut size as *mut _ as _)
+        };
+        if value.is_null() {
+            None
+        } else {
+            let data = unsafe { slice::from_raw_parts(value.cast::<u8>(), size as _) };
+            Some(data)
         }
     }
 
