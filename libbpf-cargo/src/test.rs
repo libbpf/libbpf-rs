@@ -87,6 +87,7 @@ fn setup_temp_workspace() -> (TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
     let mut cargo_toml_file = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(&workspace_cargo_toml)
         .expect("failed to open workspace Cargo.toml");
     writeln!(cargo_toml_file, r#"[workspace]"#).expect("write to workspace Cargo.toml failed");
@@ -125,6 +126,7 @@ fn get_libbpf_rs_path() -> PathBuf {
 fn add_vmlinux_header(project: &Path) {
     let mut vmlinux = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .open(project.join("src/bpf/vmlinux.h"))
         .expect("failed to open vmlinux.h");
@@ -461,6 +463,7 @@ fn test_skeleton_basic() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -586,6 +589,7 @@ fn test_skeleton_generate_datasec_static() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -632,6 +636,7 @@ fn test_skeleton_datasec() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -746,6 +751,7 @@ fn test_skeleton_builder_basic() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -869,6 +875,7 @@ fn test_skeleton_builder_clang_opts() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -913,6 +920,7 @@ fn test_skeleton_builder_arrays_ptrs() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -1023,6 +1031,7 @@ fn test_skeleton_generate_struct_with_pointer() {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
@@ -1245,6 +1254,7 @@ fn build_btf_mmap(prog_text: &str) -> Mmap {
     let mut prog = OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
 
