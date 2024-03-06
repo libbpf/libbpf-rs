@@ -1797,6 +1797,27 @@ fn test_sudo_map_autocreate_disable() {
     open_obj.load().expect("failed to load object");
 }
 
+/// Check that we can resize a map.
+#[test]
+fn test_sudo_map_resize() {
+    bump_rlimit_mlock();
+
+    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
+
+    let resizable = open_obj
+        .map_mut(".data.resizable_data")
+        .expect("map wasn't found");
+
+    let len = resizable.initial_value().unwrap().len();
+    assert_eq!(len, size_of::<u64>());
+
+    let () = resizable
+        .set_value_size(len as u32 * 2)
+        .expect("failed to set value size");
+    let new_len = resizable.initial_value().unwrap().len();
+    assert_eq!(new_len, len * 2);
+}
+
 /// Check that we are able to attach using ksyscall
 #[test]
 fn test_sudo_attach_ksyscall() {

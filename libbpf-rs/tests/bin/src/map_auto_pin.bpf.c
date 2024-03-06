@@ -11,4 +11,6 @@ struct {
   __uint(pinning, LIBBPF_PIN_BY_NAME);
 } auto_pin_map SEC(".maps");
 
+u64 resizable_data[1] SEC(".data.resizable_data");
+
 char _license[] SEC("license") = "GPL";
