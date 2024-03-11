@@ -181,12 +181,15 @@ fn compile_one(
         .iter()
         .any(|arg| arg.to_string_lossy().contains("__TARGET_ARCH_"))
     {
-        let arch = match ARCH {
+        // We may end up being invoked by a build script, in which case
+        // `CARGO_CFG_TARGET_ARCH` would represent the target architecture.
+        let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or(ARCH);
+        let arch = match arch {
             "x86_64" => "x86",
             "aarch64" => "arm64",
             "powerpc64" => "powerpc",
             "s390x" => "s390",
-            _ => ARCH,
+            x => x,
         };
         cmd.arg(format!("-D__TARGET_ARCH_{arch}"));
     }
