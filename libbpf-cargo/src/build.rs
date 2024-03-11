@@ -179,7 +179,7 @@ fn compile_one(
 
     if !clang_args
         .iter()
-        .any(|arg| arg.as_os_str() == OsStr::new("-D__TARGET_ARCH_"))
+        .any(|arg| arg.to_string_lossy().contains("__TARGET_ARCH_"))
     {
         let arch = match ARCH {
             "x86_64" => "x86",
