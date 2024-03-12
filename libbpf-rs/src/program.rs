@@ -1,6 +1,8 @@
-use core::ffi::c_void;
+use std::ffi::c_void;
 use std::ffi::CStr;
+use std::mem;
 use std::mem::size_of;
+use std::mem::size_of_val;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
@@ -362,6 +364,46 @@ pub enum ProgramAttachType {
     PerfEvent,
     /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
+}
+
+/// The input a program accepts.
+///
+/// This type is mostly used in conjunction with the [`Program::test_run`]
+/// facility.
+#[derive(Debug, Default)]
+pub struct Input<'dat> {
+    /// The input context to provide.
+    pub context_in: Option<&'dat [u8]>,
+    /// The output context buffer provided to the program.
+    pub context_out: Option<&'dat mut [u8]>,
+    /// Additional data to provide to the program.
+    pub data_in: Option<&'dat [u8]>,
+    /// The output data buffer provided to the program.
+    pub data_out: Option<&'dat mut [u8]>,
+    /// The 'cpu' value passed to the kernel.
+    pub cpu: u32,
+    /// The 'flags' value passed to the kernel.
+    pub flags: u32,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+/// The output a program produces.
+///
+/// This type is mostly used in conjunction with the [`Program::test_run`]
+/// facility.
+#[derive(Debug)]
+pub struct Output<'dat> {
+    /// The value returned by the program.
+    pub return_value: u32,
+    /// The output context filled by the program/kernel.
+    pub context: Option<&'dat mut [u8]>,
+    /// Output data filled by the program.
+    pub data: Option<&'dat mut [u8]>,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Represents a loaded [`Program`].
@@ -864,6 +906,67 @@ impl Program {
             // SAFETY: the pointer came from libbpf and has been checked for errors
             Link::new(ptr)
         })
+    }
+
+    /// Test run the program with the given input data.
+    ///
+    /// This function uses the
+    /// [BPF_PROG_RUN](https://www.kernel.org/doc/html/latest/bpf/bpf_prog_run.html)
+    /// facility.
+    pub fn test_run<'dat>(&mut self, input: Input<'dat>) -> Result<Output<'dat>> {
+        pub(crate) unsafe fn slice_from_array<'t, T>(
+            items: *mut T,
+            num_items: usize,
+        ) -> Option<&'t mut [T]> {
+            if items.is_null() {
+                None
+            } else {
+                Some(unsafe { slice::from_raw_parts_mut(items, num_items) })
+            }
+        }
+
+        let Input {
+            context_in,
+            mut context_out,
+            data_in,
+            mut data_out,
+            cpu,
+            flags,
+            _non_exhaustive: (),
+        } = input;
+
+        let mut opts = unsafe { mem::zeroed::<libbpf_sys::bpf_test_run_opts>() };
+        opts.sz = size_of_val(&opts) as _;
+        opts.ctx_in = context_in
+            .map(|data| data.as_ptr().cast())
+            .unwrap_or_else(ptr::null);
+        opts.ctx_size_in = context_in.map(|data| data.len() as _).unwrap_or(0);
+        opts.ctx_out = context_out
+            .as_mut()
+            .map(|data| data.as_mut_ptr().cast())
+            .unwrap_or_else(ptr::null_mut);
+        opts.ctx_size_out = context_out.map(|data| data.len() as _).unwrap_or(0);
+        opts.data_in = data_in
+            .map(|data| data.as_ptr().cast())
+            .unwrap_or_else(ptr::null);
+        opts.data_size_in = data_in.map(|data| data.len() as _).unwrap_or(0);
+        opts.data_out = data_out
+            .as_mut()
+            .map(|data| data.as_mut_ptr().cast())
+            .unwrap_or_else(ptr::null_mut);
+        opts.data_size_out = data_out.map(|data| data.len() as _).unwrap_or(0);
+        opts.cpu = cpu;
+        opts.flags = flags;
+
+        let rc = unsafe { libbpf_sys::bpf_prog_test_run_opts(self.as_fd().as_raw_fd(), &mut opts) };
+        let () = util::parse_ret(rc)?;
+        let output = Output {
+            return_value: opts.retval,
+            context: unsafe { slice_from_array(opts.ctx_out.cast(), opts.ctx_size_out as _) },
+            data: unsafe { slice_from_array(opts.data_out.cast(), opts.data_size_out as _) },
+            _non_exhaustive: (),
+        };
+        Ok(output)
     }
 
     /// Returns the number of instructions that form the program.

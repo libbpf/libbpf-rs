@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 use std::env::current_exe;
+use std::ffi::c_int;
 use std::ffi::c_void;
 use std::fs;
 use std::hint;
@@ -13,11 +14,13 @@ use std::os::fd::AsRawFd;
 use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
+use std::ptr::addr_of;
 use std::slice;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use nix::unistd::close;
+
 use plain::Plain;
 use probe::probe;
 use scopeguard::defer;
@@ -37,6 +40,7 @@ use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::OpenObject;
 use libbpf_rs::Program;
+use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
 use libbpf_rs::TracepointOpts;
 use libbpf_rs::UprobeOpts;
@@ -1842,4 +1846,40 @@ fn test_sudo_attach_ksyscall() {
     let result = with_ringbuffer(map, action);
 
     assert_eq!(result, 1);
+}
+
+/// Check that we can invoke a program directly.
+#[test]
+fn test_sudo_run_prog_success() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("run_prog.bpf.o");
+    let prog = obj.prog_mut("test_1").expect("Failed to find program");
+
+    #[repr(C)]
+    struct bpf_dummy_ops_state {
+        val: c_int,
+    }
+
+    let value = 42;
+    let state = bpf_dummy_ops_state { val: value };
+    let args = [addr_of!(state) as u64];
+    let input = ProgramInput {
+        context_in: Some(unsafe { plain::as_bytes(&args) }),
+        ..Default::default()
+    };
+    let output = prog.test_run(input).unwrap();
+    assert_eq!(output.return_value, value as _);
+}
+
+/// Check that we fail program invocation when providing insufficient arguments.
+#[test]
+fn test_sudo_run_prog_fail() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("run_prog.bpf.o");
+    let prog = obj.prog_mut("test_2").expect("Failed to find program");
+
+    let input = ProgramInput::default();
+    let _err = prog.test_run(input).unwrap_err();
 }
