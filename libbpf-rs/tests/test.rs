@@ -17,7 +17,6 @@ use std::slice;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
-use nix::errno;
 use nix::unistd::close;
 use plain::Plain;
 use probe::probe;
@@ -81,7 +80,7 @@ pub fn bump_rlimit_mlock() {
         ret,
         0,
         "Setting RLIMIT_MEMLOCK failed with errno: {}",
-        errno::errno()
+        io::Error::last_os_error()
     );
 }
 

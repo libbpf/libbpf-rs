@@ -2,7 +2,6 @@ use std::io;
 use std::os::unix::io::AsFd as _;
 use std::os::unix::io::AsRawFd as _;
 
-use nix::errno;
 use nix::unistd;
 
 use crate::Error;
@@ -26,7 +25,7 @@ impl Iter {
         let link_fd = link.as_fd().as_raw_fd();
         let fd = unsafe { libbpf_sys::bpf_iter_create(link_fd) };
         if fd < 0 {
-            return Err(Error::from_raw_os_error(errno::errno()));
+            return Err(Error::from(io::Error::last_os_error()));
         }
         Ok(Self { fd })
     }

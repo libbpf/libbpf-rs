@@ -4,6 +4,7 @@ use std::ffi::CString;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::fs::remove_file;
+use std::io;
 use std::mem;
 use std::ops::Deref;
 use std::os::unix::ffi::OsStrExt;
@@ -22,7 +23,6 @@ use std::slice::from_raw_parts;
 use bitflags::bitflags;
 use libbpf_sys::bpf_map_info;
 use libbpf_sys::bpf_obj_get_info_by_fd;
-use nix::errno;
 use nix::unistd;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
@@ -170,7 +170,7 @@ impl OpenMap {
 
         let fd = unsafe { libbpf_sys::bpf_obj_get(cstring.as_ptr()) };
         if fd < 0 {
-            return Err(Error::from_raw_os_error(errno::errno()));
+            return Err(Error::from(io::Error::last_os_error()));
         }
         let reuse_result = self.reuse_fd(fd);
 
@@ -580,11 +580,11 @@ impl MapHandle {
             }
             Ok(Some(out))
         } else {
-            let errno = errno::errno();
-            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+            let err = io::Error::last_os_error();
+            if err.kind() == io::ErrorKind::NotFound {
                 Ok(None)
             } else {
-                Err(Error::from_raw_os_error(errno))
+                Err(Error::from(err))
             }
         }
     }
@@ -743,11 +743,11 @@ impl MapHandle {
             }
             Ok(Some(out))
         } else {
-            let errno = errno::errno();
-            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+            let err = io::Error::last_os_error();
+            if err.kind() == io::ErrorKind::NotFound {
                 Ok(None)
             } else {
-                Err(Error::from_raw_os_error(errno))
+                Err(Error::from(err))
             }
         }
     }
