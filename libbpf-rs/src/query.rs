@@ -12,12 +12,12 @@
 
 use std::ffi::c_void;
 use std::ffi::CString;
+use std::io;
 use std::mem::size_of_val;
 use std::os::raw::c_char;
 use std::ptr;
 use std::time::Duration;
 
-use nix::errno;
 use nix::unistd::close;
 
 use crate::util;
@@ -46,7 +46,8 @@ macro_rules! gen_info_impl {
 
                     let fd = unsafe { $fd_by_id(self.cur_id) };
                     if fd < 0 {
-                        if errno::errno() == errno::Errno::ENOENT as i32 {
+                        let err = io::Error::last_os_error();
+                        if err.kind() == io::ErrorKind::NotFound {
                             continue;
                         }
 
@@ -411,7 +412,8 @@ impl Iterator for ProgInfoIter {
 
             let fd = unsafe { libbpf_sys::bpf_prog_get_fd_by_id(self.cur_id) };
             if fd < 0 {
-                if errno::errno() == errno::Errno::ENOENT as i32 {
+                let err = io::Error::last_os_error();
+                if err.kind() == io::ErrorKind::NotFound {
                     continue;
                 }
                 return None;
@@ -553,7 +555,8 @@ impl Iterator for BtfInfoIter {
 
             let fd = unsafe { libbpf_sys::bpf_btf_get_fd_by_id(self.cur_id) };
             if fd < 0 {
-                if errno::errno() == errno::Errno::ENOENT as i32 {
+                let err = io::Error::last_os_error();
+                if err.kind() == io::ErrorKind::NotFound {
                     continue;
                 }
                 return None;

@@ -1,9 +1,7 @@
+use std::io;
 use std::mem::size_of;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
-
-use nix::errno;
-use nix::errno::Errno::EEXIST;
 
 use crate::Error;
 use crate::Result;
@@ -79,9 +77,14 @@ impl TcHook {
     /// Will always fail on a `TC_CUSTOM` hook
     pub fn create(&mut self) -> Result<Self> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_create(&mut self.hook as *mut _) };
-        // the hook may already exist, this is not an error
-        if err != 0 && err != -(EEXIST as i32) {
-            Err(Error::from_raw_os_error(-err))
+        if err != 0 {
+            let err = io::Error::from_raw_os_error(-err);
+            // the hook may already exist, this is not an error
+            if err.kind() == io::ErrorKind::AlreadyExists {
+                Ok(*self)
+            } else {
+                Err(Error::from(err))
+            }
         } else {
             Ok(*self)
         }
@@ -171,7 +174,7 @@ impl TcHook {
 
         let err = unsafe { libbpf_sys::bpf_tc_query(&self.hook as *const _, &mut opts as *mut _) };
         if err != 0 {
-            Err(Error::from_raw_os_error(errno::errno()))
+            Err(Error::from(io::Error::last_os_error()))
         } else {
             Ok(opts.prog_id)
         }
@@ -193,7 +196,7 @@ impl TcHook {
         let err =
             unsafe { libbpf_sys::bpf_tc_attach(&self.hook as *const _, &mut self.opts as *mut _) };
         if err != 0 {
-            Err(Error::from_raw_os_error(errno::errno()))
+            Err(Error::from(io::Error::last_os_error()))
         } else {
             Ok(*self)
         }
