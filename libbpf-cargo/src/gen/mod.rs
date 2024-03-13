@@ -161,15 +161,15 @@ fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
 
-fn canonicalize_internal_map_name(s: &str) -> Option<String> {
+fn canonicalize_internal_map_name(s: &str) -> Option<&'static str> {
     if s.ends_with(".data") {
-        Some("data".to_string())
+        Some("data")
     } else if s.ends_with(".rodata") {
-        Some("rodata".to_string())
+        Some("rodata")
     } else if s.ends_with(".bss") {
-        Some("bss".to_string())
+        Some("bss")
     } else if s.ends_with(".kconfig") {
-        Some("kconfig".to_string())
+        Some("kconfig")
     } else {
         eprintln!("Warning: unrecognized map: {s}");
         None
@@ -183,7 +183,7 @@ fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
     if unsafe { !libbpf_sys::bpf_map__is_internal(map) } {
         Ok(Some(name))
     } else {
-        Ok(canonicalize_internal_map_name(&name))
+        Ok(canonicalize_internal_map_name(&name).map(str::to_string))
     }
 }
 
