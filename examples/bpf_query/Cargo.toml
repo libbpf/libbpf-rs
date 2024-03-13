@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 libbpf-rs = { path = "../../libbpf-rs" }
-nix = { version = "0.27", default-features = false, features = ["net", "user"] }
+nix = { version = "0.28", default-features = false, features = ["net", "user"] }
 clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]

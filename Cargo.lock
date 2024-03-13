@@ -90,7 +90,7 @@ dependencies = [
  "clap",
  "iced-x86",
  "libbpf-rs",
- "nix 0.27.1",
+ "nix 0.28.0",
 ]
 
 [[package]]
@@ -325,7 +325,7 @@ dependencies = [
  "libc",
  "log",
  "memmem",
- "nix 0.27.1",
+ "nix 0.28.0",
  "num_enum",
  "pkg-config",
  "plain",
@@ -417,7 +417,6 @@ dependencies = [
  "bitflags 2.4.2",
  "cfg-if",
  "libc",
- "memoffset",
 ]
 
 [[package]]
@@ -430,6 +429,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc",
+ "memoffset",
 ]
 
 [[package]]
@@ -845,7 +845,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "nix 0.27.1",
+ "nix 0.28.0",
  "plain",
 ]
 
@@ -932,7 +932,7 @@ dependencies = [
  "ctrlc",
  "libbpf-cargo",
  "libbpf-rs",
- "nix 0.27.1",
+ "nix 0.28.0",
 ]
 
 [[package]]
