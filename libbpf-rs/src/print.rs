@@ -4,7 +4,7 @@ use std::mem;
 use std::os::raw::c_char;
 use std::sync::Mutex;
 
-use lazy_static::lazy_static;
+use crate::util::LazyLock;
 
 /// An enum representing the different supported print levels.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -48,10 +48,8 @@ fn default_callback(_lvl: PrintLevel, msg: String) {
 // locking the mutex.
 //
 // Note that default print behavior ignores debug messages.
-lazy_static! {
-    static ref PRINT_CB: Mutex<Option<(PrintLevel, PrintCallback)>> =
-        Mutex::new(Some((PrintLevel::Info, default_callback)));
-}
+static PRINT_CB: LazyLock<Mutex<Option<(PrintLevel, PrintCallback)>>> =
+    LazyLock::new(|| Mutex::new(Some((PrintLevel::Info, default_callback))));
 
 extern "C" fn outer_print_cb(
     level: libbpf_sys::libbpf_print_level,
