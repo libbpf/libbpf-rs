@@ -13,6 +13,7 @@ use nix::sys::socket::socket;
 use nix::sys::socket::sockopt::IpTransparent;
 use nix::sys::socket::sockopt::ReuseAddr;
 use nix::sys::socket::AddressFamily;
+use nix::sys::socket::Backlog;
 use nix::sys::socket::SockFlag;
 use nix::sys::socket::SockType;
 use nix::sys::socket::SockaddrIn;
@@ -65,7 +66,7 @@ fn main() -> Result<()> {
     bind(fd.as_raw_fd(), &addr).context("Failed to bind listener")?;
 
     // Start listening
-    listen(&fd, 128).context("Failed to listen")?;
+    listen(&fd, Backlog::new(128).unwrap()).context("Failed to listen")?;
     let listener = TcpListener::from(fd);
 
     for client in listener.incoming() {
