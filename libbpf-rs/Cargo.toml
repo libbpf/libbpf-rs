@@ -39,7 +39,7 @@ memmem = "0.1.1"
 plain = "0.2.3"
 probe = "0.3"
 scopeguard = "1.1"
-serial_test = "0.5"
+serial_test = { version = "3.0", default-features = false }
 tempfile = "3.3"
 
 # A set of unused dependencies that we require to force correct minimum versions
