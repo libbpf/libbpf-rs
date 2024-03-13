@@ -28,7 +28,7 @@ use libbpf_rs::Result;
 use crate::tcp_ca::TcpCaSkelBuilder;
 
 mod tcp_ca {
-    include!(concat!(env!("OUT_DIR"), "/tcp_ca.skel.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/tcp_ca.skel.rs"));
 }
 
 const TCP_CA_UPDATE: &[u8] = b"tcp_ca_update\0";
