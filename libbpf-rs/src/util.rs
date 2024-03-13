@@ -3,9 +3,11 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::io;
 use std::mem::transmute;
+use std::ops::Deref;
 use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::NonNull;
+use std::sync::OnceLock;
 
 use crate::Error;
 use crate::Result;
@@ -107,6 +109,29 @@ pub fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
             NonNull::new_unchecked(ptr)
         })),
         err => Err(Error::from_raw_os_error(-err as i32)),
+    }
+}
+
+// Fix me, If std::sync::LazyLock is stable(https://github.com/rust-lang/rust/issues/109736).
+pub(crate) struct LazyLock<T> {
+    cell: OnceLock<T>,
+    init: fn() -> T,
+}
+
+impl<T> LazyLock<T> {
+    pub const fn new(f: fn() -> T) -> Self {
+        Self {
+            cell: OnceLock::new(),
+            init: f,
+        }
+    }
+}
+
+impl<T> Deref for LazyLock<T> {
+    type Target = T;
+    #[inline]
+    fn deref(&self) -> &T {
+        self.cell.get_or_init(self.init)
     }
 }
 
