@@ -496,7 +496,7 @@ gen_collection_concrete_type! {
 
 /// A Composite type, which can be one of a [`Struct`] or a [`Union`].
 ///
-/// Sometimes it's not usefull to distinguish them, in that case, one can use this
+/// Sometimes it's not useful to distinguish them, in that case, one can use this
 /// type to inspect any of them.
 #[derive(Debug)]
 pub struct Composite<'btf> {

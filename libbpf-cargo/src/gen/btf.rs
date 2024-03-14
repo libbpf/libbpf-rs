@@ -172,7 +172,6 @@ impl<'s> GenBtf<'s> {
         let ty = ty.skip_mods_and_typedefs();
 
         Ok(btf_type_match!(match ty {
-            BtfKind::Void => bail!("Invalid type: {ty:?}"),
             BtfKind::Int => format!("{}::default()", self.type_declaration(ty)?),
             BtfKind::Float => format!("{}::default()", self.type_declaration(ty)?),
             BtfKind::Ptr => "std::ptr::null_mut()".to_string(),

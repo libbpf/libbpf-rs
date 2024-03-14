@@ -1011,7 +1011,7 @@ fn gen_project(
         )
         .with_context(|| {
             format!(
-                "Failed to generate skeleton for {}",
+                "Failed to generate project skeleton for {}",
                 obj.path.as_path().display()
             )
         })?;
