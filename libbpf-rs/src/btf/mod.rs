@@ -193,10 +193,8 @@ impl Btf<'static> {
 }
 
 impl<'btf> Btf<'btf> {
-    pub(crate) fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Self> {
-        Self::from_bpf_object_raw(obj).and_then(|opt| {
-            opt.ok_or_else(|| Error::with_io_error(io::ErrorKind::NotFound, "btf not found"))
-        })
+    pub(crate) fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Option<Self>> {
+        Self::from_bpf_object_raw(obj)
     }
 
     fn from_bpf_object_raw(obj: *const libbpf_sys::bpf_object) -> Result<Option<Self>> {
