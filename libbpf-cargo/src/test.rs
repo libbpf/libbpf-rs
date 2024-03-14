@@ -1403,6 +1403,27 @@ impl Default for Foo {
 }
 
 #[test]
+fn test_btf_dump_fwd() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct sometypethatdoesnotexist *m;
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    let m = find_type_in_btf!(btf, types::Var<'_>, "m");
+
+    assert_eq!(
+        "*mut std::ffi::c_void",
+        btf.type_declaration(*m)
+            .expect("Failed to generate foo decl")
+    );
+}
+
+#[test]
 fn test_btf_dump_align() {
     let prog_text = r#"
 #include "vmlinux.h"
