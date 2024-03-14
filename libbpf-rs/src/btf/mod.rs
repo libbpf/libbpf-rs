@@ -193,7 +193,8 @@ impl Btf<'static> {
 }
 
 impl<'btf> Btf<'btf> {
-    pub(crate) fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Option<Self>> {
+    /// Create a new `Btf` instance from the given [`libbpf_sys::bpf_object`].
+    pub fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Option<Self>> {
         Self::from_bpf_object_raw(obj)
     }
 

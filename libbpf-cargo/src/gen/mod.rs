@@ -12,6 +12,7 @@ use std::io::stdout;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::mem::size_of;
+use std::ops::Deref;
 use std::os::raw::c_ulong;
 use std::path::Path;
 use std::path::PathBuf;
@@ -59,6 +60,15 @@ impl BpfObj {
     #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut libbpf_sys::bpf_object {
         self.0.as_ptr()
+    }
+}
+
+impl Deref for BpfObj {
+    type Target = libbpf_sys::bpf_object;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: Our `bpf_object` pointer is always valid.
+        unsafe { self.0.as_ref() }
     }
 }
 
@@ -419,8 +429,8 @@ fn gen_skel_prog_defs(
     Ok(())
 }
 
-fn gen_skel_datasec_defs(skel: &mut String, obj_name: &str, object: &[u8]) -> Result<()> {
-    let btf = match Btf::from_raw(obj_name, object)? {
+fn gen_skel_datasec_defs(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result<()> {
+    let btf = match Btf::from_bpf_object(object)? {
         Some(b) => b,
         None => return Ok(()),
     };
@@ -772,7 +782,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     gen_skel_map_defs(&mut skel, &mut object, &obj_name, true)?;
     gen_skel_prog_defs(&mut skel, &mut object, &obj_name, true, false)?;
     gen_skel_prog_defs(&mut skel, &mut object, &obj_name, true, true)?;
-    gen_skel_datasec_defs(&mut skel, raw_obj_name, &mmap)?;
+    gen_skel_datasec_defs(&mut skel, &object, raw_obj_name)?;
 
     write!(
         skel,
