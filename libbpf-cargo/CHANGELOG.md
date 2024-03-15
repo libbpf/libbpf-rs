@@ -2,6 +2,7 @@ Unreleased
 ----------
 - Removed `novendor` feature in favor of having disableable default
   feature
+- Added support for `struct_ops` shadow objects for generated skeletons
 - Adjusted `SkeletonBuilder::clang_args` to accept an iterator of
   arguments instead of a string
 - Added `--clang-args` argument to `make` and `build` sub-commands
