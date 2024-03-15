@@ -32,6 +32,26 @@ use crate::metadata::UnprocessedObj;
 
 use self::btf::GenBtf;
 
+#[derive(Debug, PartialEq)]
+enum InternalMapType {
+    Data,
+    Rodata,
+    Bss,
+    Kconfig,
+}
+
+impl AsRef<str> for InternalMapType {
+    #[inline]
+    fn as_ref(&self) -> &'static str {
+        match self {
+            Self::Data => "data",
+            Self::Rodata => "rodata",
+            Self::Bss => "bss",
+            Self::Kconfig => "kconfig",
+        }
+    }
+}
+
 #[repr(transparent)]
 pub(crate) struct BpfObj(ptr::NonNull<libbpf_sys::bpf_object>);
 
@@ -161,15 +181,15 @@ fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
 
-fn canonicalize_internal_map_name(s: &str) -> Option<&'static str> {
+fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType> {
     if s.ends_with(".data") {
-        Some("data")
+        Some(InternalMapType::Data)
     } else if s.ends_with(".rodata") {
-        Some("rodata")
+        Some(InternalMapType::Rodata)
     } else if s.ends_with(".bss") {
-        Some("bss")
+        Some(InternalMapType::Bss)
     } else if s.ends_with(".kconfig") {
-        Some("kconfig")
+        Some(InternalMapType::Kconfig)
     } else {
         eprintln!("Warning: unrecognized map: {s}");
         None
@@ -183,7 +203,7 @@ fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
     if unsafe { !libbpf_sys::bpf_map__is_internal(map) } {
         Ok(Some(name))
     } else {
-        Ok(canonicalize_internal_map_name(&name).map(str::to_string))
+        Ok(canonicalize_internal_map_name(&name).map(|map| map.as_ref().to_string()))
     }
 }
 
