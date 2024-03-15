@@ -5,7 +5,7 @@ Unreleased
   - Added `vendored` feature to use vendored copies of all needed libraries
 - Added `Program::attach_ksyscall` for attaching to ksyscall handlers
 - Added `Program::test_run` as a way for test-running programs
-- Added `OpenMap::initial_value` for retrieving a map's initial value
+- Added `OpenMap::initial_value{,_mut}` for retrieving a map's initial value
 - Added `replace` functionality to `Xdp` type
 - Added low-level `consume_raw` and `poll_raw` methods to `RingBuffer` type
 - Added `recursion_misses` attribute to `query::ProgramInfo` type
