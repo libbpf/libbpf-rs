@@ -22,6 +22,9 @@ use libbpf_rs::Btf;
 use libbpf_rs::HasSize;
 use libbpf_rs::ReferencesType;
 
+use super::canonicalize_internal_map_name;
+use super::InternalMapType;
+
 const ANON_PREFIX: &str = "__anon_";
 
 /// Check whether the provided type is "unsafe" to use.
@@ -377,11 +380,148 @@ impl<'s> GenBtf<'s> {
         Ok(def)
     }
 
+    pub fn struct_ops_type_definition(&self, processed: &mut HashSet<TypeId>) -> Result<String> {
+        let mut def = String::new();
+        let mut dependent_types = vec![];
+        let mut vars = vec![];
+
+        // Take all the struct_ops datasec entries and collect their variables
+        // (and dependent types).
+        for ty in self.type_by_kind::<types::DataSec<'_>>() {
+            let name = match ty.name() {
+                Some(s) => s.to_str()?,
+                None => "",
+            };
+
+            if !matches!(
+                canonicalize_internal_map_name(name),
+                Some(InternalMapType::StructOps)
+            ) {
+                continue;
+            }
+
+            for var in ty.iter() {
+                let var = self
+                    .type_by_id::<types::Var<'_>>(var.ty)
+                    .ok_or_else(|| anyhow!("datasec type does not point to a variable"))?;
+
+                if var.linkage() == types::Linkage::Static {
+                    // do not output Static Var
+                    continue;
+                }
+
+                let () = vars.push(*var);
+
+                if let Some(next_ty) = next_type(*var)? {
+                    let () = dependent_types.push(next_ty);
+                }
+            }
+        }
+
+        // Emit a single struct_ops definition containing all variables
+        // discovered earlier.
+        write!(
+            def,
+            r#"
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct struct_ops {{
+"#
+        )?;
+
+        for var in vars.iter() {
+            writeln!(
+                def,
+                r#"    pub {var_name}: *mut {var_type},"#,
+                var_name = var.name().unwrap().to_string_lossy(),
+                var_type = self.type_declaration(*var)?
+            )?;
+        }
+
+        writeln!(def, "}}")?;
+
+        write!(
+            def,
+            r#"
+impl struct_ops {{
+"#
+        )?;
+
+        for var in vars.iter() {
+            write!(
+                def,
+                r#"
+    pub fn {var_name}(&self) -> &{var_type} {{
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe {{ self.{var_name}.as_ref() }}.unwrap()
+    }}
+
+    pub fn {var_name}_mut(&mut self) -> &mut {var_type} {{
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe {{ self.{var_name}.as_mut() }}.unwrap()
+    }}
+"#,
+                var_name = var.name().unwrap().to_string_lossy(),
+                var_type = self.type_declaration(*var)?
+            )?;
+        }
+
+        writeln!(def, "}}")?;
+
+        let vars = vars
+            .into_iter()
+            .map(|ty| ty.next_type().unwrap().type_id())
+            .collect::<HashSet<_>>();
+
+        while !dependent_types.is_empty() {
+            let ty = dependent_types.remove(0);
+            if !processed.insert(ty.type_id()) {
+                continue;
+            }
+
+            btf_type_match!(match ty {
+                BtfKind::Composite(t) => {
+                    if vars.contains(&ty.type_id()) {
+                        let opts = TypeDeclOpts {
+                            func_type: "libbpf_rs::libbpf_sys::bpf_program",
+                        };
+                        self.type_definition_for_composites_with_opts(
+                            &mut def,
+                            &mut dependent_types,
+                            t,
+                            &opts,
+                        )?
+                    } else {
+                        self.type_definition_for_composites(&mut def, &mut dependent_types, t)?
+                    }
+                }
+                BtfKind::Enum(t) => self.type_definition_for_enums(&mut def, t)?,
+                _ => bail!("Invalid type: {:?}", ty.kind()),
+            });
+        }
+
+        Ok(def)
+    }
     fn type_definition_for_composites<'a>(
         &'a self,
         def: &mut String,
         dependent_types: &mut Vec<BtfType<'a>>,
         t: types::Composite<'_>,
+    ) -> Result<()> {
+        let opts = TypeDeclOpts {
+            func_type: "std::ffi::c_void",
+        };
+        self.type_definition_for_composites_with_opts(def, dependent_types, t, &opts)
+    }
+
+    fn type_definition_for_composites_with_opts<'a>(
+        &'a self,
+        def: &mut String,
+        dependent_types: &mut Vec<BtfType<'a>>,
+        t: types::Composite<'_>,
+        opts: &TypeDeclOpts,
     ) -> Result<()> {
         let packed = is_struct_packed(&t, &self.btf)?;
 
@@ -476,7 +616,7 @@ impl<'s> GenBtf<'s> {
             // Set `offset` to end of current var
             offset = (member_offset / 8) as usize + size_of_type(field_ty, &self.btf)?;
 
-            let field_ty_str = self.type_declaration(field_ty)?;
+            let field_ty_str = type_declaration_impl(field_ty, &self.anon_types, opts)?;
             let field_ty_str = if is_unsafe(field_ty) {
                 Cow::Owned(format!("std::mem::MaybeUninit<{field_ty_str}>"))
             } else {
