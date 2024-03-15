@@ -73,16 +73,32 @@ impl OpenMap {
         }
     }
 
-    /// Retrieve the initial value of the map.
-    pub fn initial_value(&self) -> Option<&[u8]> {
+    fn initial_value_raw(&self) -> (*mut u8, usize) {
         let mut size = 0u64;
-        let value = unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_map__initial_value(self.ptr.as_ptr(), &mut size as *mut _ as _)
         };
-        if value.is_null() {
+        (ptr.cast(), size as _)
+    }
+
+    /// Retrieve the initial value of the map.
+    pub fn initial_value(&self) -> Option<&[u8]> {
+        let (ptr, size) = self.initial_value_raw();
+        if ptr.is_null() {
             None
         } else {
-            let data = unsafe { slice::from_raw_parts(value.cast::<u8>(), size as _) };
+            let data = unsafe { slice::from_raw_parts(ptr.cast::<u8>(), size) };
+            Some(data)
+        }
+    }
+
+    /// Retrieve the initial value of the map.
+    pub fn initial_value_mut(&mut self) -> Option<&mut [u8]> {
+        let (ptr, size) = self.initial_value_raw();
+        if ptr.is_null() {
+            None
+        } else {
+            let data = unsafe { slice::from_raw_parts_mut(ptr.cast::<u8>(), size) };
             Some(data)
         }
     }
