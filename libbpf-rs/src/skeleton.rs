@@ -241,10 +241,12 @@ impl ObjectSkeletonConfig<'_> {
         &mut self.inner
     }
 
-    /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
+    /// Warning: the returned pointer is only valid while the
+    /// `ObjectSkeletonConfig` is alive.
     ///
     /// # Panic
-    /// This method panics if the inner [`bpf_object_skeleton`] has not be initialized.
+    /// This method panics if the inner [`bpf_object_skeleton`] has not been
+    /// initialized.
     ///
     /// To initialize it, first call [`Self::get`] and initialize the skeleton.
     pub fn object_ptr(&mut self) -> NonNull<bpf_object> {
