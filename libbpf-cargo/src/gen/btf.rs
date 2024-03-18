@@ -231,7 +231,7 @@ impl<'s> GenBtf<'s> {
     ) -> Result<usize> {
         ensure!(
             current_offset <= required_offset,
-            "Current offset ahead of required offset"
+            "current offset ({current_offset}) ahead of required offset ({required_offset})"
         );
 
         let align = if packed {
