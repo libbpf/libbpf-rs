@@ -1715,27 +1715,82 @@ impl Default for Foo {
 }
 
 #[test]
-fn test_btf_dump_definition_bitfield_struct_fails() {
+fn test_btf_dump_definition_bitfield_1() {
     let prog_text = r#"
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
 struct Foo {
-    unsigned int x: 2;
-    unsigned int y: 3;
+    unsigned short x: 2;
+    unsigned short y: 3;
 };
 
 struct Foo foo;
 "#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub __pad_0: [u8; 2],
+}
+"#;
+
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
-
-    // Find our struct
     let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
 
-    assert!(btf
-        .type_definition(*struct_foo, &mut HashSet::new())
-        .is_err());
+    assert_definition(&btf, &struct_foo, expected_output);
+}
+
+#[test]
+fn test_btf_dump_definition_bitfield_2() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    const char *name;
+    void *kset;
+    unsigned int state_initialized: 1;
+    unsigned int state_in_sysfs: 1;
+    unsigned int state_add_uevent_sent: 1;
+    unsigned int state_remove_uevent_sent: 1;
+    unsigned int uevent_suppress: 1;
+    bool flag;
+};
+
+struct Foo foo;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub name: *mut i8,
+    pub kset: *mut std::ffi::c_void,
+    pub __pad_16: [u8; 1],
+    pub flag: std::mem::MaybeUninit<bool>,
+    pub __pad_18: [u8; 6],
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            name: std::ptr::null_mut(),
+            kset: std::ptr::null_mut(),
+            __pad_16: [u8::default(); 1],
+            flag: std::mem::MaybeUninit::new(bool::default()),
+            __pad_18: [u8::default(); 6],
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
+
+    assert_definition(&btf, &struct_foo, expected_output);
 }
 
 #[test]
