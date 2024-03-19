@@ -338,7 +338,10 @@ impl<'s> GenBtf<'s> {
         for member in t.iter() {
             let member_offset = match member.attr {
                 MemberAttr::Normal { offset } => offset,
-                _ => bail!("Struct bitfields not supported"),
+                // Bitfields are tricky to get correct, if at all possible. For
+                // now we just skip them, which results in them being covered by
+                // padding bytes.
+                MemberAttr::BitField { .. } => continue,
             };
 
             let field_ty = self
