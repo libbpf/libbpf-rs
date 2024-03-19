@@ -2428,6 +2428,55 @@ impl Default for __anon_4 {
 }
 
 #[test]
+fn test_btf_dump_anon_union_member() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    union {
+        char *name;
+        void *tp;
+    };
+};
+
+struct Foo foo = {{0}};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub __anon_1: __anon_1,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union __anon_1 {
+    pub name: *mut i8,
+    pub tp: *mut std::ffi::c_void,
+}
+impl std::fmt::Debug for __anon_1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(???)")
+    }
+}
+impl Default for __anon_1 {
+    fn default() -> Self {
+        __anon_1 {
+            name: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
+
+    assert_definition(&btf, &struct_foo, expected_output);
+}
+
+#[test]
 fn test_btf_dump_definition_anon_enum() {
     let prog_text = r#"
 #include "vmlinux.h"
