@@ -348,6 +348,15 @@ impl<'s> GenBtf<'s> {
             if let Some(next_ty_id) = next_type(field_ty)? {
                 dependent_types.push(next_ty_id);
             }
+            let field_name = if let Some(name) = member.name {
+                name.to_string_lossy()
+            } else {
+                // Only anonymous unnamed unions should ever have no name set.
+                // We just name them the same as their anonymous type. As there
+                // can only be one member of this very type, there can't be a
+                // conflict.
+                self.get_type_name_handling_anon_types(&field_ty)
+            };
 
             // Add padding as necessary
             if t.is_struct {
@@ -392,11 +401,6 @@ impl<'s> GenBtf<'s> {
 
                     impl_default.push(format!(
                         r#"            {field_name}: {field_ty_str}"#,
-                        field_name = if let Some(name) = member.name {
-                            name.to_string_lossy()
-                        } else {
-                            self.get_type_name_handling_anon_types(&field_ty)
-                        },
                         field_ty_str = def
                     ));
                 }
@@ -411,12 +415,6 @@ impl<'s> GenBtf<'s> {
             offset = (member_offset / 8) as usize + self.size_of(field_ty)?;
 
             let field_ty_str = self.type_declaration(field_ty)?;
-            let field_name = if let Some(name) = member.name {
-                name.to_string_lossy()
-            } else {
-                Cow::Borrowed(field_ty_str.as_str())
-            };
-
             let field_ty_str = if is_unsafe(field_ty) {
                 Cow::Owned(format!("std::mem::MaybeUninit<{field_ty_str}>"))
             } else {
