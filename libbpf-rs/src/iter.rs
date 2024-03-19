@@ -1,8 +1,8 @@
 use std::io;
-use std::os::unix::io::AsFd as _;
-use std::os::unix::io::AsRawFd as _;
-
-use nix::unistd;
+use std::os::fd::AsFd;
+use std::os::fd::AsRawFd;
+use std::os::fd::FromRawFd;
+use std::os::fd::OwnedFd;
 
 use crate::Error;
 use crate::Link;
@@ -16,7 +16,7 @@ use crate::Result;
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 pub struct Iter {
-    fd: i32,
+    fd: OwnedFd,
 }
 
 impl Iter {
@@ -27,22 +27,19 @@ impl Iter {
         if fd < 0 {
             return Err(Error::from(io::Error::last_os_error()));
         }
-        Ok(Self { fd })
+        Ok(Self {
+            fd: unsafe { OwnedFd::from_raw_fd(fd) },
+        })
     }
 }
 
 impl io::Read for Iter {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let bytes_read = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut _, buf.len()) };
+        let bytes_read =
+            unsafe { libc::read(self.fd.as_raw_fd(), buf.as_mut_ptr() as *mut _, buf.len()) };
         if bytes_read < 0 {
             return Err(io::Error::last_os_error());
         }
         Ok(bytes_read as usize)
-    }
-}
-
-impl Drop for Iter {
-    fn drop(&mut self) {
-        let _ = unistd::close(self.fd);
     }
 }
