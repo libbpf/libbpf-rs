@@ -23,7 +23,6 @@ use std::slice::from_raw_parts;
 use bitflags::bitflags;
 use libbpf_sys::bpf_map_info;
 use libbpf_sys::bpf_obj_get_info_by_fd;
-use nix::unistd;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use strum_macros::Display;
@@ -159,8 +158,8 @@ impl OpenMap {
     }
 
     /// Reuse an fd for a BPF map
-    pub fn reuse_fd(&self, fd: i32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr.as_ptr(), fd) };
+    pub fn reuse_fd(&self, fd: BorrowedFd<'_>) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr.as_ptr(), fd.as_raw_fd()) };
         util::parse_ret(ret)
     }
 
@@ -172,12 +171,10 @@ impl OpenMap {
         if fd < 0 {
             return Err(Error::from(io::Error::last_os_error()));
         }
-        let reuse_result = self.reuse_fd(fd);
 
-        // Always close `fd` regardless of if `reuse_fd` succeeded or failed
-        //
-        // Ignore errors b/c can't really recover from failure
-        let _ = unistd::close(fd);
+        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
+
+        let reuse_result = self.reuse_fd(fd.as_fd());
 
         reuse_result
     }

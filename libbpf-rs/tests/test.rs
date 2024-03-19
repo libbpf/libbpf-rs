@@ -10,7 +10,6 @@ use std::hint;
 use std::io;
 use std::io::Read;
 use std::mem::size_of;
-use std::os::fd::AsRawFd;
 use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
@@ -18,8 +17,6 @@ use std::ptr::addr_of;
 use std::slice;
 use std::sync::mpsc::channel;
 use std::time::Duration;
-
-use nix::unistd::close;
 
 use plain::Plain;
 use probe::probe;
@@ -1780,8 +1777,7 @@ fn test_sudo_program_get_fd_and_id() {
 
     let prog_fd = prog.as_fd();
     let prog_id = Program::get_id_by_fd(prog_fd).expect("failed to get program id by fd");
-    let owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd by id");
-    close(owned_prog_fd.as_raw_fd()).expect("failed to close owned program fd");
+    let _owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd by id");
 }
 
 /// Check that autocreate disabled maps don't prevent object loading

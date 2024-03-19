@@ -14,11 +14,14 @@ use std::ffi::c_void;
 use std::ffi::CString;
 use std::io;
 use std::mem::size_of_val;
+use std::os::fd::AsFd;
+use std::os::fd::AsRawFd;
+use std::os::fd::BorrowedFd;
+use std::os::fd::FromRawFd;
+use std::os::fd::OwnedFd;
 use std::os::raw::c_char;
 use std::ptr;
 use std::time::Duration;
-
-use nix::unistd::close;
 
 use crate::util;
 use crate::MapType;
@@ -38,7 +41,7 @@ macro_rules! gen_info_impl {
 
         impl $name {
             // Returns Some(next_valid_fd), None on none left
-            fn next_valid_fd(&mut self) -> Option<i32> {
+            fn next_valid_fd(&mut self) -> Option<OwnedFd> {
                 loop {
                     if unsafe { $next_id(self.cur_id, &mut self.cur_id) } != 0 {
                         return None;
@@ -54,7 +57,7 @@ macro_rules! gen_info_impl {
                         return None;
                     }
 
-                    return Some(fd);
+                    return Some(unsafe { OwnedFd::from_raw_fd(fd)});
                 }
             }
         }
@@ -63,10 +66,7 @@ macro_rules! gen_info_impl {
             type Item = $info_ty;
 
             fn next(&mut self) -> Option<Self::Item> {
-                let fd = match self.next_valid_fd() {
-                    Some(fd) => fd,
-                    None => return None,
-                };
+                let fd = self.next_valid_fd()?;
 
                 // We need to use std::mem::zeroed() instead of just using
                 // ::default() because padding bytes need to be zero as well.
@@ -77,14 +77,13 @@ macro_rules! gen_info_impl {
                 let item_ptr: *mut $uapi_info_ty = &mut item;
                 let mut len = size_of_val(&item) as u32;
 
-                let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+                let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len) };
                 let parsed_uapi = if ret != 0 {
                     None
                 } else {
-                    <$info_ty>::from_uapi(fd, item)
+                    <$info_ty>::from_uapi(fd.as_fd(), item)
                 };
 
-                let _ = close(fd);
                 parsed_uapi
             }
         }
@@ -270,7 +269,7 @@ impl ProgInfoQueryOptions {
 }
 
 impl ProgramInfo {
-    fn load_from_fd(fd: i32, opts: &ProgInfoQueryOptions) -> Result<Self> {
+    fn load_from_fd(fd: BorrowedFd<'_>, opts: &ProgInfoQueryOptions) -> Result<Self> {
         let mut item = libbpf_sys::bpf_prog_info::default();
 
         let mut xlated_prog_insns: Vec<u8> = Vec::new();
@@ -286,8 +285,9 @@ impl ProgramInfo {
         let item_ptr: *mut libbpf_sys::bpf_prog_info = &mut item;
         let mut len = size_of_val(&item) as u32;
 
-        let ret =
-            unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+        };
         util::parse_ret(ret)?;
 
         // SANITY: `libbpf` should guarantee NUL termination.
@@ -366,8 +366,9 @@ impl ProgramInfo {
             item.nr_jited_ksyms = 0;
         }
 
-        let ret =
-            unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+        };
         util::parse_ret(ret)?;
 
         return Ok(ProgramInfo {
@@ -401,10 +402,8 @@ impl ProgramInfo {
     }
 }
 
-impl Iterator for ProgInfoIter {
-    type Item = ProgramInfo;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl ProgInfoIter {
+    fn next_valid_fd(&mut self) -> Option<OwnedFd> {
         loop {
             if unsafe { libbpf_sys::bpf_prog_get_next_id(self.cur_id, &mut self.cur_id) } != 0 {
                 return None;
@@ -419,14 +418,23 @@ impl Iterator for ProgInfoIter {
                 return None;
             }
 
-            let prog = ProgramInfo::load_from_fd(fd, &self.opts);
-            let _ = close(fd);
+            return Some(unsafe { OwnedFd::from_raw_fd(fd) });
+        }
+    }
+}
 
-            match prog {
-                Ok(p) => return Some(p),
-                // TODO: We should consider bubbling up errors properly.
-                Err(_err) => (),
-            }
+impl Iterator for ProgInfoIter {
+    type Item = ProgramInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let fd = self.next_valid_fd()?;
+
+        let prog = ProgramInfo::load_from_fd(fd.as_fd(), &self.opts);
+
+        match prog {
+            Ok(p) => Some(p),
+            // TODO: We should consider bubbling up errors properly.
+            Err(_err) => None,
         }
     }
 }
@@ -453,7 +461,7 @@ pub struct MapInfo {
 }
 
 impl MapInfo {
-    fn from_uapi(_fd: i32, s: libbpf_sys::bpf_map_info) -> Option<Self> {
+    fn from_uapi(_fd: BorrowedFd<'_>, s: libbpf_sys::bpf_map_info) -> Option<Self> {
         // SANITY: `libbpf` should guarantee NUL termination.
         let name = util::c_char_slice_to_cstr(&s.name).unwrap();
         let ty = match MapType::try_from(s.type_) {
@@ -501,7 +509,7 @@ pub struct BtfInfo {
 }
 
 impl BtfInfo {
-    fn load_from_fd(fd: i32) -> Result<Self> {
+    fn load_from_fd(fd: BorrowedFd<'_>) -> Result<Self> {
         let mut item = libbpf_sys::bpf_btf_info::default();
         let mut btf: Vec<u8> = Vec::new();
         let mut name: Vec<u8> = Vec::new();
@@ -509,8 +517,9 @@ impl BtfInfo {
         let item_ptr: *mut libbpf_sys::bpf_btf_info = &mut item;
         let mut len = size_of_val(&item) as u32;
 
-        let ret =
-            unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+        };
         util::parse_ret(ret)?;
 
         // The API gives you the ascii string length while expecting
@@ -522,8 +531,9 @@ impl BtfInfo {
         btf.resize(item.btf_size as usize, 0u8);
         item.btf = btf.as_mut_ptr() as *mut c_void as u64;
 
-        let ret =
-            unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+        };
         util::parse_ret(ret)?;
 
         Ok(BtfInfo {
@@ -544,10 +554,9 @@ pub struct BtfInfoIter {
     cur_id: u32,
 }
 
-impl Iterator for BtfInfoIter {
-    type Item = BtfInfo;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl BtfInfoIter {
+    // Returns Some(next_valid_fd), None on none left
+    fn next_valid_fd(&mut self) -> Option<OwnedFd> {
         loop {
             if unsafe { libbpf_sys::bpf_btf_get_next_id(self.cur_id, &mut self.cur_id) } != 0 {
                 return None;
@@ -562,14 +571,23 @@ impl Iterator for BtfInfoIter {
                 return None;
             }
 
-            let info = BtfInfo::load_from_fd(fd);
-            let _ = close(fd);
+            return Some(unsafe { OwnedFd::from_raw_fd(fd) });
+        }
+    }
+}
 
-            match info {
-                Ok(i) => return Some(i),
-                // TODO: We should consider bubbling up errors properly.
-                Err(_err) => (),
-            }
+impl Iterator for BtfInfoIter {
+    type Item = BtfInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let fd = self.next_valid_fd()?;
+
+        let info = BtfInfo::load_from_fd(fd.as_fd());
+
+        match info {
+            Ok(i) => Some(i),
+            // TODO: We should consider bubbling up errors properly.
+            Err(_err) => None,
         }
     }
 }
@@ -627,7 +645,7 @@ pub struct LinkInfo {
 }
 
 impl LinkInfo {
-    fn from_uapi(fd: i32, mut s: libbpf_sys::bpf_link_info) -> Option<Self> {
+    fn from_uapi(fd: BorrowedFd<'_>, mut s: libbpf_sys::bpf_link_info) -> Option<Self> {
         let type_info = match s.type_ {
             libbpf_sys::BPF_LINK_TYPE_RAW_TRACEPOINT => {
                 let mut buf = [0; 256];
@@ -637,7 +655,11 @@ impl LinkInfo {
                 let mut len = size_of_val(&s) as u32;
 
                 let ret = unsafe {
-                    libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len)
+                    libbpf_sys::bpf_obj_get_info_by_fd(
+                        fd.as_raw_fd(),
+                        item_ptr as *mut c_void,
+                        &mut len,
+                    )
                 };
                 if ret != 0 {
                     return None;
