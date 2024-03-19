@@ -1308,6 +1308,44 @@ fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: 
 }
 
 #[test]
+fn test_btf_dump_reserved_keyword_escaping() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    u64 type;
+    void* mod;
+};
+
+struct Foo foo = {{0}};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub r#type: u64,
+    pub r#mod: *mut std::ffi::c_void,
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            r#type: u64::default(),
+            r#mod: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
+
+    assert_definition(&btf, &struct_foo, expected_output);
+}
+
+#[test]
 fn test_btf_dump_basic() {
     let prog_text = r#"
 #include "vmlinux.h"
