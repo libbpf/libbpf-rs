@@ -38,6 +38,33 @@ fn is_unsafe(ty: BtfType<'_>) -> bool {
     })
 }
 
+fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
+    // A list of keywords that need to be escaped in Rust when used for variable
+    // names or similar (from https://doc.rust-lang.org/reference/keywords.html#keywords,
+    // minus keywords that are already reserved in C).
+    let reserved = [
+        "Self", "abstract", "as", "async", "await", "become", "box", "crate", "dyn", "enum",
+        "final", "fn", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut",
+        "override", "priv", "pub", "ref", "self", "super", "trait", "try", "type", "typeof",
+        "unsafe", "unsized", "use", "virtual", "where", "yield",
+    ];
+    debug_assert_eq!(
+        reserved.as_slice(),
+        {
+            let mut vec = reserved.to_vec();
+            vec.sort();
+            vec
+        },
+        "please keep reserved keywords sorted",
+    );
+
+    if reserved.binary_search(&identifier.as_ref()).is_ok() {
+        Cow::Owned(format!("r#{identifier}"))
+    } else {
+        identifier
+    }
+}
+
 pub struct GenBtf<'s> {
     btf: Btf<'s>,
     // We use refcell here because the design of this type unfortunately causes a lot of borrowing
@@ -352,7 +379,7 @@ impl<'s> GenBtf<'s> {
                 dependent_types.push(next_ty_id);
             }
             let field_name = if let Some(name) = member.name {
-                name.to_string_lossy()
+                escape_reserved_keyword(name.to_string_lossy())
             } else {
                 // Only anonymous unnamed unions should ever have no name set.
                 // We just name them the same as their anonymous type. As there

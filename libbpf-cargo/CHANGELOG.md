@@ -7,6 +7,8 @@ Unreleased
 - Added `--clang-args` argument to `make` and `build` sub-commands
 - Put all generated types into single `<project>_types` module as opposed to
   having multiple modules for various sections (`.bss`, `.rodata`, etc.)
+- Fixed potential naming issues by escaping reserved keywords used in
+  identifiers
 - Fixed potential unsoundness issues in generated skeletons by wrapping "unsafe"
   type in `MaybeUninit`
 - Added pointer based ("raw") access to datasec type to generated skeletons
