@@ -258,15 +258,19 @@ pub enum MemberAttr {
 
 impl MemberAttr {
     #[inline]
-    fn normal(offset: u32) -> Self {
-        Self::Normal { offset }
-    }
-
-    #[inline]
-    fn bif_field(offset: u32) -> Self {
-        Self::BitField {
-            size: (offset >> 24) as u8,
-            offset: offset & 0x00_ff_ff_ff,
+    fn new(kflag: bool, offset: u32) -> Self {
+        if kflag {
+            let size = (offset >> 24) as u8;
+            if size != 0 {
+                Self::BitField {
+                    size,
+                    offset: offset & 0x00_ff_ff_ff,
+                }
+            } else {
+                Self::Normal { offset }
+            }
+        } else {
+            Self::Normal { offset }
         }
     }
 }
@@ -458,11 +462,7 @@ gen_collection_concrete_type! {
     |btf, member, kflag| StructMember {
         name: btf.name_at(member.name_off),
         ty: member.type_.into(),
-        attr: if kflag {
-            MemberAttr::bif_field(member.offset)
-        } else {
-            MemberAttr::normal(member.offset)
-        },
+        attr: MemberAttr::new(kflag, member.offset),
     }
 }
 
@@ -486,11 +486,7 @@ gen_collection_concrete_type! {
     |btf, member, kflag| UnionMember {
         name: btf.name_at(member.name_off),
         ty: member.type_.into(),
-        attr: if kflag {
-            MemberAttr::bif_field(member.offset)
-        } else {
-            MemberAttr::normal(member.offset)
-        },
+        attr: MemberAttr::new(kflag, member.offset),
     }
 }
 
@@ -583,11 +579,7 @@ gen_collection_members_concrete_type! {
     |btf, member, kflag| CompositeMember {
         name: btf.name_at(member.name_off),
         ty: member.type_.into(),
-        attr: if kflag {
-            MemberAttr::bif_field(member.offset)
-        } else {
-            MemberAttr::normal(member.offset)
-        },
+        attr: MemberAttr::new(kflag, member.offset),
     }
 }
 

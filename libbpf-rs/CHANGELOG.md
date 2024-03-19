@@ -9,6 +9,7 @@ Unreleased
 - Added `replace` functionality to `Xdp` type
 - Added low-level `consume_raw` and `poll_raw` methods to `RingBuffer` type
 - Added `recursion_misses` attribute to `query::ProgramInfo` type
+- Fixed incorrect inference of `btf::types::MemberAttr::Bitfield` variant
 - Fixed examples not building on non-x86 architectures
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.70`
