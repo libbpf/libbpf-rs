@@ -83,14 +83,30 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
     }
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct AnonTypes {
+    /// A mapping from type to number, allowing us to assign numbers to types
+    /// consistently.
+    types: RefCell<HashMap<TypeId, usize>>,
+}
+
+impl AnonTypes {
+    pub fn type_name_or_anon<'s>(&self, ty: &BtfType<'s>) -> Cow<'s, str> {
+        match ty.name() {
+            None => {
+                let mut anon_table = self.types.borrow_mut();
+                let len = anon_table.len() + 1; // use 1 index anon ids for backwards compat
+                let anon_id = anon_table.entry(ty.type_id()).or_insert(len);
+                format!("{ANON_PREFIX}{anon_id}").into()
+            }
+            Some(n) => n.to_string_lossy(),
+        }
+    }
+}
+
 pub struct GenBtf<'s> {
     btf: Btf<'s>,
-    // We use refcell here because the design of this type unfortunately causes a lot of borrowing
-    // issues. (Taking BtfType as an argument of a &mut self method requires having multiple
-    // borrows of self, since BtfType borrows from self).
-    //
-    // This way we avoid having any of those issues as we use internal mutability.
-    anon_types: RefCell<HashMap<TypeId, usize>>,
+    anon_types: AnonTypes,
 }
 
 impl<'s> From<Btf<'s>> for GenBtf<'s> {
@@ -110,18 +126,6 @@ impl<'s> Deref for GenBtf<'s> {
 }
 
 impl<'s> GenBtf<'s> {
-    fn get_type_name_handling_anon_types(&self, t: &BtfType<'s>) -> Cow<'s, str> {
-        match t.name() {
-            None => {
-                let mut anon_table = self.anon_types.borrow_mut();
-                let len = anon_table.len() + 1; // use 1 index anon ids for backwards compat
-                let anon_id = anon_table.entry(t.type_id()).or_insert(len);
-                format!("{ANON_PREFIX}{anon_id}").into()
-            }
-            Some(n) => n.to_string_lossy(),
-        }
-    }
-
     /// Returns the rust-ified type declaration of `ty` in string format.
     ///
     /// Rule of thumb is `ty` must be a type a variable can have.
@@ -174,7 +178,7 @@ impl<'s> GenBtf<'s> {
                 format!("[{}; {}]", val_ty, t.capacity())
             }
             BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
-                self.get_type_name_handling_anon_types(&ty).into_owned(),
+                self.anon_types.type_name_or_anon(&ty).into_owned(),
             // The only way a variable references a function or forward declaration is through a
             // pointer. Return c_void here so the final def will look like `*mut c_void`.
             //
@@ -211,7 +215,7 @@ impl<'s> GenBtf<'s> {
                 )
             }
             BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
-                format!("{}::default()", self.get_type_name_handling_anon_types(&ty)),
+                format!("{}::default()", self.anon_types.type_name_or_anon(&ty)),
             BtfKind::Var(t) =>
                 format!("{}::default()", self.type_declaration(t.referenced_type())?),
             _ => bail!("Invalid type: {ty:?}"),
@@ -385,7 +389,7 @@ impl<'s> GenBtf<'s> {
                 // We just name them the same as their anonymous type. As there
                 // can only be one member of this very type, there can't be a
                 // conflict.
-                self.get_type_name_handling_anon_types(&field_ty)
+                self.anon_types.type_name_or_anon(&field_ty)
             };
 
             // Add padding as necessary
@@ -481,7 +485,7 @@ impl<'s> GenBtf<'s> {
             def,
             r#"pub {agg_type} {name} {{"#,
             agg_type = aggregate_type,
-            name = self.get_type_name_handling_anon_types(&t),
+            name = self.anon_types.type_name_or_anon(&t),
         )?;
 
         for field in agg_content {
@@ -494,13 +498,13 @@ impl<'s> GenBtf<'s> {
             writeln!(
                 def,
                 r#"impl Default for {} {{"#,
-                self.get_type_name_handling_anon_types(&t),
+                self.anon_types.type_name_or_anon(&t),
             )?;
             writeln!(def, r#"    fn default() -> Self {{"#)?;
             writeln!(
                 def,
                 r#"        {} {{"#,
-                self.get_type_name_handling_anon_types(&t)
+                self.anon_types.type_name_or_anon(&t)
             )?;
             for impl_def in impl_default {
                 writeln!(def, r#"{impl_def},"#)?;
@@ -513,7 +517,7 @@ impl<'s> GenBtf<'s> {
             writeln!(
                 def,
                 r#"impl std::fmt::Debug for {} {{"#,
-                self.get_type_name_handling_anon_types(&t),
+                self.anon_types.type_name_or_anon(&t),
             )?;
             writeln!(
                 def,
@@ -527,13 +531,13 @@ impl<'s> GenBtf<'s> {
             writeln!(
                 def,
                 r#"impl Default for {} {{"#,
-                self.get_type_name_handling_anon_types(&t),
+                self.anon_types.type_name_or_anon(&t),
             )?;
             writeln!(def, r#"    fn default() -> Self {{"#)?;
             writeln!(
                 def,
                 r#"        {} {{"#,
-                self.get_type_name_handling_anon_types(&t)
+                self.anon_types.type_name_or_anon(&t)
             )?;
             writeln!(def, r#"{},"#, impl_default[0])?;
             writeln!(def, r#"        }}"#)?;
@@ -569,7 +573,7 @@ impl<'s> GenBtf<'s> {
         writeln!(
             def,
             r#"pub enum {name} {{"#,
-            name = self.get_type_name_handling_anon_types(&t),
+            name = self.anon_types.type_name_or_anon(&t),
         )?;
 
         for (i, value) in t.iter().enumerate() {
