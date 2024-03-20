@@ -9,6 +9,6 @@ edition = "2021"
 libbpf-cargo = { path = "../../libbpf-cargo" }
 
 [dependencies]
-clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.0.32", features = ["derive"] }
 libbpf-rs = { path = "../../libbpf-rs" }
 libc = "0.2"
