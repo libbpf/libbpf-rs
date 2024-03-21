@@ -5,6 +5,10 @@ authors = ["Devasia Thomas <https://www.linkedin.com/in/devasiathomas>"]
 license = "LGPL-2.1-only OR BSD-2-Clause"
 edition = "2021"
 
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
+vmlinux = { path = "../../vmlinux" }
+
 [dependencies]
 anyhow = "1.0.4"
 libbpf-rs = { path = "../../libbpf-rs" }
@@ -13,9 +17,6 @@ phf = { version = "0.11", features = ["macros"] }
 plain = "0.2"
 time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
 clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
-
-[build-dependencies]
-libbpf-cargo = { path = "../../libbpf-cargo" }
 
 [features]
 static = ["libbpf-rs/static"]
