@@ -137,6 +137,39 @@ fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
     Ok(s)
 }
 
+/// Returns an expression that evaluates to the Default value
+/// of a type(typeid) in string form.
+///
+/// To be used when creating a impl Default for a structure
+///
+/// Rule of thumb is `ty` must be a type a variable can have.
+///
+/// Type qualifiers are discarded (eg `const`, `volatile`, etc).
+fn type_default(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
+    let ty = ty.skip_mods_and_typedefs();
+
+    Ok(btf_type_match!(match ty {
+        BtfKind::Int => format!("{}::default()", type_declaration(ty, anon_types)?),
+        BtfKind::Float => format!("{}::default()", type_declaration(ty, anon_types)?),
+        BtfKind::Ptr => "std::ptr::null_mut()".to_string(),
+        BtfKind::Array(t) => {
+            format!(
+                "[{}; {}]",
+                type_default(t.contained_type(), anon_types)
+                    .map_err(|err| anyhow!("in {ty:?}: {err}"))?,
+                t.capacity()
+            )
+        }
+        BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
+            format!("{}::default()", anon_types.type_name_or_anon(&ty)),
+        BtfKind::Var(t) => format!(
+            "{}::default()",
+            type_declaration(t.referenced_type(), anon_types)?
+        ),
+        _ => bail!("Invalid type: {ty:?}"),
+    }))
+}
+
 fn size_of_type(ty: BtfType<'_>, btf: &Btf<'_>) -> Result<usize> {
     let ty = ty.skip_mods_and_typedefs();
 
@@ -243,26 +276,7 @@ impl<'s> GenBtf<'s> {
     ///
     /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
     fn type_default(&self, ty: BtfType<'s>) -> Result<String> {
-        let ty = ty.skip_mods_and_typedefs();
-
-        Ok(btf_type_match!(match ty {
-            BtfKind::Int => format!("{}::default()", self.type_declaration(ty)?),
-            BtfKind::Float => format!("{}::default()", self.type_declaration(ty)?),
-            BtfKind::Ptr => "std::ptr::null_mut()".to_string(),
-            BtfKind::Array(t) => {
-                format!(
-                    "[{}; {}]",
-                    self.type_default(t.contained_type())
-                        .map_err(|err| anyhow!("in {ty:?}: {err}"))?,
-                    t.capacity()
-                )
-            }
-            BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
-                format!("{}::default()", self.anon_types.type_name_or_anon(&ty)),
-            BtfKind::Var(t) =>
-                format!("{}::default()", self.type_declaration(t.referenced_type())?),
-            _ => bail!("Invalid type: {ty:?}"),
-        }))
+        type_default(ty, &self.anon_types)
     }
 
     fn is_struct_packed(&self, composite: &types::Composite<'_>) -> Result<bool> {
