@@ -38,6 +38,24 @@ fn is_unsafe(ty: BtfType<'_>) -> bool {
     })
 }
 
+fn size_of_type(ty: BtfType<'_>, btf: &Btf<'_>) -> Result<usize> {
+    let ty = ty.skip_mods_and_typedefs();
+
+    Ok(btf_type_match!(match ty {
+        BtfKind::Int(t) => ((t.bits + 7) / 8).into(),
+        BtfKind::Ptr => btf.ptr_size()?.get(),
+        BtfKind::Array(t) => t.capacity() * size_of_type(t.contained_type(), btf)?,
+        BtfKind::Struct(t) => t.size(),
+        BtfKind::Union(t) => t.size(),
+        BtfKind::Enum(t) => t.size(),
+        BtfKind::Enum64(t) => t.size(),
+        BtfKind::Var(t) => size_of_type(t.referenced_type(), btf)?,
+        BtfKind::DataSec(t) => t.size(),
+        BtfKind::Float(t) => t.size(),
+        _ => bail!("Cannot get size of type_id: {ty:?}"),
+    }))
+}
+
 fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
     // A list of keywords that need to be escaped in Rust when used for variable
     // names or similar (from https://doc.rust-lang.org/reference/keywords.html#keywords,
@@ -92,24 +110,6 @@ impl<'s> Deref for GenBtf<'s> {
 }
 
 impl<'s> GenBtf<'s> {
-    fn size_of(&self, ty: BtfType<'s>) -> Result<usize> {
-        let ty = ty.skip_mods_and_typedefs();
-
-        Ok(btf_type_match!(match ty {
-            BtfKind::Int(t) => ((t.bits + 7) / 8).into(),
-            BtfKind::Ptr => self.ptr_size()?.get(),
-            BtfKind::Array(t) => t.capacity() * self.size_of(t.contained_type())?,
-            BtfKind::Struct(t) => t.size(),
-            BtfKind::Union(t) => t.size(),
-            BtfKind::Enum(t) => t.size(),
-            BtfKind::Enum64(t) => t.size(),
-            BtfKind::Var(t) => self.size_of(t.referenced_type())?,
-            BtfKind::DataSec(t) => t.size(),
-            BtfKind::Float(t) => t.size(),
-            _ => bail!("Cannot get size of type_id: {ty:?}"),
-        }))
-    }
-
     fn get_type_name_handling_anon_types(&self, t: &BtfType<'s>) -> Cow<'s, str> {
         match t.name() {
             None => {
@@ -442,7 +442,7 @@ impl<'s> GenBtf<'s> {
             };
 
             // Set `offset` to end of current var
-            offset = (member_offset / 8) as usize + self.size_of(field_ty)?;
+            offset = (member_offset / 8) as usize + size_of_type(field_ty, &self.btf)?;
 
             let field_ty_str = self.type_declaration(field_ty)?;
             let field_ty_str = if is_unsafe(field_ty) {
