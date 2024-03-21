@@ -38,6 +38,34 @@ fn is_unsafe(ty: BtfType<'_>) -> bool {
     })
 }
 
+fn is_struct_packed(composite: &types::Composite<'_>, btf: &Btf<'_>) -> Result<bool> {
+    if !composite.is_struct {
+        return Ok(false);
+    }
+
+    let align = composite.alignment()?;
+
+    // Size of a struct has to be a multiple of its alignment
+    if composite.size() % align != 0 {
+        return Ok(true);
+    }
+
+    // All the non-bitfield fields have to be naturally aligned
+    for m in composite.iter() {
+        let align = btf.type_by_id::<BtfType<'_>>(m.ty).unwrap().alignment()?;
+
+        if let MemberAttr::Normal { offset } = m.attr {
+            if offset as usize % (align.get() * 8) != 0 {
+                return Ok(true);
+            }
+        }
+    }
+
+    // Even if original struct was marked as packed, we haven't detected any misalignment, so
+    // there is no effect of packedness for given struct
+    Ok(false)
+}
+
 /// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
 /// type `type_id` needs to be placed at, returns how much padding must be inserted before
 /// `type_id`.
@@ -279,34 +307,6 @@ impl<'s> GenBtf<'s> {
         type_default(ty, &self.anon_types)
     }
 
-    fn is_struct_packed(&self, composite: &types::Composite<'_>) -> Result<bool> {
-        if !composite.is_struct {
-            return Ok(false);
-        }
-
-        let align = composite.alignment()?;
-
-        // Size of a struct has to be a multiple of its alignment
-        if composite.size() % align != 0 {
-            return Ok(true);
-        }
-
-        // All the non-bitfield fields have to be naturally aligned
-        for m in composite.iter() {
-            let align = self.type_by_id::<BtfType<'_>>(m.ty).unwrap().alignment()?;
-
-            if let MemberAttr::Normal { offset } = m.attr {
-                if offset as usize % (align.get() * 8) != 0 {
-                    return Ok(true);
-                }
-            }
-        }
-
-        // Even if original struct was marked as packed, we haven't detected any misalignment, so
-        // there is no effect of packedness for given struct
-        Ok(false)
-    }
-
     /// Returns rust type definition of `ty` in string format, including dependent types.
     ///
     /// `ty` must be a struct, union, enum, or datasec type.
@@ -372,7 +372,7 @@ impl<'s> GenBtf<'s> {
         dependent_types: &mut Vec<BtfType<'a>>,
         t: types::Composite<'_>,
     ) -> Result<()> {
-        let packed = self.is_struct_packed(&t)?;
+        let packed = is_struct_packed(&t, &self.btf)?;
 
         // fields in the aggregate
         let mut agg_content: Vec<String> = Vec::new();
