@@ -47,3 +47,4 @@ clap = { version = "4.0.32", features = ["derive"] }
 
 [dev-dependencies]
 goblin = "0.6"
+vmlinux = { path = "../vmlinux" }

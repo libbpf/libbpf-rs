@@ -24,8 +24,6 @@ use crate::gen::btf::GenBtf;
 use crate::make::make;
 use crate::SkeletonBuilder;
 
-static VMLINUX: &str = include_str!("../test_data/vmlinux.h");
-
 /// Creates a temporary directory and initializes a default cargo project inside.
 ///
 /// Returns temp directory object to hold directory open, the path to the cargo
@@ -130,7 +128,9 @@ fn add_vmlinux_header(project: &Path) {
         .write(true)
         .open(project.join("src/bpf/vmlinux.h"))
         .expect("failed to open vmlinux.h");
-    write!(vmlinux, "{VMLINUX}").expect("failed to write vmlinux.h");
+    let () = vmlinux
+        .write_all(vmlinux::VMLINUX)
+        .expect("failed to write vmlinux.h");
 }
 
 #[test]
