@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "vmlinux",
   "libbpf-cargo",
   "libbpf-rs",
   "examples/bpf_query",
