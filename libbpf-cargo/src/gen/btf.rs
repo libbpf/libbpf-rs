@@ -38,6 +38,45 @@ fn is_unsafe(ty: BtfType<'_>) -> bool {
     })
 }
 
+/// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
+/// type `type_id` needs to be placed at, returns how much padding must be inserted before
+/// `type_id`.
+fn required_padding(
+    current_offset: usize,
+    required_offset: usize,
+    ty: &BtfType<'_>,
+    packed: bool,
+) -> Result<usize> {
+    ensure!(
+        current_offset <= required_offset,
+        "current offset ({current_offset}) ahead of required offset ({required_offset})"
+    );
+
+    let align = if packed {
+        NonZeroUsize::new(1).unwrap()
+    } else {
+        // Assume 32-bit alignment in case we're generating code for 32-bit
+        // arch. Worst case is on a 64-bit arch the compiler will generate
+        // extra padding. The final layout will still be identical to what is
+        // described by BTF.
+        let a = ty.alignment()?;
+
+        if a.get() > 4 {
+            NonZeroUsize::new(4).unwrap()
+        } else {
+            a
+        }
+    };
+
+    // If we aren't aligning to the natural offset, padding needs to be inserted
+    let aligned_offset = (current_offset + align.get() - 1) / align * align.get();
+    if aligned_offset == required_offset {
+        Ok(0)
+    } else {
+        Ok(required_offset - current_offset)
+    }
+}
+
 fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
     let ty = ty.skip_mods_and_typedefs();
 
@@ -254,46 +293,6 @@ impl<'s> GenBtf<'s> {
         Ok(false)
     }
 
-    /// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
-    /// type `type_id` needs to be placed at, returns how much padding must be inserted before
-    /// `type_id`.
-    fn required_padding(
-        &self,
-        current_offset: usize,
-        required_offset: usize,
-        ty: &BtfType<'s>,
-        packed: bool,
-    ) -> Result<usize> {
-        ensure!(
-            current_offset <= required_offset,
-            "current offset ({current_offset}) ahead of required offset ({required_offset})"
-        );
-
-        let align = if packed {
-            NonZeroUsize::new(1).unwrap()
-        } else {
-            // Assume 32-bit alignment in case we're generating code for 32-bit
-            // arch. Worst case is on a 64-bit arch the compiler will generate
-            // extra padding. The final layout will still be identical to what is
-            // described by BTF.
-            let a = ty.alignment()?;
-
-            if a.get() > 4 {
-                NonZeroUsize::new(4).unwrap()
-            } else {
-                a
-            }
-        };
-
-        // If we aren't aligning to the natural offset, padding needs to be inserted
-        let aligned_offset = (current_offset + align.get() - 1) / align * align.get();
-        if aligned_offset == required_offset {
-            Ok(0)
-        } else {
-            Ok(required_offset - current_offset)
-        }
-    }
-
     /// Returns rust type definition of `ty` in string format, including dependent types.
     ///
     /// `ty` must be a struct, union, enum, or datasec type.
@@ -398,7 +397,7 @@ impl<'s> GenBtf<'s> {
 
             // Add padding as necessary
             if t.is_struct {
-                let padding = self.required_padding(
+                let padding = required_padding(
                     offset,
                     member_offset as usize / 8,
                     &self.type_by_id::<BtfType<'_>>(member.ty).unwrap(),
@@ -464,7 +463,7 @@ impl<'s> GenBtf<'s> {
 
         if t.is_struct {
             let struct_size = t.size();
-            let padding = self.required_padding(offset, struct_size, &t, packed)?;
+            let padding = required_padding(offset, struct_size, &t, packed)?;
             if padding != 0 {
                 agg_content.push(format!(r#"    pub __pad_{offset}: [u8; {padding}],"#,));
                 impl_default.push(format!(
@@ -629,7 +628,7 @@ impl<'s> GenBtf<'s> {
             }
 
             let padding =
-                self.required_padding(offset as usize, datasec_var.offset as usize, &var, false)?;
+                required_padding(offset as usize, datasec_var.offset as usize, &var, false)?;
             if padding != 0 {
                 writeln!(def, r#"    __pad_{offset}: [u8; {padding}],"#)?;
             }
