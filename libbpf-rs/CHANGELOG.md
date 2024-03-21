@@ -12,7 +12,7 @@ Unreleased
 - Fixed incorrect inference of `btf::types::MemberAttr::Bitfield` variant
 - Fixed examples not building on non-x86 architectures
 - Updated `libbpf-sys` dependency to `1.3.0`
-- Bumped minimum Rust version to `1.70`
+- Bumped minimum Rust version to `1.71`
 
 
 0.22.1
