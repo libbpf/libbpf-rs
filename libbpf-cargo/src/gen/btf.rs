@@ -38,6 +38,66 @@ fn is_unsafe(ty: BtfType<'_>) -> bool {
     })
 }
 
+fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
+    let ty = ty.skip_mods_and_typedefs();
+
+    let s = btf_type_match!(match ty {
+        BtfKind::Void => "std::ffi::c_void".to_string(),
+        BtfKind::Int(t) => {
+            let width = match (t.bits + 7) / 8 {
+                1 => "8",
+                2 => "16",
+                4 => "32",
+                8 => "64",
+                16 => "128",
+                _ => bail!("Invalid integer width"),
+            };
+
+            match t.encoding {
+                types::IntEncoding::Signed => format!("i{width}"),
+                types::IntEncoding::Bool => {
+                    assert!(t.bits as usize == (size_of::<bool>() * 8));
+                    "bool".to_string()
+                }
+                types::IntEncoding::Char | types::IntEncoding::None => format!("u{width}"),
+            }
+        }
+        BtfKind::Float(t) => {
+            let width = match t.size() {
+                2 => bail!("Unsupported float width"),
+                4 => "32",
+                8 => "64",
+                12 => bail!("Unsupported float width"),
+                16 => bail!("Unsupported float width"),
+                _ => bail!("Invalid float width"),
+            };
+
+            format!("f{width}")
+        }
+        BtfKind::Ptr(t) => {
+            let pointee_ty = type_declaration(t.referenced_type(), anon_types)?;
+
+            format!("*mut {pointee_ty}")
+        }
+        BtfKind::Array(t) => {
+            let val_ty = type_declaration(t.contained_type(), anon_types)?;
+
+            format!("[{}; {}]", val_ty, t.capacity())
+        }
+        BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
+            anon_types.type_name_or_anon(&ty).into_owned(),
+        // The only way a variable references a function or forward declaration is through a
+        // pointer. Return c_void here so the final def will look like `*mut c_void`.
+        //
+        // It's not like rust code can call a function inside a bpf prog either so we don't
+        // really need a full definition. `void *` is totally sufficient for sharing a pointer.
+        BtfKind::Fwd | BtfKind::Func | BtfKind::FuncProto => "std::ffi::c_void".to_string(),
+        BtfKind::Var(t) => type_declaration(t.referenced_type(), anon_types)?,
+        _ => bail!("Invalid type: {ty:?}"),
+    });
+    Ok(s)
+}
+
 fn size_of_type(ty: BtfType<'_>, btf: &Btf<'_>) -> Result<usize> {
     let ty = ty.skip_mods_and_typedefs();
 
@@ -132,63 +192,7 @@ impl<'s> GenBtf<'s> {
     ///
     /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
     pub fn type_declaration(&self, ty: BtfType<'s>) -> Result<String> {
-        let ty = ty.skip_mods_and_typedefs();
-
-        let s = btf_type_match!(match ty {
-            BtfKind::Void => "std::ffi::c_void".to_string(),
-            BtfKind::Int(t) => {
-                let width = match (t.bits + 7) / 8 {
-                    1 => "8",
-                    2 => "16",
-                    4 => "32",
-                    8 => "64",
-                    16 => "128",
-                    _ => bail!("Invalid integer width"),
-                };
-
-                match t.encoding {
-                    types::IntEncoding::Signed => format!("i{width}"),
-                    types::IntEncoding::Bool => {
-                        assert!(t.bits as usize == (size_of::<bool>() * 8));
-                        "bool".to_string()
-                    }
-                    types::IntEncoding::Char | types::IntEncoding::None => format!("u{width}"),
-                }
-            }
-            BtfKind::Float(t) => {
-                let width = match t.size() {
-                    2 => bail!("Unsupported float width"),
-                    4 => "32",
-                    8 => "64",
-                    12 => bail!("Unsupported float width"),
-                    16 => bail!("Unsupported float width"),
-                    _ => bail!("Invalid float width"),
-                };
-
-                format!("f{width}")
-            }
-            BtfKind::Ptr(t) => {
-                let pointee_ty = self.type_declaration(t.referenced_type())?;
-
-                format!("*mut {pointee_ty}")
-            }
-            BtfKind::Array(t) => {
-                let val_ty = self.type_declaration(t.contained_type())?;
-
-                format!("[{}; {}]", val_ty, t.capacity())
-            }
-            BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
-                self.anon_types.type_name_or_anon(&ty).into_owned(),
-            // The only way a variable references a function or forward declaration is through a
-            // pointer. Return c_void here so the final def will look like `*mut c_void`.
-            //
-            // It's not like rust code can call a function inside a bpf prog either so we don't
-            // really need a full definition. `void *` is totally sufficient for sharing a pointer.
-            BtfKind::Fwd | BtfKind::Func | BtfKind::FuncProto => "std::ffi::c_void".to_string(),
-            BtfKind::Var(t) => self.type_declaration(t.referenced_type())?,
-            _ => bail!("Invalid type: {ty:?}"),
-        });
-        Ok(s)
+        type_declaration(ty, &self.anon_types)
     }
 
     /// Returns an expression that evaluates to the Default value
