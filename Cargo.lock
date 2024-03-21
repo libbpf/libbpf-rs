@@ -330,6 +330,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "vmlinux",
 ]
 
 [[package]]
