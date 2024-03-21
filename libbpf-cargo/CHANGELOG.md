@@ -14,7 +14,7 @@ Unreleased
 - Added pointer based ("raw") access to datasec type to generated skeletons
 - Added better handling for bitfields to code generation logic
 - Updated `libbpf-sys` dependency to `1.3.0`
-- Bumped minimum Rust version to `1.70`
+- Bumped minimum Rust version to `1.71`
 
 
 0.22.0
