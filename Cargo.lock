@@ -114,6 +114,7 @@ dependencies = [
  "phf",
  "plain",
  "time",
+ "vmlinux",
 ]
 
 [[package]]
@@ -681,6 +682,7 @@ dependencies = [
  "libc",
  "plain",
  "time",
+ "vmlinux",
 ]
 
 [[package]]
@@ -861,6 +863,7 @@ dependencies = [
  "libc",
  "nix 0.28.0",
  "plain",
+ "vmlinux",
 ]
 
 [[package]]
@@ -871,6 +874,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
+ "vmlinux",
 ]
 
 [[package]]
@@ -957,6 +961,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "nix 0.28.0",
+ "vmlinux",
 ]
 
 [[package]]

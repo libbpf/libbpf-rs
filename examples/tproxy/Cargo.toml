@@ -8,12 +8,13 @@ edition = "2021"
 [[bin]]
 name = "proxy"
 
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
+vmlinux = { path = "../../vmlinux" }
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
 ctrlc = "3.2"
 libbpf-rs = { path = "../../libbpf-rs" }
 nix = { version = "0.28", default-features = false, features = ["net", "user"] }
-
-[build-dependencies]
-libbpf-cargo = { path = "../../libbpf-cargo" }
