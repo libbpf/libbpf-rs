@@ -13,6 +13,8 @@ Unreleased
 - Fixed examples not building on non-x86 architectures
 - Fixed potentially missing padding byte initialization on some target
   architectures
+- Fixed compilation issues caused by mismatching function signatures in certain
+  cross-compilation contexts
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.71`
 
