@@ -1,7 +1,9 @@
+use std::ffi::c_char;
+use std::ffi::c_int;
+use std::ffi::c_void;
 use std::io;
 use std::io::Write;
 use std::mem;
-use std::os::raw::c_char;
 use std::sync::Mutex;
 
 use crate::util::LazyLock;
@@ -54,8 +56,12 @@ static PRINT_CB: LazyLock<Mutex<Option<(PrintLevel, PrintCallback)>>> =
 extern "C" fn outer_print_cb(
     level: libbpf_sys::libbpf_print_level,
     fmtstr: *const c_char,
-    va_list: *mut libbpf_sys::__va_list_tag,
-) -> i32 {
+    // bindgen generated va_list type varies on different platforms, so just use void pointer
+    // instead. It's safe because this argument is always a pointer.
+    // The pointer of this function would be transmuted and passing to libbpf_set_print below.
+    // See <https://github.com/rust-lang/rust-bindgen/issues/2631>
+    va_list: *mut c_void,
+) -> c_int {
     let level = level.into();
     if let Some((min_level, func)) = { *PRINT_CB.lock().unwrap() } {
         if level <= min_level {
@@ -115,7 +121,11 @@ extern "C" fn outer_print_cb(
 pub fn set_print(
     mut callback: Option<(PrintLevel, PrintCallback)>,
 ) -> Option<(PrintLevel, PrintCallback)> {
-    let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(Some(outer_print_cb));
+    // # Safety
+    // outer_print_cb has the same function signature as libbpf_print_fn_t
+    let real_cb: libbpf_sys::libbpf_print_fn_t =
+        unsafe { Some(mem::transmute(outer_print_cb as *const ())) };
+    let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(real_cb);
     mem::swap(&mut callback, &mut *PRINT_CB.lock().unwrap());
     unsafe { libbpf_sys::libbpf_set_print(real_cb) };
     callback
