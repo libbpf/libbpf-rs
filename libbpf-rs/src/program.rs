@@ -60,9 +60,12 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
             cookie,
             _non_exhaustive,
         } = opts;
+        #[allow(clippy::needless_update)]
         libbpf_sys::bpf_usdt_opts {
             sz: size_of::<Self>() as _,
             usdt_cookie: cookie,
+            // bpf_usdt_opts might have padding fields on some platform
+            ..Default::default()
         }
     }
 }
@@ -83,9 +86,12 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
             _non_exhaustive,
         } = opts;
 
+        #[allow(clippy::needless_update)]
         libbpf_sys::bpf_tracepoint_opts {
             sz: size_of::<Self>() as _,
             bpf_cookie: cookie,
+            // bpf_tracepoint_opts might have padding fields on some platform
+            ..Default::default()
         }
     }
 }
