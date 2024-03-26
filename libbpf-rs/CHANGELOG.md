@@ -11,6 +11,8 @@ Unreleased
 - Added `recursion_misses` attribute to `query::ProgramInfo` type
 - Fixed incorrect inference of `btf::types::MemberAttr::Bitfield` variant
 - Fixed examples not building on non-x86 architectures
+- Fixed potentially missing padding byte initialization on some target
+  architectures
 - Updated `libbpf-sys` dependency to `1.3.0`
 - Bumped minimum Rust version to `1.71`
 
