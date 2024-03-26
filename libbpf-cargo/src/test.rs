@@ -1283,15 +1283,8 @@ fn btf_from_mmap(mmap: &Mmap) -> GenBtf<'_> {
     GenBtf::from(btf)
 }
 
-/// Tests the type_definition output of a type_id against a given expected output
-/// Will trim leading and trailing whitespace from both expected output and from
-/// the generated type_definition
-/// fails calling text if type_definition does not match expected_output
 #[track_caller]
-fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: &str) {
-    let actual_output = btf
-        .type_definition(*btf_item, &mut HashSet::new())
-        .expect("Failed to generate struct Foo defn");
+fn assert_output(actual_output: &str, expected_output: &str) {
     let ao = actual_output.trim_end().trim_start();
     let eo = expected_output.trim_end().trim_start();
 
@@ -1305,6 +1298,18 @@ fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: 
     println!("{ao}");
 
     assert!(eo == ao);
+}
+
+/// Tests the type_definition output of a type_id against a given expected output
+/// Will trim leading and trailing whitespace from both expected output and from
+/// the generated type_definition
+/// fails calling text if type_definition does not match expected_output
+#[track_caller]
+fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: &str) {
+    let actual_output = btf
+        .type_definition(*btf_item, &mut HashSet::new())
+        .expect("Failed to generate struct Foo defn");
+    assert_output(&actual_output, expected_output)
 }
 
 #[test]
@@ -2729,6 +2734,88 @@ pub struct __anon_4 {
     let struct_bpf_sock_tuple = find_type_in_btf!(btf, types::Struct<'_>, "bpf_sock_tuple_5_15");
 
     assert_definition(&btf, &struct_bpf_sock_tuple, expected_output);
+}
+
+#[test]
+fn test_btf_dump_definition_struct_ops_mixed() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+
+SEC("struct_ops/test_1")
+int BPF_PROG(test_1, struct bpf_dummy_ops_state *state)
+{
+	return 0;
+}
+
+SEC(".struct_ops")
+struct bpf_dummy_ops dummy_1 = {
+	.test_1 = (void *)test_1,
+};
+
+SEC(".struct_ops.link")
+struct bpf_dummy_ops dummy_2 = {
+	.test_1 = (void *)test_1,
+};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct struct_ops {
+    pub dummy_1: *mut bpf_dummy_ops,
+    pub dummy_2: *mut bpf_dummy_ops,
+}
+
+impl struct_ops {
+
+    pub fn dummy_1(&self) -> &bpf_dummy_ops {
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe { self.dummy_1.as_ref() }.unwrap()
+    }
+
+    pub fn dummy_1_mut(&mut self) -> &mut bpf_dummy_ops {
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe { self.dummy_1.as_mut() }.unwrap()
+    }
+
+    pub fn dummy_2(&self) -> &bpf_dummy_ops {
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe { self.dummy_2.as_ref() }.unwrap()
+    }
+
+    pub fn dummy_2_mut(&mut self) -> &mut bpf_dummy_ops {
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe { self.dummy_2.as_mut() }.unwrap()
+    }
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct bpf_dummy_ops {
+    pub test_1: *mut libbpf_rs::libbpf_sys::bpf_program,
+    pub test_2: *mut libbpf_rs::libbpf_sys::bpf_program,
+}
+impl Default for bpf_dummy_ops {
+    fn default() -> Self {
+        bpf_dummy_ops {
+            test_1: std::ptr::null_mut(),
+            test_2: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let mut processed = HashSet::new();
+    let def = btf.struct_ops_type_definition(&mut processed).unwrap();
+
+    assert_output(&def, expected_output);
 }
 
 #[test]
