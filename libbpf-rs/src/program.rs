@@ -237,7 +237,7 @@ impl OpenProgram {
     }
 }
 
-impl AsRawLibbpf for Program {
+impl AsRawLibbpf for OpenProgram {
     type LibbpfType = libbpf_sys::bpf_program;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].
@@ -990,5 +990,14 @@ impl Program {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
+    }
+}
+
+impl AsRawLibbpf for Program {
+    type LibbpfType = libbpf_sys::bpf_program;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_program`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
     }
 }
