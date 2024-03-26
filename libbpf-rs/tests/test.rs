@@ -339,6 +339,7 @@ fn test_sudo_object_map_delete_batch() {
 /// Test whether `MapInfo` works properly
 #[test]
 pub fn test_sudo_map_info() {
+    #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_ANY,
@@ -350,6 +351,8 @@ pub fn test_sudo_map_info() {
         map_extra: 0,
         numa_node: 0,
         map_ifindex: 0,
+        // bpf_map_create_opts might have padding fields on some platform
+        ..Default::default()
     };
 
     let map = MapHandle::create(MapType::Hash, Some("simple_map"), 8, 64, 1024, &opts).unwrap();
@@ -1324,6 +1327,7 @@ fn test_sudo_object_map_create_and_pin() {
 fn test_sudo_object_map_create_without_name() {
     bump_rlimit_mlock();
 
+    #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
@@ -1335,6 +1339,8 @@ fn test_sudo_object_map_create_without_name() {
         map_extra: 0,
         numa_node: 0,
         map_ifindex: 0,
+        // bpf_map_create_opts might have padding fields on some platform
+        ..Default::default()
     };
 
     let map = MapHandle::create(MapType::Hash, Option::<&str>::None, 4, 8, 8, &opts)

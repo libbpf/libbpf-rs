@@ -707,10 +707,13 @@ impl MapHandle {
             )));
         };
 
+        #[allow(clippy::needless_update)]
         let opts = libbpf_sys::bpf_map_batch_opts {
             sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
             elem_flags: elem_flags.bits(),
             flags: flags.bits(),
+            // bpf_map_batch_opts might have padding fields on some platform
+            ..Default::default()
         };
 
         let mut count = count;
@@ -820,10 +823,13 @@ impl MapHandle {
             )));
         }
 
+        #[allow(clippy::needless_update)]
         let opts = libbpf_sys::bpf_map_batch_opts {
             sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
             elem_flags: elem_flags.bits(),
             flags: flags.bits(),
+            // bpf_map_batch_opts might have padding fields on some platform
+            ..Default::default()
         };
 
         let mut count = count;
