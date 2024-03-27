@@ -105,7 +105,15 @@ fn required_padding(
     }
 }
 
-fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
+struct TypeDeclOpts {
+    func_type: &'static str,
+}
+
+fn type_declaration_impl(
+    ty: BtfType<'_>,
+    anon_types: &AnonTypes,
+    opts: &TypeDeclOpts,
+) -> Result<String> {
     let ty = ty.skip_mods_and_typedefs();
 
     let s = btf_type_match!(match ty {
@@ -142,27 +150,30 @@ fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
             format!("f{width}")
         }
         BtfKind::Ptr(t) => {
-            let pointee_ty = type_declaration(t.referenced_type(), anon_types)?;
+            let pointee_ty = type_declaration_impl(t.referenced_type(), anon_types, opts)?;
 
             format!("*mut {pointee_ty}")
         }
         BtfKind::Array(t) => {
-            let val_ty = type_declaration(t.contained_type(), anon_types)?;
+            let val_ty = type_declaration_impl(t.contained_type(), anon_types, opts)?;
 
             format!("[{}; {}]", val_ty, t.capacity())
         }
         BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
             anon_types.type_name_or_anon(&ty).into_owned(),
-        // The only way a variable references a function or forward declaration is through a
-        // pointer. Return c_void here so the final def will look like `*mut c_void`.
-        //
-        // It's not like rust code can call a function inside a bpf prog either so we don't
-        // really need a full definition. `void *` is totally sufficient for sharing a pointer.
-        BtfKind::Fwd | BtfKind::Func | BtfKind::FuncProto => "std::ffi::c_void".to_string(),
-        BtfKind::Var(t) => type_declaration(t.referenced_type(), anon_types)?,
+        BtfKind::Func | BtfKind::FuncProto => opts.func_type.to_string(),
+        BtfKind::Fwd => "std::ffi::c_void".to_string(),
+        BtfKind::Var(t) => type_declaration_impl(t.referenced_type(), anon_types, opts)?,
         _ => bail!("Invalid type: {ty:?}"),
     });
     Ok(s)
+}
+
+fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
+    let opts = TypeDeclOpts {
+        func_type: "std::ffi::c_void",
+    };
+    type_declaration_impl(ty, anon_types, &opts)
 }
 
 /// Returns an expression that evaluates to the Default value
