@@ -21,23 +21,22 @@ pub static VMLINUX_x86: &[u8] = include_bytes!("../include/x86/vmlinux.h");
 /// The contents of `vmlinux.h` for `x86_64`.
 pub static VMLINUX_x86_64: &[u8] = include_bytes!("../include/x86_64/vmlinux.h");
 
-// TODO: Unsafe code should be replaced with safe alternatives once stable.
 macro_rules! check_and_advance {
     ($args:ident) => {{
-        let (mut p1, mut p2, mut remaining_len) = $args;
-        if remaining_len == 0 {
-            return true;
+        let (s1, s2) = $args;
+        match (s1.split_first(), s2.split_first()) {
+            (Some((b1, s1)), Some((b2, s2))) => {
+                // TODO: Use safe equality check once stable.
+                let b1 = unsafe { (b1 as *const u8).read() };
+                let b2 = unsafe { (b2 as *const u8).read() };
+                if b1 != b2 {
+                    return false;
+                }
+                (s1, s2)
+            }
+            (None, None) => return true,
+            _ => return false,
         }
-
-        if unsafe { p1.read() } != unsafe { p2.read() } {
-            return false;
-        }
-
-        p1 = unsafe { p1.add(1) };
-        p2 = unsafe { p2.add(1) };
-        remaining_len -= 1;
-
-        (p1, p2, remaining_len)
     }};
 }
 
@@ -47,10 +46,9 @@ const fn eq(s1: &str, s2: &str) -> bool {
         return false;
     }
 
-    let len = s1.len();
-    let p1 = s1.as_bytes().as_ptr();
-    let p2 = s2.as_bytes().as_ptr();
-    let mut args = (p1, p2, len);
+    let s1 = s1.as_bytes();
+    let s2 = s2.as_bytes();
+    let mut args = (s1, s2);
 
     // Longest `std::env::consts::ARCH` string is ten characters, so we should
     // be good.
