@@ -648,6 +648,9 @@ fn test_skeleton_datasec() {
 
         int myglobal = 0;
         void * const myconst = 0;
+        int mycustomdata SEC(".data.custom");
+        int mycustombss SEC(".bss.custom");
+        const int mycustomrodata SEC(".rodata.custom") = 43;
 
         SEC("kprobe/foo")
         int this_is_my_prog(u64 *ctx)
@@ -715,12 +718,19 @@ fn test_skeleton_datasec() {
             // We can always set bss vars
             open_skel.bss_mut().myglobal = 42;
 
+            open_skel.data_custom_mut().mycustomdata = 1337;
+            open_skel.bss_custom_mut().mycustombss = 12;
+            assert_eq!(open_skel.rodata_custom().mycustomrodata, 43);
+
             let mut skel = open_skel
                 .load()
                 .expect("failed to load skel");
 
             // We can always set bss vars
             skel.bss_mut().myglobal = 24;
+            skel.data_custom_mut().mycustomdata += 1;
+            skel.bss_custom_mut().mycustombss += 1;
+            assert_eq!(skel.rodata_custom().mycustomrodata, 43);
 
             // Read only for rodata after load
             let _rodata: &prog_types::rodata = skel.rodata();
@@ -2037,6 +2047,52 @@ pub struct rodata {
 
     assert_definition(&btf, &bss, bss_output);
     assert_definition(&btf, &rodata, rodata_output);
+}
+
+#[test]
+fn test_btf_dump_definition_datasec_custom() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+int bss_array[1] SEC(".bss.custom");
+int data_array[1] SEC(".data.custom");
+const int rodata_array[1] SEC(".rodata.custom");
+"#;
+
+    let bss_custom_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct bss_custom {
+    pub bss_array: [i32; 1],
+}
+"#;
+
+    let data_custom_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct data_custom {
+    pub data_array: [i32; 1],
+}
+"#;
+
+    let rodata_custom_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct rodata_custom {
+    pub rodata_array: [i32; 1],
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let bss_custom = find_type_in_btf!(btf, types::DataSec<'_>, ".bss.custom", false);
+    let data_custom = find_type_in_btf!(btf, types::DataSec<'_>, ".data.custom", false);
+    let rodata_custom = find_type_in_btf!(btf, types::DataSec<'_>, ".rodata.custom", false);
+
+    assert_definition(&btf, &bss_custom, bss_custom_output);
+    assert_definition(&btf, &data_custom, data_custom_output);
+    assert_definition(&btf, &rodata_custom, rodata_custom_output);
 }
 
 #[test]

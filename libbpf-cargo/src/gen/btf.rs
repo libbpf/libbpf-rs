@@ -772,6 +772,7 @@ impl struct_ops {{
             Some(s) => s.into_owned(),
         };
         sec_name.remove(0);
+        let sec_name = sec_name.replace('.', "_");
 
         writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
         writeln!(def, r#"#[repr(C)]"#)?;

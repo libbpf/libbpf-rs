@@ -6,6 +6,9 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::Result as FmtResult;
 use std::fmt::Write as fmt_write;
 use std::fs::File;
 use std::io::stdout;
@@ -34,23 +37,28 @@ use crate::metadata::UnprocessedObj;
 use self::btf::GenBtf;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum InternalMapType {
+pub(crate) enum InternalMapType<'name> {
     Data,
+    CustomData(&'name str),
     Rodata,
+    CustomRodata(&'name str),
     Bss,
+    CustomBss(&'name str),
     Kconfig,
     StructOps,
 }
 
-impl AsRef<str> for InternalMapType {
-    #[inline]
-    fn as_ref(&self) -> &'static str {
+impl Display for InternalMapType<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Self::Data => "data",
-            Self::Rodata => "rodata",
-            Self::Bss => "bss",
-            Self::Kconfig => "kconfig",
-            Self::StructOps => "struct_ops",
+            Self::Data => write!(f, "data"),
+            Self::CustomData(name) => write!(f, "data_{}", name),
+            Self::Rodata => write!(f, "rodata"),
+            Self::CustomRodata(name) => write!(f, "rodata_{}", name),
+            Self::Bss => write!(f, "bss"),
+            Self::CustomBss(name) => write!(f, "bss_{}", name),
+            Self::Kconfig => write!(f, "kconfig"),
+            Self::StructOps => write!(f, "struct_ops"),
         }
     }
 }
@@ -193,7 +201,7 @@ fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
 
-pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType> {
+pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType<'_>> {
     if s.ends_with(".data") {
         Some(InternalMapType::Data)
     } else if s.ends_with(".rodata") {
@@ -208,6 +216,18 @@ pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType>
         // The `*.link` extension really only sets an additional flag in lower
         // layers. For our intents and purposes both can be treated similarly.
         Some(InternalMapType::StructOps)
+    // Custom data sections don't prepend bpf_object name, so we can match from
+    // start of name.
+    // See https://github.com/libbpf/libbpf/blob/20ea95b4505c477af3b6ff6ce9d19cee868ddc5d/src/libbpf.c#L1789-L1794
+    } else if s.starts_with(".data.") {
+        let name = s.get(".data.".len()..).unwrap();
+        Some(InternalMapType::CustomData(name))
+    } else if s.starts_with(".rodata.") {
+        let name = s.get(".rodata.".len()..).unwrap();
+        Some(InternalMapType::CustomRodata(name))
+    } else if s.starts_with(".bss.") {
+        let name = s.get(".bss.".len()..).unwrap();
+        Some(InternalMapType::CustomBss(name))
     } else {
         eprintln!("Warning: unrecognized map: {s}");
         None
@@ -221,7 +241,7 @@ fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
     if unsafe { !libbpf_sys::bpf_map__is_internal(map) } {
         Ok(Some(name))
     } else {
-        Ok(canonicalize_internal_map_name(&name).map(|map| map.as_ref().to_string()))
+        Ok(canonicalize_internal_map_name(&name).map(|map| map.to_string()))
     }
 }
 
