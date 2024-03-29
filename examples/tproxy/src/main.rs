@@ -16,7 +16,10 @@ use libbpf_rs::TcHookBuilder;
 use libbpf_rs::TC_INGRESS;
 
 mod tproxy {
-    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/tproxy.skel.rs"));
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/bpf/tproxy.skel.rs"
+    ));
 }
 
 use tproxy::*;

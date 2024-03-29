@@ -13,16 +13,11 @@ use std::mem::size_of;
 use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
+use std::ptr;
 use std::ptr::addr_of;
 use std::slice;
 use std::sync::mpsc::channel;
 use std::time::Duration;
-
-use plain::Plain;
-use probe::probe;
-use scopeguard::defer;
-use std::ptr;
-use tempfile::NamedTempFile;
 
 use libbpf_rs::num_possible_cpus;
 use libbpf_rs::AsRawLibbpf;
@@ -42,6 +37,10 @@ use libbpf_rs::ProgramType;
 use libbpf_rs::TracepointOpts;
 use libbpf_rs::UprobeOpts;
 use libbpf_rs::UsdtOpts;
+use plain::Plain;
+use probe::probe;
+use scopeguard::defer;
+use tempfile::NamedTempFile;
 
 fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();

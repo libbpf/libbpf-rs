@@ -5,14 +5,15 @@
 //!
 //! For the same reason, all tests here must run serially.
 
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+
 use libbpf_rs::get_print;
 use libbpf_rs::set_print;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::PrintCallback;
 use libbpf_rs::PrintLevel;
 use serial_test::serial;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
 #[test]
 #[serial]

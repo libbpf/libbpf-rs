@@ -1,7 +1,8 @@
-use bitflags::bitflags;
 use std::mem::size_of;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
+
+use bitflags::bitflags;
 
 use crate::util;
 use crate::Result;
