@@ -27,8 +27,11 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+
 use libbpf_rs::btf::types;
+use libbpf_rs::libbpf_sys;
 use libbpf_rs::Btf;
+
 use memmap2::Mmap;
 
 use crate::metadata;

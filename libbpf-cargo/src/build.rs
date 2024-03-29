@@ -54,6 +54,7 @@ fn extract_version(output: &str) -> Result<&str> {
 /// Directory and enclosed contents will be removed when return object is dropped.
 #[cfg(feature = "default")]
 fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> {
+    use libbpf_rs::libbpf_sys;
     use std::fs::OpenOptions;
     use std::io::Write;
 

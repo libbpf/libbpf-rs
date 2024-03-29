@@ -317,7 +317,6 @@ dependencies = [
  "clap",
  "goblin",
  "libbpf-rs",
- "libbpf-sys",
  "memmap2",
  "num_enum",
  "regex",
