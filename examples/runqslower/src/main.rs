@@ -14,7 +14,7 @@ use time::macros::format_description;
 use time::OffsetDateTime;
 
 mod runqslower {
-    include!(concat!(env!("OUT_DIR"), "/runqslower.skel.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/runqslower.skel.rs"));
 }
 
 use runqslower::*;
