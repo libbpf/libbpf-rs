@@ -27,12 +27,11 @@ path = "src/lib.rs"
 [features]
 # By default the crate uses a vendored libbpf, but requires other
 # necessary libs to be present on the system.
-default = ["libbpf-sys/vendored-libbpf"]
+default = ["libbpf-rs/default"]
 
 [dependencies]
 anyhow = "1.0.1"
 cargo_metadata = "0.15.0"
-libbpf-sys = { version = "1.4", default-features = false }
 libbpf-rs = { version = "0.23", default-features = false, path = "../libbpf-rs" }
 memmap2 = "0.5"
 num_enum = "0.5"
