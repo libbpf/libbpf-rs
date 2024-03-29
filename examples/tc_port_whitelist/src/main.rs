@@ -19,7 +19,7 @@ use libbpf_rs::TC_H_MIN_INGRESS;
 use libbpf_rs::TC_INGRESS;
 
 mod tc {
-    include!(concat!(env!("OUT_DIR"), "/tc.skel.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/tc.skel.rs"));
 }
 use tc::*;
 

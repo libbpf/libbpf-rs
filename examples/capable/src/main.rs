@@ -19,7 +19,7 @@ use time::macros::format_description;
 use time::OffsetDateTime;
 
 mod capable {
-    include!(concat!(env!("OUT_DIR"), "/capable.skel.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/capable.skel.rs"));
 }
 
 use capable::capable_types::uniqueness;
