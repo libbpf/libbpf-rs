@@ -202,7 +202,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - run: cargo fmt --package libbpf-cargo libbpf-rs -- --check
+      - run: cargo fmt -- --check
   cargo-doc:
     name: Check documentation
     runs-on: ubuntu-latest

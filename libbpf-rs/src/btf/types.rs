@@ -1,5 +1,10 @@
 //! Wrappers representing concrete btf types.
 
+use std::ffi::CStr;
+use std::fmt;
+use std::fmt::Display;
+use std::ops::Deref;
+
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 
@@ -8,10 +13,6 @@ use super::BtfType;
 use super::HasSize;
 use super::ReferencesType;
 use super::TypeId;
-use std::ffi::CStr;
-use std::fmt;
-use std::fmt::Display;
-use std::ops::Deref;
 
 // Generate a btf type that doesn't have any fields, i.e. there is no data after the BtfType
 // pointer.

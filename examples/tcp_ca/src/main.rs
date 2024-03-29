@@ -18,16 +18,16 @@ use std::thread;
 
 use clap::Parser;
 
-use libc::setsockopt;
-use libc::IPPROTO_TCP;
-use libc::TCP_CONGESTION;
-
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::AsRawLibbpf as _;
 use libbpf_rs::ErrorExt as _;
 use libbpf_rs::ErrorKind;
 use libbpf_rs::Result;
+
+use libc::setsockopt;
+use libc::IPPROTO_TCP;
+use libc::TCP_CONGESTION;
 
 use crate::tcp_ca::TcpCaSkelBuilder;
 
