@@ -36,6 +36,11 @@ use crate::metadata::UnprocessedObj;
 
 use self::btf::GenBtf;
 
+/// Escape certain characters in a "raw" name of a section, for example.
+fn escape_raw_name(name: &str) -> String {
+    name.replace('.', "_")
+}
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum InternalMapType<'name> {
     Data,
@@ -52,11 +57,11 @@ impl Display for InternalMapType<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::Data => write!(f, "data"),
-            Self::CustomData(name) => write!(f, "data_{}", name),
+            Self::CustomData(name) => write!(f, "data_{}", escape_raw_name(name)),
             Self::Rodata => write!(f, "rodata"),
-            Self::CustomRodata(name) => write!(f, "rodata_{}", name),
+            Self::CustomRodata(name) => write!(f, "rodata_{}", escape_raw_name(name)),
             Self::Bss => write!(f, "bss"),
-            Self::CustomBss(name) => write!(f, "bss_{}", name),
+            Self::CustomBss(name) => write!(f, "bss_{}", escape_raw_name(name)),
             Self::Kconfig => write!(f, "kconfig"),
             Self::StructOps => write!(f, "struct_ops"),
         }
@@ -239,7 +244,7 @@ fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
     let name = get_raw_map_name(map)?;
 
     if unsafe { !libbpf_sys::bpf_map__is_internal(map) } {
-        Ok(Some(name))
+        Ok(Some(escape_raw_name(&name)))
     } else {
         Ok(canonicalize_internal_map_name(&name).map(|map| map.to_string()))
     }
@@ -366,7 +371,7 @@ fn gen_skel_map_defs(
 
         for map in MapIter::new(object.as_mut_ptr()) {
             let map_name = match get_map_name(map)? {
-                Some(n) => n.replace('.', "_"),
+                Some(n) => n,
                 None => continue,
             };
 
