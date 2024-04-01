@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.23.0
+------
 - Overhauled crate feature set:
   - Removed `novendor` feature
   - Added `vendored` feature to use vendored copies of all needed libraries

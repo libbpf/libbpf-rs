@@ -12,7 +12,7 @@ Helps you build and develop BPF programs with standard Rust tooling.
 To use in your project, add into your `Cargo.toml`:
 ```toml
 [build-dependencies]
-libbpf-cargo = "0.22"
+libbpf-cargo = "0.23"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-cargo).
