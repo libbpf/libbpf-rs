@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.23.0
+------
 - Removed `novendor` feature in favor of having disableable default
   feature
 - Added support for `struct_ops` shadow objects for generated skeletons
