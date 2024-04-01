@@ -11,6 +11,3 @@ members = [
   "examples/tproxy",
 ]
 resolver = "2"
-
-[patch.crates-io]
-libbpf-sys = { git = "https://github.com/libbpf/libbpf-sys.git", rev = "75042c653ee956b8c262e41ca4bcfcb0e2c461a1" }
