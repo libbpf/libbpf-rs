@@ -366,7 +366,7 @@ fn gen_skel_map_defs(
 
         for map in MapIter::new(object.as_mut_ptr()) {
             let map_name = match get_map_name(map)? {
-                Some(n) => n,
+                Some(n) => n.replace('.', "_"),
                 None => continue,
             };
 
