@@ -18,12 +18,12 @@ use std::thread;
 
 use clap::Parser;
 
-use libbpf_rs::skel::OpenSkel;
-use libbpf_rs::skel::SkelBuilder;
-use libbpf_rs::AsRawLibbpf as _;
-use libbpf_rs::ErrorExt as _;
-use libbpf_rs::ErrorKind;
-use libbpf_rs::Result;
+use the_original_libbpf_rs::skel::OpenSkel;
+use the_original_libbpf_rs::skel::SkelBuilder;
+use the_original_libbpf_rs::AsRawLibbpf as _;
+use the_original_libbpf_rs::ErrorExt as _;
+use the_original_libbpf_rs::ErrorKind;
+use the_original_libbpf_rs::Result;
 
 use libc::setsockopt;
 use libc::IPPROTO_TCP;
@@ -32,6 +32,12 @@ use libc::TCP_CONGESTION;
 use crate::tcp_ca::TcpCaSkelBuilder;
 
 mod tcp_ca {
+    // Skeleton rely on `libbpf_rs` being present in their "namespace". Because
+    // we renamed the libbpf-rs dependency, we have to make it available under
+    // the expected name here for the skeleton itself to work. None of this is
+    // generally necessary, but it enables some niche use cases.
+    use the_original_libbpf_rs as libbpf_rs;
+
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/bpf/tcp_ca.skel.rs"

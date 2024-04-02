@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Added "import injection" escape hatch to generated skeletons
+
+
 0.23.0
 ------
 - Removed `novendor` feature in favor of having disableable default

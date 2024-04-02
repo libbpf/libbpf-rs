@@ -815,6 +815,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
            #[allow(clippy::upper_case_acronyms)]
            #[warn(single_use_lifetimes)]
            mod imp {{
+           #[allow(unused_imports)]
+           use super::*;
            use libbpf_rs::libbpf_sys;
            use libbpf_rs::skel::OpenSkel;
            use libbpf_rs::skel::Skel;
@@ -896,6 +898,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         skel,
         r#"
             pub mod {raw_obj_name}_types {{
+                #[allow(unused_imports)]
+                use super::*;
             "#
     )?;
 
