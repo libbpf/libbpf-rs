@@ -11,5 +11,7 @@ vmlinux = { path = "../../vmlinux" }
 
 [dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
-libbpf-rs = { path = "../../libbpf-rs" }
+# We rename the `libbpf-rs` dependency here to illustrate how skeleton creation
+# works with that.
+the-original-libbpf-rs = { path = "../../libbpf-rs", package = "libbpf-rs" }
 libc = "0.2"
