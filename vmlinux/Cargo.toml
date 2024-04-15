@@ -3,3 +3,8 @@ name = "vmlinux"
 version = "0.0.0"
 edition = "2021"
 authors = ["Daniel Müller <deso@posteo.net>"]
+# Not intended to be published at this point and only meant to be used as a
+# dev-dependency; licensing is not 100% clear but more importantly we can't
+# really version the crate in a way that would be generally useful to downstream
+# users (version by kernel version? "just" semver? none is without problems).
+publish = false
