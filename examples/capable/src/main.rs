@@ -4,6 +4,7 @@
 //
 // Based on capable(8) by Brendan Gregg
 use core::time::Duration;
+use std::str;
 use std::str::FromStr;
 
 use anyhow::bail;
@@ -145,7 +146,7 @@ fn _handle_event(opts: Command, event: capable_types::event) {
         "00:00:00".to_string()
     };
 
-    let comm_str = std::str::from_utf8(&event.comm)
+    let comm_str = str::from_utf8(&event.comm)
         .unwrap()
         .trim_end_matches(char::from(0));
     let cap_name = match CAPS.get(&event.cap) {

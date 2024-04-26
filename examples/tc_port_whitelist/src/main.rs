@@ -18,6 +18,8 @@ use libbpf_rs::TC_H_CLSACT;
 use libbpf_rs::TC_H_MIN_INGRESS;
 use libbpf_rs::TC_INGRESS;
 
+use nix::net::if_::if_nametoindex;
+
 mod tc {
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/tc.skel.rs"));
 }
@@ -71,7 +73,7 @@ fn main() -> Result<()> {
     let open = builder.open()?;
     let mut skel = open.load()?;
     let progs = skel.progs();
-    let ifidx = nix::net::if_::if_nametoindex(opts.iface.as_str())? as i32;
+    let ifidx = if_nametoindex(opts.iface.as_str())? as i32;
 
     let mut tc_builder = TcHookBuilder::new(progs.handle_tc().as_fd());
     tc_builder
