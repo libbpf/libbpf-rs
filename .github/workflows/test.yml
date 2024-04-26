@@ -193,7 +193,7 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --locked --no-deps --all-targets --tests -- -D warnings
+      - run: cargo clippy --locked --no-deps --all-targets --tests -- -D warnings -D clippy::absolute_paths
   rustfmt:
     name: Check code formatting
     runs-on: ubuntu-latest
