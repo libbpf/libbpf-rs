@@ -73,7 +73,7 @@ fn open_fd() -> Result<i32> {
             SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC,
             ETH_P_ALL.to_be() as i32,
         ) {
-            -1 => Err(std::io::Error::last_os_error().into()),
+            -1 => Err(Error::last_os_error().into()),
             fd => Ok(fd),
         }
     }
