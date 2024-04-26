@@ -1,0 +1,16 @@
+[package]
+name = "tcp_option"
+version = "0.1.0"
+edition = "2021"
+license = "LGPL-2.1-only OR BSD-2-Clause"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
+vmlinux = { path = "../../vmlinux" }
+
+[dependencies]
+anyhow = "1.0"
+libbpf-rs = { path = "../../libbpf-rs" }
+clap = { version = "4.0.32", features = ["derive"] }
+libc = "0.2"
+ctrlc = "3.2"

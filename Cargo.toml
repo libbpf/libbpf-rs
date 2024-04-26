@@ -9,5 +9,6 @@ members = [
   "examples/tc_port_whitelist",
   "examples/tcp_ca",
   "examples/tproxy",
+  "examples/tcp_option",
 ]
 resolver = "2"
