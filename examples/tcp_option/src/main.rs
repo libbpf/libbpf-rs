@@ -1,5 +1,3 @@
-#![feature(ip_bits)]
-
 use std::net::Ipv4Addr;
 use std::os::fd::AsFd;
 use std::os::fd::IntoRawFd;
@@ -89,9 +87,9 @@ fn main() -> Result<()> {
     })?;
 
     let ip = if let Some(ip) = opts.ip {
-        ip.to_bits().to_be()
+        ip
     } else {
-        Ipv4Addr::new(0, 0, 0, 0).to_bits().to_be()
+        Ipv4Addr::new(0, 0, 0, 0)
     };
 
     let mut builder = TcpOptionSkelBuilder::default();
@@ -100,7 +98,7 @@ fn main() -> Result<()> {
     }
     let mut open = builder.open()?;
 
-    open.rodata_mut().targ_ip = ip;
+    open.rodata_mut().targ_ip = u32::from_be_bytes(ip.octets()).to_be();
     open.rodata_mut().data_such_as_trace_id = opts.trace_id;
 
     let mut skel = open.load()?;
@@ -122,7 +120,7 @@ fn main() -> Result<()> {
     let progs = skel.progs();
     let socket_handler = progs.socket_handler();
     let prog_fd = socket_handler.as_fd();
-    let _result = match unsafe {
+    match unsafe {
         libc::setsockopt(
             target_socket_fd as c_int,
             SOL_SOCKET,
@@ -131,8 +129,15 @@ fn main() -> Result<()> {
             size_of_val(&prog_fd) as socklen_t,
         )
     } {
-        0 => Ok(()),
-        _ => Err(std::io::Error::last_os_error().into()),
+        0 => {
+            println!("BPF Attached Successfully!");
+        }
+        _ => {
+            println!(
+                "Failed to Attach BPF, Reason: {:?}",
+                std::io::Error::last_os_error()
+            );
+        }
     };
 
     while running.load(Ordering::SeqCst) {
