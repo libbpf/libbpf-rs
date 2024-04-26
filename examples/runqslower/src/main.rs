@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
-use core::time::Duration;
+use std::str;
+use std::time::Duration;
 
 use anyhow::bail;
 use anyhow::Result;
@@ -66,7 +67,7 @@ fn handle_event(_cpu: i32, data: &[u8]) {
         "00:00:00".to_string()
     };
 
-    let task = std::str::from_utf8(&event.task).unwrap();
+    let task = str::from_utf8(&event.task).unwrap();
 
     println!(
         "{:8} {:16} {:<7} {:<14}",
