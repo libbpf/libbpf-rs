@@ -17,11 +17,14 @@ use libc::socklen_t;
 use std::mem::size_of_val;
 
 use anyhow::bail;
-use anyhow::Ok;
 use anyhow::Result;
 use clap::Parser;
+use std::fs::OpenOptions;
+use std::io::Error;
+use std::result::Result::Ok;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::thread;
 
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
@@ -103,7 +106,7 @@ fn main() -> Result<()> {
 
     let mut skel = open.load()?;
 
-    let cgroup_fd = std::fs::OpenOptions::new()
+    let cgroup_fd = OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_DIRECTORY)
         .open("/sys/fs/cgroup")
@@ -133,15 +136,12 @@ fn main() -> Result<()> {
             println!("BPF Attached Successfully!");
         }
         _ => {
-            println!(
-                "Failed to Attach BPF, Reason: {:?}",
-                std::io::Error::last_os_error()
-            );
+            println!("Failed to Attach BPF, Reason: {:?}", Error::last_os_error());
         }
     };
 
     while running.load(Ordering::SeqCst) {
-        std::thread::sleep(Duration::new(1, 0));
+        thread::sleep(Duration::new(1, 0));
     }
     Ok(())
 }
