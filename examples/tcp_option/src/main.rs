@@ -136,7 +136,8 @@ fn main() -> Result<()> {
             println!("BPF Attached Successfully!");
         }
         _ => {
-            println!("Failed to Attach BPF, Reason: {:?}", Error::last_os_error());
+            println!("Failed to Attach BPF, Reason: ");
+            return Err(Error::last_os_error().into());
         }
     };
 
