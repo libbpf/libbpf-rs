@@ -991,6 +991,7 @@ pub enum MapType {
     InodeStorage,
     TaskStorage,
     BloomFilter,
+    UserRingBuf,
     /// We choose to specify our own "unknown" type here b/c it's really up to the kernel
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
     /// using this library is a bit out of date.

@@ -37,6 +37,7 @@ use libbpf_rs::ProgramType;
 use libbpf_rs::TracepointOpts;
 use libbpf_rs::UprobeOpts;
 use libbpf_rs::UsdtOpts;
+use libbpf_rs::UserRingBuffer;
 use plain::Plain;
 use probe::probe;
 use scopeguard::defer;
@@ -1189,6 +1190,102 @@ fn test_sudo_object_ringbuf_with_closed_map() {
             .poll(Duration::from_secs(5))
             .expect("Failed to poll ringbuf")
     });
+}
+
+#[test]
+fn test_sudo_object_user_ringbuf() {
+    #[repr(C)]
+    struct MyStruct {
+        key: u32,
+        value: u32,
+    }
+
+    unsafe impl Plain for MyStruct {}
+
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("user_ringbuf.bpf.o");
+    let prog = obj
+        .prog_mut("handle__sys_enter_getpid")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+    let urb_map = obj
+        .map("user_ringbuf")
+        .expect("failed to find user ringbuf map");
+    let user_ringbuf = UserRingBuffer::new(urb_map).expect("failed to create user ringbuf");
+    let mut urb_sample = user_ringbuf
+        .reserve(size_of::<MyStruct>())
+        .expect("failed to reserve space");
+    let bytes = urb_sample.as_mut();
+    let my_struct = plain::from_mut_bytes::<MyStruct>(bytes).expect("failed to convert bytes");
+    my_struct.key = 42;
+    my_struct.value = 1337;
+    user_ringbuf
+        .submit(urb_sample)
+        .expect("failed to submit sample");
+
+    // Trigger BPF program.
+    let _pid = unsafe { libc::getpid() };
+
+    // At this point, the BPF program should have run and consumed the sample in
+    // the user ring buffer, and stored the key/value in the samples map.
+    let samples_map = obj.map("samples").expect("failed to find map");
+    let key: u32 = 42;
+    let value: u32 = 1337;
+    let res = samples_map
+        .lookup(&key.to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    // The value in the samples map should be the same as the value we submitted
+    assert_eq!(res.len(), size_of::<u32>());
+    let mut array = [0; size_of::<u32>()];
+    array.copy_from_slice(&res[..]);
+    assert_eq!(u32::from_ne_bytes(array), value);
+}
+
+#[test]
+fn test_sudo_object_user_ringbuf_reservation_too_big() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("user_ringbuf.bpf.o");
+    let prog = obj
+        .prog_mut("handle__sys_enter_getpid")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+    let urb_map = obj
+        .map("user_ringbuf")
+        .expect("failed to find user ringbuf map");
+    let user_ringbuf = UserRingBuffer::new(urb_map).expect("failed to create user ringbuf");
+    let err = user_ringbuf.reserve(1024 * 1024).unwrap_err();
+    assert!(
+        err.to_string().contains("requested size is too large"),
+        "{err:#}"
+    );
+}
+
+#[test]
+fn test_sudo_object_user_ringbuf_not_enough_space() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("user_ringbuf.bpf.o");
+    let prog = obj
+        .prog_mut("handle__sys_enter_getpid")
+        .expect("failed to find program");
+    let _link = prog.attach().expect("failed to attach prog");
+    let urb_map = obj
+        .map("user_ringbuf")
+        .expect("failed to find user ringbuf map");
+    let user_ringbuf = UserRingBuffer::new(urb_map).expect("failed to create user ringbuf");
+    let _ = user_ringbuf
+        .reserve(1024 * 3)
+        .expect("failed to reserve space");
+    let err = user_ringbuf.reserve(1024 * 3).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("not enough space in the ring buffer"),
+        "{err:#}"
+    );
 }
 
 #[test]
