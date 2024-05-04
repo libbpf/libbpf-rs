@@ -25,7 +25,7 @@ vendored = ["libbpf-sys/vendored"]
 
 [dependencies]
 bitflags = "2.0"
-libbpf-sys = { version = "1.4", default-features = false }
+libbpf-sys = { version = "1.4.1", default-features = false }
 libc = "0.2"
 num_enum = "0.5"
 strum_macros = "0.24"
