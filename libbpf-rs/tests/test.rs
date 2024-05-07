@@ -527,6 +527,58 @@ fn test_sudo_object_map_queue_crud() {
         .is_none());
 }
 
+/// Test CRUD operations on map of type bloomfilter.
+#[test]
+fn test_sudo_object_map_bloom_filter_crud() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("tracepoint.bpf.o");
+    let bloom_filter = obj
+        .map("bloom_filter")
+        .expect("failed to find bloom_filter map");
+
+    let key: [u8; 0] = [];
+    let value1 = 1337u32.to_ne_bytes();
+    let value2 = 2674u32.to_ne_bytes();
+
+    bloom_filter
+        .update(&key, &value1, MapFlags::ANY)
+        .expect("failed to add entry value1 to bloom filter");
+
+    bloom_filter
+        .update(&key, &value2, MapFlags::ANY)
+        .expect("failed to add entry value2 in bloom filter");
+
+    // Non empty keys should result in an error
+    bloom_filter
+        .update(&value1, &value1, MapFlags::ANY)
+        .expect_err("Non empty key should return an error");
+
+    for inserted_value in [value1, value2] {
+        let val = bloom_filter
+            .lookup_bloom_filter(&inserted_value)
+            .expect("failed retrieve item from bloom filter");
+
+        assert!(val);
+    }
+    // Test non existing element
+    let enoent_found = bloom_filter
+        .lookup_bloom_filter(&[1, 2, 3, 4])
+        .expect("failed retrieve item from bloom filter");
+
+    assert!(!enoent_found);
+
+    // Calling lookup should result in an error
+    bloom_filter
+        .lookup(&[1, 2, 3, 4], MapFlags::ANY)
+        .expect_err("lookup should fail since we should use lookup_bloom_filter");
+
+    // Deleting should not be possible
+    bloom_filter
+        .lookup_and_delete(&key)
+        .expect_err("Expect delete to fail");
+}
+
 /// Test CRUD operations on map of type stack.
 #[test]
 fn test_sudo_object_map_stack_crud() {
@@ -550,6 +602,7 @@ fn test_sudo_object_map_stack_crud() {
         .lookup(&key, MapFlags::ANY)
         .expect("failed to pop from stack")
         .expect("failed to retrieve value");
+
     assert_eq!(val.len(), 4);
     assert_eq!(&val, &value2);
 
