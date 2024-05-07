@@ -65,4 +65,10 @@ struct {
     __type(value, __u32);
 } stack SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_BLOOM_FILTER);
+    __uint(max_entries, 5);
+    __type(value, __u32);
+} bloom_filter SEC(".maps");
+
 char LICENSE[] SEC("license") = "GPL";

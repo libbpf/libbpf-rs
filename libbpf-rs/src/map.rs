@@ -556,10 +556,11 @@ impl MapHandle {
         Ok(ncpu * aligned_val_size)
     }
 
-    /// Apply a key check and return a null pointer in case of dealing with queue/stack map,
-    /// before passing the key to the bpf functions that support the map of type queue/stack.
+    /// Apply a key check and return a null pointer in case of dealing with queue/stack/bloom-filter map,
+    /// before passing the key to the bpf functions that support the map of type queue/stack/bloom-filter.
     fn map_key(&self, key: &[u8]) -> *const c_void {
-        if self.key_size() == 0 && matches!(self.map_type(), MapType::Queue | MapType::Stack) {
+        // For all they keyless maps we null out the key per documentation of libbpf
+        if self.key_size() == 0 && self.map_type().is_keyless() {
             return ptr::null();
         }
 
@@ -631,7 +632,13 @@ impl MapHandle {
     ///
     /// If the map is one of the per-cpu data structures, the function [`MapHandle::lookup_percpu()`]
     /// must be used.
+    /// If the map is of type bloom_filter the function [`MapHandle::lookup_bloom_filter()`] must be used
     pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
+        if self.map_type().is_bloom_filter() {
+            return Err(Error::with_invalid_data(
+                "lookup_bloom_filter() must be used for bloom filter maps",
+            ));
+        }
         if self.map_type().is_percpu() {
             return Err(Error::with_invalid_data(format!(
                 "lookup_percpu() must be used for per-cpu maps (type of the map is {})",
@@ -641,6 +648,30 @@ impl MapHandle {
 
         let out_size = self.value_size() as usize;
         self.lookup_raw(key, flags, out_size)
+    }
+
+    /// Returns if the given value is likely present in bloom_filter as `bool`.
+    ///
+    /// `value` must have exactly [`MapHandle::value_size()`] elements.
+    pub fn lookup_bloom_filter(&self, value: &[u8]) -> Result<bool> {
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_elem(
+                self.fd.as_raw_fd(),
+                ptr::null(),
+                value.to_vec().as_mut_ptr() as *mut c_void,
+            )
+        };
+
+        if ret == 0 {
+            Ok(true)
+        } else {
+            let err = io::Error::last_os_error();
+            if err.kind() == io::ErrorKind::NotFound {
+                Ok(false)
+            } else {
+                Err(Error::from(err))
+            }
+        }
     }
 
     /// Returns one value per cpu as `Vec` of `Vec` of `u8` for per per-cpu maps.
@@ -1007,6 +1038,17 @@ impl MapType {
                 | MapType::LruPercpuHash
                 | MapType::PercpuCgroupStorage
         )
+    }
+
+    /// Returns if the map is keyless map type as per documentation of libbpf
+    /// Keyless map types are: Queues, Stacks and Bloom Filters
+    fn is_keyless(&self) -> bool {
+        matches!(self, MapType::Queue | MapType::Stack | MapType::BloomFilter)
+    }
+
+    /// Returns if the map is of bloom filter type
+    pub fn is_bloom_filter(&self) -> bool {
+        MapType::BloomFilter.eq(self)
     }
 
     /// Detects if host kernel supports this BPF map type.
