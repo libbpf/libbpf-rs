@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Fixed handling of bloom filter type maps
+  - Added `Map::lookup_bloom_filter` for looking up elements in a bloom filter
+
+
 0.23.0
 ------
 - Overhauled crate feature set:
