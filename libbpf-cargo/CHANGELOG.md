@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.23.1
+------
 - Added "import injection" escape hatch to generated skeletons
 
 
