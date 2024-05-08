@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Added support for user ring buffers
 - Fixed handling of bloom filter type maps
   - Added `Map::lookup_bloom_filter` for looking up elements in a bloom filter
 
