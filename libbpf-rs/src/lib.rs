@@ -146,6 +146,7 @@ pub use crate::tc::TC_H_MIN_EGRESS;
 pub use crate::tc::TC_H_MIN_INGRESS;
 pub use crate::tc::TC_INGRESS;
 pub use crate::user_ringbuf::UserRingBuffer;
+pub use crate::user_ringbuf::UserRingBufferSample;
 pub use crate::util::num_possible_cpus;
 pub use crate::xdp::Xdp;
 pub use crate::xdp::XdpFlags;

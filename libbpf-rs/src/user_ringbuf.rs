@@ -147,7 +147,7 @@ impl UserRingBuffer {
 
         // The libbpf API does not return an error code, so we cannot determine
         // if the submission was successful. Return a `Result` to enable future
-        // validation while maintaing backwards compatibility.
+        // validation while maintaining backwards compatibility.
         Ok(())
     }
 }
