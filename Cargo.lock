@@ -293,10 +293,7 @@ dependencies = [
  "goblin",
  "libbpf-rs",
  "memmap2",
- "num_enum",
  "regex",
- "scroll",
- "scroll_derive",
  "semver",
  "serde",
  "serde_json",
@@ -322,7 +319,6 @@ dependencies = [
  "serial_test",
  "strum_macros",
  "tempfile",
- "thiserror",
  "vsprintf",
 ]
 
@@ -838,7 +834,6 @@ dependencies = [
  "libbpf-rs",
  "libc",
  "nix 0.28.0",
- "plain",
  "vmlinux",
 ]
 
