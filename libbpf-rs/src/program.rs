@@ -126,10 +126,7 @@ impl OpenProgram {
 
     // The `ProgramType` of this `OpenProgram`.
     pub fn prog_type(&self) -> ProgramType {
-        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) }) {
-            Ok(ty) => ty,
-            Err(_) => ProgramType::Unknown,
-        }
+        ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
     }
 
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
@@ -249,7 +246,7 @@ impl AsRawLibbpf for OpenProgram {
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Copy, Clone, TryFromPrimitive, Display, Debug)]
+#[derive(Copy, Clone, Display, Debug)]
 // TODO: Document variants.
 #[allow(missing_docs)]
 pub enum ProgramType {
@@ -315,6 +312,48 @@ impl ProgramType {
             0 => Ok(false),
             1 => Ok(true),
             _ => Err(Error::from_raw_os_error(-ret)),
+        }
+    }
+}
+
+impl From<u32> for ProgramType {
+    fn from(value: u32) -> Self {
+        use ProgramType::*;
+
+        match value {
+            x if x == Unspec as u32 => Unspec,
+            x if x == SocketFilter as u32 => SocketFilter,
+            x if x == Kprobe as u32 => Kprobe,
+            x if x == SchedCls as u32 => SchedCls,
+            x if x == SchedAct as u32 => SchedAct,
+            x if x == Tracepoint as u32 => Tracepoint,
+            x if x == Xdp as u32 => Xdp,
+            x if x == PerfEvent as u32 => PerfEvent,
+            x if x == CgroupSkb as u32 => CgroupSkb,
+            x if x == CgroupSock as u32 => CgroupSock,
+            x if x == LwtIn as u32 => LwtIn,
+            x if x == LwtOut as u32 => LwtOut,
+            x if x == LwtXmit as u32 => LwtXmit,
+            x if x == SockOps as u32 => SockOps,
+            x if x == SkSkb as u32 => SkSkb,
+            x if x == CgroupDevice as u32 => CgroupDevice,
+            x if x == SkMsg as u32 => SkMsg,
+            x if x == RawTracepoint as u32 => RawTracepoint,
+            x if x == CgroupSockAddr as u32 => CgroupSockAddr,
+            x if x == LwtSeg6local as u32 => LwtSeg6local,
+            x if x == LircMode2 as u32 => LircMode2,
+            x if x == SkReuseport as u32 => SkReuseport,
+            x if x == FlowDissector as u32 => FlowDissector,
+            x if x == CgroupSysctl as u32 => CgroupSysctl,
+            x if x == RawTracepointWritable as u32 => RawTracepointWritable,
+            x if x == CgroupSockopt as u32 => CgroupSockopt,
+            x if x == Tracing as u32 => Tracing,
+            x if x == StructOps as u32 => StructOps,
+            x if x == Ext as u32 => Ext,
+            x if x == Lsm as u32 => Lsm,
+            x if x == SkLookup as u32 => SkLookup,
+            x if x == Syscall as u32 => Syscall,
+            _ => Unknown,
         }
     }
 }
@@ -999,5 +1038,56 @@ impl AsRawLibbpf for Program {
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].
     fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::mem::discriminant;
+
+    #[test]
+    fn program_type() {
+        use ProgramType::*;
+
+        for t in [
+            Unspec,
+            SocketFilter,
+            Kprobe,
+            SchedCls,
+            SchedAct,
+            Tracepoint,
+            Xdp,
+            PerfEvent,
+            CgroupSkb,
+            CgroupSock,
+            LwtIn,
+            LwtOut,
+            LwtXmit,
+            SockOps,
+            SkSkb,
+            CgroupDevice,
+            SkMsg,
+            RawTracepoint,
+            CgroupSockAddr,
+            LwtSeg6local,
+            LircMode2,
+            SkReuseport,
+            FlowDissector,
+            CgroupSysctl,
+            RawTracepointWritable,
+            CgroupSockopt,
+            Tracing,
+            StructOps,
+            Ext,
+            Lsm,
+            SkLookup,
+            Syscall,
+            Unknown,
+        ] {
+            // check if discriminants match after a roundtrip conversion
+            assert_eq!(discriminant(&t), discriminant(&ProgramType::from(t as u32)));
+        }
     }
 }
