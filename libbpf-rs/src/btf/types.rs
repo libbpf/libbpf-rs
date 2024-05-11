@@ -5,9 +5,6 @@ use std::fmt;
 use std::fmt::Display;
 use std::ops::Deref;
 
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
-
 use super::BtfKind;
 use super::BtfType;
 use super::HasSize;
@@ -277,7 +274,7 @@ impl MemberAttr {
 }
 
 /// The kind of linkage a variable of function can have.
-#[derive(TryFromPrimitive, IntoPrimitive, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum Linkage {
     /// Static linkage
@@ -288,6 +285,25 @@ pub enum Linkage {
     Extern,
     /// Unknown
     Unknown,
+}
+
+impl From<u32> for Linkage {
+    fn from(value: u32) -> Self {
+        use Linkage::*;
+
+        match value {
+            x if x == Static as u32 => Static,
+            x if x == Global as u32 => Global,
+            x if x == Extern as u32 => Extern,
+            _ => Unknown,
+        }
+    }
+}
+
+impl From<Linkage> for u32 {
+    fn from(value: Linkage) -> Self {
+        value as u32
+    }
 }
 
 impl Display for Linkage {
@@ -679,7 +695,7 @@ impl Func<'_> {
     /// This function's linkage.
     #[inline]
     pub fn linkage(&self) -> Linkage {
-        self.source.vlen().try_into().unwrap_or(Linkage::Unknown)
+        self.source.vlen().into()
     }
 }
 
@@ -1156,5 +1172,16 @@ mod test {
                 let _ = 1;
             }
         });
+    }
+
+    #[test]
+    fn linkage_type() {
+        use std::mem::discriminant;
+        use Linkage::*;
+
+        for t in [Static, Global, Extern, Unknown] {
+            // check if discriminants match after a roundtrip conversion
+            assert_eq!(discriminant(&t), discriminant(&Linkage::from(t as u32)));
+        }
     }
 }
