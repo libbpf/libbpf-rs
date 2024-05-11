@@ -23,8 +23,6 @@ use std::slice::from_raw_parts;
 use bitflags::bitflags;
 use libbpf_sys::bpf_map_info;
 use libbpf_sys::bpf_obj_get_info_by_fd;
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
 use crate::util;
@@ -67,10 +65,7 @@ impl OpenMap {
     /// Retrieve type of the map.
     pub fn map_type(&self) -> MapType {
         let ty = unsafe { libbpf_sys::bpf_map__type(self.ptr.as_ptr()) };
-        match MapType::try_from(ty) {
-            Ok(t) => t,
-            Err(_) => MapType::Unknown,
-        }
+        MapType::from(ty)
     }
 
     fn initial_value_raw(&self) -> (*mut u8, usize) {
@@ -266,8 +261,7 @@ impl Map {
         let fd = unsafe { libbpf_sys::bpf_map__fd(ptr.as_ptr()) };
         let fd = util::parse_ret_i32(fd)?;
 
-        let ty = MapType::try_from(unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) })
-            .unwrap_or(MapType::Unknown);
+        let ty = MapType::from(unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) });
         let key_size = unsafe { libbpf_sys::bpf_map__key_size(ptr.as_ptr()) };
         let value_size = unsafe { libbpf_sys::bpf_map__value_size(ptr.as_ptr()) };
 
@@ -987,7 +981,7 @@ bitflags! {
 // If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Copy, Clone, TryFromPrimitive, IntoPrimitive, PartialEq, Eq, Display, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Display, Debug)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub enum MapType {
@@ -1063,6 +1057,54 @@ impl MapType {
             1 => Ok(true),
             _ => Err(Error::from_raw_os_error(-ret)),
         }
+    }
+}
+
+impl From<u32> for MapType {
+    fn from(value: u32) -> Self {
+        use MapType::*;
+
+        match value {
+            x if x == Unspec as u32 => Unspec,
+            x if x == Hash as u32 => Hash,
+            x if x == Array as u32 => Array,
+            x if x == ProgArray as u32 => ProgArray,
+            x if x == PerfEventArray as u32 => PerfEventArray,
+            x if x == PercpuHash as u32 => PercpuHash,
+            x if x == PercpuArray as u32 => PercpuArray,
+            x if x == StackTrace as u32 => StackTrace,
+            x if x == CgroupArray as u32 => CgroupArray,
+            x if x == LruHash as u32 => LruHash,
+            x if x == LruPercpuHash as u32 => LruPercpuHash,
+            x if x == LpmTrie as u32 => LpmTrie,
+            x if x == ArrayOfMaps as u32 => ArrayOfMaps,
+            x if x == HashOfMaps as u32 => HashOfMaps,
+            x if x == Devmap as u32 => Devmap,
+            x if x == Sockmap as u32 => Sockmap,
+            x if x == Cpumap as u32 => Cpumap,
+            x if x == Xskmap as u32 => Xskmap,
+            x if x == Sockhash as u32 => Sockhash,
+            x if x == CgroupStorage as u32 => CgroupStorage,
+            x if x == ReuseportSockarray as u32 => ReuseportSockarray,
+            x if x == PercpuCgroupStorage as u32 => PercpuCgroupStorage,
+            x if x == Queue as u32 => Queue,
+            x if x == Stack as u32 => Stack,
+            x if x == SkStorage as u32 => SkStorage,
+            x if x == DevmapHash as u32 => DevmapHash,
+            x if x == StructOps as u32 => StructOps,
+            x if x == RingBuf as u32 => RingBuf,
+            x if x == InodeStorage as u32 => InodeStorage,
+            x if x == TaskStorage as u32 => TaskStorage,
+            x if x == BloomFilter as u32 => BloomFilter,
+            x if x == UserRingBuf as u32 => UserRingBuf,
+            _ => Unknown,
+        }
+    }
+}
+
+impl From<MapType> for u32 {
+    fn from(value: MapType) -> Self {
+        value as u32
     }
 }
 
@@ -1158,5 +1200,56 @@ impl MapInfo {
     #[inline]
     pub fn flags(&self) -> MapFlags {
         MapFlags::from_bits_truncate(self.info.map_flags as u64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::mem::discriminant;
+
+    #[test]
+    fn map_type() {
+        use MapType::*;
+
+        for t in [
+            Unspec,
+            Hash,
+            Array,
+            ProgArray,
+            PerfEventArray,
+            PercpuHash,
+            PercpuArray,
+            StackTrace,
+            CgroupArray,
+            LruHash,
+            LruPercpuHash,
+            LpmTrie,
+            ArrayOfMaps,
+            HashOfMaps,
+            Devmap,
+            Sockmap,
+            Cpumap,
+            Xskmap,
+            Sockhash,
+            CgroupStorage,
+            ReuseportSockarray,
+            PercpuCgroupStorage,
+            Queue,
+            Stack,
+            SkStorage,
+            DevmapHash,
+            StructOps,
+            RingBuf,
+            InodeStorage,
+            TaskStorage,
+            BloomFilter,
+            UserRingBuf,
+            Unknown,
+        ] {
+            // check if discriminants match after a roundtrip conversion
+            assert_eq!(discriminant(&t), discriminant(&MapType::from(t as u32)));
+        }
     }
 }
