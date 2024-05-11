@@ -14,7 +14,6 @@ use std::ptr::NonNull;
 use std::slice;
 
 use libbpf_sys::bpf_func_id;
-use num_enum::TryFromPrimitive;
 use strum_macros::Display;
 
 use crate::util;
@@ -361,7 +360,7 @@ impl From<u32> for ProgramType {
 /// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, TryFromPrimitive, Display, Debug)]
+#[derive(Clone, Display, Debug)]
 // TODO: Document variants.
 #[allow(missing_docs)]
 pub enum ProgramAttachType {
@@ -409,6 +408,58 @@ pub enum ProgramAttachType {
     PerfEvent,
     /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
+}
+
+impl From<u32> for ProgramAttachType {
+    fn from(value: u32) -> Self {
+        use ProgramAttachType::*;
+
+        match value {
+            x if x == CgroupInetIngress as u32 => CgroupInetIngress,
+            x if x == CgroupInetEgress as u32 => CgroupInetEgress,
+            x if x == CgroupInetSockCreate as u32 => CgroupInetSockCreate,
+            x if x == CgroupSockOps as u32 => CgroupSockOps,
+            x if x == SkSkbStreamParser as u32 => SkSkbStreamParser,
+            x if x == SkSkbStreamVerdict as u32 => SkSkbStreamVerdict,
+            x if x == CgroupDevice as u32 => CgroupDevice,
+            x if x == SkMsgVerdict as u32 => SkMsgVerdict,
+            x if x == CgroupInet4Bind as u32 => CgroupInet4Bind,
+            x if x == CgroupInet6Bind as u32 => CgroupInet6Bind,
+            x if x == CgroupInet4Connect as u32 => CgroupInet4Connect,
+            x if x == CgroupInet6Connect as u32 => CgroupInet6Connect,
+            x if x == CgroupInet4PostBind as u32 => CgroupInet4PostBind,
+            x if x == CgroupInet6PostBind as u32 => CgroupInet6PostBind,
+            x if x == CgroupUdp4Sendmsg as u32 => CgroupUdp4Sendmsg,
+            x if x == CgroupUdp6Sendmsg as u32 => CgroupUdp6Sendmsg,
+            x if x == LircMode2 as u32 => LircMode2,
+            x if x == FlowDissector as u32 => FlowDissector,
+            x if x == CgroupSysctl as u32 => CgroupSysctl,
+            x if x == CgroupUdp4Recvmsg as u32 => CgroupUdp4Recvmsg,
+            x if x == CgroupUdp6Recvmsg as u32 => CgroupUdp6Recvmsg,
+            x if x == CgroupGetsockopt as u32 => CgroupGetsockopt,
+            x if x == CgroupSetsockopt as u32 => CgroupSetsockopt,
+            x if x == TraceRawTp as u32 => TraceRawTp,
+            x if x == TraceFentry as u32 => TraceFentry,
+            x if x == TraceFexit as u32 => TraceFexit,
+            x if x == ModifyReturn as u32 => ModifyReturn,
+            x if x == LsmMac as u32 => LsmMac,
+            x if x == TraceIter as u32 => TraceIter,
+            x if x == CgroupInet4Getpeername as u32 => CgroupInet4Getpeername,
+            x if x == CgroupInet6Getpeername as u32 => CgroupInet6Getpeername,
+            x if x == CgroupInet4Getsockname as u32 => CgroupInet4Getsockname,
+            x if x == CgroupInet6Getsockname as u32 => CgroupInet6Getsockname,
+            x if x == XdpDevmap as u32 => XdpDevmap,
+            x if x == CgroupInetSockRelease as u32 => CgroupInetSockRelease,
+            x if x == XdpCpumap as u32 => XdpCpumap,
+            x if x == SkLookup as u32 => SkLookup,
+            x if x == Xdp as u32 => Xdp,
+            x if x == SkSkbVerdict as u32 => SkSkbVerdict,
+            x if x == SkReuseportSelect as u32 => SkReuseportSelect,
+            x if x == SkReuseportSelectOrMigrate as u32 => SkReuseportSelectOrMigrate,
+            x if x == PerfEvent as u32 => PerfEvent,
+            _ => Unknown,
+        }
+    }
 }
 
 /// The input a program accepts.
@@ -542,12 +593,9 @@ impl Program {
 
     /// Retrieve the attach type of the program.
     pub fn attach_type(&self) -> ProgramAttachType {
-        match ProgramAttachType::try_from(unsafe {
+        ProgramAttachType::from(unsafe {
             libbpf_sys::bpf_program__expected_attach_type(self.ptr.as_ptr())
-        }) {
-            Ok(ty) => ty,
-            Err(_) => ProgramAttachType::Unknown,
-        }
+        })
     }
 
     /// Return `true` if the bpf program is set to autoload, `false` otherwise.
@@ -1088,6 +1136,63 @@ mod tests {
         ] {
             // check if discriminants match after a roundtrip conversion
             assert_eq!(discriminant(&t), discriminant(&ProgramType::from(t as u32)));
+        }
+    }
+
+    #[test]
+    fn program_attach_type() {
+        use ProgramAttachType::*;
+
+        for t in [
+            CgroupInetIngress,
+            CgroupInetEgress,
+            CgroupInetSockCreate,
+            CgroupSockOps,
+            SkSkbStreamParser,
+            SkSkbStreamVerdict,
+            CgroupDevice,
+            SkMsgVerdict,
+            CgroupInet4Bind,
+            CgroupInet6Bind,
+            CgroupInet4Connect,
+            CgroupInet6Connect,
+            CgroupInet4PostBind,
+            CgroupInet6PostBind,
+            CgroupUdp4Sendmsg,
+            CgroupUdp6Sendmsg,
+            LircMode2,
+            FlowDissector,
+            CgroupSysctl,
+            CgroupUdp4Recvmsg,
+            CgroupUdp6Recvmsg,
+            CgroupGetsockopt,
+            CgroupSetsockopt,
+            TraceRawTp,
+            TraceFentry,
+            TraceFexit,
+            ModifyReturn,
+            LsmMac,
+            TraceIter,
+            CgroupInet4Getpeername,
+            CgroupInet6Getpeername,
+            CgroupInet4Getsockname,
+            CgroupInet6Getsockname,
+            XdpDevmap,
+            CgroupInetSockRelease,
+            XdpCpumap,
+            SkLookup,
+            Xdp,
+            SkSkbVerdict,
+            SkReuseportSelect,
+            SkReuseportSelectOrMigrate,
+            PerfEvent,
+            Unknown,
+        ] {
+            // check if discriminants match after a roundtrip conversion
+            assert_eq!(
+                discriminant(&t),
+                discriminant(&ProgramAttachType::from(t as u32))
+            );
         }
     }
 }
