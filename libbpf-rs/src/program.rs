@@ -554,10 +554,7 @@ impl Program {
 
     /// Retrieve the type of the program.
     pub fn prog_type(&self) -> ProgramType {
-        match ProgramType::try_from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) }) {
-            Ok(ty) => ty,
-            Err(_) => ProgramType::Unknown,
-        }
+        ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
     }
 
     /// Returns program fd by id
