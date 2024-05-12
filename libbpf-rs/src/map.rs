@@ -1175,10 +1175,7 @@ impl MapInfo {
     /// Get the map type
     #[inline]
     pub fn map_type(&self) -> MapType {
-        match MapType::try_from(self.info.type_) {
-            Ok(t) => t,
-            Err(_) => MapType::Unknown,
-        }
+        MapType::from(self.info.type_)
     }
 
     /// Get the name of this map.

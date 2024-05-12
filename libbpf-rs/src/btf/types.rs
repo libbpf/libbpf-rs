@@ -732,7 +732,7 @@ impl Var<'_> {
     /// The kind of linkage this variable has.
     #[inline]
     pub fn linkage(&self) -> Linkage {
-        self.ptr.linkage.try_into().unwrap_or(Linkage::Unknown)
+        self.ptr.linkage.into()
     }
 }
 

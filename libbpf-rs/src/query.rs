@@ -292,10 +292,7 @@ impl ProgramInfo {
 
         // SANITY: `libbpf` should guarantee NUL termination.
         let name = util::c_char_slice_to_cstr(&item.name).unwrap();
-        let ty = match ProgramType::try_from(item.type_) {
-            Ok(ty) => ty,
-            Err(_) => ProgramType::Unknown,
-        };
+        let ty = ProgramType::from(item.type_);
 
         if opts.include_xlated_prog_insns {
             xlated_prog_insns.resize(item.xlated_prog_len as usize, 0u8);
@@ -464,10 +461,7 @@ impl MapInfo {
     fn from_uapi(_fd: BorrowedFd<'_>, s: libbpf_sys::bpf_map_info) -> Option<Self> {
         // SANITY: `libbpf` should guarantee NUL termination.
         let name = util::c_char_slice_to_cstr(&s.name).unwrap();
-        let ty = match MapType::try_from(s.type_) {
-            Ok(ty) => ty,
-            Err(_) => MapType::Unknown,
-        };
+        let ty = MapType::from(s.type_);
 
         Some(Self {
             name: name.to_owned(),
@@ -673,25 +667,22 @@ impl LinkInfo {
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_TRACING => LinkTypeInfo::Tracing(TracingLinkInfo {
-                attach_type: ProgramAttachType::try_from(unsafe {
+                attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.tracing.attach_type
-                })
-                .unwrap_or(ProgramAttachType::Unknown),
+                }),
             }),
             libbpf_sys::BPF_LINK_TYPE_CGROUP => LinkTypeInfo::Cgroup(CgroupLinkInfo {
                 cgroup_id: unsafe { s.__bindgen_anon_1.cgroup.cgroup_id },
-                attach_type: ProgramAttachType::try_from(unsafe {
+                attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.cgroup.attach_type
-                })
-                .unwrap_or(ProgramAttachType::Unknown),
+                }),
             }),
             libbpf_sys::BPF_LINK_TYPE_ITER => LinkTypeInfo::Iter,
             libbpf_sys::BPF_LINK_TYPE_NETNS => LinkTypeInfo::NetNs(NetNsLinkInfo {
                 ino: unsafe { s.__bindgen_anon_1.netns.netns_ino },
-                attach_type: ProgramAttachType::try_from(unsafe {
+                attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.netns.attach_type
-                })
-                .unwrap_or(ProgramAttachType::Unknown),
+                }),
             }),
             _ => LinkTypeInfo::Unknown,
         };
