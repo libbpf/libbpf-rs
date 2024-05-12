@@ -34,9 +34,6 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
-
 use crate::util::create_bpf_entity_checked;
 use crate::util::create_bpf_entity_checked_opt;
 use crate::util::parse_ret_i32;
@@ -47,7 +44,7 @@ use crate::Result;
 use self::types::Composite;
 
 /// The various btf types.
-#[derive(IntoPrimitive, TryFromPrimitive, Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
 pub enum BtfKind {
     /// [Void](types::Void)
@@ -90,6 +87,38 @@ pub enum BtfKind {
     TypeTag,
     /// [Enum64](types::Enum64)
     Enum64,
+}
+
+impl TryFrom<u32> for BtfKind {
+    type Error = u32;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use BtfKind::*;
+
+        Ok(match value {
+            x if x == Void as u32 => Void,
+            x if x == Int as u32 => Int,
+            x if x == Ptr as u32 => Ptr,
+            x if x == Array as u32 => Array,
+            x if x == Struct as u32 => Struct,
+            x if x == Union as u32 => Union,
+            x if x == Enum as u32 => Enum,
+            x if x == Fwd as u32 => Fwd,
+            x if x == Typedef as u32 => Typedef,
+            x if x == Volatile as u32 => Volatile,
+            x if x == Const as u32 => Const,
+            x if x == Restrict as u32 => Restrict,
+            x if x == Func as u32 => Func,
+            x if x == FuncProto as u32 => FuncProto,
+            x if x == Var as u32 => Var,
+            x if x == DataSec as u32 => DataSec,
+            x if x == Float as u32 => Float,
+            x if x == DeclTag as u32 => DeclTag,
+            x if x == TypeTag as u32 => TypeTag,
+            x if x == Enum64 as u32 => Enum64,
+            v => return Err(v),
+        })
+    }
 }
 
 /// The id of a btf type.
@@ -679,8 +708,26 @@ mod sealed {
 mod tests {
     use super::*;
 
+    use std::mem::discriminant;
+
     #[test]
     fn from_vmlinux() {
         assert!(Btf::from_vmlinux().is_ok());
+    }
+
+    #[test]
+    fn btf_kind() {
+        use BtfKind::*;
+
+        for t in [
+            Void, Int, Ptr, Array, Struct, Union, Enum, Fwd, Typedef, Volatile, Const, Restrict,
+            Func, FuncProto, Var, DataSec, Float, DeclTag, TypeTag, Enum64,
+        ] {
+            // check if discriminants match after a roundtrip conversion
+            assert_eq!(
+                discriminant(&t),
+                discriminant(&BtfKind::try_from(t as u32).unwrap())
+            );
+        }
     }
 }
