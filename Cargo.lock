@@ -311,7 +311,6 @@ dependencies = [
  "libc",
  "log",
  "memmem",
- "num_enum",
  "pkg-config",
  "plain",
  "probe",
@@ -422,27 +421,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
 
 [[package]]
-name = "num_enum"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f646caf906c20226733ed5b1374287eb97e3c2a5c227ce668c1f2ce20ae57c9"
-dependencies = [
- "num_enum_derive",
-]
-
-[[package]]
-name = "num_enum_derive"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcbff9bc912032c62bf65ef1d5aea88983b420f4f839db1e9b0c281a25c9c799"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 1.0.107",
-]
-
-[[package]]
 name = "num_threads"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -545,17 +523,6 @@ name = "probe"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216e81fcf486280f0b8b18ca43ceafd32739eb0eb703eb024a8d00814eeba556"
-
-[[package]]
-name = "proc-macro-crate"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eda0fc3b0fb7c975631757e14d9049da17374063edb6ebbcbc54d880d4fe94e9"
-dependencies = [
- "once_cell",
- "thiserror",
- "toml",
-]
 
 [[package]]
 name = "proc-macro2"
@@ -924,15 +891,6 @@ checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
 dependencies = [
  "num-conv",
  "time-core",
-]
-
-[[package]]
-name = "toml"
-version = "0.5.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
-dependencies = [
- "serde",
 ]
 
 [[package]]
