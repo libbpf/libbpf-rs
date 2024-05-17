@@ -1,5 +1,6 @@
 use libc::E2BIG;
 use libc::ENOSPC;
+use std::io;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::os::fd::AsFd;
@@ -89,8 +90,7 @@ impl UserRingBuffer {
 
         let ptr = NonNull::new(raw_ptr).ok_or_else(|| {
             // Safely get the last OS error after a failed call to user_ring_buffer__new
-            let errno = unsafe { *libc::__errno_location() };
-            Error::from_raw_os_error(errno)
+            io::Error::last_os_error()
         })?;
 
         Ok(UserRingBuffer { ptr })
@@ -114,11 +114,11 @@ impl UserRingBuffer {
 
         let ptr = NonNull::new(sample_ptr).ok_or_else(|| {
             // Fetch the current value of errno to determine the type of error.
-            let errno = unsafe { *libc::__errno_location() };
-            match errno {
-                E2BIG => Error::with_invalid_data("requested size is too large"),
-                ENOSPC => Error::with_invalid_data("not enough space in the ring buffer"),
-                _ => Error::from_raw_os_error(errno),
+            let errno = io::Error::last_os_error();
+            match errno.raw_os_error() {
+                Some(E2BIG) => Error::with_invalid_data("requested size is too large"),
+                Some(ENOSPC) => Error::with_invalid_data("not enough space in the ring buffer"),
+                _ => Error::from(errno),
             }
         })?;
 
