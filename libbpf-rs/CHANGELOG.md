@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed build failure on Android platforms
+
+
 0.23.1
 ------
 - Added support for user ring buffers
