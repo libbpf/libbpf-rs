@@ -1108,6 +1108,7 @@ impl From<MapType> for u32 {
     }
 }
 
+/// An iterator over the keys of a [`Map`].
 #[derive(Debug)]
 pub struct MapKeyIter<'a> {
     map: &'a MapHandle,
