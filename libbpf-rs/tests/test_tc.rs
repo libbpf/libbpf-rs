@@ -2,6 +2,7 @@ use std::os::unix::io::AsFd as _;
 use std::os::unix::io::BorrowedFd;
 
 use serial_test::serial;
+use test_tag::tag;
 
 mod test;
 use test::bump_rlimit_mlock;
@@ -37,9 +38,10 @@ fn clear_clsact(fd: BorrowedFd) -> Result<()> {
     Ok(())
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_basic_cycle() {
+fn test_tc_basic_cycle() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
@@ -79,9 +81,10 @@ fn test_sudo_tc_basic_cycle() {
     assert!(clear_clsact(fd).is_ok());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_attach_no_qdisc() {
+fn test_tc_attach_no_qdisc() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
@@ -104,9 +107,10 @@ fn test_sudo_tc_attach_no_qdisc() {
     assert!(custom.attach().is_err());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_attach_basic() {
+fn test_tc_attach_basic() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
@@ -133,9 +137,10 @@ fn test_sudo_tc_attach_basic() {
     assert!(clear_clsact(fd).is_ok());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_attach_repeat() {
+fn test_tc_attach_repeat() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
@@ -173,9 +178,10 @@ fn test_sudo_tc_attach_repeat() {
     assert!(clear_clsact(fd).is_ok());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_attach_custom() {
+fn test_tc_attach_custom() {
     bump_rlimit_mlock();
     let obj = get_test_object("tc-unit.bpf.o");
     let fd = obj.prog("handle_tc").unwrap().as_fd();
@@ -226,9 +232,10 @@ fn test_sudo_tc_attach_custom() {
     assert!(custom.attach().is_err());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_detach_basic() {
+fn test_tc_detach_basic() {
     bump_rlimit_mlock();
     let obj = get_test_object("tc-unit.bpf.o");
     let fd = obj.prog("handle_tc").unwrap().as_fd();
@@ -272,9 +279,10 @@ fn test_sudo_tc_detach_basic() {
     assert!(clear_clsact(fd).is_ok());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_query() {
+fn test_tc_query() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
@@ -344,9 +352,10 @@ fn test_sudo_tc_query() {
     assert!(custom.query().is_err());
 }
 
+#[tag(root)]
 #[test]
 #[serial]
-fn test_sudo_tc_double_create() {
+fn test_tc_double_create() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
