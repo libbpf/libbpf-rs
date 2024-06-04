@@ -2,6 +2,8 @@ use std::os::fd::AsFd;
 
 use scopeguard::defer;
 
+use test_tag::tag;
+
 mod test;
 use test::bump_rlimit_mlock;
 use test::get_test_object;
@@ -11,8 +13,9 @@ use libbpf_rs::XdpFlags;
 
 const LO_IFINDEX: i32 = 1;
 
+#[tag(root)]
 #[test]
-fn test_sudo_xdp() {
+fn test_xdp() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("xdp.bpf.o");

@@ -60,9 +60,9 @@ jobs:
       run: cargo build --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower
     - name: Run tests
       # Skip tests which require sudo
-      run: cargo test --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower -- --skip test_sudo_  --include-ignored
+      run: cargo test --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower -- --skip ':root:'  --include-ignored
     - name: Run root tests
-      run: cd libbpf-rs && cargo test --profile=${{ matrix.profile }} --locked --verbose -- test_sudo_
+      run: cd libbpf-rs && cargo test --profile=${{ matrix.profile }} --locked --verbose -- ':root:'
 
   build-features:
     name: Build [${{ matrix.args }}]

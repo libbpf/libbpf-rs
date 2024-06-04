@@ -311,6 +311,7 @@ dependencies = [
  "scopeguard",
  "serial_test",
  "tempfile",
+ "test-tag",
  "vsprintf",
 ]
 
@@ -790,6 +791,17 @@ dependencies = [
  "fastrand",
  "rustix",
  "windows-sys",
+]
+
+[[package]]
+name = "test-tag"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8da4a6c4d4955185edfd6edfd3ada72a4e567434db06eac02c6ff54d27c72623"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
