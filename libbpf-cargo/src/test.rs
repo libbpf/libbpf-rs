@@ -1468,6 +1468,43 @@ pub struct Foo {
 }
 
 #[test]
+fn test_btf_dump_insane_align() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    int x;
+} __attribute__((aligned(64)));
+
+struct Foo foo = {1};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub x: i32,
+    pub __pad_4: [u8; 60],
+}
+impl Default for Foo {
+    fn default() -> Self {
+        Foo {
+            x: i32::default(),
+            __pad_4: [u8::default(); 60],
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
+
+    assert_definition(&btf, &struct_foo, expected_output);
+}
+
+#[test]
 fn test_btf_dump_basic_long_array() {
     let prog_text = r#"
 #include "vmlinux.h"

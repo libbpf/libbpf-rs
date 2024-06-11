@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed generation of `Default` impl in presence of large padding arrays
+
+
 0.23.1
 ------
 - Added "import injection" escape hatch to generated skeletons
