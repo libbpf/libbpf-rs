@@ -1,8 +1,3 @@
-Unreleased
-----------
-- Removed `Display` implementation of various `enum` types
-
-
 0.23.2
 ------
 - Fixed build failure on Android platforms
