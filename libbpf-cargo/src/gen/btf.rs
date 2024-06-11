@@ -575,6 +575,10 @@ impl struct_ops {{
                     impl_default.push(format!(
                         r#"            __pad_{offset}: [u8::default(); {padding}]"#,
                     ));
+
+                    if padding > 32 {
+                        gen_impl_default = true;
+                    }
                 }
 
                 if let Some(ft) = self.type_by_id::<types::Array<'_>>(field_ty.type_id()) {
@@ -634,6 +638,10 @@ impl struct_ops {{
                 impl_default.push(format!(
                     r#"            __pad_{offset}: [u8::default(); {padding}]"#,
                 ));
+
+                if padding > 32 {
+                    gen_impl_default = true;
+                }
             }
         }
 
