@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.23.3
+------
 - Fixed generation of `Default` impl in presence of large padding arrays
 
 
