@@ -23,6 +23,7 @@ use std::slice::from_raw_parts;
 use bitflags::bitflags;
 use libbpf_sys::bpf_map_info;
 use libbpf_sys::bpf_obj_get_info_by_fd;
+use strum_macros::Display;
 
 use crate::util;
 use crate::util::parse_ret_i32;
@@ -315,7 +316,7 @@ impl Map {
     pub fn attach_struct_ops(&self) -> Result<Link> {
         if self.map_type() != MapType::StructOps {
             return Err(Error::with_invalid_data(format!(
-                "Invalid map type ({:?}) for attach_struct_ops()",
+                "Invalid map type ({}) for attach_struct_ops()",
                 self.map_type(),
             )));
         }
@@ -634,7 +635,7 @@ impl MapHandle {
         }
         if self.map_type().is_percpu() {
             return Err(Error::with_invalid_data(format!(
-                "lookup_percpu() must be used for per-cpu maps (type of the map is {:?})",
+                "lookup_percpu() must be used for per-cpu maps (type of the map is {})",
                 self.map_type(),
             )));
         }
@@ -673,7 +674,7 @@ impl MapHandle {
     pub fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::with_invalid_data(format!(
-                "lookup() must be used for maps that are not per-cpu (type of the map is {:?})",
+                "lookup() must be used for maps that are not per-cpu (type of the map is {})",
                 self.map_type(),
             )));
         }
@@ -801,7 +802,7 @@ impl MapHandle {
     pub fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if self.map_type().is_percpu() {
             return Err(Error::with_invalid_data(format!(
-                "update_percpu() must be used for per-cpu maps (type of the map is {:?})",
+                "update_percpu() must be used for per-cpu maps (type of the map is {})",
                 self.map_type(),
             )));
         }
@@ -880,7 +881,7 @@ impl MapHandle {
     pub fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::with_invalid_data(format!(
-                "update() must be used for maps that are not per-cpu (type of the map is {:?})",
+                "update() must be used for maps that are not per-cpu (type of the map is {})",
                 self.map_type(),
             )));
         }
@@ -980,7 +981,7 @@ bitflags! {
 // If you add a new per-cpu map, also update `is_percpu`.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Display, Debug)]
 // TODO: Document members.
 #[allow(missing_docs)]
 pub enum MapType {

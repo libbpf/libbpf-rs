@@ -14,6 +14,7 @@ use std::ptr::NonNull;
 use std::slice;
 
 use libbpf_sys::bpf_func_id;
+use strum_macros::Display;
 
 use crate::util;
 use crate::AsRawLibbpf;
@@ -244,7 +245,7 @@ impl AsRawLibbpf for OpenProgram {
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Display, Debug)]
 // TODO: Document variants.
 #[allow(missing_docs)]
 pub enum ProgramType {
@@ -359,7 +360,7 @@ impl From<u32> for ProgramType {
 /// Attach type of a [`Program`]. Maps to `enum bpf_attach_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Display, Debug)]
 // TODO: Document variants.
 #[allow(missing_docs)]
 pub enum ProgramAttachType {
