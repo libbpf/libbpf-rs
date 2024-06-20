@@ -771,12 +771,25 @@ fn test_skeleton_builder_basic() {
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
+        struct unique_key {{
+            int cap;
+            u32 tgid;
+            u64 cgroupid;
+        }};
+
         struct {{
                 __uint(type, BPF_MAP_TYPE_HASH);
                 __uint(max_entries, 1024);
-                __type(key, u32);
+                __type(key, struct unique_key);
                 __type(value, u64);
         }} mymap SEC(".maps");
+
+        struct {{
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __uint(key_size, 8);
+                __type(value, u64);
+        }} mymap2 SEC(".maps");
 
         SEC("kprobe/foo")
         int this_is_my_prog(u64 *ctx)
@@ -837,8 +850,10 @@ fn test_skeleton_builder_basic() {
 
             // Check that we can grab handles to open maps/progs
             let _open_map = open_skel.maps().mymap();
+            let _open_map2 = open_skel.maps().mymap2();
             let _open_prog = open_skel.progs().this_is_my_prog();
             let _open_map_mut = open_skel.maps_mut().mymap();
+            let _open_map2_mut = open_skel.maps_mut().mymap2();
             let _open_prog_mut = open_skel.progs_mut().this_is_my_prog();
 
 
@@ -848,8 +863,10 @@ fn test_skeleton_builder_basic() {
 
             // Check that we can grab handles to loaded maps/progs
             let _map = skel.maps().mymap();
+            let _map2 = skel.maps().mymap2();
             let _prog = skel.progs().this_is_my_prog();
             let _map_mut = skel.maps_mut().mymap();
+            let _map2_mut = skel.maps_mut().mymap2();
             let _prog_mut = skel.progs_mut().this_is_my_prog();
 
             // Check that attach() is generated
@@ -857,6 +874,8 @@ fn test_skeleton_builder_basic() {
 
             // Check that Option<Link> field is generated
             let _mylink = skel.links.this_is_my_prog.unwrap();
+
+            let _key = prog_types::unique_key::default();
         }}
         "#,
         skel_path = skel.path().display(),
