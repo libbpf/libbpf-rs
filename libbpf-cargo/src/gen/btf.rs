@@ -2,6 +2,9 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Result as FmtResult;
 use std::fmt::Write;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
@@ -281,6 +284,14 @@ impl AnonTypes {
 pub struct GenBtf<'s> {
     btf: Btf<'s>,
     anon_types: AnonTypes,
+}
+
+impl Debug for GenBtf<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        f.debug_struct("GenBtf<'_>")
+            .field("btf", &self.btf)
+            .finish()
+    }
 }
 
 impl<'s> From<Btf<'s>> for GenBtf<'s> {
