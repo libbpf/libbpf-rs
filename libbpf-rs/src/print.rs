@@ -123,6 +123,7 @@ pub fn set_print(
 ) -> Option<(PrintLevel, PrintCallback)> {
     // # Safety
     // outer_print_cb has the same function signature as libbpf_print_fn_t
+    #[allow(clippy::missing_transmute_annotations)]
     let real_cb: libbpf_sys::libbpf_print_fn_t =
         unsafe { Some(mem::transmute(outer_print_cb as *const ())) };
     let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(real_cb);
