@@ -19,6 +19,8 @@ use std::ffi::CString;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::Result as FmtResult;
 use std::io;
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -156,7 +158,6 @@ enum DropPolicy {
 /// was derived from an [`Object`](super::Object), which owns the data this structs points too. When
 /// instead the [`Btf::from_path`] method is used, the lifetime will be `'static` since it doesn't
 /// borrow from anything.
-#[derive(Debug)]
 pub struct Btf<'source> {
     ptr: NonNull<libbpf_sys::btf>,
     drop_policy: DropPolicy,
@@ -393,6 +394,30 @@ impl AsRawLibbpf for Btf<'_> {
     }
 }
 
+impl Debug for Btf<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        struct BtfDumper<'btf>(&'btf Btf<'btf>);
+
+        impl Debug for BtfDumper<'_> {
+            fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+                f.debug_list()
+                    .entries(
+                        (0..self.0.len())
+                            .map(|i| TypeId::from(i as u32))
+                            // SANITY: A type with this ID should always exist
+                            //         given that BTF IDs are fully populated up
+                            //         to `len`. Conversion to `BtfType` is
+                            //         always infallible.
+                            .map(|id| self.0.type_by_id::<BtfType<'_>>(id).unwrap()),
+                    )
+                    .finish()
+            }
+        }
+
+        f.debug_tuple("Btf<'_>").field(&BtfDumper(self)).finish()
+    }
+}
+
 impl Drop for Btf<'_> {
     fn drop(&mut self) {
         match self.drop_policy {
@@ -441,7 +466,7 @@ impl Debug for BtfType<'_> {
         f.debug_struct("BtfType")
             .field("type_id", &self.type_id)
             .field("name", &self.name())
-            .field("source", &self.source)
+            .field("source", &self.source.as_libbpf_object())
             .field("ty", &(self.ty as *const _))
             .finish()
     }

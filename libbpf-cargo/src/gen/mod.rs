@@ -493,10 +493,7 @@ fn gen_skel_datasec_types(skel: &mut String, object: &BpfObj) -> Result<()> {
     Ok(())
 }
 
-fn gen_skel_struct_ops_types(
-    skel: &mut String,
-    object: &BpfObj, /*, programs: &mut HashMap*/
-) -> Result<()> {
+fn gen_skel_struct_ops_types(skel: &mut String, object: &BpfObj) -> Result<()> {
     if let Some(btf) = Btf::from_bpf_object(object)? {
         let btf = GenBtf::from(btf);
 
