@@ -361,10 +361,9 @@ impl<'s> GenBtf<'s> {
             )
         };
 
-        ensure!(
-            !is_terminal(ty),
-            "Tried to print type definition for terminal type"
-        );
+        if is_terminal(ty) {
+            return Ok(String::new());
+        }
 
         // Process dependent types until there are none left.
         //

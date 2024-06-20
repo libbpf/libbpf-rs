@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Adjusted skeleton creation logic to generate Rust types for types used in BPF
+  maps
+
+
 0.23.3
 ------
 - Fixed generation of `Default` impl in presence of large padding arrays
