@@ -13,11 +13,14 @@ int handle__ksyscall(pid_t pid, int sig) {
   int *value;
 
   value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
-  if (value) {
-    *value = 1;
-    bpf_ringbuf_submit(value, 0);
+  if (!value) {
+    bpf_printk("handle__ksyscall: failed to reserve ring buffer space");
+    return 1;
   }
 
+  *value = 1;
+  bpf_ringbuf_submit(value, 0);
+  bpf_printk("handle__ksyscall: submitted ringbuf value");
   return 0;
 }
 
