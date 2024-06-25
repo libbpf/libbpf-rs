@@ -13,7 +13,6 @@ use crate::util;
 use crate::Btf;
 use crate::Error;
 use crate::Map;
-use crate::MapCore as _;
 use crate::OpenMap;
 use crate::OpenProgram;
 use crate::PrintLevel;
@@ -352,7 +351,6 @@ impl Drop for OpenObject {
 #[derive(Debug)]
 pub struct Object {
     ptr: NonNull<libbpf_sys::bpf_object>,
-    maps: HashMap<String, Map>,
     progs: HashMap<String, Program>,
 }
 
@@ -368,19 +366,8 @@ impl Object {
     pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
         let mut slf = Self {
             ptr,
-            maps: HashMap::new(),
             progs: HashMap::new(),
         };
-
-        for map in slf.maps() {
-            slf.maps.insert(
-                map.name()
-                    .to_str()
-                    .ok_or_invalid_data(|| "map has invalid name")?
-                    .to_string(),
-                map,
-            );
-        }
 
         for prog in slf.progs() {
             slf.progs.insert(
@@ -398,30 +385,6 @@ impl Object {
     /// Parse the btf information associated with this bpf object.
     pub fn btf(&self) -> Result<Option<Btf<'_>>> {
         Btf::from_bpf_object(unsafe { &*self.ptr.as_ptr() })
-    }
-
-    /// Get a reference to `Map` with the name `name`, if one exists.
-    pub fn map<T: AsRef<str>>(&self, name: T) -> Option<&Map> {
-        self.maps.get(name.as_ref())
-    }
-
-    /// Get a mutable reference to `Map` with the name `name`, if one exists.
-    pub fn map_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Map> {
-        self.maps.get_mut(name.as_ref())
-    }
-
-    /// Get an iterator over references to all `Map`s.
-    /// Note that this will include automatically generated .data, .rodata, .bss, and
-    /// .kconfig maps. You may wish to filter this.
-    pub fn maps_iter(&self) -> impl Iterator<Item = &Map> {
-        self.maps.values()
-    }
-
-    /// Get an iterator over mutable references to all `Map`s.
-    /// Note that this will include automatically generated .data, .rodata, .bss, and
-    /// .kconfig maps. You may wish to filter this.
-    pub fn maps_iter_mut(&mut self) -> impl Iterator<Item = &mut Map> {
-        self.maps.values_mut()
     }
 
     /// Retrieve an iterator over all BPF maps in the object.

@@ -101,11 +101,11 @@ where
         };
 
         let mut builder = libbpf_rs::RingBufferBuilder::new();
-        builder.add(map, callback).expect("Failed to add ringbuf");
-        let mgr = builder.build().expect("Failed to build");
+        builder.add(map, callback).expect("failed to add ringbuf");
+        let mgr = builder.build().expect("failed to build");
 
         action();
-        mgr.consume().expect("Failed to consume ringbuf");
+        mgr.consume().expect("failed to consume ringbuf");
     }
 
     value
@@ -174,9 +174,13 @@ fn test_object_maps() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    obj.map("start").expect("failed to find map");
-    obj.map("events").expect("failed to find map");
-    assert!(obj.map("asdf").is_none());
+    obj.maps()
+        .find(|map| map.name() == "start")
+        .expect("failed to find map");
+    obj.maps()
+        .find(|map| map.name() == "events")
+        .expect("failed to find map");
+    assert!(!obj.maps().any(|map| map.name() == OsStr::new("asdf")));
 }
 
 #[tag(root)]
@@ -185,11 +189,11 @@ fn test_object_maps_iter() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    for map in obj.maps_iter() {
+    for map in obj.maps() {
         eprintln!("{:?}", map.name());
     }
     // This will include .rodata and .bss, so our expected count is 4, not 2
-    assert!(obj.maps_iter().count() == 4);
+    assert!(obj.maps().count() == 4);
 }
 
 #[tag(root)]
@@ -197,8 +201,11 @@ fn test_object_maps_iter() {
 fn test_object_map_key_value_size() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map_mut("start").expect("failed to find map");
+    let obj = get_test_object("runqslower.bpf.o");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     assert!(start.lookup(&[1, 2, 3, 4, 5], MapFlags::empty()).is_err());
     assert!(start.delete(&[1]).is_err());
@@ -213,8 +220,11 @@ fn test_object_map_key_value_size() {
 fn test_object_map_update_batch() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map_mut("start").expect("failed to find map");
+    let obj = get_test_object("runqslower.bpf.o");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let key1 = 1u32.to_ne_bytes();
     let key2 = 2u32.to_ne_bytes();
@@ -302,8 +312,11 @@ fn test_object_map_update_batch() {
 fn test_object_map_delete_batch() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map_mut("start").expect("failed to find map");
+    let obj = get_test_object("runqslower.bpf.o");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let key1 = 1u32.to_ne_bytes();
     assert!(start
@@ -387,8 +400,11 @@ pub fn test_map_info() {
 fn test_object_percpu_lookup() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("percpu_map.bpf.o");
-    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let obj = get_test_object("percpu_map.bpf.o");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("percpu_map"))
+        .expect("failed to find `percpu_map` map");
 
     let res = map
         .lookup_percpu(&(0_u32).to_ne_bytes(), MapFlags::ANY)
@@ -407,8 +423,11 @@ fn test_object_percpu_lookup() {
 fn test_object_percpu_invalid_lookup_fn() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("percpu_map.bpf.o");
-    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let obj = get_test_object("percpu_map.bpf.o");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("percpu_map"))
+        .expect("failed to find `percpu_map` map");
 
     assert!(map.lookup(&(0_u32).to_ne_bytes(), MapFlags::ANY).is_err());
 }
@@ -418,8 +437,11 @@ fn test_object_percpu_invalid_lookup_fn() {
 fn test_object_percpu_update() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("percpu_map.bpf.o");
-    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let obj = get_test_object("percpu_map.bpf.o");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("percpu_map"))
+        .expect("failed to find `percpu_map` map");
     let key = (0_u32).to_ne_bytes();
 
     let mut vals: Vec<Vec<u8>> = Vec::new();
@@ -443,8 +465,11 @@ fn test_object_percpu_update() {
 fn test_object_percpu_invalid_update_fn() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("percpu_map.bpf.o");
-    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let obj = get_test_object("percpu_map.bpf.o");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("percpu_map"))
+        .expect("failed to find `percpu_map` map");
     let key = (0_u32).to_ne_bytes();
 
     let val = (1_u32).to_ne_bytes().to_vec();
@@ -457,8 +482,11 @@ fn test_object_percpu_invalid_update_fn() {
 fn test_object_percpu_lookup_update() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("percpu_map.bpf.o");
-    let map = obj.map_mut("percpu_map").expect("failed to find map");
+    let obj = get_test_object("percpu_map.bpf.o");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("percpu_map"))
+        .expect("failed to find `percpu_map` map");
     let key = (0_u32).to_ne_bytes();
 
     let mut res = map
@@ -487,7 +515,10 @@ fn test_object_map_empty_lookup() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map("start").expect("failed to find map");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     assert!(start
         .lookup(&[1, 2, 3, 4], MapFlags::empty())
@@ -502,7 +533,10 @@ fn test_object_map_queue_crud() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tracepoint.bpf.o");
-    let queue = obj.map("queue").expect("failed to find queue map");
+    let queue = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("queue"))
+        .expect("failed to find `queue` map");
 
     let key: [u8; 0] = [];
     let value1 = 42u32.to_ne_bytes();
@@ -551,8 +585,9 @@ fn test_object_map_bloom_filter_crud() {
 
     let obj = get_test_object("tracepoint.bpf.o");
     let bloom_filter = obj
-        .map("bloom_filter")
-        .expect("failed to find bloom_filter map");
+        .maps()
+        .find(|map| map.name() == OsStr::new("bloom_filter"))
+        .expect("failed to find `bloom_filter` map");
 
     let key: [u8; 0] = [];
     let value1 = 1337u32.to_ne_bytes();
@@ -603,7 +638,10 @@ fn test_object_map_stack_crud() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tracepoint.bpf.o");
-    let stack = obj.map("stack").expect("failed to find stack map");
+    let stack = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("stack"))
+        .expect("failed to find `stack` map");
 
     let key: [u8; 0] = [];
     let value1 = 1337u32.to_ne_bytes();
@@ -649,8 +687,11 @@ fn test_object_map_stack_crud() {
 fn test_object_map_mutation() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map_mut("start").expect("failed to find map");
+    let obj = get_test_object("runqslower.bpf.o");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
@@ -675,8 +716,11 @@ fn test_object_map_mutation() {
 fn test_object_map_lookup_flags() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map_mut("start").expect("failed to find map");
+    let obj = get_test_object("runqslower.bpf.o");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::NO_EXIST)
@@ -691,9 +735,12 @@ fn test_object_map_lookup_flags() {
 fn test_object_map_key_iter() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
+    let obj = get_test_object("runqslower.bpf.o");
 
-    let start = obj.map_mut("start").expect("failed to find map");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let key1 = vec![1, 2, 3, 4];
     let key2 = vec![1, 2, 3, 5];
@@ -725,7 +772,10 @@ fn test_object_map_key_iter_empty() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    let start = obj.map("start").expect("failed to find map");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let mut count = 0;
     for _ in start.keys() {
@@ -739,8 +789,11 @@ fn test_object_map_key_iter_empty() {
 fn test_object_map_pin() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let map = obj.map_mut("start").expect("failed to find map");
+    let obj = get_test_object("runqslower.bpf.o");
+    let mut map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let path = "/sys/fs/bpf/mymap_test_object_map_pin";
 
@@ -760,8 +813,11 @@ fn test_object_map_pin() {
 fn test_object_loading_pinned_map_from_path() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let map = obj.map_mut("start").expect("failed to find map 'start'");
+    let obj = get_test_object("runqslower.bpf.o");
+    let mut map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
 
@@ -782,8 +838,11 @@ fn test_object_loading_pinned_map_from_path() {
 fn test_object_loading_loaded_map_from_id() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let map = obj.map_mut("start").expect("failed to find map 'start'");
+    let obj = get_test_object("runqslower.bpf.o");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let id = map.info().expect("to get info from map 'start'").info.id;
 
@@ -892,8 +951,11 @@ fn test_object_reuse_pined_map() {
 
     // Pin a map
     {
-        let mut obj = get_test_object("runqslower.bpf.o");
-        let map = obj.map_mut("start").expect("failed to find map");
+        let obj = get_test_object("runqslower.bpf.o");
+        let mut map = obj
+            .maps()
+            .find(|map| map.name() == OsStr::new("start"))
+            .expect("failed to find `start` map");
 
         map.update(&key, &val, MapFlags::empty())
             .expect("failed to write");
@@ -916,12 +978,15 @@ fn test_object_reuse_pined_map() {
     let mut start = open_obj
         .maps()
         .find(|map| map.name() == OsStr::new("start"))
-        .expect("failed to find map");
+        .expect("failed to find `start` map");
     assert!(start.reuse_pinned_map("/asdf").is_err());
     start.reuse_pinned_map(path).expect("failed to reuse map");
 
-    let mut obj = open_obj.load().expect("Failed to load object");
-    let reused_map = obj.map_mut("start").expect("failed to find map");
+    let obj = open_obj.load().expect("failed to load object");
+    let mut reused_map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
 
     let found_val = reused_map
         .lookup(&key, MapFlags::empty())
@@ -982,16 +1047,26 @@ fn test_object_ringbuf_raw() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
+    let map1 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf1"))
+        .expect("failed to find `ringbuf1` map");
 
-    builder.add(map1, callback1).expect("Failed to add ringbuf");
+    builder
+        .add(&map1, callback1)
+        .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
+    let map2 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf2"))
+        .expect("failed to find `ringbuf2` map");
 
-    builder.add(map2, callback2).expect("Failed to add ringbuf");
+    builder
+        .add(&map2, callback2)
+        .expect("failed to add ringbuf");
 
-    let mgr = builder.build().expect("Failed to build");
+    let mgr = builder.build().expect("failed to build");
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
@@ -1048,16 +1123,26 @@ fn test_object_ringbuf_err_callback() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
+    let map1 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf1"))
+        .expect("failed to find `ringbuf1` map");
 
-    builder.add(map1, callback1).expect("Failed to add ringbuf");
+    builder
+        .add(&map1, callback1)
+        .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
+    let map2 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf2"))
+        .expect("failed to find `ringbuf2` map");
 
-    builder.add(map2, callback2).expect("Failed to add ringbuf");
+    builder
+        .add(&map2, callback2)
+        .expect("failed to add ringbuf");
 
-    let mgr = builder.build().expect("Failed to build");
+    let mgr = builder.build().expect("failed to build");
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
@@ -1125,22 +1210,32 @@ fn test_object_ringbuf() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
+    let map1 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf1"))
+        .expect("failed to find `ringbuf1` map");
 
-    builder.add(map1, callback1).expect("Failed to add ringbuf");
+    builder
+        .add(&map1, callback1)
+        .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
+    let map2 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf2"))
+        .expect("failed to find `ringbuf2` map");
 
-    builder.add(map2, callback2).expect("Failed to add ringbuf");
+    builder
+        .add(&map2, callback2)
+        .expect("failed to add ringbuf");
 
-    let mgr = builder.build().expect("Failed to build");
+    let mgr = builder.build().expect("failed to build");
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
 
     // This should result in both callbacks being called
-    mgr.consume().expect("Failed to consume ringbuf");
+    mgr.consume().expect("failed to consume ringbuf");
 
     // Our values should both reflect that the callbacks have been called
     unsafe { assert_eq!(V1, 1) };
@@ -1155,7 +1250,7 @@ fn test_object_ringbuf() {
 
     // This should result in both callbacks being called
     mgr.poll(Duration::from_millis(100))
-        .expect("Failed to poll ringbuf");
+        .expect("failed to poll ringbuf");
 
     // Our values should both reflect that the callbacks have been called
     unsafe { assert_eq!(V1, 1) };
@@ -1178,7 +1273,7 @@ fn test_object_ringbuf_closure() {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        sender1.send(value).expect("Failed to send value");
+        sender1.send(value).expect("failed to send value");
 
         0
     };
@@ -1188,7 +1283,7 @@ fn test_object_ringbuf_closure() {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        sender2.send(value).expect("Failed to send value");
+        sender2.send(value).expect("failed to send value");
 
         0
     };
@@ -1205,25 +1300,35 @@ fn test_object_ringbuf_closure() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = obj.map("ringbuf1").expect("Failed to get ringbuf1 map");
+    let map1 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf1"))
+        .expect("failed to find `ringbuf1` map");
 
-    builder.add(map1, callback1).expect("Failed to add ringbuf");
+    builder
+        .add(&map1, callback1)
+        .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = obj.map("ringbuf2").expect("Failed to get ringbuf2 map");
+    let map2 = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf2"))
+        .expect("failed to find `ringbuf2` map");
 
-    builder.add(map2, callback2).expect("Failed to add ringbuf");
+    builder
+        .add(&map2, callback2)
+        .expect("failed to add ringbuf");
 
-    let mgr = builder.build().expect("Failed to build");
+    let mgr = builder.build().expect("failed to build");
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
 
     // This should result in both callbacks being called
-    mgr.consume().expect("Failed to consume ringbuf");
+    mgr.consume().expect("failed to consume ringbuf");
 
-    let v1 = receiver1.recv().expect("Failed to receive value");
-    let v2 = receiver2.recv().expect("Failed to receive value");
+    let v1 = receiver1.recv().expect("failed to receive value");
+    let v2 = receiver2.recv().expect("failed to receive value");
 
     assert_eq!(v1, 1);
     assert_eq!(v2, 2);
@@ -1244,13 +1349,16 @@ fn test_object_ringbuf_with_closed_map() {
             let mut obj = get_test_object("tracepoint.bpf.o");
             let prog = obj
                 .prog_mut("handle__tracepoint")
-                .expect("Failed to find program");
+                .expect("failed to find program");
 
             let _link = prog
                 .attach_tracepoint("syscalls", "sys_enter_getpid")
-                .expect("Failed to attach prog");
+                .expect("failed to attach prog");
 
-            let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+            let map = obj
+                .maps()
+                .find(|map| map.name() == OsStr::new("ringbuf"))
+                .expect("failed to find `ringbuf` map");
 
             let callback = |data: &[u8]| {
                 plain::copy_from_bytes(&mut value, data).expect("Wrong size");
@@ -1258,8 +1366,8 @@ fn test_object_ringbuf_with_closed_map() {
             };
 
             let mut builder = libbpf_rs::RingBufferBuilder::new();
-            builder.add(map, callback).expect("Failed to add ringbuf");
-            let ringbuf = builder.build().expect("Failed to build");
+            builder.add(&map, callback).expect("failed to add ringbuf");
+            let ringbuf = builder.build().expect("failed to build");
 
             drop(obj);
 
@@ -1273,11 +1381,11 @@ fn test_object_ringbuf_with_closed_map() {
         assert_eq!(value, 1);
     }
 
-    test(|ringbuf| ringbuf.consume().expect("Failed to consume ringbuf"));
+    test(|ringbuf| ringbuf.consume().expect("failed to consume ringbuf"));
     test(|ringbuf| {
         ringbuf
             .poll(Duration::from_secs(5))
-            .expect("Failed to poll ringbuf")
+            .expect("failed to poll ringbuf")
     });
 }
 
@@ -1300,9 +1408,10 @@ fn test_object_user_ringbuf() {
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = obj
-        .map("user_ringbuf")
-        .expect("failed to find user ringbuf map");
-    let user_ringbuf = UserRingBuffer::new(urb_map).expect("failed to create user ringbuf");
+        .maps()
+        .find(|map| map.name() == OsStr::new("user_ringbuf"))
+        .expect("failed to find `user_ringbuf` map");
+    let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
     let mut urb_sample = user_ringbuf
         .reserve(size_of::<MyStruct>())
         .expect("failed to reserve space");
@@ -1319,7 +1428,10 @@ fn test_object_user_ringbuf() {
 
     // At this point, the BPF program should have run and consumed the sample in
     // the user ring buffer, and stored the key/value in the samples map.
-    let samples_map = obj.map("samples").expect("failed to find map");
+    let samples_map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("samples"))
+        .expect("failed to find `samples` map");
     let key: u32 = 42;
     let value: u32 = 1337;
     let res = samples_map
@@ -1345,9 +1457,10 @@ fn test_object_user_ringbuf_reservation_too_big() {
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = obj
-        .map("user_ringbuf")
-        .expect("failed to find user ringbuf map");
-    let user_ringbuf = UserRingBuffer::new(urb_map).expect("failed to create user ringbuf");
+        .maps()
+        .find(|map| map.name() == OsStr::new("user_ringbuf"))
+        .expect("failed to find `user_ringbuf` map");
+    let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
     let err = user_ringbuf.reserve(1024 * 1024).unwrap_err();
     assert!(
         err.to_string().contains("requested size is too large"),
@@ -1366,9 +1479,10 @@ fn test_object_user_ringbuf_not_enough_space() {
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = obj
-        .map("user_ringbuf")
-        .expect("failed to find user ringbuf map");
-    let user_ringbuf = UserRingBuffer::new(urb_map).expect("failed to create user ringbuf");
+        .maps()
+        .find(|map| map.name() == OsStr::new("user_ringbuf"))
+        .expect("failed to find `user_ringbuf` map");
+    let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
     let _ = user_ringbuf
         .reserve(1024 * 3)
         .expect("failed to reserve space");
@@ -1386,9 +1500,9 @@ fn test_object_task_iter() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("taskiter.bpf.o");
-    let prog = obj.prog_mut("dump_pid").expect("Failed to find program");
-    let link = prog.attach().expect("Failed to attach prog");
-    let mut iter = Iter::new(&link).expect("Failed to create iterator");
+    let prog = obj.prog_mut("dump_pid").expect("failed to find program");
+    let link = prog.attach().expect("failed to attach prog");
+    let mut iter = Iter::new(&link).expect("failed to create iterator");
 
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -1402,7 +1516,7 @@ fn test_object_task_iter() {
     let mut buf = Vec::new();
     let bytes_read = iter
         .read_to_end(&mut buf)
-        .expect("Failed to read from iterator");
+        .expect("failed to read from iterator");
 
     assert!(bytes_read > 0);
     assert_eq!(bytes_read % size_of::<IndexPidPair>(), 0);
@@ -1447,16 +1561,16 @@ fn test_object_map_iter() {
     }
 
     let mut obj = get_test_object("mapiter.bpf.o");
-    let prog = obj.prog_mut("map_iter").expect("Failed to find program");
+    let prog = obj.prog_mut("map_iter").expect("failed to find program");
     let link = prog
         .attach_iter(map.as_fd())
-        .expect("Failed to attach map iter prog");
-    let mut iter = Iter::new(&link).expect("Failed to create map iterator");
+        .expect("failed to attach map iter prog");
+    let mut iter = Iter::new(&link).expect("failed to create map iterator");
 
     let mut buf = Vec::new();
     let bytes_read = iter
         .read_to_end(&mut buf)
-        .expect("Failed to read from iterator");
+        .expect("failed to read from iterator");
 
     assert!(bytes_read > 0);
     assert_eq!(bytes_read % size_of::<u32>(), 0);
@@ -1558,21 +1672,24 @@ fn test_object_map_handle_clone() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    let map = obj.map("events").expect("failed to find map");
-    let handle1 = MapHandle::try_from(map).expect("Failed to create handle from Map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("events"))
+        .expect("failed to find `events` map");
+    let handle1 = MapHandle::try_from(&map).expect("failed to create handle from Map");
     assert_eq!(map.name(), handle1.name());
     assert_eq!(map.map_type(), handle1.map_type());
     assert_eq!(map.key_size(), handle1.key_size());
     assert_eq!(map.value_size(), handle1.value_size());
 
-    let handle2 = MapHandle::try_from(&handle1).expect("Failed to duplicate existing handle");
+    let handle2 = MapHandle::try_from(&handle1).expect("failed to duplicate existing handle");
     assert_eq!(handle1.name(), handle2.name());
     assert_eq!(handle1.map_type(), handle2.map_type());
     assert_eq!(handle1.key_size(), handle2.key_size());
     assert_eq!(handle1.value_size(), handle2.value_size());
 
-    let info1 = map.info().expect("Failed to get map info from map");
-    let info2 = handle2.info().expect("Failed to get map info from handle");
+    let info1 = map.info().expect("failed to get map info from map");
+    let info2 = handle2.info().expect("failed to get map info from handle");
     assert_eq!(
         info1.info.id, info2.info.id,
         "Map and MapHandle have different IDs"
@@ -1587,9 +1704,9 @@ fn test_object_usdt() {
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = obj
         .prog_mut("handle__usdt")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
-    let path = current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("failed to find executable name");
     let _link = prog
         .attach_usdt(
             unsafe { libc::getpid() },
@@ -1597,14 +1714,17 @@ fn test_object_usdt() {
             "test_provider",
             "test_function",
         )
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         // Define a USDT probe point and exercise it as we are attaching to self.
         probe!(test_provider, test_function, 1);
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, 1);
 }
@@ -1618,9 +1738,9 @@ fn test_object_usdt_cookie() {
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = obj
         .prog_mut("handle__usdt_with_cookie")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
-    let path = current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("failed to find executable name");
     let _link = prog
         .attach_usdt_with_opts(
             unsafe { libc::getpid() },
@@ -1632,14 +1752,17 @@ fn test_object_usdt_cookie() {
                 ..UsdtOpts::default()
             },
         )
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         // Define a USDT probe point and exercise it as we are attaching to self.
         probe!(test_provider, test_function2, 1);
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, cookie_val.into());
 }
@@ -1651,7 +1774,7 @@ fn test_map_probes() {
 
     let supported = MapType::Array
         .is_supported()
-        .expect("Failed to query if Array map is supported");
+        .expect("failed to query if Array map is supported");
     assert!(supported);
     let supported_res = MapType::Unknown.is_supported();
     assert!(supported_res.is_err());
@@ -1664,7 +1787,7 @@ fn test_program_probes() {
 
     let supported = ProgramType::SocketFilter
         .is_supported()
-        .expect("Failed to query if SocketFilter program is supported");
+        .expect("failed to query if SocketFilter program is supported");
     assert!(supported);
     let supported_res = ProgramType::Unknown.is_supported();
     assert!(supported_res.is_err());
@@ -1677,12 +1800,12 @@ fn test_program_helper_probes() {
 
     let supported = ProgramType::SocketFilter
         .is_helper_supported(libbpf_sys::BPF_FUNC_map_lookup_elem)
-        .expect("Failed to query if helper supported");
+        .expect("failed to query if helper supported");
     assert!(supported);
     // redirect should not be supported from socket filter, as it is only used in TC/XDP.
     let supported = ProgramType::SocketFilter
         .is_helper_supported(libbpf_sys::BPF_FUNC_redirect)
-        .expect("Failed to query if helper supported");
+        .expect("failed to query if helper supported");
     assert!(!supported);
     let supported_res = MapType::Unknown.is_supported();
     assert!(supported_res.is_err());
@@ -1696,7 +1819,7 @@ fn test_object_open_program_insns() {
     let open_obj = open_test_object("usdt.bpf.o");
     let prog = open_obj
         .prog("handle__usdt")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let insns = prog.insns();
     assert!(!insns.is_empty());
@@ -1708,7 +1831,7 @@ fn test_object_program_insns() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("usdt.bpf.o");
-    let prog = obj.prog("handle__usdt").expect("Failed to find program");
+    let prog = obj.prog("handle__usdt").expect("failed to find program");
 
     let insns = prog.insns();
     assert!(!insns.is_empty());
@@ -1723,17 +1846,20 @@ fn test_object_tracepoint() {
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = obj
         .prog_mut("handle__tracepoint")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let _link = prog
         .attach_tracepoint("syscalls", "sys_enter_getpid")
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         let _pid = unsafe { libc::getpid() };
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, 1);
 }
@@ -1749,7 +1875,7 @@ fn test_object_tracepoint_with_opts() {
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = obj
         .prog_mut("handle__tracepoint_with_cookie")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let opts = TracepointOpts {
         cookie: cookie_val.into(),
@@ -1757,13 +1883,16 @@ fn test_object_tracepoint_with_opts() {
     };
     let _link = prog
         .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         let _pid = unsafe { libc::getpid() };
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, cookie_val.into());
 }
@@ -1784,10 +1913,10 @@ fn test_object_uprobe_with_opts() {
     let mut obj = get_test_object("uprobe.bpf.o");
     let prog = obj
         .prog_mut("handle__uprobe")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let pid = unsafe { libc::getpid() };
-    let path = current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
         func_name: "uprobe_target".to_string(),
@@ -1795,13 +1924,16 @@ fn test_object_uprobe_with_opts() {
     };
     let _link = prog
         .attach_uprobe_with_opts(pid, path, func_offset, opts)
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         let _ = uprobe_target();
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, 1);
 }
@@ -1817,10 +1949,10 @@ fn test_object_uprobe_with_cookie() {
     let mut obj = get_test_object("uprobe.bpf.o");
     let prog = obj
         .prog_mut("handle__uprobe_with_cookie")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let pid = unsafe { libc::getpid() };
-    let path = current_exe().expect("Failed to find executable name");
+    let path = current_exe().expect("failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
         func_name: "uprobe_target".to_string(),
@@ -1829,13 +1961,16 @@ fn test_object_uprobe_with_cookie() {
     };
     let _link = prog
         .attach_uprobe_with_opts(pid, path, func_offset, opts)
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         let _ = uprobe_target();
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, cookie_val.into());
 }
@@ -1898,7 +2033,7 @@ fn test_object_perf_buffer_raw() {
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = obj
         .prog_mut("handle__tracepoint_with_cookie_pb")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let opts = TracepointOpts {
         cookie: cookie_val.into(),
@@ -1906,16 +2041,19 @@ fn test_object_perf_buffer_raw() {
     };
     let _link = prog
         .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("pb").expect("Failed to get perf-buffer map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("pb"))
+        .expect("failed to find `pb` map");
 
     let cookie_bytes = cookie_val.to_ne_bytes();
     let searcher = TwoWaySearcher::new(&cookie_bytes[..]);
 
-    let perf = libbpf_rs::PerfBufferBuilder::new(map)
+    let perf = libbpf_rs::PerfBufferBuilder::new(&map)
         .build()
-        .expect("Failed to build");
+        .expect("failed to build");
 
     // Make an action that the tracepoint will see
     let _pid = unsafe { libc::getpid() };
@@ -1936,8 +2074,9 @@ fn test_map_pinned_status() {
 
     let obj = get_test_object("map_auto_pin.bpf.o");
     let map = obj
-        .map("auto_pin_map")
-        .expect("failed to find map 'auto_pin_map'");
+        .maps()
+        .find(|map| map.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
 
     let is_pinned = map.is_pinned();
     assert!(is_pinned);
@@ -1965,8 +2104,9 @@ fn test_map_pinned_status_with_pin_root_path() {
         .expect("failed to load object");
 
     let map = obj
-        .map("auto_pin_map")
-        .expect("failed to find map 'auto_pin_map'");
+        .maps()
+        .find(|map| map.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
 
     let is_pinned = map.is_pinned();
     assert!(is_pinned);
@@ -2004,7 +2144,7 @@ fn test_map_autocreate_disable() {
     let mut auto_pin_map = open_obj
         .maps()
         .find(|map| map.name() == OsStr::new("auto_pin_map"))
-        .expect("failed to find map");
+        .expect("failed to find `auto_pin_map` map");
     auto_pin_map
         .set_autocreate(false)
         .expect("set_autocreate() failed");
@@ -2022,7 +2162,7 @@ fn test_map_resize() {
     let mut resizable = open_obj
         .maps()
         .find(|map| map.name() == OsStr::new(".data.resizable_data"))
-        .expect("failed to find map");
+        .expect("failed to find `.data.resizable_data` map");
 
     let len = resizable.initial_value().unwrap().len();
     assert_eq!(len, size_of::<u64>());
@@ -2043,13 +2183,16 @@ fn test_attach_ksyscall() {
     let mut obj = get_test_object("ksyscall.bpf.o");
     let prog = obj
         .prog_mut("handle__ksyscall")
-        .expect("Failed to find program");
+        .expect("failed to find program");
 
     let _link = prog
         .attach_ksyscall(false, "kill")
-        .expect("Failed to attach prog");
+        .expect("failed to attach prog");
 
-    let map = obj.map("ringbuf").expect("Failed to get ringbuf map");
+    let map = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("ringbuf"))
+        .expect("failed to find `ringbuf` map");
     let action = || {
         // Send `SIGCHLD`, which is ignored by default, to our process.
         let ret = unsafe { libc::kill(libc::getpid(), libc::SIGCHLD) };
@@ -2057,7 +2200,7 @@ fn test_attach_ksyscall() {
             panic!("kill failed: {}", io::Error::last_os_error());
         }
     };
-    let result = with_ringbuffer(map, action);
+    let result = with_ringbuffer(&map, action);
 
     assert_eq!(result, 1);
 }
@@ -2069,7 +2212,7 @@ fn test_run_prog_success() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("run_prog.bpf.o");
-    let prog = obj.prog_mut("test_1").expect("Failed to find program");
+    let prog = obj.prog_mut("test_1").expect("failed to find program");
 
     #[repr(C)]
     struct bpf_dummy_ops_state {
@@ -2094,7 +2237,7 @@ fn test_run_prog_fail() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("run_prog.bpf.o");
-    let prog = obj.prog_mut("test_2").expect("Failed to find program");
+    let prog = obj.prog_mut("test_2").expect("failed to find program");
 
     let input = ProgramInput::default();
     let _err = prog.test_run(input).unwrap_err();
