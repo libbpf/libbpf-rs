@@ -16,6 +16,7 @@ pub mod types;
 
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::ffi::OsStr;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
@@ -286,7 +287,7 @@ impl<'btf> Btf<'btf> {
     /// Gets a string at a given offset.
     ///
     /// Returns [`None`] when the offset is out of bounds or if the name is empty.
-    fn name_at(&self, offset: u32) -> Option<&CStr> {
+    fn name_at(&self, offset: u32) -> Option<&OsStr> {
         let name = unsafe {
             // SAFETY:
             // Assuming that btf is a valid pointer, this is always okay to call.
@@ -295,9 +296,9 @@ impl<'btf> Btf<'btf> {
         NonNull::new(name as *mut _)
             .map(|p| unsafe {
                 // SAFETY: a non-null pointer coming from libbpf is always valid
-                CStr::from_ptr(p.as_ptr())
+                OsStr::from_bytes(CStr::from_ptr(p.as_ptr()).to_bytes())
             })
-            .filter(|s| !s.to_bytes().is_empty()) // treat empty strings as none
+            .filter(|s| !s.is_empty()) // treat empty strings as none
     }
 
     /// Whether this btf instance has no types.
@@ -448,7 +449,7 @@ impl Drop for Btf<'_> {
 #[derive(Clone, Copy)]
 pub struct BtfType<'btf> {
     type_id: TypeId,
-    name: Option<&'btf CStr>,
+    name: Option<&'btf OsStr>,
     source: &'btf Btf<'btf>,
     ///  the __bindgen_anon_1 field is a union defined as
     ///  ```no_run
@@ -481,7 +482,7 @@ impl<'btf> BtfType<'btf> {
 
     /// This type's name.
     #[inline]
-    pub fn name(&'_ self) -> Option<&'btf CStr> {
+    pub fn name(&'_ self) -> Option<&'btf OsStr> {
         self.name
     }
 

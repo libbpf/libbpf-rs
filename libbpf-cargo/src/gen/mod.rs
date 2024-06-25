@@ -475,7 +475,7 @@ fn gen_skel_datasec_types(
 
     for ty in btf.type_by_kind::<types::DataSec<'_>>() {
         let name = match ty.name() {
-            Some(s) => s.to_str()?,
+            Some(s) => s.to_str().context("datasec has invalid name")?,
             None => "",
         };
 

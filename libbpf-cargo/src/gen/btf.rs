@@ -13,6 +13,7 @@ use std::ops::Deref;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
+use anyhow::Context as _;
 use anyhow::Result;
 use libbpf_rs::btf::types;
 use libbpf_rs::btf::types::Linkage;
@@ -399,7 +400,7 @@ impl<'s> GenBtf<'s> {
         // (and dependent types).
         for ty in self.type_by_kind::<types::DataSec<'_>>() {
             let name = match ty.name() {
-                Some(s) => s.to_str()?,
+                Some(s) => s.to_str().context("datasec has invalid name")?,
                 None => "",
             };
 

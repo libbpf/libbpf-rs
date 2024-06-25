@@ -1,8 +1,10 @@
 use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::OsStr;
 use std::mem;
 use std::mem::size_of;
 use std::mem::size_of_val;
+use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::BorrowedFd;
@@ -149,23 +151,22 @@ impl OpenProgram {
     }
 
     /// Retrieve the name of the section this `OpenProgram` belongs to.
-    pub fn section(&self) -> Option<&CStr> {
+    pub fn section(&self) -> &OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
-        if p.is_null() {
-            return None;
-        }
-
-        // SAFETY: We just checked that `p` is not NULL.
-        let section = unsafe { CStr::from_ptr(p) };
-        Some(section)
+        // SAFETY: `bpf_program__section_name` will always return a non-NULL
+        //         pointer.
+        let section_c_str = unsafe { CStr::from_ptr(p) };
+        let section = OsStr::from_bytes(section_c_str.to_bytes());
+        section
     }
 
     /// The name of this `OpenProgram`.
-    pub fn name(&self) -> Result<&str> {
+    pub fn name(&self) -> &OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        name_c_str.to_str().map_err(Error::with_invalid_data)
+        // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
+        OsStr::from_bytes(name_c_str.to_bytes())
     }
 
     /// Set whether a bpf program should be automatically loaded by default
