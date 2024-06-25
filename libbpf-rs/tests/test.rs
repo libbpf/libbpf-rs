@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::env::current_exe;
 use std::ffi::c_int;
 use std::ffi::c_void;
+use std::ffi::OsStr;
 use std::fs;
 use std::hint;
 use std::io;
@@ -56,14 +57,11 @@ fn get_test_object_path(filename: &str) -> PathBuf {
 
 pub fn open_test_object(filename: &str) -> OpenObject {
     let obj_path = get_test_object_path(filename);
-    let mut builder = ObjectBuilder::default();
-    // Invoke cargo with:
-    //
-    //     cargo test -- --nocapture
-    //
-    // To get all the output
-    builder.debug(true);
-    builder.open_file(obj_path).expect("failed to open object")
+    let obj = ObjectBuilder::default()
+        .debug(true)
+        .open_file(obj_path)
+        .expect("failed to open object");
+    obj
 }
 
 pub fn get_test_object(filename: &str) -> Object {
@@ -914,9 +912,11 @@ fn test_object_reuse_pined_map() {
     let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
     builder.debug(true);
-    let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
-
-    let start = open_obj.map_mut("start").expect("failed to find map");
+    let open_obj = builder.open_file(obj_path).expect("failed to open object");
+    let mut start = open_obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find map");
     assert!(start.reuse_pinned_map("/asdf").is_err());
     start.reuse_pinned_map(path).expect("failed to reuse map");
 
@@ -2000,11 +2000,12 @@ fn test_program_get_fd_and_id() {
 fn test_map_autocreate_disable() {
     bump_rlimit_mlock();
 
-    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
-
-    open_obj
-        .map_mut("auto_pin_map")
-        .expect("map wasn't found")
+    let open_obj = open_test_object("map_auto_pin.bpf.o");
+    let mut auto_pin_map = open_obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find map");
+    auto_pin_map
         .set_autocreate(false)
         .expect("set_autocreate() failed");
 
@@ -2017,11 +2018,11 @@ fn test_map_autocreate_disable() {
 fn test_map_resize() {
     bump_rlimit_mlock();
 
-    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
-
-    let resizable = open_obj
-        .map_mut(".data.resizable_data")
-        .expect("map wasn't found");
+    let open_obj = open_test_object("map_auto_pin.bpf.o");
+    let mut resizable = open_obj
+        .maps()
+        .find(|map| map.name() == OsStr::new(".data.resizable_data"))
+        .expect("failed to find map");
 
     let len = resizable.initial_value().unwrap().len();
     assert_eq!(len, size_of::<u64>());
