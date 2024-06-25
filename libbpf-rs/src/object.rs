@@ -311,6 +311,15 @@ impl OpenObject {
     }
 }
 
+impl AsRawLibbpf for OpenObject {
+    type LibbpfType = libbpf_sys::bpf_object;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_object`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        self.ptr
+    }
+}
+
 impl Drop for OpenObject {
     fn drop(&mut self) {
         // `self.ptr` may be null if `load()` was called. This is ok: libbpf noops

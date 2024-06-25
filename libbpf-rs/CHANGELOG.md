@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Added `AsRawLibbpf` impl for `OpenObject`
 - Removed `Display` implementation of various `enum` types
 
 
