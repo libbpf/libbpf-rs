@@ -2,9 +2,9 @@ Unreleased
 ----------
 - Added `AsRawLibbpf` impl for `OpenObject`
 - Adjusted various APIs to return/use `OsStr` instead of `CStr`
-- Adjusted `OpenProgram` to lazily retrieve section
-  - Changed `OpenProgram::section` to return `&OsStr` and `OpenProgram::new` to
-    be infallible
+- Adjusted `{Open,}Program` to lazily retrieve name and section
+  - Changed `name` and `section` methods to return `&OsStr` and made
+    constructors infallible
 - Removed `Display` implementation of various `enum` types
 
 
