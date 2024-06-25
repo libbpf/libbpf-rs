@@ -100,20 +100,13 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
 #[derive(Debug)]
 pub struct OpenProgram {
     ptr: NonNull<libbpf_sys::bpf_program>,
-    section: String,
 }
 
 // TODO: Document variants.
 #[allow(missing_docs)]
 impl OpenProgram {
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Result<Self> {
-        // Get the program section
-        // SAFETY:
-        // bpf_program__section_name never returns NULL, so no need to check the pointer.
-        let section = unsafe { libbpf_sys::bpf_program__section_name(ptr.as_ptr()) };
-        let section = util::c_ptr_to_string(section)?;
-
-        Ok(Self { ptr, section })
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+        Self { ptr }
     }
 
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
@@ -155,9 +148,17 @@ impl OpenProgram {
         util::parse_ret(ret)
     }
 
-    /// Name of the section this `OpenProgram` belongs to.
-    pub fn section(&self) -> &str {
-        &self.section
+    /// Retrieve the name of the section this `OpenProgram` belongs to.
+    pub fn section(&self) -> Option<&CStr> {
+        // SAFETY: The program is always valid.
+        let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
+        if p.is_null() {
+            return None;
+        }
+
+        // SAFETY: We just checked that `p` is not NULL.
+        let section = unsafe { CStr::from_ptr(p) };
+        Some(section)
     }
 
     /// The name of this `OpenProgram`.
