@@ -4,7 +4,7 @@
 
 use std::ffi::c_int;
 use std::ffi::c_void;
-use std::ffi::CStr;
+use std::ffi::OsStr;
 use std::io;
 use std::io::Read as _;
 use std::io::Write as _;
@@ -13,6 +13,7 @@ use std::net::TcpStream;
 use std::os::fd::AsFd as _;
 use std::os::fd::AsRawFd as _;
 use std::os::fd::BorrowedFd;
+use std::os::unix::ffi::OsStrExt as _;
 use std::ptr::copy_nonoverlapping;
 use std::thread;
 
@@ -44,7 +45,7 @@ mod tcp_ca {
     ));
 }
 
-const TCP_CA_UPDATE: &[u8] = b"tcp_ca_update\0";
+const TCP_CA_UPDATE: &str = "tcp_ca_update";
 
 /// An example program adding a TCP congestion algorithm.
 #[derive(Debug, Parser)]
@@ -71,13 +72,14 @@ fn set_sock_opt(
 
 /// Set the `tcp_ca_update` congestion algorithm on the socket represented by
 /// the provided file descriptor.
-fn set_tcp_ca(fd: BorrowedFd<'_>, tcp_ca: &CStr) -> Result<()> {
+fn set_tcp_ca(fd: BorrowedFd<'_>, tcp_ca: &OsStr) -> Result<()> {
+    let bytes = tcp_ca.as_bytes();
     let () = set_sock_opt(
         fd,
         IPPROTO_TCP,
         TCP_CONGESTION,
-        tcp_ca.as_ptr().cast(),
-        tcp_ca.to_bytes().len() as _,
+        bytes.as_ptr().cast(),
+        bytes.len() as _,
     )
     .with_context(|| {
         format!(
@@ -90,7 +92,7 @@ fn set_tcp_ca(fd: BorrowedFd<'_>, tcp_ca: &CStr) -> Result<()> {
 
 /// Send and receive a bunch of data over TCP sockets using the `tcp_ca_update`
 /// congestion algorithm.
-fn send_recv(tcp_ca: &CStr) -> Result<()> {
+fn send_recv(tcp_ca: &OsStr) -> Result<()> {
     let num_bytes = 8 * 1024 * 1024;
     let listener = TcpListener::bind("[::1]:0")?;
     let () = set_tcp_ca(listener.as_fd(), tcp_ca)?;
@@ -112,7 +114,7 @@ fn send_recv(tcp_ca: &CStr) -> Result<()> {
     Ok(())
 }
 
-fn test(name_to_register: Option<&CStr>, name_to_use: &CStr, verbose: bool) -> Result<()> {
+fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) -> Result<()> {
     let mut skel_builder = TcpCaSkelBuilder::default();
     if verbose {
         skel_builder.obj_builder.debug(true);
@@ -125,15 +127,17 @@ fn test(name_to_register: Option<&CStr>, name_to_use: &CStr, verbose: bool) -> R
         // load. That can be used to communicate data to the kernel, e.g., for
         // initialization purposes.
         let ca_update = open_skel.struct_ops.ca_update_mut();
-        if name.to_bytes_with_nul().len() > ca_update.name.len() {
+        if name.as_bytes().len() >= ca_update.name.len() {
             panic!(
                 "TCP CA name `{}` exceeds maximum length {}",
                 name.to_str().unwrap(),
                 ca_update.name.len()
             );
         }
-        let len = name.to_bytes_with_nul().len();
-        let () = unsafe { copy_nonoverlapping(name.as_ptr(), ca_update.name.as_mut_ptr(), len) };
+        let bytes = name.as_bytes();
+        let len = bytes.len();
+        let () =
+            unsafe { copy_nonoverlapping(bytes.as_ptr(), ca_update.name.as_mut_ptr().cast(), len) };
         let () = ca_update.name[len..].fill(0);
     }
 
@@ -178,19 +182,19 @@ fn test(name_to_register: Option<&CStr>, name_to_use: &CStr, verbose: bool) -> R
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let tcp_ca = CStr::from_bytes_until_nul(TCP_CA_UPDATE).unwrap();
+    let tcp_ca = OsStr::new(TCP_CA_UPDATE);
     let () = test(None, tcp_ca, args.verbose)?;
 
     // Use a different name under which the algorithm is registered; just for
     // illustration purposes of how to change `struct_ops` related data before
     // load/attachment.
-    let new_ca = CStr::from_bytes_until_nul(b"anotherca\0").unwrap();
+    let new_ca = OsStr::new("anotherca");
     let () = test(Some(new_ca), new_ca, args.verbose)?;
 
     // Just to be sure we are not bullshitting with the above, use a different
     // congestion algorithm than what we register. This is expected to fail,
     // because said algorithm to use cannot be found.
-    let to_register = CStr::from_bytes_until_nul(b"holycowca\0").unwrap();
+    let to_register = OsStr::new("holycowca");
     let err = test(Some(to_register), tcp_ca, args.verbose).unwrap_err();
     assert_eq!(err.kind(), ErrorKind::NotFound);
     println!("Expected failure: {err:#}");
