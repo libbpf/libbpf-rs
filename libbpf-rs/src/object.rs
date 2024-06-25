@@ -20,6 +20,61 @@ use crate::PrintLevel;
 use crate::Program;
 use crate::Result;
 
+
+/// An iterator over the maps in a BPF object.
+#[derive(Debug)]
+pub struct MapIter<'obj> {
+    obj: &'obj libbpf_sys::bpf_object,
+    last: *mut libbpf_sys::bpf_map,
+}
+
+impl<'obj> MapIter<'obj> {
+    /// Create a new iterator over the maps of the given BPF object.
+    pub fn new(obj: &'obj libbpf_sys::bpf_object) -> Self {
+        Self {
+            obj,
+            last: ptr::null_mut(),
+        }
+    }
+}
+
+impl Iterator for MapIter<'_> {
+    type Item = NonNull<libbpf_sys::bpf_map>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.last = unsafe { libbpf_sys::bpf_object__next_map(self.obj, self.last) };
+        NonNull::new(self.last)
+    }
+}
+
+
+/// An iterator over the programs in a BPF object.
+#[derive(Debug)]
+pub struct ProgIter<'obj> {
+    obj: &'obj libbpf_sys::bpf_object,
+    last: *mut libbpf_sys::bpf_program,
+}
+
+impl<'obj> ProgIter<'obj> {
+    /// Create a new iterator over the programs of the given BPF object.
+    pub fn new(obj: &'obj libbpf_sys::bpf_object) -> Self {
+        Self {
+            obj,
+            last: ptr::null_mut(),
+        }
+    }
+}
+
+impl Iterator for ProgIter<'_> {
+    type Item = NonNull<libbpf_sys::bpf_program>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.last = unsafe { libbpf_sys::bpf_object__next_program(self.obj, self.last) };
+        NonNull::new(self.last)
+    }
+}
+
+
 /// A trait implemented for types that are thin wrappers around `libbpf` types.
 ///
 /// The trait provides access to the underlying `libbpf` (or `libbpf-sys`)
@@ -296,6 +351,11 @@ impl OpenObject {
         self.maps.values_mut()
     }
 
+    /// Retrieve an iterator over all BPF maps in the object.
+    pub fn maps(&self) -> impl Iterator<Item = OpenMap> {
+        MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMap::new(ptr) })
+    }
+
     /// Get a reference to `OpenProgram` with the name `name`, if one exists.
     pub fn prog<T: AsRef<str>>(&self, name: T) -> Option<&OpenProgram> {
         self.progs.get(name.as_ref())
@@ -314,6 +374,11 @@ impl OpenObject {
     /// Get an iterator over mutable references to all `OpenProgram`s.
     pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut OpenProgram> {
         self.progs.values_mut()
+    }
+
+    /// Retrieve an iterator over all BPF programs in the object.
+    pub fn progs(&self) -> impl Iterator<Item = OpenProgram> {
+        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenProgram::new(ptr) })
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
@@ -463,6 +528,16 @@ impl Object {
         self.maps.values_mut()
     }
 
+    /// Retrieve an iterator over all BPF maps in the object.
+    pub fn maps(&self) -> impl Iterator<Item = Map> {
+        MapIter::new(unsafe { self.ptr.as_ref() })
+            // TODO: It's unclear why we'd only want to report auto created
+            //       maps, but that was behavior in the past and until the
+            //       reasoning is understood it is what we have.
+            .filter(|ptr| unsafe { libbpf_sys::bpf_map__autocreate(ptr.as_ptr()) })
+            .map(|ptr| unsafe { Map::new(ptr) })
+    }
+
     /// Get a reference to `Program` with the name `name`, if one exists.
     pub fn prog<T: AsRef<str>>(&self, name: T) -> Option<&Program> {
         self.progs.get(name.as_ref())
@@ -481,6 +556,11 @@ impl Object {
     /// Get an iterator over mutable references to all `Program`s.
     pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut Program> {
         self.progs.values_mut()
+    }
+
+    /// Retrieve an iterator over all BPF programs in the object.
+    pub fn progs(&self) -> impl Iterator<Item = Program> {
+        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { Program::new(ptr) })
     }
 }
 

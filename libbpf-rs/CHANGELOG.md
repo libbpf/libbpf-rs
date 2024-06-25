@@ -3,6 +3,7 @@ Unreleased
 - Added `AsRawLibbpf` impl for `OpenObject`
 - Decoupled `Map` and `MapHandle` more and introduced `MapCore` trait
   abstracting over common functionality
+- Added `Object::maps` and `Object::progs` for BPF map and program iteration
 - Adjusted various APIs to return/use `OsStr` instead of `CStr` or `str`
 - Adjusted `{Open,}Program` to lazily retrieve name and section
   - Changed `name` and `section` methods to return `&OsStr` and made

@@ -107,6 +107,7 @@ pub enum OutputDest<'a> {
     File(&'a Path),
 }
 
+// TODO: Remove with usage of logic from libbpf-rs directly.
 macro_rules! gen_bpf_object_iter {
     ($name:ident, $iter_ty:ty, $next_fn:expr) => {
         struct $name {
