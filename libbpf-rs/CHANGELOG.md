@@ -1,6 +1,9 @@
 Unreleased
 ----------
 - Added `AsRawLibbpf` impl for `OpenObject`
+- Adjusted `OpenProgram` to lazily retrieve section
+  - Changed `OpenProgram::section` to return `Option<&CStr>` and
+    `OpenProgram::new` to be infallible
 - Removed `Display` implementation of various `enum` types
 
 

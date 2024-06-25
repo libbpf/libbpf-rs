@@ -201,7 +201,7 @@ impl OpenObject {
                 }
             };
 
-            let program = unsafe { OpenProgram::new(prog_ptr) }?;
+            let program = unsafe { OpenProgram::new(prog_ptr) };
 
             // Add the program to the hashmap
             obj.progs.insert(program.name()?.into(), program);
