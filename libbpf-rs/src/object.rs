@@ -7,6 +7,7 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
+use crate::error::IntoError as _;
 use crate::set_print;
 use crate::util;
 use crate::Btf;
@@ -408,10 +409,17 @@ impl Object {
                 }
             };
 
-            let program = unsafe { Program::new(prog_ptr) }?;
+            let program = unsafe { Program::new(prog_ptr) };
 
             // Add the program to the hashmap
-            obj.progs.insert(program.name().into(), program);
+            obj.progs.insert(
+                program
+                    .name()
+                    .to_str()
+                    .ok_or_invalid_data(|| "program has invalid name")?
+                    .to_string(),
+                program,
+            );
             prog = prog_ptr.as_ptr();
         }
 

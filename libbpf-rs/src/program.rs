@@ -150,6 +150,14 @@ impl OpenProgram {
         util::parse_ret(ret)
     }
 
+    /// Retrieve the name of this `OpenProgram`.
+    pub fn name(&self) -> &OsStr {
+        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
+        OsStr::from_bytes(name_c_str.to_bytes())
+    }
+
     /// Retrieve the name of the section this `OpenProgram` belongs to.
     pub fn section(&self) -> &OsStr {
         // SAFETY: The program is always valid.
@@ -159,14 +167,6 @@ impl OpenProgram {
         let section_c_str = unsafe { CStr::from_ptr(p) };
         let section = OsStr::from_bytes(section_c_str.to_bytes());
         section
-    }
-
-    /// The name of this `OpenProgram`.
-    pub fn name(&self) -> &OsStr {
-        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
-        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
-        OsStr::from_bytes(name_c_str.to_bytes())
     }
 
     /// Set whether a bpf program should be automatically loaded by default
@@ -513,8 +513,6 @@ pub struct Output<'dat> {
 #[derive(Debug)]
 pub struct Program {
     pub(crate) ptr: NonNull<libbpf_sys::bpf_program>,
-    name: String,
-    section: String,
 }
 
 impl AsFd for Program {
@@ -529,28 +527,27 @@ impl Program {
     ///
     /// # Safety
     /// The pointer must point to a loaded program.
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Result<Self> {
-        // Get the program name
-        // bpf_program__name never returns NULL, so no need to check the pointer.
-        let name = unsafe { libbpf_sys::bpf_program__name(ptr.as_ptr()) };
-        let name = util::c_ptr_to_string(name)?;
-
-        // Get the program section
-        // bpf_program__section_name never returns NULL, so no need to check the pointer.
-        let section = unsafe { libbpf_sys::bpf_program__section_name(ptr.as_ptr()) };
-        let section = util::c_ptr_to_string(section)?;
-
-        Ok(Program { ptr, name, section })
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+        Program { ptr }
     }
 
-    /// Retrieve the program's name.
-    pub fn name(&self) -> &str {
-        &self.name
+    /// Retrieve the name of this `Program`.
+    pub fn name(&self) -> &OsStr {
+        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
+        OsStr::from_bytes(name_c_str.to_bytes())
     }
 
-    /// Name of the section this `Program` belongs to.
-    pub fn section(&self) -> &str {
-        &self.section
+    /// Retrieve the name of the section this `Program` belongs to.
+    pub fn section(&self) -> &OsStr {
+        // SAFETY: The program is always valid.
+        let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
+        // SAFETY: `bpf_program__section_name` will always return a non-NULL
+        //         pointer.
+        let section_c_str = unsafe { CStr::from_ptr(p) };
+        let section = OsStr::from_bytes(section_c_str.to_bytes());
+        section
     }
 
     /// Retrieve the type of the program.
