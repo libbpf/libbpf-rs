@@ -54,11 +54,14 @@ impl OpenMap {
         Self { ptr }
     }
 
-    /// Retrieve the `Map`'s name.
-    pub fn name(&self) -> Result<&str> {
+    /// Retrieve the [`OpenMap`]'s name.
+    pub fn name(&self) -> &OsStr {
+        // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
+        // SAFETY: `bpf_map__name` can return NULL but only if it's passed
+        //          NULL. We know `ptr` is not NULL.
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        name_c_str.to_str().map_err(Error::with_invalid_data)
+        OsStr::from_bytes(name_c_str.to_bytes())
     }
 
     /// Retrieve type of the map.
@@ -250,9 +253,8 @@ impl Map {
     /// The pointer must point to a loaded map.
     pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Result<Self> {
         // Get the map name
-        // SAFETY:
-        // bpf_map__name can return null but only if it's passed a null.
-        // We already know ptr is not null.
+        // SAFETY: `bpf_map__name` can return NULL but only if it's passed
+        //          NULL. We know `ptr` is not NULL.
         let name = unsafe { libbpf_sys::bpf_map__name(ptr.as_ptr()) };
         let name = util::c_ptr_to_string(name)?;
 

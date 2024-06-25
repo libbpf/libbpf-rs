@@ -1,6 +1,6 @@
 //! Wrappers representing concrete btf types.
 
-use std::ffi::CStr;
+use std::ffi::OsStr;
 use std::fmt;
 use std::fmt::Display;
 use std::ops::Deref;
@@ -469,7 +469,7 @@ gen_collection_concrete_type! {
     /// A member of a [Struct]
     struct StructMember<'btf> {
         /// The member's name
-        pub name: Option<&'btf CStr>,
+        pub name: Option<&'btf OsStr>,
         /// The member's type
         pub ty: TypeId,
         /// The attributes of this member.
@@ -493,7 +493,7 @@ gen_collection_concrete_type! {
     /// A member of an [Union]
     struct UnionMember<'btf> {
         /// The member's name
-        pub name: Option<&'btf CStr>,
+        pub name: Option<&'btf OsStr>,
         /// The member's type
         pub ty: TypeId,
         /// The attributes of this member.
@@ -586,7 +586,7 @@ gen_collection_members_concrete_type! {
     /// A member of a [Struct]
     struct CompositeMember<'btf> {
         /// The member's name
-        pub name: Option<&'btf CStr>,
+        pub name: Option<&'btf OsStr>,
         /// The member's type
         pub ty: TypeId,
         /// If this member is a bifield, these are it's attributes.
@@ -610,7 +610,7 @@ gen_collection_concrete_type! {
     /// A member of an [Enum]
     struct EnumMember<'btf> {
         /// The name of this enum variant.
-        pub name: Option<&'btf CStr>,
+        pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
         pub value: i32,
     }
@@ -709,7 +709,7 @@ gen_collection_concrete_type! {
     /// A parameter of a [FuncProto].
     struct FuncProtoParam<'btf> {
         /// The parameter's name
-        pub name: Option<&'btf CStr>,
+        pub name: Option<&'btf OsStr>,
         /// The parameter's type
         pub ty: TypeId,
     }
@@ -810,7 +810,7 @@ gen_collection_concrete_type! {
     /// A member of an [Enum64].
     struct Enum64Member<'btf> {
         /// The name of this enum variant.
-        pub name: Option<&'btf CStr>,
+        pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
         pub value: u64,
     }

@@ -184,7 +184,14 @@ impl OpenObject {
             let map_obj = unsafe { OpenMap::new(map_ptr) };
 
             // Add the map to the hashmap
-            obj.maps.insert(map_obj.name()?.into(), map_obj);
+            obj.maps.insert(
+                map_obj
+                    .name()
+                    .to_str()
+                    .ok_or_else(|| Error::with_invalid_data("map has invalid name"))?
+                    .to_string(),
+                map_obj,
+            );
             map = map_ptr.as_ptr();
         }
 
@@ -204,7 +211,14 @@ impl OpenObject {
             let program = unsafe { OpenProgram::new(prog_ptr) };
 
             // Add the program to the hashmap
-            obj.progs.insert(program.name()?.into(), program);
+            obj.progs.insert(
+                program
+                    .name()
+                    .to_str()
+                    .ok_or_else(|| Error::with_invalid_data("program has invalid name"))?
+                    .to_string(),
+                program,
+            );
             prog = prog_ptr.as_ptr();
         }
 
