@@ -13,6 +13,7 @@ use crate::util;
 use crate::Btf;
 use crate::Error;
 use crate::Map;
+use crate::MapCore as _;
 use crate::OpenMap;
 use crate::OpenProgram;
 use crate::PrintLevel;
@@ -389,7 +390,7 @@ impl Object {
             };
 
             if unsafe { libbpf_sys::bpf_map__autocreate(map_ptr.as_ptr()) } {
-                let map_obj = unsafe { Map::new(map_ptr) }?;
+                let map_obj = unsafe { Map::new(map_ptr) };
                 obj.maps.insert(
                     map_obj
                         .name()

@@ -4,7 +4,6 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::ops::Deref as _;
 use std::os::raw::c_ulong;
-use std::os::unix::io::AsFd;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::BorrowedFd;
 use std::ptr::null_mut;
@@ -15,7 +14,7 @@ use std::time::Duration;
 use crate::util;
 use crate::AsRawLibbpf;
 use crate::Error;
-use crate::MapHandle;
+use crate::MapCore;
 use crate::MapType;
 use crate::Result;
 
@@ -69,7 +68,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
-    pub fn add<NewF>(&mut self, map: &'slf MapHandle, callback: NewF) -> Result<&mut Self>
+    pub fn add<NewF>(&mut self, map: &'slf dyn MapCore, callback: NewF) -> Result<&mut Self>
     where
         NewF: FnMut(&[u8]) -> i32 + 'cb,
     {

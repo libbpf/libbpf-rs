@@ -24,6 +24,7 @@ use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::Linker;
 use libbpf_rs::Map;
+use libbpf_rs::MapCore;
 use libbpf_rs::MapFlags;
 use libbpf_rs::MapHandle;
 use libbpf_rs::MapInfo;
@@ -1558,13 +1559,13 @@ fn test_object_map_handle_clone() {
 
     let obj = get_test_object("runqslower.bpf.o");
     let map = obj.map("events").expect("failed to find map");
-    let handle1 = MapHandle::try_clone(map).expect("Failed to create handle from Map");
+    let handle1 = MapHandle::try_from(map).expect("Failed to create handle from Map");
     assert_eq!(map.name(), handle1.name());
     assert_eq!(map.map_type(), handle1.map_type());
     assert_eq!(map.key_size(), handle1.key_size());
     assert_eq!(map.value_size(), handle1.value_size());
 
-    let handle2 = MapHandle::try_clone(&handle1).expect("Failed to duplicate existing handle");
+    let handle2 = MapHandle::try_from(&handle1).expect("Failed to duplicate existing handle");
     assert_eq!(handle1.name(), handle2.name());
     assert_eq!(handle1.map_type(), handle2.map_type());
     assert_eq!(handle1.key_size(), handle2.key_size());

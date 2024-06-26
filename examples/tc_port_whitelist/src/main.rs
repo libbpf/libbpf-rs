@@ -10,6 +10,7 @@ use clap::Parser;
 
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
+use libbpf_rs::MapCore as _;
 use libbpf_rs::MapFlags;
 use libbpf_rs::TcHookBuilder;
 use libbpf_rs::TC_CUSTOM;
