@@ -7,7 +7,6 @@ use std::fmt::Debug;
 use std::fs::remove_file;
 use std::io;
 use std::mem;
-use std::ops::Deref;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
@@ -147,9 +146,9 @@ impl OpenMap {
         util::parse_ret(ret)
     }
 
-    pub fn set_inner_map_fd(&mut self, inner: &Map) -> Result<()> {
+    pub fn set_inner_map_fd(&mut self, inner_map_fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe {
-            libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner.as_fd().as_raw_fd())
+            libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner_map_fd.as_raw_fd())
         };
         util::parse_ret(ret)
     }
@@ -204,15 +203,27 @@ impl AsRawLibbpf for OpenMap {
     }
 }
 
+fn map_fd(map: NonNull<libbpf_sys::bpf_map>) -> Option<RawFd> {
+    let fd = unsafe { libbpf_sys::bpf_map__fd(map.as_ptr()) };
+    let fd = util::parse_ret_i32(fd).ok().map(|fd| fd as RawFd);
+    fd
+}
+
 /// Return the size of one value including padding for interacting with per-cpu
 /// maps. The values are aligned to 8 bytes.
-fn percpu_aligned_value_size(map: &MapHandle) -> usize {
+fn percpu_aligned_value_size<M>(map: &M) -> usize
+where
+    M: MapCore + ?Sized,
+{
     let val_size = map.value_size() as usize;
     util::roundup(val_size, 8)
 }
 
 /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
-fn percpu_buffer_size(map: &MapHandle) -> Result<usize> {
+fn percpu_buffer_size<M>(map: &M) -> Result<usize>
+where
+    M: MapCore + ?Sized,
+{
     let aligned_val_size = percpu_aligned_value_size(map);
     let ncpu = crate::num_possible_cpus()?;
     Ok(ncpu * aligned_val_size)
@@ -220,7 +231,10 @@ fn percpu_buffer_size(map: &MapHandle) -> Result<usize> {
 
 /// Apply a key check and return a null pointer in case of dealing with queue/stack/bloom-filter map,
 /// before passing the key to the bpf functions that support the map of type queue/stack/bloom-filter.
-fn map_key(map: &MapHandle, key: &[u8]) -> *const c_void {
+fn map_key<M>(map: &M, key: &[u8]) -> *const c_void
+where
+    M: MapCore + ?Sized,
+{
     // For all they keyless maps we null out the key per documentation of libbpf
     if map.key_size() == 0 && map.map_type().is_keyless() {
         return ptr::null();
@@ -230,12 +244,10 @@ fn map_key(map: &MapHandle, key: &[u8]) -> *const c_void {
 }
 
 /// Internal function to return a value from a map into a buffer of the given size.
-fn lookup_raw(
-    map: &MapHandle,
-    key: &[u8],
-    flags: MapFlags,
-    out_size: usize,
-) -> Result<Option<Vec<u8>>> {
+fn lookup_raw<M>(map: &M, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>>
+where
+    M: MapCore + ?Sized,
+{
     if key.len() != map.key_size() as usize {
         return Err(Error::with_invalid_data(format!(
             "key_size {} != {}",
@@ -248,7 +260,7 @@ fn lookup_raw(
 
     let ret = unsafe {
         libbpf_sys::bpf_map_lookup_elem_flags(
-            map.fd.as_raw_fd(),
+            map.as_fd().as_raw_fd(),
             map_key(map, key),
             out.as_mut_ptr() as *mut c_void,
             flags.bits(),
@@ -272,7 +284,10 @@ fn lookup_raw(
 
 /// Internal function to update a map. This does not check the length of the
 /// supplied value.
-fn update_raw(map: &MapHandle, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+fn update_raw<M>(map: &M, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()>
+where
+    M: MapCore + ?Sized,
+{
     if key.len() != map.key_size() as usize {
         return Err(Error::with_invalid_data(format!(
             "key_size {} != {}",
@@ -283,7 +298,7 @@ fn update_raw(map: &MapHandle, key: &[u8], value: &[u8], flags: MapFlags) -> Res
 
     let ret = unsafe {
         libbpf_sys::bpf_map_update_elem(
-            map.fd.as_raw_fd(),
+            map.as_fd().as_raw_fd(),
             map_key(map, key),
             value.as_ptr() as *const c_void,
             flags.bits(),
@@ -293,36 +308,340 @@ fn update_raw(map: &MapHandle, key: &[u8], value: &[u8], flags: MapFlags) -> Res
     util::parse_ret(ret)
 }
 
-#[derive(Debug)]
-enum MapFd {
-    Owned(OwnedFd),
-    Borrowed(RawFd),
+#[allow(clippy::wildcard_imports)]
+mod private {
+    use super::*;
+
+    pub trait Sealed {}
+
+    impl Sealed for Map {}
+    impl Sealed for MapHandle {}
 }
 
-impl AsFd for MapFd {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        match self {
-            Self::Owned(o) => o.as_fd(),
-            Self::Borrowed(fd) => unsafe {
-                // SAFETY
-                // This filedescriptor is open because of two invariants:
-                // - This variant is only constructed in `Map::new`, which is the entry point for
-                // when the map doesn't own the descriptor
-                // - That method is crate private and called only by the `Object` which has its own
-                // invariant that it outlives every `Map` it owns and cleans then up when dropped,
-                // thus this fd must be live.
-                BorrowedFd::borrow_raw(*fd)
-            },
+/// A trait representing core functionality common to fully initialized maps.
+pub trait MapCore: Debug + AsFd + private::Sealed {
+    /// Retrieve the map's name.
+    fn name(&self) -> &OsStr;
+
+    /// Retrieve type of the map.
+    fn map_type(&self) -> MapType;
+
+    /// Retrieve the size of the map's keys.
+    fn key_size(&self) -> u32;
+
+    /// Retrieve the size of the map's values.
+    fn value_size(&self) -> u32;
+
+    /// Fetch extra map information
+    #[inline]
+    fn info(&self) -> Result<MapInfo> {
+        MapInfo::new(self.as_fd())
+    }
+
+    /// Returns an iterator over keys in this map
+    ///
+    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
+    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
+    /// iteration becomes unpredictable.
+    fn keys(&self) -> MapKeyIter<'_> {
+        MapKeyIter::new(self.as_fd(), self.key_size())
+    }
+
+    /// Returns map value as `Vec` of `u8`.
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements.
+    ///
+    /// If the map is one of the per-cpu data structures, the function [`Self::lookup_percpu()`]
+    /// must be used.
+    /// If the map is of type bloom_filter the function [`Self::lookup_bloom_filter()`] must be used
+    fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
+        if self.map_type().is_bloom_filter() {
+            return Err(Error::with_invalid_data(
+                "lookup_bloom_filter() must be used for bloom filter maps",
+            ));
+        }
+        if self.map_type().is_percpu() {
+            return Err(Error::with_invalid_data(format!(
+                "lookup_percpu() must be used for per-cpu maps (type of the map is {:?})",
+                self.map_type(),
+            )));
+        }
+
+        let out_size = self.value_size() as usize;
+        lookup_raw(self, key, flags, out_size)
+    }
+
+    /// Returns if the given value is likely present in bloom_filter as `bool`.
+    ///
+    /// `value` must have exactly [`Self::value_size()`] elements.
+    fn lookup_bloom_filter(&self, value: &[u8]) -> Result<bool> {
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_elem(
+                self.as_fd().as_raw_fd(),
+                ptr::null(),
+                value.to_vec().as_mut_ptr() as *mut c_void,
+            )
+        };
+
+        if ret == 0 {
+            Ok(true)
+        } else {
+            let err = io::Error::last_os_error();
+            if err.kind() == io::ErrorKind::NotFound {
+                Ok(false)
+            } else {
+                Err(Error::from(err))
+            }
         }
     }
-}
 
-impl AsRawFd for MapFd {
-    fn as_raw_fd(&self) -> RawFd {
-        match self {
-            Self::Owned(o) => o.as_raw_fd(),
-            Self::Borrowed(fd) => *fd,
+    /// Returns one value per cpu as `Vec` of `Vec` of `u8` for per per-cpu maps.
+    ///
+    /// For normal maps, [`Self::lookup()`] must be used.
+    fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
+        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
+            return Err(Error::with_invalid_data(format!(
+                "lookup() must be used for maps that are not per-cpu (type of the map is {:?})",
+                self.map_type(),
+            )));
         }
+
+        let val_size = self.value_size() as usize;
+        let aligned_val_size = percpu_aligned_value_size(self);
+        let out_size = percpu_buffer_size(self)?;
+
+        let raw_res = lookup_raw(self, key, flags, out_size)?;
+        if let Some(raw_vals) = raw_res {
+            let mut out = Vec::new();
+            for chunk in raw_vals.chunks_exact(aligned_val_size) {
+                out.push(chunk[..val_size].to_vec());
+            }
+            Ok(Some(out))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Deletes an element from the map.
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements.
+    fn delete(&self, key: &[u8]) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::with_invalid_data(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_delete_elem(self.as_fd().as_raw_fd(), key.as_ptr() as *const c_void)
+        };
+        util::parse_ret(ret)
+    }
+
+    /// Deletes many elements in batch mode from the map.
+    ///
+    /// `keys` must have exactly [`Self::key_size()` * count] elements.
+    fn delete_batch(
+        &self,
+        keys: &[u8],
+        count: u32,
+        elem_flags: MapFlags,
+        flags: MapFlags,
+    ) -> Result<()> {
+        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
+            return Err(Error::with_invalid_data(format!(
+                "batch key_size {} != {} * {}",
+                keys.len(),
+                self.key_size(),
+                count
+            )));
+        };
+
+        #[allow(clippy::needless_update)]
+        let opts = libbpf_sys::bpf_map_batch_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+            elem_flags: elem_flags.bits(),
+            flags: flags.bits(),
+            // bpf_map_batch_opts might have padding fields on some platform
+            ..Default::default()
+        };
+
+        let mut count = count;
+        let ret = unsafe {
+            libbpf_sys::bpf_map_delete_batch(
+                self.as_fd().as_raw_fd(),
+                keys.as_ptr() as *const c_void,
+                (&mut count) as *mut u32,
+                &opts as *const libbpf_sys::bpf_map_batch_opts,
+            )
+        };
+        util::parse_ret(ret)
+    }
+
+    /// Same as [`Self::lookup()`] except this also deletes the key from the map.
+    ///
+    /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
+    /// and [`MapType::Stack`].
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements.
+    fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::with_invalid_data(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_and_delete_elem(
+                self.as_fd().as_raw_fd(),
+                map_key(self, key),
+                out.as_mut_ptr() as *mut c_void,
+            )
+        };
+
+        if ret == 0 {
+            unsafe {
+                out.set_len(self.value_size() as usize);
+            }
+            Ok(Some(out))
+        } else {
+            let err = io::Error::last_os_error();
+            if err.kind() == io::ErrorKind::NotFound {
+                Ok(None)
+            } else {
+                Err(Error::from(err))
+            }
+        }
+    }
+
+    /// Update an element.
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements. `value` must have exactly
+    /// [`Self::value_size()`] elements.
+    ///
+    /// For per-cpu maps, [`Self::update_percpu()`] must be used.
+    fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+        if self.map_type().is_percpu() {
+            return Err(Error::with_invalid_data(format!(
+                "update_percpu() must be used for per-cpu maps (type of the map is {:?})",
+                self.map_type(),
+            )));
+        }
+
+        if value.len() != self.value_size() as usize {
+            return Err(Error::with_invalid_data(format!(
+                "value_size {} != {}",
+                value.len(),
+                self.value_size()
+            )));
+        };
+
+        update_raw(self, key, value, flags)
+    }
+
+    /// Updates many elements in batch mode in the map
+    ///
+    /// `keys` must have exactly [`Self::key_size()` * count] elements. `value` must have exactly
+    /// [`Self::key_size()` * count] elements
+    fn update_batch(
+        &self,
+        keys: &[u8],
+        values: &[u8],
+        count: u32,
+        elem_flags: MapFlags,
+        flags: MapFlags,
+    ) -> Result<()> {
+        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
+            return Err(Error::with_invalid_data(format!(
+                "batch key_size {} != {} * {}",
+                keys.len(),
+                self.key_size(),
+                count
+            )));
+        };
+
+        if values.len() as u32 / count != self.value_size() || (values.len() as u32) % count != 0 {
+            return Err(Error::with_invalid_data(format!(
+                "batch value_size {} != {} * {}",
+                values.len(),
+                self.value_size(),
+                count
+            )));
+        }
+
+        #[allow(clippy::needless_update)]
+        let opts = libbpf_sys::bpf_map_batch_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+            elem_flags: elem_flags.bits(),
+            flags: flags.bits(),
+            // bpf_map_batch_opts might have padding fields on some platform
+            ..Default::default()
+        };
+
+        let mut count = count;
+        let ret = unsafe {
+            libbpf_sys::bpf_map_update_batch(
+                self.as_fd().as_raw_fd(),
+                keys.as_ptr() as *const c_void,
+                values.as_ptr() as *const c_void,
+                (&mut count) as *mut u32,
+                &opts as *const libbpf_sys::bpf_map_batch_opts,
+            )
+        };
+
+        util::parse_ret(ret)
+    }
+
+    /// Update an element in an per-cpu map with one value per cpu.
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements. `value` must have one
+    /// element per cpu (see [`num_possible_cpus`][crate::num_possible_cpus])
+    /// with exactly [`Self::value_size()`] elements each.
+    ///
+    /// For per-cpu maps, [`Self::update_percpu()`] must be used.
+    fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
+        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
+            return Err(Error::with_invalid_data(format!(
+                "update() must be used for maps that are not per-cpu (type of the map is {:?})",
+                self.map_type(),
+            )));
+        }
+
+        if values.len() != crate::num_possible_cpus()? {
+            return Err(Error::with_invalid_data(format!(
+                "number of values {} != number of cpus {}",
+                values.len(),
+                crate::num_possible_cpus()?
+            )));
+        };
+
+        let val_size = self.value_size() as usize;
+        let aligned_val_size = percpu_aligned_value_size(self);
+        let buf_size = percpu_buffer_size(self)?;
+
+        let mut value_buf = vec![0; buf_size];
+
+        for (i, val) in values.iter().enumerate() {
+            if val.len() != val_size {
+                return Err(Error::with_invalid_data(format!(
+                    "value size for cpu {} is {} != {}",
+                    i,
+                    val.len(),
+                    val_size
+                )));
+            }
+
+            value_buf[(i * aligned_val_size)..(i * aligned_val_size + val_size)]
+                .copy_from_slice(val);
+        }
+
+        update_raw(self, key, &value_buf, flags)
     }
 }
 
@@ -332,7 +651,6 @@ impl AsRawFd for MapFd {
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 pub struct Map {
-    handle: MapHandle,
     ptr: NonNull<libbpf_sys::bpf_map>,
 }
 
@@ -342,32 +660,13 @@ impl Map {
     /// # Safety
     ///
     /// The pointer must point to a loaded map.
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Result<Self> {
-        // SAFETY: `ptr` is valid as per contract.
-        let name_ptr = unsafe { libbpf_sys::bpf_map__name(ptr.as_ptr()) };
-        // SAFETY: `bpf_map__name` can return NULL but only if it's passed
-        //          NULL. We know `ptr` is not NULL.
-        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        let name = OsStr::from_bytes(name_c_str.to_bytes()).to_os_string();
+    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+        debug_assert!(
+            map_fd(ptr).is_some(),
+            "provided BPF map does not have file descriptor"
+        );
 
-        // Get the map fd
-        let fd = unsafe { libbpf_sys::bpf_map__fd(ptr.as_ptr()) };
-        let fd = util::parse_ret_i32(fd)?;
-
-        let ty = MapType::from(unsafe { libbpf_sys::bpf_map__type(ptr.as_ptr()) });
-        let key_size = unsafe { libbpf_sys::bpf_map__key_size(ptr.as_ptr()) };
-        let value_size = unsafe { libbpf_sys::bpf_map__value_size(ptr.as_ptr()) };
-
-        Ok(Map {
-            handle: MapHandle {
-                fd: MapFd::Borrowed(fd),
-                name,
-                ty,
-                key_size,
-                value_size,
-            },
-            ptr,
-        })
+        Self { ptr }
     }
 
     /// Returns whether map is pinned or not flag
@@ -424,38 +723,53 @@ impl Map {
     }
 }
 
+impl AsFd for Map {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        // SANITY: Our map must always have a file descriptor associated with
+        //         it.
+        let fd = map_fd(self.ptr).unwrap();
+        // SAFETY: `fd` is guaranteed to be valid for the lifetime of
+        //         the created object.
+        let fd = unsafe { BorrowedFd::borrow_raw(fd as _) };
+        fd
+    }
+}
+
+impl MapCore for Map {
+    fn name(&self) -> &OsStr {
+        // SAFETY: We ensured `ptr` is valid during construction.
+        let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
+        // SAFETY: `bpf_map__name` can return NULL but only if it's passed
+        //          NULL. We know `ptr` is not NULL.
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        OsStr::from_bytes(name_c_str.to_bytes())
+    }
+
+    #[inline]
+    fn map_type(&self) -> MapType {
+        let ty = unsafe { libbpf_sys::bpf_map__type(self.ptr.as_ptr()) };
+        MapType::from(ty)
+    }
+
+    #[inline]
+    fn key_size(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__key_size(self.ptr.as_ptr()) }
+    }
+
+    #[inline]
+    fn value_size(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__value_size(self.ptr.as_ptr()) }
+    }
+}
+
 impl AsRawLibbpf for Map {
     type LibbpfType = libbpf_sys::bpf_map;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_map`].
+    #[inline]
     fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
-    }
-}
-
-impl Deref for Map {
-    type Target = MapHandle;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
-    }
-}
-
-impl From<Map> for OwnedFd {
-    fn from(map: Map) -> Self {
-        match map.handle.fd {
-            MapFd::Owned(o) => o,
-            MapFd::Borrowed(_) => unreachable!(
-                "it shouldn't be possible to have an owned map that doesn't own its fd"
-            ),
-        }
-    }
-}
-
-impl AsFd for Map {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        self.handle.as_fd()
     }
 }
 
@@ -468,14 +782,14 @@ impl AsFd for Map {
 /// # use libbpf_rs::MapHandle;
 /// # let get_map = || -> &Map { todo!() };
 /// let map: &Map = get_map();
-/// let map_handle = MapHandle::try_clone(map).unwrap();
+/// let map_handle = MapHandle::try_from(map).unwrap();
 /// ```
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 pub struct MapHandle {
-    fd: MapFd,
+    fd: OwnedFd,
     name: OsString,
     ty: MapType,
     key_size: u32,
@@ -491,7 +805,7 @@ impl MapHandle {
         value_size: u32,
         max_entries: u32,
         opts: &libbpf_sys::bpf_map_create_opts,
-    ) -> Result<MapHandle> {
+    ) -> Result<Self> {
         let name = match name {
             Some(name) => name.as_ref().to_os_string(),
             // The old version kernel don't support specifying map name.
@@ -518,13 +832,11 @@ impl MapHandle {
         };
         let () = util::parse_ret(fd)?;
 
-        Ok(MapHandle {
-            fd: MapFd::Owned(unsafe {
-                // SAFETY
-                // A file descriptor coming from the bpf_map_create function is always suitable for
-                // ownership and can be cleaned up with close.
-                OwnedFd::from_raw_fd(fd)
-            }),
+        Ok(Self {
+            // SAFETY: A file descriptor coming from the `bpf_map_create`
+            //         function is always suitable for ownership and can be
+            //         cleaned up with close.
+            fd: unsafe { OwnedFd::from_raw_fd(fd) },
             name,
             ty: map_type,
             key_size,
@@ -574,352 +886,12 @@ impl MapHandle {
     fn from_fd(fd: OwnedFd) -> Result<Self> {
         let info = MapInfo::new(fd.as_fd())?;
         Ok(Self {
-            fd: MapFd::Owned(fd),
+            fd,
             name: info.name()?.into(),
             ty: info.map_type(),
             key_size: info.info.key_size,
             value_size: info.info.value_size,
         })
-    }
-
-    /// Try cloning this handle by duplicating its underlying file descriptor.
-    pub fn try_clone(this: &MapHandle) -> Result<Self> {
-        let new_fd = this.as_fd().try_clone_to_owned()?;
-        let fd = MapFd::Owned(new_fd);
-        Ok(MapHandle {
-            fd,
-            name: this.name.clone(),
-            ty: this.ty,
-            key_size: this.key_size,
-            value_size: this.value_size,
-        })
-    }
-
-    /// Fetch extra map information
-    #[inline]
-    pub fn info(&self) -> Result<MapInfo> {
-        MapInfo::new(self.fd.as_fd())
-    }
-
-    /// Retrieve the `Map`'s name.
-    #[inline]
-    pub fn name(&self) -> &OsStr {
-        &self.name
-    }
-
-    /// Retrieve type of the map.
-    #[inline]
-    pub fn map_type(&self) -> MapType {
-        self.ty
-    }
-
-    /// Key size in bytes
-    #[inline]
-    pub fn key_size(&self) -> u32 {
-        self.key_size
-    }
-
-    /// Value size in bytes
-    #[inline]
-    pub fn value_size(&self) -> u32 {
-        self.value_size
-    }
-
-    /// Returns map value as `Vec` of `u8`.
-    ///
-    /// `key` must have exactly [`MapHandle::key_size()`] elements.
-    ///
-    /// If the map is one of the per-cpu data structures, the function [`MapHandle::lookup_percpu()`]
-    /// must be used.
-    /// If the map is of type bloom_filter the function [`MapHandle::lookup_bloom_filter()`] must be used
-    pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
-        if self.map_type().is_bloom_filter() {
-            return Err(Error::with_invalid_data(
-                "lookup_bloom_filter() must be used for bloom filter maps",
-            ));
-        }
-        if self.map_type().is_percpu() {
-            return Err(Error::with_invalid_data(format!(
-                "lookup_percpu() must be used for per-cpu maps (type of the map is {:?})",
-                self.map_type(),
-            )));
-        }
-
-        let out_size = self.value_size() as usize;
-        lookup_raw(self, key, flags, out_size)
-    }
-
-    /// Returns if the given value is likely present in bloom_filter as `bool`.
-    ///
-    /// `value` must have exactly [`MapHandle::value_size()`] elements.
-    pub fn lookup_bloom_filter(&self, value: &[u8]) -> Result<bool> {
-        let ret = unsafe {
-            libbpf_sys::bpf_map_lookup_elem(
-                self.fd.as_raw_fd(),
-                ptr::null(),
-                value.to_vec().as_mut_ptr() as *mut c_void,
-            )
-        };
-
-        if ret == 0 {
-            Ok(true)
-        } else {
-            let err = io::Error::last_os_error();
-            if err.kind() == io::ErrorKind::NotFound {
-                Ok(false)
-            } else {
-                Err(Error::from(err))
-            }
-        }
-    }
-
-    /// Returns one value per cpu as `Vec` of `Vec` of `u8` for per per-cpu maps.
-    ///
-    /// For normal maps, [`MapHandle::lookup()`] must be used.
-    pub fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
-        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
-            return Err(Error::with_invalid_data(format!(
-                "lookup() must be used for maps that are not per-cpu (type of the map is {:?})",
-                self.map_type(),
-            )));
-        }
-
-        let val_size = self.value_size() as usize;
-        let aligned_val_size = percpu_aligned_value_size(self);
-        let out_size = percpu_buffer_size(self)?;
-
-        let raw_res = lookup_raw(self, key, flags, out_size)?;
-        if let Some(raw_vals) = raw_res {
-            let mut out = Vec::new();
-            for chunk in raw_vals.chunks_exact(aligned_val_size) {
-                out.push(chunk[..val_size].to_vec());
-            }
-            Ok(Some(out))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Deletes an element from the map.
-    ///
-    /// `key` must have exactly [`MapHandle::key_size()`] elements.
-    pub fn delete(&self, key: &[u8]) -> Result<()> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::with_invalid_data(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_delete_elem(self.fd.as_raw_fd(), key.as_ptr() as *const c_void)
-        };
-        util::parse_ret(ret)
-    }
-
-    /// Deletes many elements in batch mode from the map.
-    ///
-    /// `keys` must have exactly [`MapHandle::key_size()` * count] elements.
-    pub fn delete_batch(
-        &self,
-        keys: &[u8],
-        count: u32,
-        elem_flags: MapFlags,
-        flags: MapFlags,
-    ) -> Result<()> {
-        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
-            return Err(Error::with_invalid_data(format!(
-                "batch key_size {} != {} * {}",
-                keys.len(),
-                self.key_size(),
-                count
-            )));
-        };
-
-        #[allow(clippy::needless_update)]
-        let opts = libbpf_sys::bpf_map_batch_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
-            elem_flags: elem_flags.bits(),
-            flags: flags.bits(),
-            // bpf_map_batch_opts might have padding fields on some platform
-            ..Default::default()
-        };
-
-        let mut count = count;
-        let ret = unsafe {
-            libbpf_sys::bpf_map_delete_batch(
-                self.fd.as_raw_fd(),
-                keys.as_ptr() as *const c_void,
-                (&mut count) as *mut u32,
-                &opts as *const libbpf_sys::bpf_map_batch_opts,
-            )
-        };
-        util::parse_ret(ret)
-    }
-
-    /// Same as [`MapHandle::lookup()`] except this also deletes the key from the map.
-    ///
-    /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
-    /// and [`MapType::Stack`].
-    ///
-    /// `key` must have exactly [`MapHandle::key_size()`] elements.
-    pub fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::with_invalid_data(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_lookup_and_delete_elem(
-                self.fd.as_raw_fd(),
-                map_key(self, key),
-                out.as_mut_ptr() as *mut c_void,
-            )
-        };
-
-        if ret == 0 {
-            unsafe {
-                out.set_len(self.value_size() as usize);
-            }
-            Ok(Some(out))
-        } else {
-            let err = io::Error::last_os_error();
-            if err.kind() == io::ErrorKind::NotFound {
-                Ok(None)
-            } else {
-                Err(Error::from(err))
-            }
-        }
-    }
-
-    /// Update an element.
-    ///
-    /// `key` must have exactly [`MapHandle::key_size()`] elements. `value` must have exactly
-    /// [`MapHandle::value_size()`] elements.
-    ///
-    /// For per-cpu maps, [`MapHandle::update_percpu()`] must be used.
-    pub fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
-        if self.map_type().is_percpu() {
-            return Err(Error::with_invalid_data(format!(
-                "update_percpu() must be used for per-cpu maps (type of the map is {:?})",
-                self.map_type(),
-            )));
-        }
-
-        if value.len() != self.value_size() as usize {
-            return Err(Error::with_invalid_data(format!(
-                "value_size {} != {}",
-                value.len(),
-                self.value_size()
-            )));
-        };
-
-        update_raw(self, key, value, flags)
-    }
-
-    /// Updates many elements in batch mode in the map
-    ///
-    /// `keys` must have exactly [`MapHandle::key_size()` * count] elements. `value` must have exactly
-    /// [`MapHandle::key_size()` * count] elements
-    pub fn update_batch(
-        &self,
-        keys: &[u8],
-        values: &[u8],
-        count: u32,
-        elem_flags: MapFlags,
-        flags: MapFlags,
-    ) -> Result<()> {
-        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
-            return Err(Error::with_invalid_data(format!(
-                "batch key_size {} != {} * {}",
-                keys.len(),
-                self.key_size(),
-                count
-            )));
-        };
-
-        if values.len() as u32 / count != self.value_size() || (values.len() as u32) % count != 0 {
-            return Err(Error::with_invalid_data(format!(
-                "batch value_size {} != {} * {}",
-                values.len(),
-                self.value_size(),
-                count
-            )));
-        }
-
-        #[allow(clippy::needless_update)]
-        let opts = libbpf_sys::bpf_map_batch_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
-            elem_flags: elem_flags.bits(),
-            flags: flags.bits(),
-            // bpf_map_batch_opts might have padding fields on some platform
-            ..Default::default()
-        };
-
-        let mut count = count;
-        let ret = unsafe {
-            libbpf_sys::bpf_map_update_batch(
-                self.fd.as_raw_fd(),
-                keys.as_ptr() as *const c_void,
-                values.as_ptr() as *const c_void,
-                (&mut count) as *mut u32,
-                &opts as *const libbpf_sys::bpf_map_batch_opts,
-            )
-        };
-
-        util::parse_ret(ret)
-    }
-
-    /// Update an element in an per-cpu map with one value per cpu.
-    ///
-    /// `key` must have exactly [`MapHandle::key_size()`] elements. `value` must have one
-    /// element per cpu (see [`num_possible_cpus`][crate::num_possible_cpus])
-    /// with exactly [`MapHandle::value_size()`] elements each.
-    ///
-    /// For per-cpu maps, [`MapHandle::update_percpu()`] must be used.
-    pub fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
-        if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
-            return Err(Error::with_invalid_data(format!(
-                "update() must be used for maps that are not per-cpu (type of the map is {:?})",
-                self.map_type(),
-            )));
-        }
-
-        if values.len() != crate::num_possible_cpus()? {
-            return Err(Error::with_invalid_data(format!(
-                "number of values {} != number of cpus {}",
-                values.len(),
-                crate::num_possible_cpus()?
-            )));
-        };
-
-        let val_size = self.value_size() as usize;
-        let aligned_val_size = percpu_aligned_value_size(self);
-        let buf_size = percpu_buffer_size(self)?;
-
-        let mut value_buf = vec![0; buf_size];
-
-        for (i, val) in values.iter().enumerate() {
-            if val.len() != val_size {
-                return Err(Error::with_invalid_data(format!(
-                    "value size for cpu {} is {} != {}",
-                    i,
-                    val.len(),
-                    val_size
-                )));
-            }
-
-            value_buf[(i * aligned_val_size)..(i * aligned_val_size + val_size)]
-                .copy_from_slice(val);
-        }
-
-        update_raw(self, key, &value_buf, flags)
     }
 
     /// Freeze the map as read-only from user space.
@@ -949,14 +921,27 @@ impl MapHandle {
     pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         remove_file(path).context("failed to remove pin map")
     }
+}
 
-    /// Returns an iterator over keys in this map
-    ///
-    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
-    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
-    /// iteration becomes unpredictable.
-    pub fn keys(&self) -> MapKeyIter<'_> {
-        MapKeyIter::new(self, self.key_size())
+impl MapCore for MapHandle {
+    #[inline]
+    fn name(&self) -> &OsStr {
+        &self.name
+    }
+
+    #[inline]
+    fn map_type(&self) -> MapType {
+        self.ty
+    }
+
+    #[inline]
+    fn key_size(&self) -> u32 {
+        self.key_size
+    }
+
+    #[inline]
+    fn value_size(&self) -> u32 {
+        self.value_size
     }
 }
 
@@ -964,6 +949,40 @@ impl AsFd for MapHandle {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.fd.as_fd()
+    }
+}
+
+impl TryFrom<&Map> for MapHandle {
+    type Error = Error;
+
+    fn try_from(other: &Map) -> Result<Self> {
+        Ok(Self {
+            fd: other
+                .as_fd()
+                .try_clone_to_owned()
+                .context("failed to duplicate map file descriptor")?,
+            name: other.name().to_os_string(),
+            ty: other.map_type(),
+            key_size: other.key_size(),
+            value_size: other.value_size(),
+        })
+    }
+}
+
+impl TryFrom<&MapHandle> for MapHandle {
+    type Error = Error;
+
+    fn try_from(other: &MapHandle) -> Result<Self> {
+        Ok(Self {
+            fd: other
+                .as_fd()
+                .try_clone_to_owned()
+                .context("failed to duplicate map file descriptor")?,
+            name: other.name().to_os_string(),
+            ty: other.map_type(),
+            key_size: other.key_size(),
+            value_size: other.value_size(),
+        })
     }
 }
 
@@ -1113,18 +1132,18 @@ impl From<MapType> for u32 {
     }
 }
 
-/// An iterator over the keys of a [`Map`].
+/// An iterator over the keys of a BPF map.
 #[derive(Debug)]
-pub struct MapKeyIter<'a> {
-    map: &'a MapHandle,
+pub struct MapKeyIter<'map> {
+    map_fd: BorrowedFd<'map>,
     prev: Option<Vec<u8>>,
     next: Vec<u8>,
 }
 
-impl<'a> MapKeyIter<'a> {
-    fn new(map: &'a MapHandle, key_size: u32) -> Self {
+impl<'map> MapKeyIter<'map> {
+    fn new(map_fd: BorrowedFd<'map>, key_size: u32) -> Self {
         Self {
-            map,
+            map_fd,
             prev: None,
             next: vec![0; key_size as usize],
         }
@@ -1139,7 +1158,7 @@ impl Iterator for MapKeyIter<'_> {
 
         let ret = unsafe {
             libbpf_sys::bpf_map_get_next_key(
-                self.map.as_fd().as_raw_fd(),
+                self.map_fd.as_raw_fd(),
                 prev as _,
                 self.next.as_mut_ptr() as _,
             )

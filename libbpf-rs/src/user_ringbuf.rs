@@ -3,7 +3,6 @@ use libc::ENOSPC;
 use std::io;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::os::fd::AsFd;
 use std::os::fd::AsRawFd;
 use std::os::raw::c_uint;
 use std::os::raw::c_void;
@@ -14,7 +13,7 @@ use std::slice::from_raw_parts_mut;
 
 use crate::AsRawLibbpf;
 use crate::Error;
-use crate::MapHandle;
+use crate::MapCore;
 use crate::MapType;
 use crate::Result;
 
@@ -80,7 +79,7 @@ impl UserRingBuffer {
     /// # Errors
     /// * If the map is not a user ring buffer.
     /// * If the underlying libbpf function fails.
-    pub fn new(map: &MapHandle) -> Result<Self> {
+    pub fn new(map: &dyn MapCore) -> Result<Self> {
         if map.map_type() != MapType::UserRingBuf {
             return Err(Error::with_invalid_data("must use a UserRingBuf map"));
         }

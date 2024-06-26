@@ -13,6 +13,7 @@ use crate::util;
 use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Map;
+use crate::MapCore as _;
 use crate::MapType;
 use crate::Result;
 
