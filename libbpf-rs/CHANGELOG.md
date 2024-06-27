@@ -5,6 +5,7 @@ Unreleased
 - Adjusted `{Open,}Program` to lazily retrieve name and section
   - Changed `name` and `section` methods to return `&OsStr` and made
     constructors infallible
+- Adjusted `OpenMap::set_inner_map_fd` to return `Result`
 - Removed `Display` implementation of various `enum` types
 
 

@@ -147,10 +147,11 @@ impl OpenMap {
         util::parse_ret(ret)
     }
 
-    pub fn set_inner_map_fd(&mut self, inner: &Map) {
-        unsafe {
+    pub fn set_inner_map_fd(&mut self, inner: &Map) -> Result<()> {
+        let ret = unsafe {
             libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner.as_fd().as_raw_fd())
         };
+        util::parse_ret(ret)
     }
 
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
