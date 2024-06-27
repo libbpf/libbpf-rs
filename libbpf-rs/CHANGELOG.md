@@ -1,7 +1,7 @@
 Unreleased
 ----------
 - Added `AsRawLibbpf` impl for `OpenObject`
-- Adjusted various APIs to return/use `OsStr` instead of `CStr`
+- Adjusted various APIs to return/use `OsStr` instead of `CStr` or `str`
 - Adjusted `{Open,}Program` to lazily retrieve name and section
   - Changed `name` and `section` methods to return `&OsStr` and made
     constructors infallible

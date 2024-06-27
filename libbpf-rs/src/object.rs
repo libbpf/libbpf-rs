@@ -390,7 +390,14 @@ impl Object {
 
             if unsafe { libbpf_sys::bpf_map__autocreate(map_ptr.as_ptr()) } {
                 let map_obj = unsafe { Map::new(map_ptr) }?;
-                obj.maps.insert(map_obj.name().into(), map_obj);
+                obj.maps.insert(
+                    map_obj
+                        .name()
+                        .to_str()
+                        .ok_or_invalid_data(|| "map has invalid name")?
+                        .to_string(),
+                    map_obj,
+                );
             }
 
             map = map_ptr.as_ptr();

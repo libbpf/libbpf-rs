@@ -187,7 +187,7 @@ fn test_object_maps_iter() {
 
     let obj = get_test_object("runqslower.bpf.o");
     for map in obj.maps_iter() {
-        eprintln!("{}", map.name());
+        eprintln!("{:?}", map.name());
     }
     // This will include .rodata and .bss, so our expected count is 4, not 2
     assert!(obj.maps_iter().count() == 4);

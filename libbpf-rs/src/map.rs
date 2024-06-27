@@ -2,6 +2,7 @@ use core::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::remove_file;
 use std::io;
@@ -252,11 +253,12 @@ impl Map {
     ///
     /// The pointer must point to a loaded map.
     pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Result<Self> {
-        // Get the map name
+        // SAFETY: `ptr` is valid as per contract.
+        let name_ptr = unsafe { libbpf_sys::bpf_map__name(ptr.as_ptr()) };
         // SAFETY: `bpf_map__name` can return NULL but only if it's passed
         //          NULL. We know `ptr` is not NULL.
-        let name = unsafe { libbpf_sys::bpf_map__name(ptr.as_ptr()) };
-        let name = util::c_ptr_to_string(name)?;
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        let name = OsStr::from_bytes(name_c_str.to_bytes()).to_os_string();
 
         // Get the map fd
         let fd = unsafe { libbpf_sys::bpf_map__fd(ptr.as_ptr()) };
@@ -384,7 +386,7 @@ impl AsFd for Map {
 #[derive(Debug)]
 pub struct MapHandle {
     fd: MapFd,
-    name: String,
+    name: OsString,
     ty: MapType,
     key_size: u32,
     value_size: u32,
@@ -392,7 +394,7 @@ pub struct MapHandle {
 
 impl MapHandle {
     /// Create a bpf map whose data is not managed by libbpf.
-    pub fn create<T: AsRef<str>>(
+    pub fn create<T: AsRef<OsStr>>(
         map_type: MapType,
         name: Option<T>,
         key_size: u32,
@@ -400,28 +402,24 @@ impl MapHandle {
         max_entries: u32,
         opts: &libbpf_sys::bpf_map_create_opts,
     ) -> Result<MapHandle> {
-        let (map_name_str, map_name) = match name {
-            Some(name) => (
-                util::str_to_cstring(name.as_ref())?,
-                name.as_ref().to_string(),
-            ),
-
-            // The old version kernel don't support specifying map name, we can use 'Option::<&str>::None' for the name argument.
-            None => (util::str_to_cstring("")?, "".to_string()),
+        let name = match name {
+            Some(name) => name.as_ref().to_os_string(),
+            // The old version kernel don't support specifying map name.
+            None => OsString::new(),
         };
-
-        let map_name_ptr = {
-            if map_name_str.as_bytes().is_empty() {
-                ptr::null()
-            } else {
-                map_name_str.as_ptr()
-            }
+        let name_c_str = CString::new(name.as_bytes()).map_err(|_| {
+            Error::with_invalid_data(format!("invalid name `{name:?}`: has NUL bytes"))
+        })?;
+        let name_c_ptr = if name.is_empty() {
+            ptr::null()
+        } else {
+            name_c_str.as_bytes_with_nul().as_ptr()
         };
 
         let fd = unsafe {
             libbpf_sys::bpf_map_create(
                 map_type.into(),
-                map_name_ptr,
+                name_c_ptr.cast(),
                 key_size,
                 value_size,
                 max_entries,
@@ -437,7 +435,7 @@ impl MapHandle {
                 // ownership and can be cleaned up with close.
                 OwnedFd::from_raw_fd(fd)
             }),
-            name: map_name,
+            name,
             ty: map_type,
             key_size,
             value_size,
@@ -515,7 +513,7 @@ impl MapHandle {
 
     /// Retrieve the `Map`'s name.
     #[inline]
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &OsStr {
         &self.name
     }
 
