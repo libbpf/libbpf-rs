@@ -204,6 +204,95 @@ impl AsRawLibbpf for OpenMap {
     }
 }
 
+/// Return the size of one value including padding for interacting with per-cpu
+/// maps. The values are aligned to 8 bytes.
+fn percpu_aligned_value_size(map: &MapHandle) -> usize {
+    let val_size = map.value_size() as usize;
+    util::roundup(val_size, 8)
+}
+
+/// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
+fn percpu_buffer_size(map: &MapHandle) -> Result<usize> {
+    let aligned_val_size = percpu_aligned_value_size(map);
+    let ncpu = crate::num_possible_cpus()?;
+    Ok(ncpu * aligned_val_size)
+}
+
+/// Apply a key check and return a null pointer in case of dealing with queue/stack/bloom-filter map,
+/// before passing the key to the bpf functions that support the map of type queue/stack/bloom-filter.
+fn map_key(map: &MapHandle, key: &[u8]) -> *const c_void {
+    // For all they keyless maps we null out the key per documentation of libbpf
+    if map.key_size() == 0 && map.map_type().is_keyless() {
+        return ptr::null();
+    }
+
+    key.as_ptr() as *const c_void
+}
+
+/// Internal function to return a value from a map into a buffer of the given size.
+fn lookup_raw(
+    map: &MapHandle,
+    key: &[u8],
+    flags: MapFlags,
+    out_size: usize,
+) -> Result<Option<Vec<u8>>> {
+    if key.len() != map.key_size() as usize {
+        return Err(Error::with_invalid_data(format!(
+            "key_size {} != {}",
+            key.len(),
+            map.key_size()
+        )));
+    };
+
+    let mut out: Vec<u8> = Vec::with_capacity(out_size);
+
+    let ret = unsafe {
+        libbpf_sys::bpf_map_lookup_elem_flags(
+            map.fd.as_raw_fd(),
+            map_key(map, key),
+            out.as_mut_ptr() as *mut c_void,
+            flags.bits(),
+        )
+    };
+
+    if ret == 0 {
+        unsafe {
+            out.set_len(out_size);
+        }
+        Ok(Some(out))
+    } else {
+        let err = io::Error::last_os_error();
+        if err.kind() == io::ErrorKind::NotFound {
+            Ok(None)
+        } else {
+            Err(Error::from(err))
+        }
+    }
+}
+
+/// Internal function to update a map. This does not check the length of the
+/// supplied value.
+fn update_raw(map: &MapHandle, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+    if key.len() != map.key_size() as usize {
+        return Err(Error::with_invalid_data(format!(
+            "key_size {} != {}",
+            key.len(),
+            map.key_size()
+        )));
+    };
+
+    let ret = unsafe {
+        libbpf_sys::bpf_map_update_elem(
+            map.fd.as_raw_fd(),
+            map_key(map, key),
+            value.as_ptr() as *const c_void,
+            flags.bits(),
+        )
+    };
+
+    util::parse_ret(ret)
+}
+
 #[derive(Debug)]
 enum MapFd {
     Owned(OwnedFd),
@@ -536,90 +625,6 @@ impl MapHandle {
         self.value_size
     }
 
-    /// Return the size of one value including padding for interacting with per-cpu
-    /// maps. The values are aligned to 8 bytes.
-    fn percpu_aligned_value_size(&self) -> usize {
-        let val_size = self.value_size() as usize;
-        util::roundup(val_size, 8)
-    }
-
-    /// Returns the size of the buffer needed for a lookup/update of a per-cpu map.
-    fn percpu_buffer_size(&self) -> Result<usize> {
-        let aligned_val_size = self.percpu_aligned_value_size();
-        let ncpu = crate::num_possible_cpus()?;
-        Ok(ncpu * aligned_val_size)
-    }
-
-    /// Apply a key check and return a null pointer in case of dealing with queue/stack/bloom-filter map,
-    /// before passing the key to the bpf functions that support the map of type queue/stack/bloom-filter.
-    fn map_key(&self, key: &[u8]) -> *const c_void {
-        // For all they keyless maps we null out the key per documentation of libbpf
-        if self.key_size() == 0 && self.map_type().is_keyless() {
-            return ptr::null();
-        }
-
-        key.as_ptr() as *const c_void
-    }
-
-    /// Internal function to return a value from a map into a buffer of the given size.
-    fn lookup_raw(&self, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::with_invalid_data(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let mut out: Vec<u8> = Vec::with_capacity(out_size);
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_lookup_elem_flags(
-                self.fd.as_raw_fd(),
-                self.map_key(key),
-                out.as_mut_ptr() as *mut c_void,
-                flags.bits(),
-            )
-        };
-
-        if ret == 0 {
-            unsafe {
-                out.set_len(out_size);
-            }
-            Ok(Some(out))
-        } else {
-            let err = io::Error::last_os_error();
-            if err.kind() == io::ErrorKind::NotFound {
-                Ok(None)
-            } else {
-                Err(Error::from(err))
-            }
-        }
-    }
-
-    /// Internal function to update a map. This does not check the length of the
-    /// supplied value.
-    fn update_raw(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::with_invalid_data(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_update_elem(
-                self.fd.as_raw_fd(),
-                self.map_key(key),
-                value.as_ptr() as *const c_void,
-                flags.bits(),
-            )
-        };
-
-        util::parse_ret(ret)
-    }
-
     /// Returns map value as `Vec` of `u8`.
     ///
     /// `key` must have exactly [`MapHandle::key_size()`] elements.
@@ -641,7 +646,7 @@ impl MapHandle {
         }
 
         let out_size = self.value_size() as usize;
-        self.lookup_raw(key, flags, out_size)
+        lookup_raw(self, key, flags, out_size)
     }
 
     /// Returns if the given value is likely present in bloom_filter as `bool`.
@@ -680,10 +685,10 @@ impl MapHandle {
         }
 
         let val_size = self.value_size() as usize;
-        let aligned_val_size = self.percpu_aligned_value_size();
-        let out_size = self.percpu_buffer_size()?;
+        let aligned_val_size = percpu_aligned_value_size(self);
+        let out_size = percpu_buffer_size(self)?;
 
-        let raw_res = self.lookup_raw(key, flags, out_size)?;
+        let raw_res = lookup_raw(self, key, flags, out_size)?;
         if let Some(raw_vals) = raw_res {
             let mut out = Vec::new();
             for chunk in raw_vals.chunks_exact(aligned_val_size) {
@@ -773,7 +778,7 @@ impl MapHandle {
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_and_delete_elem(
                 self.fd.as_raw_fd(),
-                self.map_key(key),
+                map_key(self, key),
                 out.as_mut_ptr() as *mut c_void,
             )
         };
@@ -815,7 +820,7 @@ impl MapHandle {
             )));
         };
 
-        self.update_raw(key, value, flags)
+        update_raw(self, key, value, flags)
     }
 
     /// Updates many elements in batch mode in the map
@@ -895,8 +900,8 @@ impl MapHandle {
         };
 
         let val_size = self.value_size() as usize;
-        let aligned_val_size = self.percpu_aligned_value_size();
-        let buf_size = self.percpu_buffer_size()?;
+        let aligned_val_size = percpu_aligned_value_size(self);
+        let buf_size = percpu_buffer_size(self)?;
 
         let mut value_buf = vec![0; buf_size];
 
@@ -914,7 +919,7 @@ impl MapHandle {
                 .copy_from_slice(val);
         }
 
-        self.update_raw(key, &value_buf, flags)
+        update_raw(self, key, &value_buf, flags)
     }
 
     /// Freeze the map as read-only from user space.
