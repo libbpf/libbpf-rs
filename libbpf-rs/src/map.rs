@@ -1158,8 +1158,7 @@ pub struct MapInfo {
 impl MapInfo {
     /// Create a `MapInfo` object from a fd.
     pub fn new(fd: BorrowedFd<'_>) -> Result<Self> {
-        // SAFETY: `bpf_map_info` is valid for any bit pattern.
-        let mut map_info = unsafe { mem::zeroed::<bpf_map_info>() };
+        let mut map_info = bpf_map_info::default();
         let mut size = mem::size_of_val(&map_info) as u32;
         // SAFETY: All pointers are derived from references and hence valid.
         let () = util::parse_ret(unsafe {
