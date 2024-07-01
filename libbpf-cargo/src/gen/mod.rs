@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -38,6 +37,7 @@ use libbpf_rs::MapIter;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
 
+use libbpf_rs::Program;
 use memmap2::Mmap;
 
 use crate::metadata;
@@ -86,45 +86,6 @@ pub enum OutputDest<'a> {
     // Only constructed in libbpf-cargo library
     File(&'a Path),
 }
-
-// TODO: Remove with usage of logic from libbpf-rs directly.
-macro_rules! gen_bpf_object_iter {
-    ($name:ident, $iter_ty:ty, $next_fn:expr) => {
-        struct $name {
-            obj: *const libbpf_sys::bpf_object,
-            last: *mut $iter_ty,
-        }
-
-        impl $name {
-            fn new(obj: *const libbpf_sys::bpf_object) -> $name {
-                $name {
-                    obj,
-                    last: ptr::null_mut(),
-                }
-            }
-        }
-
-        impl Iterator for $name {
-            type Item = *mut $iter_ty;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                self.last = unsafe { $next_fn(self.obj, self.last) };
-
-                if self.last.is_null() {
-                    None
-                } else {
-                    Some(self.last)
-                }
-            }
-        }
-    };
-}
-
-gen_bpf_object_iter!(
-    ProgIter,
-    libbpf_sys::bpf_program,
-    libbpf_sys::bpf_object__next_program
-);
 
 /// Try running `rustfmt` over `s` and return result.
 ///
@@ -232,11 +193,13 @@ fn get_map_name(map: &Map) -> Result<Option<String>> {
     }
 }
 
-fn get_prog_name(prog: *const libbpf_sys::bpf_program) -> Result<String> {
-    let name_ptr = unsafe { libbpf_sys::bpf_program__name(prog) };
-    ensure!(!name_ptr.is_null(), "Prog name unknown");
-
-    Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
+fn get_prog_name(prog: &Program) -> Result<String> {
+    let name = prog
+        .name()
+        .to_str()
+        .context("program has invalid name")?
+        .to_string();
+    Ok(name)
 }
 
 fn map_is_mmapable(map: &Map) -> bool {
@@ -294,8 +257,8 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
         )?;
     }
 
-    for prog in ProgIter::new(object.as_libbpf_object().as_ptr()) {
-        let name = get_prog_name(prog)?;
+    for prog in object.progs() {
+        let name = get_prog_name(&prog)?;
 
         write!(
             skel,
@@ -393,10 +356,7 @@ fn gen_skel_prog_defs(
     open: bool,
     mutable: bool,
 ) -> Result<()> {
-    if ProgIter::new(object.as_libbpf_object().as_ptr())
-        .next()
-        .is_none()
-    {
+    if object.progs().next().is_none() {
         return Ok(());
     }
 
@@ -431,7 +391,7 @@ fn gen_skel_prog_defs(
         "#,
     )?;
 
-    for prog in ProgIter::new(object.as_libbpf_object().as_ptr()) {
+    for prog in object.progs() {
         write!(
             skel,
             r#"
@@ -439,7 +399,7 @@ fn gen_skel_prog_defs(
                 self.inner.{prog_fn}("{prog_name}").unwrap()
             }}
             "#,
-            prog_name = get_prog_name(prog)?,
+            prog_name = get_prog_name(&prog)?,
             return_ty = return_ty,
             mut_prefix = mut_prefix,
             prog_fn = prog_fn
@@ -612,10 +572,7 @@ fn gen_skel_prog_getters(
     open: bool,
 ) -> Result<()> {
     let mut gen = |mutable| -> Result<()> {
-        if ProgIter::new(object.as_libbpf_object().as_ptr())
-            .next()
-            .is_none()
-        {
+        if object.progs().next().is_none() {
             return Ok(());
         }
 
@@ -699,10 +656,7 @@ fn gen_skel_datasec_getters(
 }
 
 fn gen_skel_link_defs(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
-    if ProgIter::new(object.as_libbpf_object().as_ptr())
-        .next()
-        .is_none()
-    {
+    if object.progs().next().is_none() {
         return Ok(());
     }
 
@@ -714,12 +668,12 @@ fn gen_skel_link_defs(skel: &mut String, object: &Object, obj_name: &str) -> Res
         "#,
     )?;
 
-    for prog in ProgIter::new(object.as_libbpf_object().as_ptr()) {
+    for prog in object.progs() {
         write!(
             skel,
             r#"pub {}: Option<libbpf_rs::Link>,
             "#,
-            get_prog_name(prog)?
+            get_prog_name(&prog)?
         )?;
     }
 
@@ -729,10 +683,7 @@ fn gen_skel_link_defs(skel: &mut String, object: &Object, obj_name: &str) -> Res
 }
 
 fn gen_skel_link_getter(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
-    if ProgIter::new(object.as_libbpf_object().as_ptr())
-        .next()
-        .is_none()
-    {
+    if object.progs().next().is_none() {
         return Ok(());
     }
 
@@ -767,10 +718,7 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<Object> {
 }
 
 fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
-    if ProgIter::new(object.as_libbpf_object().as_ptr())
-        .next()
-        .is_none()
-    {
+    if object.progs().next().is_none() {
         return Ok(());
     }
 
@@ -787,8 +735,8 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
         "#,
     )?;
 
-    for (idx, prog) in ProgIter::new(object.as_libbpf_object().as_ptr()).enumerate() {
-        let prog_name = get_prog_name(prog)?;
+    for (idx, prog) in object.progs().enumerate() {
+        let prog_name = get_prog_name(&prog)?;
 
         write!(
             skel,
@@ -982,10 +930,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             }}
         "#,
         name = &obj_name,
-        links = if ProgIter::new(object.as_libbpf_object().as_ptr())
-            .next()
-            .is_some()
-        {
+        links = if object.progs().next().is_some() {
             format!(r#"links: {obj_name}Links::default()"#)
         } else {
             "".to_string()
