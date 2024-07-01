@@ -50,7 +50,7 @@ impl OpenMap {
     ///
     /// # Safety
     /// The pointer must point to an opened but not loaded map.
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
         Self { ptr }
     }
 
@@ -661,8 +661,8 @@ impl Map {
     /// # Safety
     ///
     /// The pointer must point to a loaded map.
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
-        debug_assert!(
+    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+        assert!(
             map_fd(ptr).is_some(),
             "provided BPF map does not have file descriptor"
         );

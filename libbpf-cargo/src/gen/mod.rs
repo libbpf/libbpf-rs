@@ -32,6 +32,10 @@ use libbpf_rs::btf::TypeId;
 use libbpf_rs::libbpf_sys;
 use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Btf;
+use libbpf_rs::Map;
+use libbpf_rs::MapCore as _;
+use libbpf_rs::MapIter;
+use libbpf_rs::MapType;
 use libbpf_rs::Object;
 
 use memmap2::Mmap;
@@ -117,11 +121,6 @@ macro_rules! gen_bpf_object_iter {
 }
 
 gen_bpf_object_iter!(
-    MapIter,
-    libbpf_sys::bpf_map,
-    libbpf_sys::bpf_object__next_map
-);
-gen_bpf_object_iter!(
     ProgIter,
     libbpf_sys::bpf_program,
     libbpf_sys::bpf_object__next_program
@@ -180,11 +179,13 @@ fn capitalize_first_letter(s: &str) -> String {
     })
 }
 
-fn get_raw_map_name(map: *const libbpf_sys::bpf_map) -> Result<String> {
-    let name_ptr = unsafe { libbpf_sys::bpf_map__name(map) };
-    ensure!(!name_ptr.is_null(), "Map name unknown");
-
-    Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
+fn get_raw_map_name(map: &Map) -> Result<String> {
+    let name = map
+        .name()
+        .to_str()
+        .context("map has invalid name")?
+        .to_string();
+    Ok(name)
 }
 
 pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType<'_>> {
@@ -221,10 +222,10 @@ pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType<
 }
 
 /// Same as `get_raw_map_name` except the name is canonicalized
-fn get_map_name(map: *const libbpf_sys::bpf_map) -> Result<Option<String>> {
+fn get_map_name(map: &Map) -> Result<Option<String>> {
     let name = get_raw_map_name(map)?;
 
-    if unsafe { !libbpf_sys::bpf_map__is_internal(map) } {
+    if unsafe { !libbpf_sys::bpf_map__is_internal(map.as_libbpf_object().as_ptr()) } {
         Ok(Some(escape_raw_name(&name)))
     } else {
         Ok(canonicalize_internal_map_name(&name).map(|map| map.to_string()))
@@ -238,22 +239,31 @@ fn get_prog_name(prog: *const libbpf_sys::bpf_program) -> Result<String> {
     Ok(unsafe { CStr::from_ptr(name_ptr) }.to_str()?.to_string())
 }
 
-fn map_is_mmapable(map: *const libbpf_sys::bpf_map) -> bool {
-    (unsafe { libbpf_sys::bpf_map__map_flags(map) } & libbpf_sys::BPF_F_MMAPABLE) > 0
+fn map_is_mmapable(map: &Map) -> bool {
+    let map_ptr = map.as_libbpf_object().as_ptr();
+    (unsafe { libbpf_sys::bpf_map__map_flags(map_ptr) } & libbpf_sys::BPF_F_MMAPABLE) > 0
 }
 
-fn map_is_datasec(map: *const libbpf_sys::bpf_map) -> bool {
-    let internal = unsafe { libbpf_sys::bpf_map__is_internal(map) };
+fn map_is_datasec(map: &Map) -> bool {
+    let internal = unsafe { libbpf_sys::bpf_map__is_internal(map.as_libbpf_object().as_ptr()) };
     let mmapable = map_is_mmapable(map);
 
     internal && mmapable
 }
 
-fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
+fn map_is_readonly(map: &Map) -> bool {
     assert!(map_is_mmapable(map));
 
+    let map_ptr = map.as_libbpf_object().as_ptr();
     // BPF_F_RDONLY_PROG means readonly from prog side
-    (unsafe { libbpf_sys::bpf_map__map_flags(map) } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
+    (unsafe { libbpf_sys::bpf_map__map_flags(map_ptr) } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
+}
+
+fn maps(object: &Object) -> impl Iterator<Item = Map> {
+    // SAFETY: The pointer returned by `as_libbpf_object` is always valid.
+    let obj = unsafe { object.as_libbpf_object().as_ref() };
+    // SAFETY: We never use the `AsFd` impl of the map.
+    MapIter::new(obj).map(|ptr| unsafe { Map::from_map_without_fd(ptr) })
 }
 
 fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -> Result<()> {
@@ -268,9 +278,9 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
         "#,
     )?;
 
-    for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
-        let raw_name = get_raw_map_name(map)?;
-        let mmaped = if map_is_mmapable(map) {
+    for map in maps(object) {
+        let raw_name = get_raw_map_name(&map)?;
+        let mmaped = if map_is_mmapable(&map) {
             "true"
         } else {
             "false"
@@ -310,10 +320,7 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
 
 fn gen_skel_map_defs(skel: &mut String, object: &Object, obj_name: &str, open: bool) -> Result<()> {
     let mut gen = |mutable| -> Result<()> {
-        if MapIter::new(object.as_libbpf_object().as_ptr())
-            .next()
-            .is_none()
-        {
+        if maps(object).next().is_none() {
             return Ok(());
         }
 
@@ -348,8 +355,8 @@ fn gen_skel_map_defs(skel: &mut String, object: &Object, obj_name: &str, open: b
             "#,
         )?;
 
-        for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
-            let map_name = match get_map_name(map)? {
+        for map in maps(object) {
+            let map_name = match get_map_name(&map)? {
                 Some(n) => n,
                 None => continue,
             };
@@ -362,7 +369,7 @@ fn gen_skel_map_defs(skel: &mut String, object: &Object, obj_name: &str, open: b
                 }}
                 "#,
                 map_name = map_name,
-                raw_map_name = get_raw_map_name(map)?,
+                raw_map_name = get_raw_map_name(&map)?,
                 return_ty = return_ty,
                 mut_prefix = mut_prefix,
                 map_fn = map_fn
@@ -512,18 +519,19 @@ fn gen_skel_map_types(
         };
     let btf = GenBtf::from(btf);
 
-    for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
+    for map in maps(object) {
+        let map_ptr = map.as_libbpf_object().as_ptr();
         // If not defined or on error, the reported BTF type ID will be 0, which
         // is reserved for `void`. We will end up skipping all "final" types
         // including `void`, so no need to special case here.
-        let key_id = unsafe { libbpf_sys::bpf_map__btf_key_type_id(map) };
+        let key_id = unsafe { libbpf_sys::bpf_map__btf_key_type_id(map_ptr) };
         let key_type = btf
             .type_by_id(TypeId::from(key_id))
             .with_context(|| format!("failed to look up BTF map key type with ID `{key_id}`"))?;
         let sec_def = btf.type_definition(key_type, processed)?;
         write!(skel, "{sec_def}")?;
 
-        let val_id = unsafe { libbpf_sys::bpf_map__btf_value_type_id(map) };
+        let val_id = unsafe { libbpf_sys::bpf_map__btf_value_type_id(map_ptr) };
         let val_type = btf
             .type_by_id(TypeId::from(val_id))
             .with_context(|| format!("failed to look up BTF map value type with ID `{val_id}`"))?;
@@ -541,10 +549,7 @@ fn gen_skel_map_getters(
     open: bool,
 ) -> Result<()> {
     let mut gen = |mutable| -> Result<()> {
-        if MapIter::new(object.as_libbpf_object().as_ptr())
-            .next()
-            .is_none()
-        {
+        if maps(object).next().is_none() {
             return Ok(());
         }
 
@@ -580,10 +585,7 @@ fn gen_skel_map_getters(
 }
 
 fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
-    if MapIter::new(object.as_libbpf_object().as_ptr())
-        .next()
-        .is_none()
-    {
+    if maps(object).next().is_none() {
         return Ok(());
     }
 
@@ -654,17 +656,17 @@ fn gen_skel_datasec_getters(
     obj_name: &str,
     loaded: bool,
 ) -> Result<()> {
-    for (idx, map) in MapIter::new(object.as_libbpf_object().as_ptr()).enumerate() {
-        if !map_is_datasec(map) {
+    for (idx, map) in maps(object).enumerate() {
+        if !map_is_datasec(&map) {
             continue;
         }
 
-        let name = match get_map_name(map)? {
+        let name = match get_map_name(&map)? {
             Some(n) => n,
             None => continue,
         };
         let struct_name = format!("{obj_name}_types::{name}");
-        let immutable = loaded && map_is_readonly(map);
+        let immutable = loaded && map_is_readonly(&map);
         let mutabilities = if immutable {
             [false].as_ref()
         } else {
@@ -812,13 +814,13 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
 fn gen_skel_struct_ops_init(object: &Object) -> Result<String> {
     let mut def = String::new();
 
-    for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
-        let type_ = unsafe { libbpf_sys::bpf_map__type(map) };
-        if type_ != libbpf_sys::BPF_MAP_TYPE_STRUCT_OPS {
+    for map in maps(object) {
+        let type_ = map.map_type();
+        if type_ != MapType::StructOps {
             continue;
         }
 
-        let raw_name = get_raw_map_name(map)?;
+        let raw_name = get_raw_map_name(&map)?;
 
         write!(
             def,
