@@ -670,6 +670,20 @@ impl Map {
         Self { ptr }
     }
 
+    /// Create a [`Map`] from a [`libbpf_sys::bpf_map`] that does not contain a
+    /// file descriptor.
+    ///
+    /// The caller has to ensure that the [`AsFd`] impl is not used, or a panic
+    /// will be the result.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must point to a loaded map.
+    #[doc(hidden)]
+    pub unsafe fn from_map_without_fd(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+        Self { ptr }
+    }
+
     /// Returns whether map is pinned or not flag
     pub fn is_pinned(&self) -> bool {
         unsafe { libbpf_sys::bpf_map__is_pinned(self.ptr.as_ptr()) }

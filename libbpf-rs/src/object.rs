@@ -468,7 +468,8 @@ impl Object {
             //       maps, but that was behavior in the past and until the
             //       reasoning is understood it is what we have.
             .filter(|ptr| unsafe { libbpf_sys::bpf_map__autocreate(ptr.as_ptr()) })
-            .map(|ptr| unsafe { Map::new(ptr) })
+            // TODO: Should use Map::new.
+            .map(|ptr| unsafe { Map::from_map_without_fd(ptr) })
     }
 
     /// Get a reference to `Program` with the name `name`, if one exists.

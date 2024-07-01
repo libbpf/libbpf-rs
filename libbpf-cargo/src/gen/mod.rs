@@ -15,7 +15,6 @@ use std::io::stdout;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::mem::size_of;
-use std::ops::Deref;
 use std::os::raw::c_ulong;
 use std::path::Path;
 use std::path::PathBuf;
@@ -31,7 +30,9 @@ use anyhow::Result;
 use libbpf_rs::btf::types;
 use libbpf_rs::btf::TypeId;
 use libbpf_rs::libbpf_sys;
+use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Btf;
+use libbpf_rs::Object;
 
 use memmap2::Mmap;
 
@@ -69,31 +70,6 @@ impl Display for InternalMapType<'_> {
             Self::Kconfig => write!(f, "kconfig"),
             Self::StructOps => write!(f, "struct_ops"),
         }
-    }
-}
-
-#[repr(transparent)]
-pub(crate) struct BpfObj(ptr::NonNull<libbpf_sys::bpf_object>);
-
-impl BpfObj {
-    #[inline]
-    pub fn as_ptr(&self) -> *const libbpf_sys::bpf_object {
-        self.0.as_ptr()
-    }
-}
-
-impl Deref for BpfObj {
-    type Target = libbpf_sys::bpf_object;
-
-    fn deref(&self) -> &Self::Target {
-        // SAFETY: Our `bpf_object` pointer is always valid.
-        unsafe { self.0.as_ref() }
-    }
-}
-
-impl Drop for BpfObj {
-    fn drop(&mut self) {
-        unsafe { libbpf_sys::bpf_object__close(self.0.as_ptr()) }
     }
 }
 
@@ -280,7 +256,7 @@ fn map_is_readonly(map: *const libbpf_sys::bpf_map) -> bool {
     (unsafe { libbpf_sys::bpf_map__map_flags(map) } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
 }
 
-fn gen_skel_c_skel_constructor(skel: &mut String, object: &BpfObj, name: &str) -> Result<()> {
+fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -> Result<()> {
     write!(
         skel,
         r#"
@@ -292,7 +268,7 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &BpfObj, name: &str) -
         "#,
     )?;
 
-    for map in MapIter::new(object.as_ptr()) {
+    for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
         let raw_name = get_raw_map_name(map)?;
         let mmaped = if map_is_mmapable(map) {
             "true"
@@ -308,7 +284,7 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &BpfObj, name: &str) -
         )?;
     }
 
-    for prog in ProgIter::new(object.as_ptr()) {
+    for prog in ProgIter::new(object.as_libbpf_object().as_ptr()) {
         let name = get_prog_name(prog)?;
 
         write!(
@@ -332,9 +308,12 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &BpfObj, name: &str) -
     Ok(())
 }
 
-fn gen_skel_map_defs(skel: &mut String, object: &BpfObj, obj_name: &str, open: bool) -> Result<()> {
+fn gen_skel_map_defs(skel: &mut String, object: &Object, obj_name: &str, open: bool) -> Result<()> {
     let mut gen = |mutable| -> Result<()> {
-        if MapIter::new(object.as_ptr()).next().is_none() {
+        if MapIter::new(object.as_libbpf_object().as_ptr())
+            .next()
+            .is_none()
+        {
             return Ok(());
         }
 
@@ -369,7 +348,7 @@ fn gen_skel_map_defs(skel: &mut String, object: &BpfObj, obj_name: &str, open: b
             "#,
         )?;
 
-        for map in MapIter::new(object.as_ptr()) {
+        for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
             let map_name = match get_map_name(map)? {
                 Some(n) => n,
                 None => continue,
@@ -402,12 +381,15 @@ fn gen_skel_map_defs(skel: &mut String, object: &BpfObj, obj_name: &str, open: b
 
 fn gen_skel_prog_defs(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     obj_name: &str,
     open: bool,
     mutable: bool,
 ) -> Result<()> {
-    if ProgIter::new(object.as_ptr()).next().is_none() {
+    if ProgIter::new(object.as_libbpf_object().as_ptr())
+        .next()
+        .is_none()
+    {
         return Ok(());
     }
 
@@ -442,7 +424,7 @@ fn gen_skel_prog_defs(
         "#,
     )?;
 
-    for prog in ProgIter::new(object.as_ptr()) {
+    for prog in ProgIter::new(object.as_libbpf_object().as_ptr()) {
         write!(
             skel,
             r#"
@@ -464,14 +446,15 @@ fn gen_skel_prog_defs(
 
 fn gen_skel_datasec_types(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
-    let btf = if let Some(btf) = Btf::from_bpf_object(object)? {
-        btf
-    } else {
-        return Ok(());
-    };
+    let btf =
+        if let Some(btf) = Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })? {
+            btf
+        } else {
+            return Ok(());
+        };
     let btf = GenBtf::from(btf);
 
     for ty in btf.type_by_kind::<types::DataSec<'_>>() {
@@ -495,10 +478,10 @@ fn gen_skel_datasec_types(
 
 fn gen_skel_struct_ops_types(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
-    if let Some(btf) = Btf::from_bpf_object(object)? {
+    if let Some(btf) = Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })? {
         let btf = GenBtf::from(btf);
 
         let def = btf.struct_ops_type_definition(processed)?;
@@ -518,17 +501,18 @@ pub struct struct_ops {{}}
 
 fn gen_skel_map_types(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
-    let btf = if let Some(btf) = Btf::from_bpf_object(object)? {
-        btf
-    } else {
-        return Ok(());
-    };
+    let btf =
+        if let Some(btf) = Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })? {
+            btf
+        } else {
+            return Ok(());
+        };
     let btf = GenBtf::from(btf);
 
-    for map in MapIter::new(object.as_ptr()) {
+    for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
         // If not defined or on error, the reported BTF type ID will be 0, which
         // is reserved for `void`. We will end up skipping all "final" types
         // including `void`, so no need to special case here.
@@ -552,12 +536,15 @@ fn gen_skel_map_types(
 
 fn gen_skel_map_getters(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
     let mut gen = |mutable| -> Result<()> {
-        if MapIter::new(object.as_ptr()).next().is_none() {
+        if MapIter::new(object.as_libbpf_object().as_ptr())
+            .next()
+            .is_none()
+        {
             return Ok(());
         }
 
@@ -592,8 +579,11 @@ fn gen_skel_map_getters(
     Ok(())
 }
 
-fn gen_skel_struct_ops_getters(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result<()> {
-    if MapIter::new(object.as_ptr()).next().is_none() {
+fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
+    if MapIter::new(object.as_libbpf_object().as_ptr())
+        .next()
+        .is_none()
+    {
         return Ok(());
     }
 
@@ -615,12 +605,15 @@ fn gen_skel_struct_ops_getters(skel: &mut String, object: &BpfObj, obj_name: &st
 
 fn gen_skel_prog_getters(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     obj_name: &str,
     open: bool,
 ) -> Result<()> {
     let mut gen = |mutable| -> Result<()> {
-        if ProgIter::new(object.as_ptr()).next().is_none() {
+        if ProgIter::new(object.as_libbpf_object().as_ptr())
+            .next()
+            .is_none()
+        {
             return Ok(());
         }
 
@@ -657,11 +650,11 @@ fn gen_skel_prog_getters(
 
 fn gen_skel_datasec_getters(
     skel: &mut String,
-    object: &BpfObj,
+    object: &Object,
     obj_name: &str,
     loaded: bool,
 ) -> Result<()> {
-    for (idx, map) in MapIter::new(object.as_ptr()).enumerate() {
+    for (idx, map) in MapIter::new(object.as_libbpf_object().as_ptr()).enumerate() {
         if !map_is_datasec(map) {
             continue;
         }
@@ -703,8 +696,11 @@ fn gen_skel_datasec_getters(
     Ok(())
 }
 
-fn gen_skel_link_defs(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result<()> {
-    if ProgIter::new(object.as_ptr()).next().is_none() {
+fn gen_skel_link_defs(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
+    if ProgIter::new(object.as_libbpf_object().as_ptr())
+        .next()
+        .is_none()
+    {
         return Ok(());
     }
 
@@ -716,7 +712,7 @@ fn gen_skel_link_defs(skel: &mut String, object: &BpfObj, obj_name: &str) -> Res
         "#,
     )?;
 
-    for prog in ProgIter::new(object.as_ptr()) {
+    for prog in ProgIter::new(object.as_libbpf_object().as_ptr()) {
         write!(
             skel,
             r#"pub {}: Option<libbpf_rs::Link>,
@@ -730,8 +726,11 @@ fn gen_skel_link_defs(skel: &mut String, object: &BpfObj, obj_name: &str) -> Res
     Ok(())
 }
 
-fn gen_skel_link_getter(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result<()> {
-    if ProgIter::new(object.as_ptr()).next().is_none() {
+fn gen_skel_link_getter(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
+    if ProgIter::new(object.as_libbpf_object().as_ptr())
+        .next()
+        .is_none()
+    {
         return Ok(());
     }
 
@@ -744,7 +743,7 @@ fn gen_skel_link_getter(skel: &mut String, object: &BpfObj, obj_name: &str) -> R
     Ok(())
 }
 
-fn open_bpf_object(name: &str, data: &[u8]) -> Result<BpfObj> {
+fn open_bpf_object(name: &str, data: &[u8]) -> Result<Object> {
     let cname = CString::new(name)?;
     let obj_opts = libbpf_sys::bpf_object_open_opts {
         sz: size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
@@ -760,11 +759,16 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<BpfObj> {
     };
     ensure!(!object.is_null(), "Failed to bpf_object__open_mem()");
 
-    Ok(BpfObj(ptr::NonNull::new(object).unwrap()))
+    let obj = unsafe { Object::from_ptr(ptr::NonNull::new(object).unwrap()) }
+        .context("failed to instantiate libbpf_rs::Object")?;
+    Ok(obj)
 }
 
-fn gen_skel_attach(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result<()> {
-    if ProgIter::new(object.as_ptr()).next().is_none() {
+fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
+    if ProgIter::new(object.as_libbpf_object().as_ptr())
+        .next()
+        .is_none()
+    {
         return Ok(());
     }
 
@@ -781,7 +785,7 @@ fn gen_skel_attach(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result
         "#,
     )?;
 
-    for (idx, prog) in ProgIter::new(object.as_ptr()).enumerate() {
+    for (idx, prog) in ProgIter::new(object.as_libbpf_object().as_ptr()).enumerate() {
         let prog_name = get_prog_name(prog)?;
 
         write!(
@@ -805,10 +809,10 @@ fn gen_skel_attach(skel: &mut String, object: &BpfObj, obj_name: &str) -> Result
     Ok(())
 }
 
-fn gen_skel_struct_ops_init(object: &BpfObj) -> Result<String> {
+fn gen_skel_struct_ops_init(object: &Object) -> Result<String> {
     let mut def = String::new();
 
-    for map in MapIter::new(object.as_ptr()) {
+    for map in MapIter::new(object.as_libbpf_object().as_ptr()) {
         let type_ = unsafe { libbpf_sys::bpf_map__type(map) };
         if type_ != libbpf_sys::BPF_MAP_TYPE_STRUCT_OPS {
             continue;
@@ -976,7 +980,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             }}
         "#,
         name = &obj_name,
-        links = if ProgIter::new(object.as_ptr()).next().is_some() {
+        links = if ProgIter::new(object.as_libbpf_object().as_ptr())
+            .next()
+            .is_some()
+        {
             format!(r#"links: {obj_name}Links::default()"#)
         } else {
             "".to_string()
