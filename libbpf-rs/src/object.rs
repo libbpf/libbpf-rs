@@ -220,66 +220,33 @@ impl OpenObject {
     ///
     /// It is not safe to manipulate `ptr` after this operation.
     unsafe fn new(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        let mut obj = OpenObject {
+        let mut slf = OpenObject {
             ptr,
             maps: HashMap::new(),
             progs: HashMap::new(),
         };
 
-        // Populate obj.maps
-        let mut map: *mut libbpf_sys::bpf_map = ptr::null_mut();
-        loop {
-            // Get the pointer to the next BPF map
-            let map_ptr = {
-                let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr.as_ptr(), map) };
-                match NonNull::new(next_ptr) {
-                    Some(map_ptr) => map_ptr,
-                    None => break,
-                }
-            };
-
-            let map_obj = unsafe { OpenMap::new(map_ptr) };
-
-            // Add the map to the hashmap
-            obj.maps.insert(
-                map_obj
-                    .name()
+        for map in slf.maps() {
+            slf.maps.insert(
+                map.name()
                     .to_str()
-                    .ok_or_else(|| Error::with_invalid_data("map has invalid name"))?
+                    .ok_or_invalid_data(|| "map has invalid name")?
                     .to_string(),
-                map_obj,
+                map,
             );
-            map = map_ptr.as_ptr();
         }
 
-        // Populate obj.progs
-        let mut prog: *mut libbpf_sys::bpf_program = ptr::null_mut();
-        loop {
-            // Get the pointer to the next BPF program
-            let prog_ptr = {
-                let next_ptr =
-                    unsafe { libbpf_sys::bpf_object__next_program(obj.ptr.as_ptr(), prog) };
-                match NonNull::new(next_ptr) {
-                    Some(ptr) => ptr,
-                    None => break,
-                }
-            };
-
-            let program = unsafe { OpenProgram::new(prog_ptr) };
-
-            // Add the program to the hashmap
-            obj.progs.insert(
-                program
-                    .name()
+        for prog in slf.progs() {
+            slf.progs.insert(
+                prog.name()
                     .to_str()
-                    .ok_or_else(|| Error::with_invalid_data("program has invalid name"))?
+                    .ok_or_invalid_data(|| "program has invalid name")?
                     .to_string(),
-                program,
+                prog,
             );
-            prog = prog_ptr.as_ptr();
         }
 
-        Ok(obj)
+        Ok(slf)
     }
 
     /// Takes ownership from pointer.
@@ -436,67 +403,33 @@ impl Object {
     ///
     /// It is not safe to manipulate `ptr` after this operation.
     pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        let mut obj = Object {
+        let mut slf = Self {
             ptr,
             maps: HashMap::new(),
             progs: HashMap::new(),
         };
 
-        // Populate obj.maps
-        let mut map: *mut libbpf_sys::bpf_map = ptr::null_mut();
-        loop {
-            // Get the pointer to the next BPF map
-            let map_ptr = {
-                let next_ptr = unsafe { libbpf_sys::bpf_object__next_map(obj.ptr.as_ptr(), map) };
-                match NonNull::new(next_ptr) {
-                    Some(map_ptr) => map_ptr,
-                    None => break,
-                }
-            };
-
-            if unsafe { libbpf_sys::bpf_map__autocreate(map_ptr.as_ptr()) } {
-                let map_obj = unsafe { Map::new(map_ptr) };
-                obj.maps.insert(
-                    map_obj
-                        .name()
-                        .to_str()
-                        .ok_or_invalid_data(|| "map has invalid name")?
-                        .to_string(),
-                    map_obj,
-                );
-            }
-
-            map = map_ptr.as_ptr();
+        for map in slf.maps() {
+            slf.maps.insert(
+                map.name()
+                    .to_str()
+                    .ok_or_invalid_data(|| "map has invalid name")?
+                    .to_string(),
+                map,
+            );
         }
 
-        // Populate obj.progs
-        let mut prog: *mut libbpf_sys::bpf_program = ptr::null_mut();
-        loop {
-            // Get the pointer to the next BPF program
-            let prog_ptr = {
-                let next_ptr =
-                    unsafe { libbpf_sys::bpf_object__next_program(obj.ptr.as_ptr(), prog) };
-                match NonNull::new(next_ptr) {
-                    Some(prog_ptr) => prog_ptr,
-                    None => break,
-                }
-            };
-
-            let program = unsafe { Program::new(prog_ptr) };
-
-            // Add the program to the hashmap
-            obj.progs.insert(
-                program
-                    .name()
+        for prog in slf.progs() {
+            slf.progs.insert(
+                prog.name()
                     .to_str()
                     .ok_or_invalid_data(|| "program has invalid name")?
                     .to_string(),
-                program,
+                prog,
             );
-            prog = prog_ptr.as_ptr();
         }
 
-        Ok(obj)
+        Ok(slf)
     }
 
     /// Parse the btf information associated with this bpf object.
