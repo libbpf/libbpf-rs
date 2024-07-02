@@ -364,21 +364,21 @@ fn gen_skel_prog_defs(
     }
 
     let (struct_suffix, mut_prefix, prog_fn) = if mutable {
-        ("Mut", "mut ", "prog_mut")
+        ("Mut", "mut ", "get_mut")
     } else {
-        ("", "", "prog")
+        ("", "", "get")
     };
 
     let (struct_name, inner_ty, return_ty) = if open {
         (
             format!("Open{obj_name}Progs{struct_suffix}"),
-            "libbpf_rs::OpenObject",
+            "std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>",
             "libbpf_rs::OpenProgram",
         )
     } else {
         (
             format!("{obj_name}Progs{struct_suffix}"),
-            "libbpf_rs::Object",
+            "std::collections::HashMap<std::string::String, libbpf_rs::Program>",
             "libbpf_rs::Program",
         )
     };
@@ -596,7 +596,7 @@ fn gen_skel_prog_getters(
             r#"
             pub fn {prog_fn}(&{mut_prefix}self) -> {return_ty}<'_> {{
                 {return_ty} {{
-                    inner: &{mut_prefix}self.obj,
+                    inner: &{mut_prefix}self.progs,
                 }}
             }}
             "#,
@@ -857,6 +857,27 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 }}
                 Ok(maps)
             }}
+
+            fn retrieve_progs(
+                obj: &libbpf_rs::OpenObject,
+            ) -> libbpf_rs::Result<std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>> {{
+                let mut progs = std::collections::HashMap::new();
+                for prog in obj.progs() {{
+                    progs.insert(
+                        prog.name()
+                            .to_str()
+                            .ok_or_else(|| {{
+                                libbpf_rs::Error::from(std::io::Error::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    "prog has invalid name",
+                                ))
+                            }})?
+                            .to_string(),
+                        prog,
+                    );
+                }}
+                Ok(progs)
+            }}
         }}
 
         impl<'a> SkelBuilder<'a> for {name}SkelBuilder {{
@@ -876,11 +897,13 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
                 let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
                 let maps = Self::retrieve_maps(&obj)?;
+                let progs = Self::retrieve_progs(&obj)?;
 
                 #[allow(unused_mut)]
                 let mut skel = Open{name}Skel {{
                     obj,
                     maps,
+                    progs,
                     // SAFETY: Our `struct_ops` type contains only pointers,
                     //         which are allowed to be NULL.
                     // TODO: Generate and use a `Default` representation
@@ -927,6 +950,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         pub struct Open{name}Skel<'a> {{
             pub obj: libbpf_rs::OpenObject,
+            progs: std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>,
             maps: std::collections::HashMap<std::string::String, libbpf_rs::OpenMap>,
             pub struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
@@ -941,6 +965,13 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 }}
 
                 let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr())? }};
+
+                let progs = self.progs.into_iter().map(|(k, v)| {{
+                    // SAFETY: The `bpf_program` has been validated before.
+                    let v = unsafe {{ libbpf_rs::Program::new(libbpf_rs::AsRawLibbpf::as_libbpf_object(&v)) }};
+                    Ok((k, v))
+                }}).collect::<libbpf_rs::Result<_, libbpf_rs::Error>>()?;
+
                 let maps = self.maps.into_iter().map(|(k, v)| {{
                     // SAFETY: The `bpf_map` has been validated before and has
                     //         been loaded.
@@ -950,6 +981,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
                 Ok({name}Skel {{
                     obj,
+                    progs,
                     maps,
                     struct_ops: self.struct_ops,
                     skel_config: self.skel_config,
@@ -990,6 +1022,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         pub struct {name}Skel<'a> {{
             pub obj: libbpf_rs::Object,
+            progs: std::collections::HashMap<std::string::String, libbpf_rs::Program>,
             maps: std::collections::HashMap<std::string::String, libbpf_rs::Map>,
             struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,

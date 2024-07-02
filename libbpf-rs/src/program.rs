@@ -107,7 +107,11 @@ pub struct OpenProgram {
 // TODO: Document variants.
 #[allow(missing_docs)]
 impl OpenProgram {
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+    /// Create a new [`OpenProgram`] from a ptr to a `libbpf_sys::bpf_program`.
+    ///
+    /// # Safety
+    /// The `bpf_program` pointer must be valid.
+    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
         Self { ptr }
     }
 
@@ -526,7 +530,7 @@ impl Program {
     ///
     /// # Safety
     /// The pointer must point to a loaded program.
-    pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
         Program { ptr }
     }
 
