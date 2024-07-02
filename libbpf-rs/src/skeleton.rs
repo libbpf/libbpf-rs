@@ -339,7 +339,8 @@ impl Drop for ObjectSkeletonConfig<'_> {
 
 /// A trait for skeleton builder.
 pub trait SkelBuilder<'a> {
-    /// Define that when BPF object is opened, the returned type should implement the [`OpenSkel`] trait
+    /// Define that when BPF object is opened, the returned type should implement the [`OpenSkel`]
+    /// trait
     type Output: OpenSkel;
 
     /// Open eBPF object and return [`OpenSkel`]
