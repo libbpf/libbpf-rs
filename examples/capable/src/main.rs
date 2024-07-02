@@ -4,6 +4,7 @@
 //
 // Based on capable(8) by Brendan Gregg
 use core::time::Duration;
+use std::mem::MaybeUninit;
 use std::str;
 use std::str::FromStr;
 
@@ -188,21 +189,25 @@ fn main() -> Result<()> {
 
     bump_memlock_rlimit()?;
 
-    let mut open_skel = skel_builder.open()?;
+    let mut open_object = MaybeUninit::uninit();
+    let open_skel = skel_builder.open(&mut open_object)?;
     //Pass configuration to BPF
-    open_skel.rodata_mut().tool_config.tgid = opts.pid; //tgid in kernel is pid in userland
+    open_skel.maps.rodata_data.tool_config.tgid = opts.pid; //tgid in kernel is pid in userland
     open_skel
-        .rodata_mut()
+        .maps
+        .rodata_data
         .tool_config
         .verbose
         .write(opts.verbose);
     open_skel
-        .rodata_mut()
+        .maps
+        .rodata_data
         .tool_config
         .unique_type
         .write(opts.unique_type);
 
-    let mut skel = open_skel.load()?;
+    let mut object = MaybeUninit::uninit();
+    let mut skel = open_skel.load(&mut object)?;
     skel.attach()?;
 
     print_banner(opts.extra_fields);
@@ -211,7 +216,7 @@ fn main() -> Result<()> {
         plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
         _handle_event(opts, event);
     };
-    let perf = PerfBufferBuilder::new(skel.maps_mut().events())
+    let perf = PerfBufferBuilder::new(&skel.maps.events)
         .sample_cb(handle_event)
         .lost_cb(handle_lost_events)
         .build()?;

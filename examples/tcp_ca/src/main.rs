@@ -8,6 +8,7 @@ use std::ffi::OsStr;
 use std::io;
 use std::io::Read as _;
 use std::io::Write as _;
+use std::mem::MaybeUninit;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::os::fd::AsFd as _;
@@ -120,7 +121,8 @@ fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) ->
         skel_builder.obj_builder.debug(true);
     }
 
-    let mut open_skel = skel_builder.open()?;
+    let mut open_object = MaybeUninit::uninit();
+    let mut open_skel = skel_builder.open(&mut open_object)?;
 
     if let Some(name) = name_to_register {
         // Here we illustrate the possibility of updating `struct_ops` data before
@@ -149,10 +151,9 @@ fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) ->
     let ca_update = open_skel.struct_ops.ca_update_mut();
     ca_update.cong_control = ca_update_cong_control2;
 
-    let mut skel = open_skel.load()?;
-    let mut maps = skel.maps_mut();
-    let map = maps.ca_update();
-    let _link = map.attach_struct_ops()?;
+    let mut object = MaybeUninit::uninit();
+    let mut skel = open_skel.load(&mut object)?;
+    let _link = skel.maps.ca_update.attach_struct_ops()?;
 
     println!(
         "Registered `{}` congestion algorithm; using `{}` for loopback based data exchange...",
@@ -163,19 +164,19 @@ fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) ->
     // NB: At this point `/proc/sys/net/ipv4/tcp_available_congestion_control`
     //     would list the registered congestion algorithm.
 
-    assert_eq!(skel.bss().ca_cnt, 0);
-    assert!(!skel.bss().cong_control);
+    assert_eq!(skel.maps.bss_data.ca_cnt, 0);
+    assert!(!skel.maps.bss_data.cong_control);
 
     // Use our registered TCP congestion algorithm while sending a bunch of data
     // over the loopback device.
     let () = send_recv(name_to_use)?;
     println!("Done.");
 
-    let saved_ca_cnt = skel.bss().ca_cnt;
+    let saved_ca_cnt = skel.maps.bss_data.ca_cnt;
     assert_ne!(saved_ca_cnt, 0);
     // With `ca_update_cong_control2` active, we should have seen the
     // `cong_control` value changed as well.
-    assert!(skel.bss().cong_control);
+    assert!(skel.maps.bss_data.cong_control);
     Ok(())
 }
 

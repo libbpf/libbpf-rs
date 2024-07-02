@@ -1,5 +1,6 @@
 #![allow(clippy::let_unit_value)]
 
+use std::mem::MaybeUninit;
 use std::os::unix::io::AsFd as _;
 
 use anyhow::bail;
@@ -71,8 +72,10 @@ fn main() -> Result<()> {
     bump_memlock_rlimit()?;
 
     let builder = TcSkelBuilder::default();
-    let open = builder.open()?;
-    let mut skel = open.load()?;
+    let mut open_object = MaybeUninit::uninit();
+    let open = builder.open(&mut open_object)?;
+    let mut object = MaybeUninit::uninit();
+    let skel = open.load(&mut object)?;
     let progs = skel.progs();
     let ifidx = if_nametoindex(opts.iface.as_str())? as i32;
 
@@ -126,8 +129,8 @@ fn main() -> Result<()> {
             let key = (i as u32).to_ne_bytes();
             let val = port.to_ne_bytes();
             let () = skel
-                .maps_mut()
-                .ports()
+                .maps
+                .ports
                 .update(&key, &val, MapFlags::ANY)
                 .context("Example limited to 10 ports")?;
         }

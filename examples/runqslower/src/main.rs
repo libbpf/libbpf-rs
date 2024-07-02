@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
+use std::mem::MaybeUninit;
 use std::str;
 use std::time::Duration;
 
@@ -91,20 +92,22 @@ fn main() -> Result<()> {
     }
 
     bump_memlock_rlimit()?;
-    let mut open_skel = skel_builder.open()?;
+    let mut open_object = MaybeUninit::uninit();
+    let open_skel = skel_builder.open(&mut open_object)?;
 
     // Write arguments into prog
-    open_skel.rodata_mut().min_us = opts.latency;
-    open_skel.rodata_mut().targ_pid = opts.pid;
-    open_skel.rodata_mut().targ_tgid = opts.tid;
+    open_skel.maps.rodata_data.min_us = opts.latency;
+    open_skel.maps.rodata_data.targ_pid = opts.pid;
+    open_skel.maps.rodata_data.targ_tgid = opts.tid;
 
     // Begin tracing
-    let mut skel = open_skel.load()?;
+    let mut object = MaybeUninit::uninit();
+    let mut skel = open_skel.load(&mut object)?;
     skel.attach()?;
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");
 
-    let perf = PerfBufferBuilder::new(skel.maps_mut().events())
+    let perf = PerfBufferBuilder::new(&skel.maps.events)
         .sample_cb(handle_event)
         .lost_cb(handle_lost_events)
         .build()?;

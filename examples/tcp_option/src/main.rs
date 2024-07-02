@@ -1,3 +1,4 @@
+use std::mem::MaybeUninit;
 use std::net::Ipv4Addr;
 use std::os::fd::AsFd;
 use std::os::fd::IntoRawFd;
@@ -99,12 +100,14 @@ fn main() -> Result<()> {
     if opts.verbose {
         builder.obj_builder.debug(true);
     }
-    let mut open = builder.open()?;
+    let mut open_object = MaybeUninit::uninit();
+    let open = builder.open(&mut open_object)?;
 
-    open.rodata_mut().targ_ip = u32::from_be_bytes(ip.octets()).to_be();
-    open.rodata_mut().data_such_as_trace_id = opts.trace_id;
+    open.maps.rodata_data.targ_ip = u32::from_be_bytes(ip.octets()).to_be();
+    open.maps.rodata_data.data_such_as_trace_id = opts.trace_id;
 
-    let mut skel = open.load()?;
+    let mut object = MaybeUninit::uninit();
+    let mut skel = open.load(&mut object)?;
 
     let cgroup_fd = OpenOptions::new()
         .read(true)

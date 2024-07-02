@@ -1,5 +1,7 @@
 Unreleased
 ----------
+- Reworked generated skeletons to contain publicly accessible maps and
+  program members, no longer requiring method calls
 - Adjusted skeleton creation logic to generate Rust types for types used in BPF
   maps
 
