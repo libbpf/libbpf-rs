@@ -203,7 +203,7 @@ impl AsRawLibbpf for OpenMap {
     }
 }
 
-fn map_fd(map: NonNull<libbpf_sys::bpf_map>) -> Option<RawFd> {
+pub(crate) fn map_fd(map: NonNull<libbpf_sys::bpf_map>) -> Option<RawFd> {
     let fd = unsafe { libbpf_sys::bpf_map__fd(map.as_ptr()) };
     let fd = util::parse_ret_i32(fd).ok().map(|fd| fd as RawFd);
     fd

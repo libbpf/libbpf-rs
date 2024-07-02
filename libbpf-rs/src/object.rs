@@ -8,6 +8,7 @@ use std::ptr;
 use std::ptr::NonNull;
 
 use crate::error::IntoError as _;
+use crate::map::map_fd;
 use crate::set_print;
 use crate::util;
 use crate::Btf;
@@ -390,12 +391,8 @@ impl Object {
     /// Retrieve an iterator over all BPF maps in the object.
     pub fn maps(&self) -> impl Iterator<Item = Map> {
         MapIter::new(unsafe { self.ptr.as_ref() })
-            // TODO: It's unclear why we'd only want to report auto created
-            //       maps, but that was behavior in the past and until the
-            //       reasoning is understood it is what we have.
-            .filter(|ptr| unsafe { libbpf_sys::bpf_map__autocreate(ptr.as_ptr()) })
-            // TODO: Should use Map::new.
-            .map(|ptr| unsafe { Map::from_map_without_fd(ptr) })
+            .filter(|ptr| map_fd(*ptr).is_some())
+            .map(|ptr| unsafe { Map::new(ptr) })
     }
 
     /// Get a reference to `Program` with the name `name`, if one exists.

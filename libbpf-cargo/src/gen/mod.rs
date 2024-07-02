@@ -225,8 +225,11 @@ fn map_is_readonly(map: &Map) -> bool {
 fn maps(object: &Object) -> impl Iterator<Item = Map> {
     // SAFETY: The pointer returned by `as_libbpf_object` is always valid.
     let obj = unsafe { object.as_libbpf_object().as_ref() };
-    // SAFETY: We never use the `AsFd` impl of the map.
-    MapIter::new(obj).map(|ptr| unsafe { Map::from_map_without_fd(ptr) })
+    MapIter::new(obj)
+        // SAFETY: Map iteration always yields valid objects.
+        .filter(|ptr| unsafe { libbpf_sys::bpf_map__autocreate(ptr.as_ptr()) })
+        // SAFETY: We never use the `AsFd` impl of the map.
+        .map(|ptr| unsafe { Map::from_map_without_fd(ptr) })
 }
 
 fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -> Result<()> {
