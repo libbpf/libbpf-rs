@@ -179,24 +179,26 @@ impl ObjectBuilder {
 
         let opts = self.opts();
 
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_object__open_file(path_ptr, opts)
-        })
-        .and_then(|ptr| unsafe { OpenObject::new(ptr) })
+        })?;
+        let obj = unsafe { OpenObject::from_ptr(ptr) };
+        Ok(obj)
     }
 
     /// Open an object from memory.
     pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
         let opts = self.opts();
 
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_object__open_mem(
                 mem.as_ptr() as *const c_void,
                 mem.len() as libbpf_sys::size_t,
                 opts,
             )
-        })
-        .and_then(|ptr| unsafe { OpenObject::new(ptr) })
+        })?;
+        let obj = unsafe { OpenObject::from_ptr(ptr) };
+        Ok(obj)
     }
 }
 
@@ -209,17 +211,6 @@ pub struct OpenObject {
 }
 
 impl OpenObject {
-    /// Create a [`OpenObject`] from a [`libbpf_sys::bpf_object`].
-    ///
-    /// # Safety
-    /// `ptr` must point to an opened but not loaded `bpf_object`
-    ///
-    /// It is not safe to manipulate `ptr` after this operation.
-    unsafe fn new(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        let slf = OpenObject { ptr };
-        Ok(slf)
-    }
-
     /// Takes ownership from pointer.
     ///
     /// # Safety
@@ -230,8 +221,8 @@ impl OpenObject {
     ///     - points to a loaded `bpf_object`
     ///
     /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        unsafe { Self::new(ptr) }
+    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Self {
+        Self { ptr }
     }
 
     /// Takes underlying `libbpf_sys::bpf_object` pointer.
@@ -275,7 +266,7 @@ impl OpenObject {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr.as_ptr()) };
         let () = util::parse_ret(ret)?;
 
-        let obj = unsafe { Object::from_ptr(self.take_ptr())? };
+        let obj = unsafe { Object::from_ptr(self.take_ptr()) };
 
         Ok(obj)
     }
@@ -322,9 +313,8 @@ impl Object {
     /// undefined.
     ///
     /// It is not safe to manipulate `ptr` after this operation.
-    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        let slf = Self { ptr };
-        Ok(slf)
+    pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Self {
+        Self { ptr }
     }
 
     /// Parse the btf information associated with this bpf object.

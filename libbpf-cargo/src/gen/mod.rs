@@ -715,8 +715,7 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<Object> {
     };
     ensure!(!object.is_null(), "Failed to bpf_object__open_mem()");
 
-    let obj = unsafe { Object::from_ptr(ptr::NonNull::new(object).unwrap()) }
-        .context("failed to instantiate libbpf_rs::Object")?;
+    let obj = unsafe { Object::from_ptr(ptr::NonNull::new(object).unwrap()) };
     Ok(obj)
 }
 
@@ -895,7 +894,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? }};
+                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr()) }};
                 let maps = Self::retrieve_maps(&obj)?;
                 let progs = Self::retrieve_progs(&obj)?;
 
@@ -964,7 +963,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr())? }};
+                let obj = unsafe {{ libbpf_rs::Object::from_ptr(self.obj.take_ptr()) }};
 
                 let progs = self.progs.into_iter().map(|(k, v)| {{
                     // SAFETY: The `bpf_program` has been validated before.
