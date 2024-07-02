@@ -1,3 +1,4 @@
+use std::mem::MaybeUninit;
 use std::net::Ipv4Addr;
 use std::os::unix::io::AsFd as _;
 use std::str::FromStr;
@@ -66,13 +67,15 @@ fn main() -> Result<()> {
     }
 
     // Set constants
-    let mut open_skel = skel_builder.open()?;
-    open_skel.rodata_mut().target_port = opts.port.to_be();
-    open_skel.rodata_mut().proxy_addr = proxy_addr.to_be();
-    open_skel.rodata_mut().proxy_port = opts.proxy_port.to_be();
+    let mut open_object = MaybeUninit::uninit();
+    let open_skel = skel_builder.open(&mut open_object)?;
+    open_skel.maps.rodata_data.target_port = opts.port.to_be();
+    open_skel.maps.rodata_data.proxy_addr = proxy_addr.to_be();
+    open_skel.maps.rodata_data.proxy_port = opts.proxy_port.to_be();
 
     // Load into kernel
-    let skel = open_skel.load()?;
+    let mut object = MaybeUninit::uninit();
+    let skel = open_skel.load(&mut object)?;
     let progs = skel.progs();
     // Set up and attach ingress TC hook
     let mut ingress = TcHookBuilder::new(progs.tproxy().as_fd())

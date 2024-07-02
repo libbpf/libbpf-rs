@@ -4,6 +4,7 @@ use std::alloc::dealloc;
 use std::alloc::Layout;
 use std::ffi::CString;
 use std::mem::size_of;
+use std::mem::MaybeUninit;
 use std::os::raw::c_char;
 use std::os::raw::c_ulong;
 use std::ptr;
@@ -318,16 +319,20 @@ impl Drop for ObjectSkeletonConfig<'_> {
 }
 
 /// A trait for skeleton builder.
-pub trait SkelBuilder<'dat> {
+pub trait SkelBuilder<'obj> {
     /// Define that when BPF object is opened, the returned type should implement the [`OpenSkel`]
     /// trait
-    type Output: OpenSkel;
+    type Output: OpenSkel<'obj>;
 
     /// Open eBPF object and return [`OpenSkel`]
-    fn open(self) -> Result<Self::Output>;
+    fn open(self, object: &'obj mut MaybeUninit<OpenObject>) -> Result<Self::Output>;
 
     /// Open eBPF object with [`libbpf_sys::bpf_object_open_opts`] and return [`OpenSkel`]
-    fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> Result<Self::Output>;
+    fn open_opts(
+        self,
+        open_opts: libbpf_sys::bpf_object_open_opts,
+        object: &'obj mut MaybeUninit<OpenObject>,
+    ) -> Result<Self::Output>;
 
     /// Get a reference to [`ObjectBuilder`]
     fn object_builder(&self) -> &ObjectBuilder;
@@ -366,12 +371,12 @@ pub trait SkelBuilder<'dat> {
 /// ```
 ///
 /// [source]: https://nakryiko.com/posts/bcc-to-libbpf-howto-guide/#application-configuration
-pub trait OpenSkel {
+pub trait OpenSkel<'obj> {
     /// Define that when BPF object is loaded, the returned type should implement the [`Skel`] trait
-    type Output: Skel;
+    type Output: Skel<'obj>;
 
     /// Load BPF object and return [`Skel`].
-    fn load(self) -> Result<Self::Output>;
+    fn load(self, object: &'obj mut MaybeUninit<Object>) -> Result<Self::Output>;
 
     /// Get a reference to [`OpenObject`].
     fn open_object(&self) -> &OpenObject;
@@ -381,7 +386,7 @@ pub trait OpenSkel {
 }
 
 /// A trait for loaded skeleton.
-pub trait Skel {
+pub trait Skel<'obj> {
     /// Attach BPF object.
     fn attach(&mut self) -> Result<()> {
         unimplemented!()

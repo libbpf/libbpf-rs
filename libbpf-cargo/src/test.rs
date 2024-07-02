@@ -425,16 +425,19 @@ fn test_skeleton_empty_source() {
         r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
+        use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::skel::OpenSkel;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
+            let mut object = MaybeUninit::uninit();
             let _skel = builder
-                .open()
+                .open(&mut open_object)
                 .expect("failed to open skel")
-                .load()
+                .load(&mut object)
                 .expect("failed to load skel");
         }}
         "#,
@@ -530,6 +533,7 @@ fn test_skeleton_basic() {
         r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
+        use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::skel::OpenSkel;
@@ -537,24 +541,24 @@ fn test_skeleton_basic() {
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
             let mut open_skel = builder
-                .open()
+                .open(&mut open_object)
                 .expect("failed to open skel");
 
             // Check that we can grab handles to open maps/progs
-            let _open_map = open_skel.maps().mymap();
+            let _open_map = &open_skel.maps.mymap;
             let _open_prog = open_skel.progs().this_is_my_prog();
-            let _open_map_mut = open_skel.maps_mut().mymap();
             let _open_prog_mut = open_skel.progs_mut().this_is_my_prog();
 
+            let mut object = MaybeUninit::uninit();
             let mut skel = open_skel
-                .load()
+                .load(&mut object)
                 .expect("failed to load skel");
 
             // Check that we can grab handles to loaded maps/progs
-            let _map = skel.maps().mymap();
+            let _map = &skel.maps.mymap;
             let _prog = skel.progs().this_is_my_prog();
-            let _map_mut = skel.maps_mut().mymap();
             let _prog_mut = skel.progs_mut().this_is_my_prog();
 
             // Check that attach() is generated
@@ -702,38 +706,41 @@ fn test_skeleton_datasec() {
         r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
+        use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::skel::OpenSkel;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
-            let mut open_skel = builder
-                .open()
+            let mut open_object = MaybeUninit::uninit();
+            let open_skel = builder
+                .open(&mut open_object)
                 .expect("failed to open skel");
 
             // Check that we set rodata vars before load
-            open_skel.rodata_mut().myconst = std::ptr::null_mut();
+            open_skel.maps.rodata_data.myconst = std::ptr::null_mut();
 
             // We can always set bss vars
-            open_skel.bss_mut().myglobal = 42;
+            open_skel.maps.bss_data.myglobal = 42;
 
-            open_skel.data_custom_mut().mycustomdata = 1337;
-            open_skel.bss_custom_mut().mycustombss = 12;
-            assert_eq!(open_skel.rodata_custom_1().mycustomrodata, 43);
+            open_skel.maps.data_custom_data.mycustomdata = 1337;
+            open_skel.maps.bss_custom_data.mycustombss = 12;
+            assert_eq!(open_skel.maps.rodata_custom_1_data.mycustomrodata, 43);
 
-            let mut skel = open_skel
-                .load()
+            let mut object = MaybeUninit::uninit();
+            let skel = open_skel
+                .load(&mut object)
                 .expect("failed to load skel");
 
             // We can always set bss vars
-            skel.bss_mut().myglobal = 24;
-            skel.data_custom_mut().mycustomdata += 1;
-            skel.bss_custom_mut().mycustombss += 1;
-            assert_eq!(skel.rodata_custom_1().mycustomrodata, 43);
+            skel.maps.bss_data.myglobal = 24;
+            skel.maps.data_custom_data.mycustomdata += 1;
+            skel.maps.bss_custom_data.mycustombss += 1;
+            assert_eq!(skel.maps.rodata_custom_1_data.mycustomrodata, 43);
 
             // Read only for rodata after load
-            let _rodata: &prog_types::rodata = skel.rodata();
+            let _rodata: &prog_types::rodata = skel.maps.rodata_data;
         }}
         "#,
     )
@@ -837,6 +844,7 @@ fn test_skeleton_builder_basic() {
         r#"
         #[path = "{skel_path}"]
         mod skel;
+        use std::mem::MaybeUninit;
         use skel::*;
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::skel::OpenSkel;
@@ -844,29 +852,27 @@ fn test_skeleton_builder_basic() {
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
             let mut open_skel = builder
-                .open()
+                .open(&mut open_object)
                 .expect("failed to open skel");
 
             // Check that we can grab handles to open maps/progs
-            let _open_map = open_skel.maps().mymap();
-            let _open_map2 = open_skel.maps().mymap2();
+            let _open_map = &open_skel.maps.mymap;
+            let _open_map2 = &open_skel.maps.mymap2;
             let _open_prog = open_skel.progs().this_is_my_prog();
-            let _open_map_mut = open_skel.maps_mut().mymap();
-            let _open_map2_mut = open_skel.maps_mut().mymap2();
             let _open_prog_mut = open_skel.progs_mut().this_is_my_prog();
 
 
+            let mut object = MaybeUninit::uninit();
             let mut skel = open_skel
-                .load()
+                .load(&mut object)
                 .expect("failed to load skel");
 
             // Check that we can grab handles to loaded maps/progs
-            let _map = skel.maps().mymap();
-            let _map2 = skel.maps().mymap2();
+            let _map = &skel.maps.mymap;
+            let _map2 = &skel.maps.mymap2;
             let _prog = skel.progs().this_is_my_prog();
-            let _map_mut = skel.maps_mut().mymap();
-            let _map2_mut = skel.maps_mut().mymap2();
             let _prog_mut = skel.progs_mut().this_is_my_prog();
 
             // Check that attach() is generated
@@ -1018,20 +1024,22 @@ fn test_skeleton_builder_arrays_ptrs() {
         r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
+        use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
             let open_skel = builder
-                .open()
+                .open(&mut open_object)
                 .expect("failed to open skel");
 
             // That everything exists and compiled okay
-            let _ = open_skel.rodata().my_array[0].x;
-            let _ = open_skel.rodata().my_array[0].y[1].b;
-            let _ = open_skel.rodata().my_array[0].z[0].a;
-            let _ = open_skel.rodata().my_ptr;
+            let _ = open_skel.maps.rodata_data.my_array[0].x;
+            let _ = open_skel.maps.rodata_data.my_array[0].y[1].b;
+            let _ = open_skel.maps.rodata_data.my_array[0].z[0].a;
+            let _ = open_skel.maps.rodata_data.my_ptr;
         }}
         "#,
     )
@@ -1120,13 +1128,15 @@ fn test_skeleton_generate_struct_with_pointer() {
         r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
+        use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
 
         fn main() {{
             let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
             let _open_skel = builder
-                .open()
+                .open(&mut open_object)
                 .expect("failed to open skel");
         }}
         "#,
