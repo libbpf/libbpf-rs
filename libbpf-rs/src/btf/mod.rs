@@ -458,7 +458,6 @@ pub struct BtfType<'btf> {
     ///      type_: u32,
     ///  }
     ///  ```
-    ///
     ty: &'btf libbpf_sys::btf_type,
 }
 

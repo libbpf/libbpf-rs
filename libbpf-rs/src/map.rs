@@ -229,8 +229,9 @@ where
     Ok(ncpu * aligned_val_size)
 }
 
-/// Apply a key check and return a null pointer in case of dealing with queue/stack/bloom-filter map,
-/// before passing the key to the bpf functions that support the map of type queue/stack/bloom-filter.
+/// Apply a key check and return a null pointer in case of dealing with queue/stack/bloom-filter
+/// map, before passing the key to the bpf functions that support the map of type
+/// queue/stack/bloom-filter.
 fn map_key<M>(map: &M, key: &[u8]) -> *const c_void
 where
     M: MapCore + ?Sized,

@@ -37,8 +37,8 @@
 //!
 //! * source file names must be in the `<NAME>.bpf.c` format
 //! * object file names will be generated in `<NAME>.bpf.o` format
-//! * there may not be any two identical `<NAME>.bpf.c` file names in any two projects in a
-//!   cargo workspace
+//! * there may not be any two identical `<NAME>.bpf.c` file names in any two projects in a cargo
+//!   workspace
 //!
 //! ## gen
 //!

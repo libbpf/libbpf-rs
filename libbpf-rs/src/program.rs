@@ -213,7 +213,6 @@ impl OpenProgram {
     /// Note: Keep in mind, libbpf can modify the program's instructions
     /// and consequently its instruction count, as it processes the BPF object file.
     /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
-    ///
     pub fn insn_cnt(&self) -> usize {
         unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
     }
@@ -1067,7 +1066,6 @@ impl Program {
     /// Gives read-only access to BPF program's underlying BPF instructions.
     ///
     /// Please see note in [`OpenProgram::insns`].
-    ///
     pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };

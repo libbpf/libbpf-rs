@@ -16,8 +16,8 @@
 //! 2. Create directory `$PROJ_PATH/src/bpf`
 //! 3. Write CO-RE bpf code in `$PROJ_PATH/src/bpf/${MYFILE}.bpf.c`, where `$MYFILE` may be any
 //!    valid filename. Note the `.bpf.c` extension is required.
-//! 4. Create a [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html)
-//!    that builds and generates a skeleton module using `libbpf_cargo::SkeletonBuilder`
+//! 4. Create a [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) that
+//!    builds and generates a skeleton module using `libbpf_cargo::SkeletonBuilder`
 //! 5. Write your userspace code by importing and using the generated module. Import the
 //!    module by using the [path
 //!    attribute](https://doc.rust-lang.org/reference/items/modules.html#the-path-attribute).
