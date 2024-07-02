@@ -1,5 +1,4 @@
 use core::ffi::c_void;
-use std::collections::HashMap;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::mem;
@@ -7,7 +6,6 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
-use crate::error::IntoError as _;
 use crate::map::map_fd;
 use crate::set_print;
 use crate::util;
@@ -208,7 +206,6 @@ impl ObjectBuilder {
 #[derive(Debug)]
 pub struct OpenObject {
     ptr: NonNull<libbpf_sys::bpf_object>,
-    progs: HashMap<String, OpenProgram>,
 }
 
 impl OpenObject {
@@ -219,21 +216,7 @@ impl OpenObject {
     ///
     /// It is not safe to manipulate `ptr` after this operation.
     unsafe fn new(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        let mut slf = OpenObject {
-            ptr,
-            progs: HashMap::new(),
-        };
-
-        for prog in slf.progs() {
-            slf.progs.insert(
-                prog.name()
-                    .to_str()
-                    .ok_or_invalid_data(|| "program has invalid name")?
-                    .to_string(),
-                prog,
-            );
-        }
-
+        let slf = OpenObject { ptr };
         Ok(slf)
     }
 
@@ -254,11 +237,7 @@ impl OpenObject {
     /// Takes underlying `libbpf_sys::bpf_object` pointer.
     pub fn take_ptr(mut self) -> NonNull<libbpf_sys::bpf_object> {
         let ptr = {
-            // manually free the internal state.
-            // using destructuring we make sure we'll get a compiler error if anything in
-            // Self changes, which will alert us to change this function as well
-            let Self { ptr, progs } = &mut self;
-            mem::take(progs);
+            let Self { ptr } = &mut self;
             *ptr
         };
         // avoid double free of self.ptr
@@ -284,26 +263,6 @@ impl OpenObject {
     /// Retrieve an iterator over all BPF maps in the object.
     pub fn maps(&self) -> impl Iterator<Item = OpenMap> {
         MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMap::new(ptr) })
-    }
-
-    /// Get a reference to `OpenProgram` with the name `name`, if one exists.
-    pub fn prog<T: AsRef<str>>(&self, name: T) -> Option<&OpenProgram> {
-        self.progs.get(name.as_ref())
-    }
-
-    /// Get a mutable reference to `OpenProgram` with the name `name`, if one exists.
-    pub fn prog_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut OpenProgram> {
-        self.progs.get_mut(name.as_ref())
-    }
-
-    /// Get an iterator over references to all `OpenProgram`s.
-    pub fn progs_iter(&self) -> impl Iterator<Item = &OpenProgram> {
-        self.progs.values()
-    }
-
-    /// Get an iterator over mutable references to all `OpenProgram`s.
-    pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut OpenProgram> {
-        self.progs.values_mut()
     }
 
     /// Retrieve an iterator over all BPF programs in the object.
@@ -352,7 +311,6 @@ impl Drop for OpenObject {
 #[derive(Debug)]
 pub struct Object {
     ptr: NonNull<libbpf_sys::bpf_object>,
-    progs: HashMap<String, Program>,
 }
 
 impl Object {
@@ -365,21 +323,7 @@ impl Object {
     ///
     /// It is not safe to manipulate `ptr` after this operation.
     pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Result<Self> {
-        let mut slf = Self {
-            ptr,
-            progs: HashMap::new(),
-        };
-
-        for prog in slf.progs() {
-            slf.progs.insert(
-                prog.name()
-                    .to_str()
-                    .ok_or_invalid_data(|| "program has invalid name")?
-                    .to_string(),
-                prog,
-            );
-        }
-
+        let slf = Self { ptr };
         Ok(slf)
     }
 
@@ -393,26 +337,6 @@ impl Object {
         MapIter::new(unsafe { self.ptr.as_ref() })
             .filter(|ptr| map_fd(*ptr).is_some())
             .map(|ptr| unsafe { Map::new(ptr) })
-    }
-
-    /// Get a reference to `Program` with the name `name`, if one exists.
-    pub fn prog<T: AsRef<str>>(&self, name: T) -> Option<&Program> {
-        self.progs.get(name.as_ref())
-    }
-
-    /// Get a mutable reference to `Program` with the name `name`, if one exists.
-    pub fn prog_mut<T: AsRef<str>>(&mut self, name: T) -> Option<&mut Program> {
-        self.progs.get_mut(name.as_ref())
-    }
-
-    /// Get an iterator over references to all `Program`s.
-    pub fn progs_iter(&self) -> impl Iterator<Item = &Program> {
-        self.progs.values()
-    }
-
-    /// Get an iterator over mutable references to all `Program`s.
-    pub fn progs_iter_mut(&mut self) -> impl Iterator<Item = &mut Program> {
-        self.progs.values_mut()
     }
 
     /// Retrieve an iterator over all BPF programs in the object.

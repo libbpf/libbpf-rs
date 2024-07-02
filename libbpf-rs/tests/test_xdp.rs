@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::os::fd::AsFd;
 
 use scopeguard::defer;
@@ -19,10 +20,18 @@ fn test_xdp() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("xdp.bpf.o");
-    let fd = obj.prog("xdp_filter").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("xdp_filter"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let obj1 = get_test_object("xdp.bpf.o");
-    let fd1 = obj1.prog("xdp_filter").unwrap().as_fd();
+    let prog1 = obj1
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("xdp_filter"))
+        .unwrap();
+    let fd1 = prog1.as_fd();
 
     let xdp_prog = Xdp::new(fd);
     let xdp_prog1 = Xdp::new(fd1);

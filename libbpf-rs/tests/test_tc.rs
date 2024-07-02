@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::os::unix::io::AsFd as _;
 use std::os::unix::io::BorrowedFd;
 
@@ -18,6 +19,7 @@ use libbpf_rs::TC_H_CLSACT;
 use libbpf_rs::TC_H_MIN_EGRESS;
 use libbpf_rs::TC_H_MIN_INGRESS;
 use libbpf_rs::TC_INGRESS;
+
 // do all TC tests on the lo network interface
 const LO_IFINDEX: i32 = 1;
 
@@ -45,7 +47,11 @@ fn test_tc_basic_cycle() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -88,7 +94,11 @@ fn test_tc_attach_no_qdisc() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -114,7 +124,11 @@ fn test_tc_attach_basic() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -144,7 +158,11 @@ fn test_tc_attach_repeat() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -184,7 +202,11 @@ fn test_tc_attach_repeat() {
 fn test_tc_attach_custom() {
     bump_rlimit_mlock();
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -238,7 +260,11 @@ fn test_tc_attach_custom() {
 fn test_tc_detach_basic() {
     bump_rlimit_mlock();
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -286,7 +312,11 @@ fn test_tc_query() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder
@@ -359,7 +389,11 @@ fn test_tc_double_create() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tc-unit.bpf.o");
-    let fd = obj.prog("handle_tc").unwrap().as_fd();
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle_tc"))
+        .unwrap();
+    let fd = prog.as_fd();
 
     let mut tc_builder = TcHookBuilder::new(fd);
     tc_builder

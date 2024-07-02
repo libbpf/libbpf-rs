@@ -861,13 +861,16 @@ fn test_object_programs() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    obj.prog("handle__sched_wakeup")
+    obj.progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sched_wakeup"))
         .expect("failed to find program");
-    obj.prog("handle__sched_wakeup_new")
+    obj.progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sched_wakeup_new"))
         .expect("failed to find program");
-    obj.prog("handle__sched_switch")
+    obj.progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sched_switch"))
         .expect("failed to find program");
-    assert!(obj.prog("asdf").is_none());
+    assert!(!obj.progs().any(|prog| prog.name() == OsStr::new("asdf")));
 }
 
 #[tag(root)]
@@ -876,7 +879,7 @@ fn test_object_programs_iter_mut() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("runqslower.bpf.o");
-    assert!(obj.progs_iter().count() == 3);
+    assert!(obj.progs().count() == 3);
 }
 
 #[tag(root)]
@@ -884,9 +887,10 @@ fn test_object_programs_iter_mut() {
 fn test_object_program_pin() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sched_wakeup")
+    let obj = get_test_object("runqslower.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sched_wakeup"))
         .expect("failed to find program");
 
     let path = "/sys/fs/bpf/myprog";
@@ -914,9 +918,10 @@ fn test_object_program_pin() {
 fn test_object_link_pin() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("runqslower.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sched_wakeup")
+    let obj = get_test_object("runqslower.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sched_wakeup"))
         .expect("failed to find program");
     let mut link = prog.attach().expect("failed to attach prog");
 
@@ -1004,9 +1009,10 @@ fn test_object_reuse_pined_map() {
 fn test_object_ringbuf_raw() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
@@ -1095,9 +1101,10 @@ fn test_object_ringbuf_raw() {
 fn test_object_ringbuf_err_callback() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
@@ -1167,9 +1174,10 @@ fn test_object_ringbuf_err_callback() {
 fn test_object_ringbuf() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
@@ -1262,9 +1270,10 @@ fn test_object_ringbuf() {
 fn test_object_ringbuf_closure() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
 
@@ -1346,9 +1355,10 @@ fn test_object_ringbuf_with_closed_map() {
         let mut value = 0i32;
 
         {
-            let mut obj = get_test_object("tracepoint.bpf.o");
-            let prog = obj
-                .prog_mut("handle__tracepoint")
+            let obj = get_test_object("tracepoint.bpf.o");
+            let mut prog = obj
+                .progs()
+                .find(|prog| prog.name() == OsStr::new("handle__tracepoint"))
                 .expect("failed to find program");
 
             let _link = prog
@@ -1402,9 +1412,10 @@ fn test_object_user_ringbuf() {
 
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("user_ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("user_ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = obj
@@ -1451,9 +1462,10 @@ fn test_object_user_ringbuf() {
 fn test_object_user_ringbuf_reservation_too_big() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("user_ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("user_ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = obj
@@ -1473,9 +1485,10 @@ fn test_object_user_ringbuf_reservation_too_big() {
 fn test_object_user_ringbuf_not_enough_space() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("user_ringbuf.bpf.o");
-    let prog = obj
-        .prog_mut("handle__sys_enter_getpid")
+    let obj = get_test_object("user_ringbuf.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sys_enter_getpid"))
         .expect("failed to find program");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = obj
@@ -1499,8 +1512,11 @@ fn test_object_user_ringbuf_not_enough_space() {
 fn test_object_task_iter() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("taskiter.bpf.o");
-    let prog = obj.prog_mut("dump_pid").expect("failed to find program");
+    let obj = get_test_object("taskiter.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("dump_pid"))
+        .expect("failed to find program");
     let link = prog.attach().expect("failed to attach prog");
     let mut iter = Iter::new(&link).expect("failed to create iterator");
 
@@ -1560,8 +1576,11 @@ fn test_object_map_iter() {
             .expect("failed to write");
     }
 
-    let mut obj = get_test_object("mapiter.bpf.o");
-    let prog = obj.prog_mut("map_iter").expect("failed to find program");
+    let obj = get_test_object("mapiter.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("map_iter"))
+        .expect("failed to find program");
     let link = prog
         .attach_iter(map.as_fd())
         .expect("failed to attach map iter prog");
@@ -1701,9 +1720,10 @@ fn test_object_map_handle_clone() {
 fn test_object_usdt() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("usdt.bpf.o");
-    let prog = obj
-        .prog_mut("handle__usdt")
+    let obj = get_test_object("usdt.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__usdt"))
         .expect("failed to find program");
 
     let path = current_exe().expect("failed to find executable name");
@@ -1735,9 +1755,10 @@ fn test_object_usdt_cookie() {
     bump_rlimit_mlock();
 
     let cookie_val = 1337u16;
-    let mut obj = get_test_object("usdt.bpf.o");
-    let prog = obj
-        .prog_mut("handle__usdt_with_cookie")
+    let obj = get_test_object("usdt.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__usdt_with_cookie"))
         .expect("failed to find program");
 
     let path = current_exe().expect("failed to find executable name");
@@ -1818,7 +1839,8 @@ fn test_object_open_program_insns() {
 
     let open_obj = open_test_object("usdt.bpf.o");
     let prog = open_obj
-        .prog("handle__usdt")
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__usdt"))
         .expect("failed to find program");
 
     let insns = prog.insns();
@@ -1831,7 +1853,10 @@ fn test_object_program_insns() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("usdt.bpf.o");
-    let prog = obj.prog("handle__usdt").expect("failed to find program");
+    let prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__usdt"))
+        .expect("failed to find program");
 
     let insns = prog.insns();
     assert!(!insns.is_empty());
@@ -1843,9 +1868,10 @@ fn test_object_program_insns() {
 fn test_object_tracepoint() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("tracepoint.bpf.o");
-    let prog = obj
-        .prog_mut("handle__tracepoint")
+    let obj = get_test_object("tracepoint.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__tracepoint"))
         .expect("failed to find program");
 
     let _link = prog
@@ -1872,9 +1898,10 @@ fn test_object_tracepoint_with_opts() {
     bump_rlimit_mlock();
 
     let cookie_val = 42u16;
-    let mut obj = get_test_object("tracepoint.bpf.o");
-    let prog = obj
-        .prog_mut("handle__tracepoint_with_cookie")
+    let obj = get_test_object("tracepoint.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__tracepoint_with_cookie"))
         .expect("failed to find program");
 
     let opts = TracepointOpts {
@@ -1910,9 +1937,10 @@ extern "C" fn uprobe_target() -> usize {
 fn test_object_uprobe_with_opts() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("uprobe.bpf.o");
-    let prog = obj
-        .prog_mut("handle__uprobe")
+    let obj = get_test_object("uprobe.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__uprobe"))
         .expect("failed to find program");
 
     let pid = unsafe { libc::getpid() };
@@ -1946,9 +1974,10 @@ fn test_object_uprobe_with_cookie() {
     bump_rlimit_mlock();
 
     let cookie_val = 5u16;
-    let mut obj = get_test_object("uprobe.bpf.o");
-    let prog = obj
-        .prog_mut("handle__uprobe_with_cookie")
+    let obj = get_test_object("uprobe.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__uprobe_with_cookie"))
         .expect("failed to find program");
 
     let pid = unsafe { libc::getpid() };
@@ -2030,9 +2059,10 @@ fn test_object_perf_buffer_raw() {
     bump_rlimit_mlock();
 
     let cookie_val = 42u16;
-    let mut obj = get_test_object("tracepoint.bpf.o");
-    let prog = obj
-        .prog_mut("handle__tracepoint_with_cookie_pb")
+    let obj = get_test_object("tracepoint.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__tracepoint_with_cookie_pb"))
         .expect("failed to find program");
 
     let opts = TracepointOpts {
@@ -2126,7 +2156,8 @@ fn test_program_get_fd_and_id() {
 
     let obj = get_test_object("runqslower.bpf.o");
     let prog = obj
-        .prog("handle__sched_wakeup")
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__sched_wakeup"))
         .expect("failed to find program");
 
     let prog_fd = prog.as_fd();
@@ -2180,9 +2211,10 @@ fn test_map_resize() {
 fn test_attach_ksyscall() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("ksyscall.bpf.o");
-    let prog = obj
-        .prog_mut("handle__ksyscall")
+    let obj = get_test_object("ksyscall.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("handle__ksyscall"))
         .expect("failed to find program");
 
     let _link = prog
@@ -2211,8 +2243,11 @@ fn test_attach_ksyscall() {
 fn test_run_prog_success() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("run_prog.bpf.o");
-    let prog = obj.prog_mut("test_1").expect("failed to find program");
+    let obj = get_test_object("run_prog.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("test_1"))
+        .expect("failed to find program");
 
     #[repr(C)]
     struct bpf_dummy_ops_state {
@@ -2236,8 +2271,11 @@ fn test_run_prog_success() {
 fn test_run_prog_fail() {
     bump_rlimit_mlock();
 
-    let mut obj = get_test_object("run_prog.bpf.o");
-    let prog = obj.prog_mut("test_2").expect("failed to find program");
+    let obj = get_test_object("run_prog.bpf.o");
+    let mut prog = obj
+        .progs()
+        .find(|prog| prog.name() == OsStr::new("test_2"))
+        .expect("failed to find program");
 
     let input = ProgramInput::default();
     let _err = prog.test_run(input).unwrap_err();
