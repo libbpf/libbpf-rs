@@ -232,23 +232,6 @@ pub struct ObjectSkeletonConfig<'dat> {
 }
 
 impl ObjectSkeletonConfig<'_> {
-    /// Warning: the returned pointer is only valid while the
-    /// `ObjectSkeletonConfig` is alive.
-    ///
-    /// # Panic
-    /// This method panics if the inner [`bpf_object_skeleton`] has not been
-    /// initialized.
-    ///
-    /// To initialize it, first call [`Self::get`] and initialize the skeleton.
-    pub fn object_ptr(&mut self) -> NonNull<bpf_object> {
-        NonNull::new(unsafe { *self.inner.obj }).expect(
-            r#"
-        The generated code failed to initialize bpf_object_skeleton.obj pointer through the use
-        of `bpf_object__open_skeleton(skel_config.get(), &open_opts)`
-        "#,
-        )
-    }
-
     /// Returns the `mmaped` pointer for a map at the specified `index`.
     ///
     /// The index is determined by the order in which the map was passed to
