@@ -264,7 +264,7 @@ impl ObjectSkeletonConfig<'_> {
     /// `ObjectSkeletonConfigBuilder::map`. Index starts at 0.
     ///
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
-    pub fn map_mmap_ptr(&self, index: usize) -> Result<*const c_void> {
+    pub fn map_mmap_ptr(&self, index: usize) -> Result<*mut c_void> {
         if index >= self.maps.len() {
             return Err(Error::with_invalid_data(format!(
                 "Invalid map index: {index}"
@@ -278,23 +278,13 @@ impl ObjectSkeletonConfig<'_> {
         Ok(**p)
     }
 
-    /// Returns the `mmaped` pointer for a map at the specified `index`.
-    ///
-    /// The index is determined by the order in which the map was passed to
-    /// `ObjectSkeletonConfigBuilder::map`. Index starts at 0.
-    ///
-    /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
-    pub fn map_mmap_ptr_mut(&mut self, index: usize) -> Result<*mut c_void> {
-        self.map_mmap_ptr(index).map(|p| p.cast_mut())
-    }
-
     /// Returns the link pointer for a prog at the specified `index`.
     ///
     /// The index is determined by the order in which the prog was passed to
     /// `ObjectSkeletonConfigBuilder::prog`. Index starts at 0.
     ///
     /// Warning: the returned pointer is only valid while the `ObjectSkeletonConfig` is alive.
-    pub fn prog_link_ptr(&mut self, index: usize) -> Result<*mut bpf_link> {
+    pub fn prog_link_ptr(&self, index: usize) -> Result<*mut bpf_link> {
         if index >= self.progs.len() {
             return Err(Error::with_invalid_data(format!(
                 "Invalid prog index: {index}"

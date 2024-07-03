@@ -644,7 +644,7 @@ fn gen_skel_datasec_getters(
                 skel,
                 r#"
                 pub fn {name}{fn_suffix}_raw(&{ref_suffix} self) -> *{ptr_suffix} {struct_name} {{
-                    self.skel_config.map_mmap_ptr{fn_suffix}({idx}).unwrap().cast::<{struct_name}>()
+                    self.skel_config.map_mmap_ptr({idx}).unwrap().cast::<{struct_name}>()
                 }}
 
                 pub fn {name}{fn_suffix}(&{ref_suffix} self) -> &{ref_suffix} {struct_name} {{
