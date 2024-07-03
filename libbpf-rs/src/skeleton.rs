@@ -41,8 +41,8 @@ struct ProgSkelConfig {
 
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct ObjectSkeletonConfigBuilder<'a> {
-    data: &'a [u8],
+pub struct ObjectSkeletonConfigBuilder<'dat> {
+    data: &'dat [u8],
     p: Box<*mut bpf_object>,
     name: Option<String>,
     maps: Vec<MapSkelConfig>,
@@ -57,14 +57,14 @@ fn str_to_cstring_and_pool(s: &str, pool: &mut Vec<CString>) -> Result<*const c_
     Ok(p)
 }
 
-impl<'a> ObjectSkeletonConfigBuilder<'a> {
+impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     /// Construct a new instance
     ///
     /// `object_data` is the contents of the `.o` from clang
     ///
     /// `p` is a reference to the pointer where `libbpf_sys::bpf_object` should be
     /// stored/retrieved
-    pub fn new(object_data: &'a [u8]) -> Self {
+    pub fn new(object_data: &'dat [u8]) -> Self {
         Self {
             data: object_data,
             p: Box::new(ptr::null_mut()),
@@ -178,7 +178,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
     }
 
     #[allow(missing_docs)]
-    pub fn build(mut self) -> Result<ObjectSkeletonConfig<'a>> {
+    pub fn build(mut self) -> Result<ObjectSkeletonConfig<'dat>> {
         // Holds `CString`s alive so pointers to them stay valid
         let mut string_pool = Vec::new();
 
@@ -221,7 +221,7 @@ impl<'a> ObjectSkeletonConfigBuilder<'a> {
 ///
 /// This struct can be moved around at will. Upon drop, all allocated resources will be freed
 #[derive(Debug)]
-pub struct ObjectSkeletonConfig<'a> {
+pub struct ObjectSkeletonConfig<'dat> {
     inner: bpf_object_skeleton,
     maps: Vec<MapSkelConfig>,
     progs: Vec<ProgSkelConfig>,
@@ -230,7 +230,7 @@ pub struct ObjectSkeletonConfig<'a> {
     /// Same as above
     progs_layout: Option<Layout>,
     /// Hold this reference so that compiler guarantees buffer lives as long as us
-    _data: &'a [u8],
+    _data: &'dat [u8],
     /// Hold strings alive so pointers to them stay valid
     _string_pool: Vec<CString>,
 }
@@ -338,7 +338,7 @@ impl Drop for ObjectSkeletonConfig<'_> {
 }
 
 /// A trait for skeleton builder.
-pub trait SkelBuilder<'a> {
+pub trait SkelBuilder<'dat> {
     /// Define that when BPF object is opened, the returned type should implement the [`OpenSkel`]
     /// trait
     type Output: OpenSkel;
