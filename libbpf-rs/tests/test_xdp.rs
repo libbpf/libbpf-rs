@@ -1,3 +1,5 @@
+mod common;
+
 use std::ffi::OsStr;
 use std::os::fd::AsFd;
 
@@ -5,14 +7,15 @@ use scopeguard::defer;
 
 use test_tag::tag;
 
-mod test;
-use test::bump_rlimit_mlock;
-use test::get_test_object;
-
 use libbpf_rs::Xdp;
 use libbpf_rs::XdpFlags;
 
+use crate::common::bump_rlimit_mlock;
+use crate::common::get_test_object;
+
+
 const LO_IFINDEX: i32 = 1;
+
 
 #[tag(root)]
 #[test]

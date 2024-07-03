@@ -1,13 +1,11 @@
+mod common;
+
 use std::ffi::OsStr;
 use std::os::unix::io::AsFd as _;
 use std::os::unix::io::BorrowedFd;
 
 use serial_test::serial;
 use test_tag::tag;
-
-mod test;
-use test::bump_rlimit_mlock;
-use test::get_test_object;
 
 use libbpf_rs::ErrorKind;
 use libbpf_rs::Result;
@@ -20,8 +18,12 @@ use libbpf_rs::TC_H_MIN_EGRESS;
 use libbpf_rs::TC_H_MIN_INGRESS;
 use libbpf_rs::TC_INGRESS;
 
+use crate::common::bump_rlimit_mlock;
+use crate::common::get_test_object;
+
 // do all TC tests on the lo network interface
 const LO_IFINDEX: i32 = 1;
+
 
 fn clear_clsact(fd: BorrowedFd) -> Result<()> {
     // Ensure clean clsact tc qdisc
