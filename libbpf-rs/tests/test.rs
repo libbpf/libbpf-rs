@@ -1,6 +1,8 @@
 #![allow(clippy::let_unit_value)]
 #![warn(clippy::absolute_paths)]
 
+mod common;
+
 use std::collections::HashSet;
 use std::env::current_exe;
 use std::ffi::c_int;
@@ -32,7 +34,6 @@ use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
-use libbpf_rs::OpenObject;
 use libbpf_rs::Program;
 use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
@@ -45,6 +46,11 @@ use probe::probe;
 use scopeguard::defer;
 use tempfile::NamedTempFile;
 use test_tag::tag;
+
+use crate::common::bump_rlimit_mlock;
+use crate::common::get_test_object;
+use crate::common::get_test_object_path;
+use crate::common::open_test_object;
 
 
 /// Find the BPF map with the given name, panic if it does not exist.
@@ -65,44 +71,6 @@ fn get_prog(object: &Object, name: &str) -> Program {
         .unwrap_or_else(|| panic!("failed to find program `{name}`"))
 }
 
-fn get_test_object_path(filename: &str) -> PathBuf {
-    let mut path = PathBuf::new();
-    // env!() macro fails at compile time if var not found
-    path.push(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests/bin");
-    path.push(filename);
-    path
-}
-
-pub fn open_test_object(filename: &str) -> OpenObject {
-    let obj_path = get_test_object_path(filename);
-    let obj = ObjectBuilder::default()
-        .debug(true)
-        .open_file(obj_path)
-        .expect("failed to open object");
-    obj
-}
-
-pub fn get_test_object(filename: &str) -> Object {
-    open_test_object(filename)
-        .load()
-        .expect("failed to load object")
-}
-
-pub fn bump_rlimit_mlock() {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) };
-    assert_eq!(
-        ret,
-        0,
-        "Setting RLIMIT_MEMLOCK failed with errno: {}",
-        io::Error::last_os_error()
-    );
-}
 
 /// A helper function for instantiating a `RingBuffer` with a callback meant to
 /// be invoked when `action` is executed and that is intended to trigger a write
