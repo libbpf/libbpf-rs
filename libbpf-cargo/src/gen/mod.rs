@@ -882,8 +882,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         impl<'dat> SkelBuilder<'dat> for {name}SkelBuilder {{
             type Output = Open{name}Skel<'dat>;
             fn open(self) -> libbpf_rs::Result<Open{name}Skel<'dat>> {{
-                let opts = *self.obj_builder.opts();
-                self.open_opts(opts)
+                let opts =
+                    unsafe {{ libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.obj_builder).as_ref() }};
+                self.open_opts(*opts)
             }}
 
             fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'dat>> {{

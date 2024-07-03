@@ -4,6 +4,7 @@ use std::ffi::CString;
 use std::mem;
 use std::path::Path;
 use std::ptr;
+use std::ptr::addr_of;
 use std::ptr::NonNull;
 
 use crate::map::map_fd;
@@ -163,24 +164,14 @@ impl ObjectBuilder {
         self
     }
 
-    /// Get the raw libbpf_sys::bpf_object_open_opts.
-    ///
-    /// The internal pointers are tied to the lifetime of the
-    /// ObjectBuilder, so be wary when copying the struct or otherwise
-    /// handing the lifetime over to C.
-    pub fn opts(&self) -> &libbpf_sys::bpf_object_open_opts {
-        &self.opts
-    }
-
     /// Open an object using the provided path on the file system.
     pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
-
-        let opts = self.opts();
+        let opts_ptr = self.as_libbpf_object().as_ptr();
 
         let ptr = util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_object__open_file(path_ptr, opts)
+            libbpf_sys::bpf_object__open_file(path_ptr, opts_ptr)
         })?;
         let obj = unsafe { OpenObject::from_ptr(ptr) };
         Ok(obj)
@@ -188,19 +179,29 @@ impl ObjectBuilder {
 
     /// Open an object from memory.
     pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
-        let opts = self.opts();
-
+        let opts_ptr = self.as_libbpf_object().as_ptr();
         let ptr = util::create_bpf_entity_checked(|| unsafe {
             libbpf_sys::bpf_object__open_mem(
                 mem.as_ptr() as *const c_void,
                 mem.len() as libbpf_sys::size_t,
-                opts,
+                opts_ptr,
             )
         })?;
         let obj = unsafe { OpenObject::from_ptr(ptr) };
         Ok(obj)
     }
 }
+
+impl AsRawLibbpf for ObjectBuilder {
+    type LibbpfType = libbpf_sys::bpf_object_open_opts;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_object_open_opts`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        // SAFETY: A reference is always a valid pointer.
+        unsafe { NonNull::new_unchecked(addr_of!(self.opts).cast_mut()) }
+    }
+}
+
 
 /// Represents an opened (but not yet loaded) BPF object file.
 ///
