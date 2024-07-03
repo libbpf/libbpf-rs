@@ -1,6 +1,6 @@
 Unreleased
 ----------
-- Added `AsRawLibbpf` impl for `OpenObject`
+- Added `AsRawLibbpf` impl for `OpenObject` and `ObjectBuilder`
 - Decoupled `Map` and `MapHandle` more and introduced `MapCore` trait
   abstracting over common functionality
 - Adjusted `{Open,}Object::from_ptr` constructor to be infallible
