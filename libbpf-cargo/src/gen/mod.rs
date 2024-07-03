@@ -879,14 +879,14 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             }}
         }}
 
-        impl<'a> SkelBuilder<'a> for {name}SkelBuilder {{
-            type Output = Open{name}Skel<'a>;
-            fn open(self) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
+        impl<'dat> SkelBuilder<'dat> for {name}SkelBuilder {{
+            type Output = Open{name}Skel<'dat>;
+            fn open(self) -> libbpf_rs::Result<Open{name}Skel<'dat>> {{
                 let opts = *self.obj_builder.opts();
                 self.open_opts(opts)
             }}
 
-            fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'a>> {{
+            fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'dat>> {{
                 let mut skel_config = build_skel_config()?;
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) }};
@@ -947,17 +947,17 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     write!(
         skel,
         r#"
-        pub struct Open{name}Skel<'a> {{
+        pub struct Open{name}Skel<'dat> {{
             pub obj: libbpf_rs::OpenObject,
             progs: std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>,
             maps: std::collections::HashMap<std::string::String, libbpf_rs::OpenMap>,
             pub struct_ops: {raw_obj_name}_types::struct_ops,
-            skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
+            skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'dat>,
         }}
 
-        impl<'a> OpenSkel for Open{name}Skel<'a> {{
-            type Output = {name}Skel<'a>;
-            fn load(mut self) -> libbpf_rs::Result<{name}Skel<'a>> {{
+        impl<'dat> OpenSkel for Open{name}Skel<'dat> {{
+            type Output = {name}Skel<'dat>;
+            fn load(mut self) -> libbpf_rs::Result<{name}Skel<'dat>> {{
                 let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
@@ -1019,12 +1019,12 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     write!(
         skel,
         r#"
-        pub struct {name}Skel<'a> {{
+        pub struct {name}Skel<'dat> {{
             pub obj: libbpf_rs::Object,
             progs: std::collections::HashMap<std::string::String, libbpf_rs::Program>,
             maps: std::collections::HashMap<std::string::String, libbpf_rs::Map>,
             struct_ops: {raw_obj_name}_types::struct_ops,
-            skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
+            skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'dat>,
         "#,
         name = &obj_name,
     )?;
