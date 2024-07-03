@@ -889,15 +889,20 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             }}
 
             fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'dat>> {{
-                let mut skel_config = build_skel_config()?;
-                let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&skel_config).as_ptr();
+                let skel_config = build_skel_config()?;
+                let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&skel_config);
 
-                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_ptr, &open_opts) }};
+                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), &open_opts) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
-                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr()) }};
+                // We take full "ownership" of the object from the skeleton.
+                let obj_ptr = std::mem::replace(unsafe {{ &mut *skel_ptr.as_ref().obj }}, std::ptr::null_mut());
+                // SANITY: `bpf_object__open_skeleton` should have
+                //         allocated the object.
+                let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
+                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(obj_ptr) }};
                 let maps = Self::retrieve_maps(&obj)?;
                 let progs = Self::retrieve_progs(&obj)?;
 
