@@ -7,6 +7,7 @@ use std::mem::size_of;
 use std::os::raw::c_char;
 use std::os::raw::c_ulong;
 use std::ptr;
+use std::ptr::addr_of;
 use std::ptr::NonNull;
 
 use libbpf_sys::bpf_link;
@@ -19,6 +20,7 @@ use libbpf_sys::bpf_program;
 
 use crate::error::IntoError as _;
 use crate::util;
+use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Object;
 use crate::ObjectBuilder;
@@ -236,11 +238,6 @@ pub struct ObjectSkeletonConfig<'dat> {
 }
 
 impl ObjectSkeletonConfig<'_> {
-    #[allow(missing_docs)]
-    pub fn get(&mut self) -> &mut bpf_object_skeleton {
-        &mut self.inner
-    }
-
     /// Warning: the returned pointer is only valid while the
     /// `ObjectSkeletonConfig` is alive.
     ///
@@ -292,6 +289,16 @@ impl ObjectSkeletonConfig<'_> {
         }
 
         Ok(*self.progs[index].link)
+    }
+}
+
+impl AsRawLibbpf for ObjectSkeletonConfig<'_> {
+    type LibbpfType = libbpf_sys::bpf_object_skeleton;
+
+    /// Retrieve the underlying [`libbpf_sys::bpf_object_skeleton`].
+    fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
+        // SAFETY: A reference is always a valid pointer.
+        unsafe { NonNull::new_unchecked(addr_of!(self.inner).cast_mut()) }
     }
 }
 

@@ -728,7 +728,8 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
         skel,
         r#"
         fn attach(&mut self) -> libbpf_rs::Result<()> {{
-            let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) }};
+            let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
+            let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(skel_ptr) }};
             if ret != 0 {{
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }}
@@ -889,8 +890,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
             fn open_opts(self, open_opts: libbpf_sys::bpf_object_open_opts) -> libbpf_rs::Result<Open{name}Skel<'dat>> {{
                 let mut skel_config = build_skel_config()?;
+                let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&skel_config).as_ptr();
 
-                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) }};
+                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_ptr, &open_opts) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
@@ -958,8 +960,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
         impl<'dat> OpenSkel for Open{name}Skel<'dat> {{
             type Output = {name}Skel<'dat>;
-            fn load(mut self) -> libbpf_rs::Result<{name}Skel<'dat>> {{
-                let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) }};
+            fn load(self) -> libbpf_rs::Result<{name}Skel<'dat>> {{
+                let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
+
+                let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(skel_ptr) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
