@@ -32,7 +32,6 @@ use libbpf_rs::MapFlags;
 use libbpf_rs::MapHandle;
 use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
-use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::Program;
 use libbpf_rs::ProgramInput;
@@ -48,28 +47,11 @@ use tempfile::NamedTempFile;
 use test_tag::tag;
 
 use crate::common::bump_rlimit_mlock;
+use crate::common::get_map;
+use crate::common::get_prog;
 use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
-
-
-/// Find the BPF map with the given name, panic if it does not exist.
-#[track_caller]
-fn get_map(object: &Object, name: &str) -> Map {
-    object
-        .maps()
-        .find(|map| map.name() == name)
-        .unwrap_or_else(|| panic!("failed to find map `{name}`"))
-}
-
-/// Find the BPF program with the given name, panic if it does not exist.
-#[track_caller]
-fn get_prog(object: &Object, name: &str) -> Program {
-    object
-        .progs()
-        .find(|map| map.name() == name)
-        .unwrap_or_else(|| panic!("failed to find program `{name}`"))
-}
 
 
 /// A helper function for instantiating a `RingBuffer` with a callback meant to

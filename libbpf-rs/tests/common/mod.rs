@@ -1,9 +1,12 @@
 use std::io;
 use std::path::PathBuf;
 
+use libbpf_rs::Map;
+use libbpf_rs::MapCore;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::OpenObject;
+use libbpf_rs::Program;
 
 
 pub fn get_test_object_path(filename: &str) -> PathBuf {
@@ -43,4 +46,23 @@ pub fn get_test_object(filename: &str) -> Object {
     open_test_object(filename)
         .load()
         .expect("failed to load object")
+}
+
+
+/// Find the BPF map with the given name, panic if it does not exist.
+#[track_caller]
+pub fn get_map(object: &Object, name: &str) -> Map {
+    object
+        .maps()
+        .find(|map| map.name() == name)
+        .unwrap_or_else(|| panic!("failed to find map `{name}`"))
+}
+
+/// Find the BPF program with the given name, panic if it does not exist.
+#[track_caller]
+pub fn get_prog(object: &Object, name: &str) -> Program {
+    object
+        .progs()
+        .find(|map| map.name() == name)
+        .unwrap_or_else(|| panic!("failed to find program `{name}`"))
 }
