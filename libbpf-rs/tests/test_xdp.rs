@@ -1,6 +1,6 @@
+#[allow(dead_code)]
 mod common;
 
-use std::ffi::OsStr;
 use std::os::fd::AsFd;
 
 use scopeguard::defer;
@@ -11,6 +11,7 @@ use libbpf_rs::Xdp;
 use libbpf_rs::XdpFlags;
 
 use crate::common::bump_rlimit_mlock;
+use crate::common::get_prog;
 use crate::common::get_test_object;
 
 
@@ -23,17 +24,11 @@ fn test_xdp() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("xdp.bpf.o");
-    let prog = obj
-        .progs()
-        .find(|prog| prog.name() == OsStr::new("xdp_filter"))
-        .unwrap();
+    let prog = get_prog(&obj, "xdp_filter");
     let fd = prog.as_fd();
 
     let obj1 = get_test_object("xdp.bpf.o");
-    let prog1 = obj1
-        .progs()
-        .find(|prog| prog.name() == OsStr::new("xdp_filter"))
-        .unwrap();
+    let prog1 = get_prog(&obj1, "xdp_filter");
     let fd1 = prog1.as_fd();
 
     let xdp_prog = Xdp::new(fd);
