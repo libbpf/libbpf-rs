@@ -120,7 +120,7 @@ impl From<&libbpf_sys::bpf_line_info> for LineInfo {
 /// Bpf identifier tag
 #[derive(Debug, Clone, Default)]
 #[repr(C)]
-pub struct Tag([u8; 8]);
+pub struct Tag(pub [u8; 8]);
 
 /// Information about a BPF program
 #[derive(Debug, Clone)]
