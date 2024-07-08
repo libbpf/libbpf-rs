@@ -10,6 +10,7 @@ Unreleased
   - Changed `name` and `section` methods to return `&OsStr` and made
     constructors infallible
 - Adjusted `OpenMap::set_inner_map_fd` to return `Result`
+- Made inner `query::Tag` contents publicly accessible
 - Removed `Display` implementation of various `enum` types
 
 
