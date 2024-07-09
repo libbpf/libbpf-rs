@@ -32,6 +32,7 @@ use libbpf_rs::MapFlags;
 use libbpf_rs::MapHandle;
 use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
+use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::Program;
 use libbpf_rs::ProgramInput;
@@ -100,6 +101,10 @@ fn test_object_build_from_memory() {
         .expect("failed to build object");
     let name = obj.name().expect("failed to get object name");
     assert!(name == "memory name");
+
+    let obj = unsafe { Object::from_ptr(obj.take_ptr()) };
+    let name = obj.name().expect("failed to get object name");
+    assert!(name == "memory name");
 }
 
 #[test]
@@ -112,6 +117,10 @@ fn test_object_build_from_memory_empty_name() {
         .unwrap()
         .open_memory(&contents)
         .expect("failed to build object");
+    let name = obj.name().expect("failed to get object name");
+    assert!(name.is_empty());
+
+    let obj = unsafe { Object::from_ptr(obj.take_ptr()) };
     let name = obj.name().expect("failed to get object name");
     assert!(name.is_empty());
 }

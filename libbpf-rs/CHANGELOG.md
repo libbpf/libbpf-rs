@@ -9,6 +9,8 @@ Unreleased
 - Adjusted `{Open,}Program` to lazily retrieve name and section
   - Changed `name` and `section` methods to return `&OsStr` and made
     constructors infallible
+- Adjusted `OpenObject::name` to return `Option<&OsStr>`
+- Added `Object::name` method
 - Adjusted `OpenMap::set_inner_map_fd` to return `Result`
 - Made inner `query::Tag` contents publicly accessible
 - Removed `Display` implementation of various `enum` types
