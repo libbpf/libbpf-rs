@@ -1,7 +1,9 @@
 use core::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::ffi::OsStr;
 use std::mem;
+use std::os::unix::ffi::OsStrExt as _;
 use std::path::Path;
 use std::ptr;
 use std::ptr::addr_of;
@@ -11,7 +13,6 @@ use crate::map::map_fd;
 use crate::set_print;
 use crate::util;
 use crate::Btf;
-use crate::Error;
 use crate::Map;
 use crate::OpenMap;
 use crate::OpenProgram;
@@ -238,18 +239,17 @@ impl OpenObject {
     }
 
     /// Retrieve the object's name.
-    pub fn name(&self) -> Result<&str> {
-        unsafe {
-            let ptr = libbpf_sys::bpf_object__name(self.ptr.as_ptr());
-            let err = libbpf_sys::libbpf_get_error(ptr as *const _);
-            if err != 0 {
-                return Err(Error::from_raw_os_error(err as i32));
-            }
-
-            CStr::from_ptr(ptr)
-                .to_str()
-                .map_err(Error::with_invalid_data)
+    pub fn name(&self) -> Option<&OsStr> {
+        // SAFETY: We ensured `ptr` is valid during construction.
+        let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
+        // SAFETY: `libbpf_get_error` is always safe to call.
+        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr as *const _) };
+        if err != 0 {
+            return None
         }
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        let str = OsStr::from_bytes(name_c_str.to_bytes());
+        Some(str)
     }
 
     /// Retrieve an iterator over all BPF maps in the object.
@@ -316,6 +316,20 @@ impl Object {
     /// It is not safe to manipulate `ptr` after this operation.
     pub unsafe fn from_ptr(ptr: NonNull<libbpf_sys::bpf_object>) -> Self {
         Self { ptr }
+    }
+
+    /// Retrieve the object's name.
+    pub fn name(&self) -> Option<&OsStr> {
+        // SAFETY: We ensured `ptr` is valid during construction.
+        let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
+        // SAFETY: `libbpf_get_error` is always safe to call.
+        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr as *const _) };
+        if err != 0 {
+            return None
+        }
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        let str = OsStr::from_bytes(name_c_str.to_bytes());
+        Some(str)
     }
 
     /// Parse the btf information associated with this bpf object.
