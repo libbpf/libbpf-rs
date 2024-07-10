@@ -30,22 +30,22 @@ use crate::Result;
 #[derive(Debug)]
 struct MapSkelConfig {
     name: String,
-    p: *mut bpf_map,
-    mmaped: Option<*mut c_void>,
+    p: Box<*mut bpf_map>,
+    mmaped: Option<Box<*mut c_void>>,
 }
 
 #[derive(Debug)]
 struct ProgSkelConfig {
     name: String,
-    p: *mut bpf_program,
-    link: *mut bpf_link,
+    p: Box<*mut bpf_program>,
+    link: Box<*mut bpf_link>,
 }
 
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct ObjectSkeletonConfigBuilder<'dat> {
     data: &'dat [u8],
-    p: *mut bpf_object,
+    p: Box<*mut bpf_object>,
     name: Option<String>,
     maps: Vec<MapSkelConfig>,
     progs: Vec<ProgSkelConfig>,
@@ -69,7 +69,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     pub fn new(object_data: &'dat [u8]) -> Self {
         Self {
             data: object_data,
-            p: ptr::null_mut(),
+            p: Box::new(ptr::null_mut()),
             name: None,
             maps: Vec::new(),
             progs: Vec::new(),
@@ -86,11 +86,15 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     ///
     /// Set `mmaped` to `true` if the map is mmap'able to userspace
     pub fn map<T: AsRef<str>>(&mut self, name: T, mmaped: bool) -> &mut Self {
-        let m = if mmaped { Some(ptr::null_mut()) } else { None };
+        let m = if mmaped {
+            Some(Box::new(ptr::null_mut()))
+        } else {
+            None
+        };
 
         self.maps.push(MapSkelConfig {
             name: name.as_ref().to_string(),
-            p: ptr::null_mut(),
+            p: Box::new(ptr::null_mut()),
             mmaped: m,
         });
 
@@ -101,8 +105,8 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.progs.push(ProgSkelConfig {
             name: name.as_ref().to_string(),
-            p: ptr::null_mut(),
-            link: ptr::null_mut(),
+            p: Box::new(ptr::null_mut()),
+            link: Box::new(ptr::null_mut()),
         });
 
         self
@@ -132,9 +136,9 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
                 // leak. Extremely unlikely to have invalid unicode anyways.
                 (*current_map).name = str_to_cstring_and_pool(&map.name, string_pool)
                     .expect("Invalid unicode in map name");
-                (*current_map).map = &mut map.p;
+                (*current_map).map = &mut *map.p;
                 (*current_map).mmaped = if let Some(ref mut mmaped) = map.mmaped {
-                    &mut *mmaped
+                    &mut **mmaped
                 } else {
                     ptr::null_mut()
                 };
@@ -167,8 +171,8 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
                 // See above for `expect()` rationale
                 (*current_prog).name = str_to_cstring_and_pool(&prog.name, string_pool)
                     .expect("Invalid unicode in prog name");
-                (*current_prog).prog = &mut prog.p;
-                (*current_prog).link = &mut prog.link;
+                (*current_prog).prog = &mut *prog.p;
+                (*current_prog).link = &mut *prog.link;
             }
         }
 
@@ -192,7 +196,9 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         // libbpf_sys will use it as const despite the signature
         s.data = self.data.as_ptr() as *mut c_void;
         s.data_sz = self.data.len() as c_ulong;
-        s.obj = &mut self.p;
+
+        // Give s ownership over the box
+        s.obj = Box::into_raw(self.p);
 
         let maps_layout = Self::build_maps(&mut self.maps, &mut s, &mut string_pool);
         let progs_layout = Self::build_progs(&mut self.progs, &mut s, &mut string_pool);
@@ -249,7 +255,7 @@ impl ObjectSkeletonConfig<'_> {
             .mmaped
             .as_ref()
             .ok_or_invalid_data(|| "Map does not have mmaped ptr")?;
-        Ok(*p)
+        Ok(**p)
     }
 
     /// Returns the link pointer for a prog at the specified `index`.
@@ -265,7 +271,7 @@ impl ObjectSkeletonConfig<'_> {
             )));
         }
 
-        Ok(self.progs[index].link)
+        Ok(*self.progs[index].link)
     }
 }
 
@@ -306,6 +312,8 @@ impl Drop for ObjectSkeletonConfig<'_> {
                 dealloc(self.inner.progs as _, layout);
             }
         }
+
+        let _ = unsafe { Box::from_raw(self.inner.obj) };
     }
 }
 
