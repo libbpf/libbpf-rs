@@ -10,7 +10,7 @@ on:
   workflow_call:
 
 jobs:
-  build:
+  test:
     name: Test [${{ matrix.rust }}, ${{ matrix.profile }}]
     runs-on: ubuntu-latest
     strategy:
@@ -63,6 +63,19 @@ jobs:
       run: cargo test --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower -- --skip ':root:'  --include-ignored
     - name: Run root tests
       run: cd libbpf-rs && cargo test --profile=${{ matrix.profile }} --locked --verbose -- ':root:'
+
+  run-tcp-ca:
+    name: Run tcp_ca example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: sudo apt-get install -y libelf-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          cargo build --package tcp_ca
+          sudo target/debug/tcp_ca
 
   build-features:
     name: Build [${{ matrix.args }}]
@@ -128,6 +141,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --locked --package capable --features=static
+
   build-aarch64:
     name: Build for aarch64
     runs-on: ubuntu-latest
@@ -155,6 +169,7 @@ jobs:
           CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
           RUSTFLAGS: -C linker=/usr/bin/aarch64-linux-gnu-gcc
         run: cargo build --lib
+
   build-armhf:
     name: Build for aarch32
     runs-on: ubuntu-latest
@@ -182,6 +197,7 @@ jobs:
           CARGO_BUILD_TARGET: armv7-unknown-linux-gnueabihf
           RUSTFLAGS: -C linker=/usr/bin/armhf-linux-gnu-gcc
         run: cargo build --lib
+
   clippy:
     name: Lint with clippy
     runs-on: ubuntu-latest
@@ -194,6 +210,7 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked --no-deps --all-targets --tests -- -D warnings -D clippy::absolute_paths
+
   rustfmt:
     name: Check code formatting
     runs-on: ubuntu-latest
@@ -203,6 +220,7 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt -- --check
+
   cargo-doc:
     name: Check documentation
     runs-on: ubuntu-latest
