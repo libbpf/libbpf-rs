@@ -897,8 +897,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
-                // We take full "ownership" of the object from the skeleton.
-                let obj_ptr = std::mem::replace(unsafe {{ &mut *skel_ptr.as_ref().obj }}, std::ptr::null_mut());
+                let obj_ptr = unsafe {{ *skel_ptr.as_ref().obj }};
                 // SANITY: `bpf_object__open_skeleton` should have
                 //         allocated the object.
                 let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
