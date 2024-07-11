@@ -19,6 +19,7 @@ use crate::OpenProgram;
 use crate::OpenProgramMut;
 use crate::PrintLevel;
 use crate::Program;
+use crate::ProgramMut;
 use crate::Result;
 
 
@@ -354,6 +355,11 @@ impl Object {
     /// Retrieve an iterator over all BPF programs in the object.
     pub fn progs(&self) -> impl Iterator<Item = Program> {
         ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { Program::new(ptr) })
+    }
+
+    /// Retrieve an iterator over all BPF programs in the object.
+    pub fn progs_mut(&self) -> impl Iterator<Item = ProgramMut> {
+        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { ProgramMut::new_mut(ptr) })
     }
 }
 

@@ -6,7 +6,7 @@ use libbpf_rs::MapCore;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::OpenObject;
-use libbpf_rs::Program;
+use libbpf_rs::ProgramMut;
 
 
 pub fn get_test_object_path(filename: &str) -> PathBuf {
@@ -60,9 +60,9 @@ pub fn get_map(object: &Object, name: &str) -> Map {
 
 /// Find the BPF program with the given name, panic if it does not exist.
 #[track_caller]
-pub fn get_prog(object: &Object, name: &str) -> Program {
+pub fn get_prog(object: &mut Object, name: &str) -> ProgramMut {
     object
-        .progs()
+        .progs_mut()
         .find(|map| map.name() == name)
         .unwrap_or_else(|| panic!("failed to find program `{name}`"))
 }
