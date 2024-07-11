@@ -16,6 +16,7 @@ use crate::Btf;
 use crate::Map;
 use crate::OpenMap;
 use crate::OpenProgram;
+use crate::OpenProgramMut;
 use crate::PrintLevel;
 use crate::Program;
 use crate::Result;
@@ -260,6 +261,12 @@ impl OpenObject {
     /// Retrieve an iterator over all BPF programs in the object.
     pub fn progs(&self) -> impl Iterator<Item = OpenProgram> {
         ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenProgram::new(ptr) })
+    }
+
+    /// Retrieve an iterator over all BPF programs in the object.
+    pub fn progs_mut(&mut self) -> impl Iterator<Item = OpenProgramMut> {
+        ProgIter::new(unsafe { self.ptr.as_ref() })
+            .map(|ptr| unsafe { OpenProgramMut::new_mut(ptr) })
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
