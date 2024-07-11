@@ -144,8 +144,8 @@ fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) ->
     }
 
     let ca_update_cong_control2 = open_skel
-        .progs()
-        .ca_update_cong_control2()
+        .progs
+        .ca_update_cong_control2
         .as_libbpf_object()
         .as_ptr();
     let ca_update = open_skel.struct_ops.ca_update_mut();

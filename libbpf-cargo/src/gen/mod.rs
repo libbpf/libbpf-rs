@@ -154,6 +154,29 @@ impl MapsData {
 }
 
 
+/// Data pertaining BPF programs used as part of code generation.
+struct ProgsData {
+    /// Vector of names of individual BPF programs, in the same order as they
+    /// appear in the underlying object file.
+    progs: Vec<String>,
+}
+
+impl ProgsData {
+    fn new(obj: &Object) -> Result<Self> {
+        let progs = obj
+            .progs()
+            .map(|prog| get_prog_name(&prog))
+            .collect::<Result<Vec<_>>>()?;
+        let slf = Self { progs };
+        Ok(slf)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &String> {
+        self.progs.iter()
+    }
+}
+
+
 pub enum OutputDest<'a> {
     Stdout,
     /// Infer a filename and place file in specified directory
@@ -412,6 +435,9 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
     write!(
         skel,
         r#"
+                        let object = unsafe {{
+                            std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(object)
+                        }};
                         for map in object.maps_mut() {{
                             let name = map
                                 .name()
@@ -567,68 +593,149 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
     Ok(())
 }
 
+fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) -> Result<()> {
+    let obj_name = capitalize_first_letter(raw_obj_name);
+    write!(
+        skel,
+        r#"
+                pub struct Open{obj_name}Progs {{
+        "#,
+    )?;
 
-fn gen_skel_prog_defs(
-    skel: &mut String,
-    object: &Object,
-    obj_name: &str,
-    open: bool,
-    mutable: bool,
-) -> Result<()> {
-    if object.progs().next().is_none() {
-        return Ok(());
+    for name in progs.iter() {
+        write!(
+            skel,
+            r#"
+                    pub {name}: libbpf_rs::OpenProgram,
+            "#,
+        )?;
     }
-
-    let (struct_suffix, mut_prefix, prog_fn) = if mutable {
-        ("Mut", "mut ", "get_mut")
-    } else {
-        ("", "", "get")
-    };
-
-    let (struct_name, inner_ty, return_ty) = if open {
-        (
-            format!("Open{obj_name}Progs{struct_suffix}"),
-            "std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>",
-            "libbpf_rs::OpenProgramMut",
-        )
-    } else {
-        (
-            format!("{obj_name}Progs{struct_suffix}"),
-            "std::collections::HashMap<std::string::String, libbpf_rs::ProgramMut>",
-            "libbpf_rs::ProgramMut",
-        )
-    };
 
     write!(
         skel,
         r#"
-        pub struct {struct_name}<'a> {{
-            inner: &'a {mut_prefix}{inner_ty},
-        }}
+                }}
 
-        impl {struct_name}<'_> {{
+                impl<'obj> Open{obj_name}Progs {{
+                    fn new(
+                        object: &'obj libbpf_rs::OpenObject,
+                    ) -> libbpf_rs::Result<Self> {{
         "#,
     )?;
 
-    for prog in object.progs() {
+    for name in progs.iter() {
+        write!(skel, r#"let mut {name} = None;"#)?;
+    }
+
+    write!(
+        skel,
+        r#"
+                        for prog in object.progs() {{
+                            let name = prog
+                                .name()
+                                .to_str()
+                                .ok_or_else(|| {{
+                                    libbpf_rs::Error::from(std::io::Error::new(
+                                        std::io::ErrorKind::InvalidData,
+                                        "prog has invalid name",
+                                    ))
+                                }})?;
+                            match name {{
+        "#,
+    )?;
+
+    for name in progs.iter() {
         write!(
             skel,
             r#"
-            pub fn {prog_name}(&{mut_prefix}self) -> &{mut_prefix}{return_ty} {{
-                self.inner.{prog_fn}("{prog_name}").unwrap()
-            }}
-            "#,
-            prog_name = get_prog_name(&prog)?,
-            return_ty = return_ty,
-            mut_prefix = mut_prefix,
-            prog_fn = prog_fn
+                                "{name}" => {name} = Some(prog),"#,
         )?;
     }
 
-    writeln!(skel, "}}")?;
+    write!(
+        skel,
+        r#"
+                                _ => panic!("encountered unexpected prog: `{{name}}`"),
+                            }}
+                        }}
 
+                        let slf = Self {{
+        "#,
+    )?;
+
+    for name in progs.iter() {
+        write!(
+            skel,
+            r#"
+                            {name}: {name}.expect("prog `{name}` not present"),
+            "#,
+        )?;
+    }
+
+    write!(
+        skel,
+        r#"
+                        }};
+                        Ok(slf)
+                    }}
+                }}
+        "#,
+    )?;
     Ok(())
 }
+
+fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) -> Result<()> {
+    let obj_name = capitalize_first_letter(raw_obj_name);
+    write!(
+        skel,
+        r#"
+                pub struct {obj_name}Progs {{
+        "#,
+    )?;
+
+    for name in progs.iter() {
+        write!(
+            skel,
+            r#"
+                    pub {name}: libbpf_rs::ProgramMut,
+            "#,
+        )?;
+    }
+
+    write!(
+        skel,
+        r#"
+                }}
+
+                impl<'obj> {obj_name}Progs {{
+                    #[allow(unused_variables)]
+                    fn new(open_progs: Open{obj_name}Progs) -> Self {{
+                        Self {{
+        "#,
+    )?;
+
+    for name in progs.iter() {
+        write!(
+            skel,
+            r#"
+                            {name}: unsafe {{
+                                libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_progs.{name}))
+                            }},
+            "#,
+        )?;
+    }
+
+    write!(
+        skel,
+        r#"
+                        }}
+                    }}
+                }}
+        "#,
+    )?;
+    Ok(())
+}
+
 
 fn gen_skel_datasec_types(
     skel: &mut String,
@@ -739,48 +846,6 @@ fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &st
         "#,
     )?;
 
-    Ok(())
-}
-
-fn gen_skel_prog_getters(
-    skel: &mut String,
-    object: &Object,
-    obj_name: &str,
-    open: bool,
-) -> Result<()> {
-    let mut gen = |mutable| -> Result<()> {
-        if object.progs().next().is_none() {
-            return Ok(());
-        }
-
-        let (struct_suffix, mut_prefix, prog_fn) = if mutable {
-            ("Mut", "mut ", "progs_mut")
-        } else {
-            ("", "", "progs")
-        };
-
-        let return_ty = if open {
-            format!("Open{obj_name}Progs{struct_suffix}")
-        } else {
-            format!("{obj_name}Progs{struct_suffix}")
-        };
-
-        write!(
-            skel,
-            r#"
-            pub fn {prog_fn}(&{mut_prefix}self) -> {return_ty}<'_> {{
-                {return_ty} {{
-                    inner: &{mut_prefix}self.progs,
-                }}
-            }}
-            "#,
-        )?;
-
-        Ok(())
-    };
-
-    let () = gen(true)?;
-    let () = gen(false)?;
     Ok(())
 }
 
@@ -951,10 +1016,13 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     let mmap = unsafe { Mmap::map(&file)? };
     let object = open_bpf_object(&libbpf_obj_name, &mmap)?;
     let maps = MapsData::new(&object)?;
+    let progs = ProgsData::new(&object)?;
 
     gen_skel_c_skel_constructor(&mut skel, &object, &libbpf_obj_name)?;
     gen_skel_open_map_defs(&mut skel, &maps, raw_obj_name)?;
     gen_skel_map_defs(&mut skel, &maps, raw_obj_name)?;
+    gen_skel_open_prog_defs(&mut skel, &progs, &raw_obj_name)?;
+    gen_skel_prog_defs(&mut skel, &progs, raw_obj_name)?;
 
     #[allow(clippy::uninlined_format_args)]
     write!(
@@ -963,29 +1031,6 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         #[derive(Default)]
         pub struct {name}SkelBuilder {{
             pub obj_builder: libbpf_rs::ObjectBuilder,
-        }}
-
-        impl {name}SkelBuilder {{
-            fn retrieve_progs(
-                obj: &mut libbpf_rs::OpenObject,
-            ) -> libbpf_rs::Result<std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>> {{
-                let mut progs = std::collections::HashMap::new();
-                for prog in obj.progs_mut() {{
-                    progs.insert(
-                        prog.name()
-                            .to_str()
-                            .ok_or_else(|| {{
-                                libbpf_rs::Error::from(std::io::Error::new(
-                                    std::io::ErrorKind::InvalidData,
-                                    "prog has invalid name",
-                                ))
-                            }})?
-                            .to_string(),
-                        prog,
-                    );
-                }}
-                Ok(progs)
-            }}
         }}
 
         impl<'obj> SkelBuilder<'obj> for {name}SkelBuilder {{
@@ -1018,13 +1063,12 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
                 let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(obj_ptr) }};
                 let obj_ref = object.write(obj);
-                let progs = Self::retrieve_progs(obj_ref)?;
 
                 #[allow(unused_mut)]
                 let mut skel = Open{name}Skel {{
                     maps: Open{name}Maps::new(&skel_config, obj_ref)?,
+                    progs: Open{name}Progs::new(obj_ref)?,
                     obj: obj_ref,
-                    progs,
                     // SAFETY: Our `struct_ops` type contains only pointers,
                     //         which are allowed to be NULL.
                     // TODO: Generate and use a `Default` representation
@@ -1048,8 +1092,6 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         struct_ops_init = gen_skel_struct_ops_init(&object)?,
     )?;
 
-    gen_skel_prog_defs(&mut skel, &object, &obj_name, true, false)?;
-    gen_skel_prog_defs(&mut skel, &object, &obj_name, true, true)?;
     write!(
         skel,
         r#"
@@ -1071,7 +1113,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         pub struct Open{name}Skel<'obj> {{
             pub obj: &'obj mut libbpf_rs::OpenObject,
             pub maps: Open{name}Maps<'obj>,
-            progs: std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>,
+            pub progs: Open{name}Progs,
             pub struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         }}
@@ -1096,16 +1138,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 let obj = unsafe {{ libbpf_rs::Object::from_ptr(open_obj.assume_init().take_ptr()) }};
                 let obj_ref = object.write(obj);
 
-                let progs = self.progs.into_iter().map(|(k, v)| {{
-                    // SAFETY: The `bpf_program` has been validated before.
-                    let v = unsafe {{ libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&v)) }};
-                    Ok((k, v))
-                }}).collect::<libbpf_rs::Result<_, libbpf_rs::Error>>()?;
-
                 Ok({name}Skel {{
                     obj: obj_ref,
-                    progs,
                     maps: {name}Maps::new(self.maps),
+                    progs: {name}Progs::new(self.progs),
                     struct_ops: self.struct_ops,
                     skel_config: self.skel_config,
                     {links}
@@ -1128,13 +1164,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         }
     )?;
     writeln!(skel, "}}")?;
-    writeln!(skel, "impl Open{name}Skel<'_> {{", name = &obj_name)?;
 
-    gen_skel_prog_getters(&mut skel, &object, &obj_name, true)?;
-    writeln!(skel, "}}")?;
-
-    gen_skel_prog_defs(&mut skel, &object, &obj_name, false, false)?;
-    gen_skel_prog_defs(&mut skel, &object, &obj_name, false, true)?;
     gen_skel_link_defs(&mut skel, &object, &obj_name)?;
 
     write!(
@@ -1143,7 +1173,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         pub struct {name}Skel<'obj> {{
             pub obj: &'obj mut libbpf_rs::Object,
             pub maps: {name}Maps<'obj>,
-            progs: std::collections::HashMap<std::string::String, libbpf_rs::ProgramMut>,
+            pub progs: {name}Progs,
             struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         "#,
@@ -1173,7 +1203,6 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     writeln!(skel, "}}")?;
 
     write!(skel, "impl {name}Skel<'_> {{", name = &obj_name)?;
-    gen_skel_prog_getters(&mut skel, &object, &obj_name, false)?;
     gen_skel_struct_ops_getters(&mut skel, &object, raw_obj_name)?;
     writeln!(skel, "}}")?;
 

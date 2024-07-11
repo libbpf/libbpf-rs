@@ -76,10 +76,9 @@ fn main() -> Result<()> {
     let open = builder.open(&mut open_object)?;
     let mut object = MaybeUninit::uninit();
     let skel = open.load(&mut object)?;
-    let progs = skel.progs();
     let ifidx = if_nametoindex(opts.iface.as_str())? as i32;
 
-    let mut tc_builder = TcHookBuilder::new(progs.handle_tc().as_fd());
+    let mut tc_builder = TcHookBuilder::new(skel.progs.handle_tc.as_fd());
     tc_builder
         .ifindex(ifidx)
         .replace(true)
@@ -92,7 +91,7 @@ fn main() -> Result<()> {
     custom.parent(TC_H_CLSACT, TC_H_MIN_INGRESS).handle(2);
 
     // we can create a TcHook w/o the builder
-    let mut destroy_all = libbpf_rs::TcHook::new(progs.handle_tc().as_fd());
+    let mut destroy_all = libbpf_rs::TcHook::new(skel.progs.handle_tc.as_fd());
     destroy_all
         .ifindex(ifidx)
         .attach_point(TC_EGRESS | TC_INGRESS);
