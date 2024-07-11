@@ -548,6 +548,12 @@ pub struct Output<'dat> {
     pub _non_exhaustive: (),
 }
 
+/// An immutable loaded BPF program.
+pub type Program = ProgramImpl;
+/// A mutable loaded BPF program.
+pub type ProgramMut = ProgramImpl<Mut>;
+
+
 /// Represents a loaded [`Program`].
 ///
 /// This struct is not safe to clone because the underlying libbpf resource cannot currently
@@ -556,15 +562,10 @@ pub struct Output<'dat> {
 /// If you attempt to attach a `Program` with the wrong attach method, the `attach_*`
 /// method will fail with the appropriate error.
 #[derive(Debug)]
-pub struct Program {
+#[repr(transparent)]
+pub struct ProgramImpl<T = ()> {
     pub(crate) ptr: NonNull<libbpf_sys::bpf_program>,
-}
-
-impl AsFd for Program {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
-        unsafe { BorrowedFd::borrow_raw(fd) }
-    }
+    _phantom: PhantomData<T>,
 }
 
 impl Program {
@@ -573,7 +574,10 @@ impl Program {
     /// # Safety
     /// The pointer must point to a loaded program.
     pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
-        Program { ptr }
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
     }
 
     /// Retrieve the name of this `Program`.
@@ -646,6 +650,35 @@ impl Program {
     /// Return the bpf program's log level.
     pub fn log_level(&self) -> u32 {
         unsafe { libbpf_sys::bpf_program__log_level(self.ptr.as_ptr()) }
+    }
+
+    /// Returns the number of instructions that form the program.
+    ///
+    /// Please see note in [`OpenProgram::insn_cnt`].
+    pub fn insn_cnt(&self) -> usize {
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
+    }
+
+    /// Gives read-only access to BPF program's underlying BPF instructions.
+    ///
+    /// Please see note in [`OpenProgram::insns`].
+    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
+        let count = self.insn_cnt();
+        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
+        unsafe { slice::from_raw_parts(ptr, count) }
+    }
+}
+
+impl ProgramMut {
+    /// Create a [`Program`] from a [`libbpf_sys::bpf_program`]
+    ///
+    /// # Safety
+    /// The pointer must point to a loaded program.
+    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -1101,25 +1134,26 @@ impl Program {
         };
         Ok(output)
     }
+}
 
-    /// Returns the number of instructions that form the program.
-    ///
-    /// Please see note in [`OpenProgram::insn_cnt`].
-    pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
-    }
+impl Deref for ProgramMut {
+    type Target = Program;
 
-    /// Gives read-only access to BPF program's underlying BPF instructions.
-    ///
-    /// Please see note in [`OpenProgram::insns`].
-    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
-        let count = self.insn_cnt();
-        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
-        unsafe { slice::from_raw_parts(ptr, count) }
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: `ProgramImpl` is `repr(transparent)` and so in-memory
+        //         representation of both types is the same.
+        unsafe { transmute::<&ProgramMut, &Program>(self) }
     }
 }
 
-impl AsRawLibbpf for Program {
+impl<T> AsFd for ProgramImpl<T> {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
+        unsafe { BorrowedFd::borrow_raw(fd) }
+    }
+}
+
+impl<T> AsRawLibbpf for ProgramImpl<T> {
     type LibbpfType = libbpf_sys::bpf_program;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].

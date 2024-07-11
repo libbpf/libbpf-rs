@@ -378,8 +378,8 @@ fn gen_skel_prog_defs(
     } else {
         (
             format!("{obj_name}Progs{struct_suffix}"),
-            "std::collections::HashMap<std::string::String, libbpf_rs::Program>",
-            "libbpf_rs::Program",
+            "std::collections::HashMap<std::string::String, libbpf_rs::ProgramMut>",
+            "libbpf_rs::ProgramMut",
         )
     };
 
@@ -976,7 +976,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
                 let progs = self.progs.into_iter().map(|(k, v)| {{
                     // SAFETY: The `bpf_program` has been validated before.
-                    let v = unsafe {{ libbpf_rs::Program::new(libbpf_rs::AsRawLibbpf::as_libbpf_object(&v)) }};
+                    let v = unsafe {{ libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&v)) }};
                     Ok((k, v))
                 }}).collect::<libbpf_rs::Result<_, libbpf_rs::Error>>()?;
 
@@ -1030,7 +1030,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         pub struct {name}Skel<'dat> {{
             pub obj: libbpf_rs::Object,
-            progs: std::collections::HashMap<std::string::String, libbpf_rs::Program>,
+            progs: std::collections::HashMap<std::string::String, libbpf_rs::ProgramMut>,
             maps: std::collections::HashMap<std::string::String, libbpf_rs::Map>,
             struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'dat>,
