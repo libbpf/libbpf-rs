@@ -789,7 +789,7 @@ impl MapMut {
     }
 
     /// Attach a struct ops map
-    pub fn attach_struct_ops(&self) -> Result<Link> {
+    pub fn attach_struct_ops(&mut self) -> Result<Link> {
         if self.map_type() != MapType::StructOps {
             return Err(Error::with_invalid_data(format!(
                 "Invalid map type ({:?}) for attach_struct_ops()",
