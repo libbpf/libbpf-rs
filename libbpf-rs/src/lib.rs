@@ -114,6 +114,7 @@ pub use crate::map::MapFlags;
 pub use crate::map::MapHandle;
 pub use crate::map::MapInfo;
 pub use crate::map::MapKeyIter;
+pub use crate::map::MapMut;
 pub use crate::map::MapType;
 pub use crate::map::OpenMap;
 pub use crate::map::OpenMapMut;

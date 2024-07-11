@@ -151,9 +151,9 @@ fn test_object_name() {
 fn test_object_maps() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let _map = get_map(&obj, "start");
-    let _map = get_map(&obj, "events");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let _map = get_map(&mut obj, "start");
+    let _map = get_map(&mut obj, "events");
     assert!(!obj.maps().any(|map| map.name() == OsStr::new("asdf")));
 }
 
@@ -175,8 +175,8 @@ fn test_object_maps_iter() {
 fn test_object_map_key_value_size() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
 
     assert!(start.lookup(&[1, 2, 3, 4, 5], MapFlags::empty()).is_err());
     assert!(start.delete(&[1]).is_err());
@@ -191,8 +191,8 @@ fn test_object_map_key_value_size() {
 fn test_object_map_update_batch() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
 
     let key1 = 1u32.to_ne_bytes();
     let key2 = 2u32.to_ne_bytes();
@@ -280,8 +280,8 @@ fn test_object_map_update_batch() {
 fn test_object_map_delete_batch() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
 
     let key1 = 1u32.to_ne_bytes();
     assert!(start
@@ -365,8 +365,8 @@ pub fn test_map_info() {
 fn test_object_percpu_lookup() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("percpu_map.bpf.o");
-    let map = get_map(&obj, "percpu_map");
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = get_map(&mut obj, "percpu_map");
     let res = map
         .lookup_percpu(&(0_u32).to_ne_bytes(), MapFlags::ANY)
         .expect("failed to lookup")
@@ -384,8 +384,8 @@ fn test_object_percpu_lookup() {
 fn test_object_percpu_invalid_lookup_fn() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("percpu_map.bpf.o");
-    let map = get_map(&obj, "percpu_map");
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = get_map(&mut obj, "percpu_map");
 
     assert!(map.lookup(&(0_u32).to_ne_bytes(), MapFlags::ANY).is_err());
 }
@@ -395,8 +395,8 @@ fn test_object_percpu_invalid_lookup_fn() {
 fn test_object_percpu_update() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("percpu_map.bpf.o");
-    let map = get_map(&obj, "percpu_map");
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = get_map(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
 
     let mut vals: Vec<Vec<u8>> = Vec::new();
@@ -420,8 +420,8 @@ fn test_object_percpu_update() {
 fn test_object_percpu_invalid_update_fn() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("percpu_map.bpf.o");
-    let map = get_map(&obj, "percpu_map");
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = get_map(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
 
     let val = (1_u32).to_ne_bytes().to_vec();
@@ -434,8 +434,8 @@ fn test_object_percpu_invalid_update_fn() {
 fn test_object_percpu_lookup_update() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("percpu_map.bpf.o");
-    let map = get_map(&obj, "percpu_map");
+    let mut obj = get_test_object("percpu_map.bpf.o");
+    let map = get_map(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
 
     let mut res = map
@@ -463,8 +463,8 @@ fn test_object_percpu_lookup_update() {
 fn test_object_map_empty_lookup() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
 
     assert!(start
         .lookup(&[1, 2, 3, 4], MapFlags::empty())
@@ -478,8 +478,8 @@ fn test_object_map_empty_lookup() {
 fn test_object_map_queue_crud() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("tracepoint.bpf.o");
-    let queue = get_map(&obj, "queue");
+    let mut obj = get_test_object("tracepoint.bpf.o");
+    let queue = get_map(&mut obj, "queue");
 
     let key: [u8; 0] = [];
     let value1 = 42u32.to_ne_bytes();
@@ -526,8 +526,8 @@ fn test_object_map_queue_crud() {
 fn test_object_map_bloom_filter_crud() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("tracepoint.bpf.o");
-    let bloom_filter = get_map(&obj, "bloom_filter");
+    let mut obj = get_test_object("tracepoint.bpf.o");
+    let bloom_filter = get_map(&mut obj, "bloom_filter");
 
     let key: [u8; 0] = [];
     let value1 = 1337u32.to_ne_bytes();
@@ -577,8 +577,8 @@ fn test_object_map_bloom_filter_crud() {
 fn test_object_map_stack_crud() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("tracepoint.bpf.o");
-    let stack = get_map(&obj, "stack");
+    let mut obj = get_test_object("tracepoint.bpf.o");
+    let stack = get_map(&mut obj, "stack");
 
     let key: [u8; 0] = [];
     let value1 = 1337u32.to_ne_bytes();
@@ -624,8 +624,8 @@ fn test_object_map_stack_crud() {
 fn test_object_map_mutation() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
         .expect("failed to write");
@@ -649,8 +649,8 @@ fn test_object_map_mutation() {
 fn test_object_map_lookup_flags() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
     start
         .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::NO_EXIST)
         .expect("failed to write");
@@ -664,8 +664,8 @@ fn test_object_map_lookup_flags() {
 fn test_object_map_key_iter() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
 
     let key1 = vec![1, 2, 3, 4];
     let key2 = vec![1, 2, 3, 5];
@@ -696,8 +696,8 @@ fn test_object_map_key_iter() {
 fn test_object_map_key_iter_empty() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let start = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map(&mut obj, "start");
     let mut count = 0;
     for _ in start.keys() {
         count += 1;
@@ -710,8 +710,8 @@ fn test_object_map_key_iter_empty() {
 fn test_object_map_pin() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let mut map = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let mut map = get_map(&mut obj, "start");
     let path = "/sys/fs/bpf/mymap_test_object_map_pin";
 
     // Unpinning a unpinned map should be an error
@@ -730,8 +730,8 @@ fn test_object_map_pin() {
 fn test_object_loading_pinned_map_from_path() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let mut map = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let mut map = get_map(&mut obj, "start");
     let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
 
     map.pin(path).expect("pinning map failed");
@@ -751,8 +751,8 @@ fn test_object_loading_pinned_map_from_path() {
 fn test_object_loading_loaded_map_from_id() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let map = get_map(&obj, "start");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let map = get_map(&mut obj, "start");
     let id = map.info().expect("to get info from map 'start'").info.id;
 
     let map_by_id = MapHandle::from_map_id(id).expect("map to load from id");
@@ -852,8 +852,8 @@ fn test_object_reuse_pined_map() {
 
     // Pin a map
     {
-        let obj = get_test_object("runqslower.bpf.o");
-        let mut map = get_map(&obj, "start");
+        let mut obj = get_test_object("runqslower.bpf.o");
+        let mut map = get_map(&mut obj, "start");
         map.update(&key, &val, MapFlags::empty())
             .expect("failed to write");
 
@@ -879,8 +879,8 @@ fn test_object_reuse_pined_map() {
     assert!(start.reuse_pinned_map("/asdf").is_err());
     start.reuse_pinned_map(path).expect("failed to reuse map");
 
-    let obj = open_obj.load().expect("failed to load object");
-    let mut reused_map = get_map(&obj, "start");
+    let mut obj = open_obj.load().expect("failed to load object");
+    let mut reused_map = get_map(&mut obj, "start");
     let found_val = reused_map
         .lookup(&key, MapFlags::empty())
         .expect("failed to read map")
@@ -938,13 +938,13 @@ fn test_object_ringbuf_raw() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = get_map(&obj, "ringbuf1");
+    let map1 = get_map(&mut obj, "ringbuf1");
     builder
         .add(&map1, callback1)
         .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = get_map(&obj, "ringbuf2");
+    let map2 = get_map(&mut obj, "ringbuf2");
     builder
         .add(&map2, callback2)
         .expect("failed to add ringbuf");
@@ -1004,13 +1004,13 @@ fn test_object_ringbuf_err_callback() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = get_map(&obj, "ringbuf1");
+    let map1 = get_map(&mut obj, "ringbuf1");
     builder
         .add(&map1, callback1)
         .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = get_map(&obj, "ringbuf2");
+    let map2 = get_map(&mut obj, "ringbuf2");
     builder
         .add(&map2, callback2)
         .expect("failed to add ringbuf");
@@ -1081,13 +1081,13 @@ fn test_object_ringbuf() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = get_map(&obj, "ringbuf1");
+    let map1 = get_map(&mut obj, "ringbuf1");
     builder
         .add(&map1, callback1)
         .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = get_map(&obj, "ringbuf2");
+    let map2 = get_map(&mut obj, "ringbuf2");
     builder
         .add(&map2, callback2)
         .expect("failed to add ringbuf");
@@ -1161,13 +1161,13 @@ fn test_object_ringbuf_closure() {
     let mut builder = libbpf_rs::RingBufferBuilder::new();
 
     // Add a first map and callback
-    let map1 = get_map(&obj, "ringbuf1");
+    let map1 = get_map(&mut obj, "ringbuf1");
     builder
         .add(&map1, callback1)
         .expect("failed to add ringbuf");
 
     // Add a second map and callback
-    let map2 = get_map(&obj, "ringbuf2");
+    let map2 = get_map(&mut obj, "ringbuf2");
     builder
         .add(&map2, callback2)
         .expect("failed to add ringbuf");
@@ -1205,7 +1205,7 @@ fn test_object_ringbuf_with_closed_map() {
                 .attach_tracepoint("syscalls", "sys_enter_getpid")
                 .expect("failed to attach prog");
 
-            let map = get_map(&obj, "ringbuf");
+            let map = get_map(&mut obj, "ringbuf");
 
             let callback = |data: &[u8]| {
                 plain::copy_from_bytes(&mut value, data).expect("Wrong size");
@@ -1252,7 +1252,7 @@ fn test_object_user_ringbuf() {
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let mut prog = get_prog(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
-    let urb_map = get_map(&obj, "user_ringbuf");
+    let urb_map = get_map(&mut obj, "user_ringbuf");
     let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
     let mut urb_sample = user_ringbuf
         .reserve(size_of::<MyStruct>())
@@ -1270,7 +1270,7 @@ fn test_object_user_ringbuf() {
 
     // At this point, the BPF program should have run and consumed the sample in
     // the user ring buffer, and stored the key/value in the samples map.
-    let samples_map = get_map(&obj, "samples");
+    let samples_map = get_map(&mut obj, "samples");
     let key: u32 = 42;
     let value: u32 = 1337;
     let res = samples_map
@@ -1293,7 +1293,7 @@ fn test_object_user_ringbuf_reservation_too_big() {
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let mut prog = get_prog(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
-    let urb_map = get_map(&obj, "user_ringbuf");
+    let urb_map = get_map(&mut obj, "user_ringbuf");
     let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
     let err = user_ringbuf.reserve(1024 * 1024).unwrap_err();
     assert!(
@@ -1310,7 +1310,7 @@ fn test_object_user_ringbuf_not_enough_space() {
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let mut prog = get_prog(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
-    let urb_map = get_map(&obj, "user_ringbuf");
+    let urb_map = get_map(&mut obj, "user_ringbuf");
     let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
     let _ = user_ringbuf
         .reserve(1024 * 3)
@@ -1500,8 +1500,8 @@ fn test_object_map_create_without_name() {
 fn test_object_map_handle_clone() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("runqslower.bpf.o");
-    let map = get_map(&obj, "events");
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let map = get_map(&mut obj, "events");
     let handle1 = MapHandle::try_from(&map).expect("failed to create handle from Map");
     assert_eq!(map.name(), handle1.name());
     assert_eq!(map.map_type(), handle1.map_type());
@@ -1540,7 +1540,7 @@ fn test_object_usdt() {
         )
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         // Define a USDT probe point and exercise it as we are attaching to self.
         probe!(test_provider, test_function, 1);
@@ -1573,7 +1573,7 @@ fn test_object_usdt_cookie() {
         )
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         // Define a USDT probe point and exercise it as we are attaching to self.
         probe!(test_provider, test_function2, 1);
@@ -1665,7 +1665,7 @@ fn test_object_tracepoint() {
         .attach_tracepoint("syscalls", "sys_enter_getpid")
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         let _pid = unsafe { libc::getpid() };
     };
@@ -1693,7 +1693,7 @@ fn test_object_tracepoint_with_opts() {
         .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         let _pid = unsafe { libc::getpid() };
     };
@@ -1729,7 +1729,7 @@ fn test_object_uprobe_with_opts() {
         .attach_uprobe_with_opts(pid, path, func_offset, opts)
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         let _ = uprobe_target();
     };
@@ -1761,7 +1761,7 @@ fn test_object_uprobe_with_cookie() {
         .attach_uprobe_with_opts(pid, path, func_offset, opts)
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         let _ = uprobe_target();
     };
@@ -1836,7 +1836,7 @@ fn test_object_perf_buffer_raw() {
         .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "pb");
+    let map = get_map(&mut obj, "pb");
     let cookie_bytes = cookie_val.to_ne_bytes();
     let searcher = TwoWaySearcher::new(&cookie_bytes[..]);
 
@@ -1861,8 +1861,8 @@ fn test_object_perf_buffer_raw() {
 fn test_map_pinned_status() {
     bump_rlimit_mlock();
 
-    let obj = get_test_object("map_auto_pin.bpf.o");
-    let map = get_map(&obj, "auto_pin_map");
+    let mut obj = get_test_object("map_auto_pin.bpf.o");
+    let map = get_map(&mut obj, "auto_pin_map");
     let is_pinned = map.is_pinned();
     assert!(is_pinned);
     let expected_path = "/sys/fs/bpf/auto_pin_map";
@@ -1879,7 +1879,7 @@ fn test_map_pinned_status_with_pin_root_path() {
     bump_rlimit_mlock();
 
     let obj_path = get_test_object_path("map_auto_pin.bpf.o");
-    let obj = ObjectBuilder::default()
+    let mut obj = ObjectBuilder::default()
         .debug(true)
         .pin_root_path("/sys/fs/bpf/test_namespace")
         .expect("root_pin_path failed")
@@ -1888,7 +1888,7 @@ fn test_map_pinned_status_with_pin_root_path() {
         .load()
         .expect("failed to load object");
 
-    let map = get_map(&obj, "auto_pin_map");
+    let map = get_map(&mut obj, "auto_pin_map");
     let is_pinned = map.is_pinned();
     assert!(is_pinned);
     let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
@@ -1964,7 +1964,7 @@ fn test_attach_ksyscall() {
         .attach_ksyscall(false, "kill")
         .expect("failed to attach prog");
 
-    let map = get_map(&obj, "ringbuf");
+    let map = get_map(&mut obj, "ringbuf");
     let action = || {
         // Send `SIGCHLD`, which is ignored by default, to our process.
         let ret = unsafe { libc::kill(libc::getpid(), libc::SIGCHLD) };

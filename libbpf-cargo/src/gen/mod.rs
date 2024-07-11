@@ -305,8 +305,8 @@ fn gen_skel_map_defs(skel: &mut String, object: &Object, obj_name: &str, open: b
         } else {
             (
                 format!("{obj_name}Maps{struct_suffix}"),
-                "std::collections::HashMap<std::string::String, libbpf_rs::Map>",
-                "libbpf_rs::Map",
+                "std::collections::HashMap<std::string::String, libbpf_rs::MapMut>",
+                "libbpf_rs::MapMut",
             )
         };
 
@@ -983,7 +983,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 let maps = self.maps.into_iter().map(|(k, v)| {{
                     // SAFETY: The `bpf_map` has been validated before and has
                     //         been loaded.
-                    let v = unsafe {{ libbpf_rs::Map::new(libbpf_rs::AsRawLibbpf::as_libbpf_object(&v)) }};
+                    let v = unsafe {{ libbpf_rs::MapMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&v)) }};
                     Ok((k, v))
                 }}).collect::<libbpf_rs::Result<_, libbpf_rs::Error>>()?;
 
@@ -1031,7 +1031,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         pub struct {name}Skel<'dat> {{
             pub obj: libbpf_rs::Object,
             progs: std::collections::HashMap<std::string::String, libbpf_rs::ProgramMut>,
-            maps: std::collections::HashMap<std::string::String, libbpf_rs::Map>,
+            maps: std::collections::HashMap<std::string::String, libbpf_rs::MapMut>,
             struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'dat>,
         "#,

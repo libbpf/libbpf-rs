@@ -6,8 +6,8 @@ Unreleased
 - Decoupled `Map` and `MapHandle` more and introduced `MapCore` trait
   abstracting over common functionality
 - Adjusted `{Open,}Object::from_ptr` constructor to be infallible
-- Added `Object::maps` and `Object::progs{_mut}` for BPF map and program
-  iteration
+- Added `{Open,}Object::maps{_mut,}` and `{Open,}Object::progs{_mut,}`
+  for BPF map and program iteration
 - Adjusted various APIs to return/use `OsStr` instead of `CStr` or `str`
 - Adjusted `{Open,}Program` to lazily retrieve name and section
   - Changed `name` and `section` methods to return `&OsStr` and made
