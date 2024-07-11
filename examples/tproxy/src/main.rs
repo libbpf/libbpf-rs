@@ -76,9 +76,8 @@ fn main() -> Result<()> {
     // Load into kernel
     let mut object = MaybeUninit::uninit();
     let skel = open_skel.load(&mut object)?;
-    let progs = skel.progs();
     // Set up and attach ingress TC hook
-    let mut ingress = TcHookBuilder::new(progs.tproxy().as_fd())
+    let mut ingress = TcHookBuilder::new(skel.progs.tproxy.as_fd())
         .ifindex(opts.ifindex)
         .replace(true)
         .handle(1)

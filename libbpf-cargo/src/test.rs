@@ -542,14 +542,13 @@ fn test_skeleton_basic() {
         fn main() {{
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
-            let mut open_skel = builder
+            let open_skel = builder
                 .open(&mut open_object)
                 .expect("failed to open skel");
 
             // Check that we can grab handles to open maps/progs
             let _open_map = &open_skel.maps.mymap;
-            let _open_prog = open_skel.progs().this_is_my_prog();
-            let _open_prog_mut = open_skel.progs_mut().this_is_my_prog();
+            let _open_prog = &open_skel.progs.this_is_my_prog;
 
             let mut object = MaybeUninit::uninit();
             let mut skel = open_skel
@@ -558,8 +557,7 @@ fn test_skeleton_basic() {
 
             // Check that we can grab handles to loaded maps/progs
             let _map = &skel.maps.mymap;
-            let _prog = skel.progs().this_is_my_prog();
-            let _prog_mut = skel.progs_mut().this_is_my_prog();
+            let _prog = &skel.progs.this_is_my_prog;
 
             // Check that attach() is generated
             skel.attach().expect("failed to attach progs");
@@ -853,16 +851,14 @@ fn test_skeleton_builder_basic() {
         fn main() {{
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
-            let mut open_skel = builder
+            let open_skel = builder
                 .open(&mut open_object)
                 .expect("failed to open skel");
 
             // Check that we can grab handles to open maps/progs
             let _open_map = &open_skel.maps.mymap;
             let _open_map2 = &open_skel.maps.mymap2;
-            let _open_prog = open_skel.progs().this_is_my_prog();
-            let _open_prog_mut = open_skel.progs_mut().this_is_my_prog();
-
+            let _open_prog = &open_skel.progs.this_is_my_prog;
 
             let mut object = MaybeUninit::uninit();
             let mut skel = open_skel
@@ -872,8 +868,7 @@ fn test_skeleton_builder_basic() {
             // Check that we can grab handles to loaded maps/progs
             let _map = &skel.maps.mymap;
             let _map2 = &skel.maps.mymap2;
-            let _prog = skel.progs().this_is_my_prog();
-            let _prog_mut = skel.progs_mut().this_is_my_prog();
+            let _prog = &skel.progs.this_is_my_prog;
 
             // Check that attach() is generated
             skel.attach().expect("failed to attach progs");

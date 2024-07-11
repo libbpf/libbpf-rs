@@ -117,15 +117,13 @@ fn main() -> Result<()> {
         .into_raw_fd();
 
     let _kprobe = skel
-        .progs_mut()
-        .sockops_write_tcp_options()
+        .progs
+        .sockops_write_tcp_options
         .attach_cgroup(cgroup_fd)
         .unwrap();
 
     let target_socket_fd = open_fd()?;
-    let progs = skel.progs();
-    let socket_handler = progs.socket_handler();
-    let prog_fd = socket_handler.as_fd();
+    let prog_fd = skel.progs.socket_handler.as_fd();
     match unsafe {
         libc::setsockopt(
             target_socket_fd as c_int,
