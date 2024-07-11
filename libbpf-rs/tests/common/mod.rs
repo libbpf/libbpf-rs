@@ -1,8 +1,8 @@
 use std::io;
 use std::path::PathBuf;
 
-use libbpf_rs::Map;
 use libbpf_rs::MapCore;
+use libbpf_rs::MapMut;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::OpenObject;
@@ -51,9 +51,9 @@ pub fn get_test_object(filename: &str) -> Object {
 
 /// Find the BPF map with the given name, panic if it does not exist.
 #[track_caller]
-pub fn get_map(object: &Object, name: &str) -> Map {
+pub fn get_map(object: &mut Object, name: &str) -> MapMut {
     object
-        .maps()
+        .maps_mut()
         .find(|map| map.name() == name)
         .unwrap_or_else(|| panic!("failed to find map `{name}`"))
 }

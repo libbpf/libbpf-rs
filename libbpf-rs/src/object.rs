@@ -14,6 +14,7 @@ use crate::set_print;
 use crate::util;
 use crate::Btf;
 use crate::Map;
+use crate::MapMut;
 use crate::OpenMap;
 use crate::OpenMapMut;
 use crate::OpenProgram;
@@ -356,6 +357,13 @@ impl Object {
         MapIter::new(unsafe { self.ptr.as_ref() })
             .filter(|ptr| map_fd(*ptr).is_some())
             .map(|ptr| unsafe { Map::new(ptr) })
+    }
+
+    /// Retrieve an iterator over all BPF maps in the object.
+    pub fn maps_mut(&mut self) -> impl Iterator<Item = MapMut> {
+        MapIter::new(unsafe { self.ptr.as_ref() })
+            .filter(|ptr| map_fd(*ptr).is_some())
+            .map(|ptr| unsafe { MapMut::new_mut(ptr) })
     }
 
     /// Retrieve an iterator over all BPF programs in the object.

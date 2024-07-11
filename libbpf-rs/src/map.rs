@@ -353,7 +353,7 @@ mod private {
 
     pub trait Sealed {}
 
-    impl Sealed for Map {}
+    impl<T> Sealed for MapImpl<T> {}
     impl Sealed for MapHandle {}
 }
 
@@ -684,13 +684,19 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     }
 }
 
+/// An immutable loaded BPF map.
+pub type Map = MapImpl;
+/// A mutable loaded BPF map.
+pub type MapMut = MapImpl<Mut>;
+
 /// Represents a libbpf-created map.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
-pub struct Map {
+pub struct MapImpl<T = ()> {
     ptr: NonNull<libbpf_sys::bpf_map>,
+    _phantom: PhantomData<T>,
 }
 
 impl Map {
@@ -705,7 +711,10 @@ impl Map {
             "provided BPF map does not have file descriptor"
         );
 
-        Self { ptr }
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
     }
 
     /// Create a [`Map`] from a [`libbpf_sys::bpf_map`] that does not contain a
@@ -719,7 +728,10 @@ impl Map {
     /// The pointer must point to a loaded map.
     #[doc(hidden)]
     pub unsafe fn from_map_without_fd(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
-        Self { ptr }
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
     }
 
     /// Returns whether map is pinned or not flag
@@ -736,6 +748,25 @@ impl Map {
         }
         let path_c_str = unsafe { CStr::from_ptr(path_ptr) };
         Some(OsStr::from_bytes(path_c_str.to_bytes()))
+    }
+}
+
+impl MapMut {
+    /// Create a [`MapMut`] from a [`libbpf_sys::bpf_map`].
+    ///
+    /// # Safety
+    ///
+    /// The pointer must point to a loaded map.
+    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+        assert!(
+            map_fd(ptr).is_some(),
+            "provided BPF map does not have file descriptor"
+        );
+
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -776,7 +807,15 @@ impl Map {
     }
 }
 
-impl AsFd for Map {
+impl Deref for MapMut {
+    type Target = Map;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { transmute::<&MapMut, &Map>(self) }
+    }
+}
+
+impl<T> AsFd for MapImpl<T> {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
         // SANITY: Our map must always have a file descriptor associated with
@@ -789,7 +828,10 @@ impl AsFd for Map {
     }
 }
 
-impl MapCore for Map {
+impl<T> MapCore for MapImpl<T>
+where
+    T: Debug,
+{
     fn name(&self) -> &OsStr {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
@@ -1005,10 +1047,13 @@ impl AsFd for MapHandle {
     }
 }
 
-impl TryFrom<&Map> for MapHandle {
+impl<T> TryFrom<&MapImpl<T>> for MapHandle
+where
+    T: Debug,
+{
     type Error = Error;
 
-    fn try_from(other: &Map) -> Result<Self> {
+    fn try_from(other: &MapImpl<T>) -> Result<Self> {
         Ok(Self {
             fd: other
                 .as_fd()
