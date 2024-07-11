@@ -200,7 +200,7 @@ impl OpenMapMut {
     }
 
     /// Reuse an fd for a BPF map
-    pub fn reuse_fd(&self, fd: BorrowedFd<'_>) -> Result<()> {
+    pub fn reuse_fd(&mut self, fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr.as_ptr(), fd.as_raw_fd()) };
         util::parse_ret(ret)
     }
