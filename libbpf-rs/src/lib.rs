@@ -130,6 +130,7 @@ pub use crate::print::PrintCallback;
 pub use crate::print::PrintLevel;
 pub use crate::program::Input as ProgramInput;
 pub use crate::program::OpenProgram;
+pub use crate::program::OpenProgramMut;
 pub use crate::program::Output as ProgramOutput;
 pub use crate::program::Program;
 pub use crate::program::ProgramAttachType;
@@ -154,6 +155,14 @@ pub use crate::user_ringbuf::UserRingBufferSample;
 pub use crate::util::num_possible_cpus;
 pub use crate::xdp::Xdp;
 pub use crate::xdp::XdpFlags;
+
+
+/// An unconstructible dummy type used for tagging mutable type
+/// variants.
+#[doc(hidden)]
+#[derive(Copy, Clone, Debug)]
+pub enum Mut {}
+
 
 /// Used for skeleton -- an end user may not consider this API stable
 #[doc(hidden)]

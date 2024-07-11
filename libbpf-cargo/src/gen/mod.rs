@@ -372,8 +372,8 @@ fn gen_skel_prog_defs(
     let (struct_name, inner_ty, return_ty) = if open {
         (
             format!("Open{obj_name}Progs{struct_suffix}"),
-            "std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>",
-            "libbpf_rs::OpenProgram",
+            "std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>",
+            "libbpf_rs::OpenProgramMut",
         )
     } else {
         (
@@ -859,10 +859,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             }}
 
             fn retrieve_progs(
-                obj: &libbpf_rs::OpenObject,
-            ) -> libbpf_rs::Result<std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>> {{
+                obj: &mut libbpf_rs::OpenObject,
+            ) -> libbpf_rs::Result<std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>> {{
                 let mut progs = std::collections::HashMap::new();
-                for prog in obj.progs() {{
+                for prog in obj.progs_mut() {{
                     progs.insert(
                         prog.name()
                             .to_str()
@@ -901,9 +901,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 // SANITY: `bpf_object__open_skeleton` should have
                 //         allocated the object.
                 let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
-                let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(obj_ptr) }};
+                let mut obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(obj_ptr) }};
                 let maps = Self::retrieve_maps(&obj)?;
-                let progs = Self::retrieve_progs(&obj)?;
+                let progs = Self::retrieve_progs(&mut obj)?;
 
                 #[allow(unused_mut)]
                 let mut skel = Open{name}Skel {{
@@ -956,7 +956,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         r#"
         pub struct Open{name}Skel<'dat> {{
             pub obj: libbpf_rs::OpenObject,
-            progs: std::collections::HashMap<std::string::String, libbpf_rs::OpenProgram>,
+            progs: std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>,
             maps: std::collections::HashMap<std::string::String, libbpf_rs::OpenMap>,
             pub struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'dat>,

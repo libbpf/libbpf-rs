@@ -1,9 +1,16 @@
+// `rustdoc` is buggy, claiming that we have some links to private items
+// when they are actually public.
+#![allow(rustdoc::private_intra_doc_links)]
+
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::OsStr;
+use std::marker::PhantomData;
 use std::mem;
 use std::mem::size_of;
 use std::mem::size_of_val;
+use std::mem::transmute;
+use std::ops::Deref;
 use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
@@ -21,6 +28,7 @@ use crate::util;
 use crate::AsRawLibbpf;
 use crate::Error;
 use crate::Link;
+use crate::Mut;
 use crate::Result;
 
 /// Options to optionally be provided when attaching to a uprobe.
@@ -96,12 +104,20 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
     }
 }
 
+
+/// An immutable parsed but not yet loaded BPF program.
+pub type OpenProgram = OpenProgramImpl;
+/// A mutable parsed but not yet loaded BPF program.
+pub type OpenProgramMut = OpenProgramImpl<Mut>;
+
 /// Represents a parsed but not yet loaded BPF program.
 ///
 /// This object exposes operations that need to happen before the program is loaded.
 #[derive(Debug)]
-pub struct OpenProgram {
+#[repr(transparent)]
+pub struct OpenProgramImpl<T = ()> {
     ptr: NonNull<libbpf_sys::bpf_program>,
+    _phantom: PhantomData<T>,
 }
 
 // TODO: Document variants.
@@ -112,18 +128,77 @@ impl OpenProgram {
     /// # Safety
     /// The `bpf_program` pointer must be valid.
     pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
-        Self { ptr }
-    }
-
-    pub fn set_prog_type(&mut self, prog_type: ProgramType) {
-        unsafe {
-            libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32);
+        Self {
+            ptr,
+            _phantom: PhantomData,
         }
     }
 
     // The `ProgramType` of this `OpenProgram`.
     pub fn prog_type(&self) -> ProgramType {
         ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
+    }
+
+    /// Retrieve the name of this `OpenProgram`.
+    pub fn name(&self) -> &OsStr {
+        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
+        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
+        // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
+        OsStr::from_bytes(name_c_str.to_bytes())
+    }
+
+    /// Retrieve the name of the section this `OpenProgram` belongs to.
+    pub fn section(&self) -> &OsStr {
+        // SAFETY: The program is always valid.
+        let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
+        // SAFETY: `bpf_program__section_name` will always return a non-NULL
+        //         pointer.
+        let section_c_str = unsafe { CStr::from_ptr(p) };
+        let section = OsStr::from_bytes(section_c_str.to_bytes());
+        section
+    }
+
+    /// Returns the number of instructions that form the program.
+    ///
+    /// Note: Keep in mind, libbpf can modify the program's instructions
+    /// and consequently its instruction count, as it processes the BPF object file.
+    /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
+    pub fn insn_cnt(&self) -> usize {
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
+    }
+
+    /// Gives read-only access to BPF program's underlying BPF instructions.
+    ///
+    /// Keep in mind, libbpf can modify and append/delete BPF program's
+    /// instructions as it processes BPF object file and prepares everything for
+    /// uploading into the kernel. So [`OpenProgram::insns`] and [`Program::insns`] may return
+    /// different sets of instructions. As an example, during BPF object load phase BPF program
+    /// instructions will be CO-RE-relocated, BPF subprograms instructions will be appended, ldimm64
+    /// instructions will have FDs embedded, etc. So instructions returned before load and after it
+    /// might be quite different.
+    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
+        let count = self.insn_cnt();
+        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
+        unsafe { slice::from_raw_parts(ptr, count) }
+    }
+}
+
+impl OpenProgramMut {
+    /// Create a new [`OpenProgram`] from a ptr to a `libbpf_sys::bpf_program`.
+    ///
+    /// # Safety
+    /// The `bpf_program` pointer must be valid.
+    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn set_prog_type(&mut self, prog_type: ProgramType) {
+        unsafe {
+            libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32);
+        }
     }
 
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
@@ -152,25 +227,6 @@ impl OpenProgram {
     pub fn set_log_level(&mut self, log_level: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_program__set_log_level(self.ptr.as_ptr(), log_level) };
         util::parse_ret(ret)
-    }
-
-    /// Retrieve the name of this `OpenProgram`.
-    pub fn name(&self) -> &OsStr {
-        let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
-        let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
-        // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
-        OsStr::from_bytes(name_c_str.to_bytes())
-    }
-
-    /// Retrieve the name of the section this `OpenProgram` belongs to.
-    pub fn section(&self) -> &OsStr {
-        // SAFETY: The program is always valid.
-        let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
-        // SAFETY: `bpf_program__section_name` will always return a non-NULL
-        //         pointer.
-        let section_c_str = unsafe { CStr::from_ptr(p) };
-        let section = OsStr::from_bytes(section_c_str.to_bytes());
-        section
     }
 
     /// Set whether a bpf program should be automatically loaded by default
@@ -211,33 +267,19 @@ impl OpenProgram {
         let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
         util::parse_ret(ret)
     }
+}
 
-    /// Returns the number of instructions that form the program.
-    ///
-    /// Note: Keep in mind, libbpf can modify the program's instructions
-    /// and consequently its instruction count, as it processes the BPF object file.
-    /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
-    pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
-    }
+impl Deref for OpenProgramMut {
+    type Target = OpenProgram;
 
-    /// Gives read-only access to BPF program's underlying BPF instructions.
-    ///
-    /// Keep in mind, libbpf can modify and append/delete BPF program's
-    /// instructions as it processes BPF object file and prepares everything for
-    /// uploading into the kernel. So [`OpenProgram::insns`] and [`Program::insns`] may return
-    /// different sets of instructions. As an example, during BPF object load phase BPF program
-    /// instructions will be CO-RE-relocated, BPF subprograms instructions will be appended, ldimm64
-    /// instructions will have FDs embedded, etc. So instructions returned before load and after it
-    /// might be quite different.
-    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
-        let count = self.insn_cnt();
-        let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
-        unsafe { slice::from_raw_parts(ptr, count) }
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: `OpenProgramImpl` is `repr(transparent)` and so
+        //         in-memory representation of both types is the same.
+        unsafe { transmute::<&OpenProgramMut, &OpenProgram>(self) }
     }
 }
 
-impl AsRawLibbpf for OpenProgram {
+impl<T> AsRawLibbpf for OpenProgramImpl<T> {
     type LibbpfType = libbpf_sys::bpf_program;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].

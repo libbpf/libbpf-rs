@@ -1,10 +1,13 @@
 Unreleased
 ----------
+- Split `OpenProgram` into `OpenProgram` (for shared access) and
+  `OpenProgramMut` (for exclusive access)
 - Added `AsRawLibbpf` impl for `OpenObject` and `ObjectBuilder`
 - Decoupled `Map` and `MapHandle` more and introduced `MapCore` trait
   abstracting over common functionality
 - Adjusted `{Open,}Object::from_ptr` constructor to be infallible
-- Added `Object::maps` and `Object::progs` for BPF map and program iteration
+- Added `Object::maps` and `Object::progs{_mut}` for BPF map and program
+  iteration
 - Adjusted various APIs to return/use `OsStr` instead of `CStr` or `str`
 - Adjusted `{Open,}Program` to lazily retrieve name and section
   - Changed `name` and `section` methods to return `&OsStr` and made
