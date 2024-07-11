@@ -1,7 +1,7 @@
 Unreleased
 ----------
-- Split `{Open}Program` into `{Open}Program` (for shared access) and
-  `{Open}ProgramMut` (for exclusive access)
+- Split `{Open,}{Map,Program}` into `{Open,}{Map,Program}` (for shared
+  access) and `{Open,}{Map,Program}Mut` (for exclusive access)
 - Added `AsRawLibbpf` impl for `OpenObject` and `ObjectBuilder`
 - Decoupled `Map` and `MapHandle` more and introduced `MapCore` trait
   abstracting over common functionality

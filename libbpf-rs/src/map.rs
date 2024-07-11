@@ -6,7 +6,10 @@ use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::remove_file;
 use std::io;
+use std::marker::PhantomData;
 use std::mem;
+use std::mem::transmute;
+use std::ops::Deref;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsFd;
 use std::os::unix::io::AsRawFd;
@@ -30,7 +33,14 @@ use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
 use crate::Link;
+use crate::Mut;
 use crate::Result;
+
+/// An immutable parsed but not yet loaded BPF map.
+pub type OpenMap = OpenMapImpl;
+/// A mutable parsed but not yet loaded BPF map.
+pub type OpenMapMut = OpenMapImpl<Mut>;
+
 
 /// Represents a parsed but not yet loaded BPF map.
 ///
@@ -39,8 +49,10 @@ use crate::Result;
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
-pub struct OpenMap {
+#[repr(transparent)]
+pub struct OpenMapImpl<T = ()> {
     ptr: NonNull<libbpf_sys::bpf_map>,
+    _phantom: PhantomData<T>,
 }
 
 // TODO: Document members.
@@ -51,7 +63,10 @@ impl OpenMap {
     /// # Safety
     /// The pointer must point to an opened but not loaded map.
     pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
-        Self { ptr }
+        Self {
+            ptr,
+            _phantom: PhantomData,
+        }
     }
 
     /// Retrieve the [`OpenMap`]'s name.
@@ -86,6 +101,19 @@ impl OpenMap {
         } else {
             let data = unsafe { slice::from_raw_parts(ptr.cast::<u8>(), size) };
             Some(data)
+        }
+    }
+}
+
+impl OpenMapMut {
+    /// Create a new [`OpenMapMut`] from a ptr to a `libbpf_sys::bpf_map`.
+    ///
+    /// # Safety
+    /// The pointer must point to an opened but not loaded map.
+    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+        Self {
+            ptr,
+            _phantom: PhantomData,
         }
     }
 
@@ -194,7 +222,17 @@ impl OpenMap {
     }
 }
 
-impl AsRawLibbpf for OpenMap {
+impl Deref for OpenMapMut {
+    type Target = OpenMap;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: `OpenMapImpl` is `repr(transparent)` and so in-memory
+        //         representation of both types is the same.
+        unsafe { transmute::<&OpenMapMut, &OpenMap>(self) }
+    }
+}
+
+impl<T> AsRawLibbpf for OpenMapImpl<T> {
     type LibbpfType = libbpf_sys::bpf_map;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_map`].
