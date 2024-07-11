@@ -871,9 +871,9 @@ fn test_object_reuse_pined_map() {
     let obj_path = get_test_object_path("runqslower.bpf.o");
     let mut builder = ObjectBuilder::default();
     builder.debug(true);
-    let open_obj = builder.open_file(obj_path).expect("failed to open object");
+    let mut open_obj = builder.open_file(obj_path).expect("failed to open object");
     let mut start = open_obj
-        .maps()
+        .maps_mut()
         .find(|map| map.name() == OsStr::new("start"))
         .expect("failed to find `start` map");
     assert!(start.reuse_pinned_map("/asdf").is_err());
@@ -1918,9 +1918,9 @@ fn test_program_get_fd_and_id() {
 fn test_map_autocreate_disable() {
     bump_rlimit_mlock();
 
-    let open_obj = open_test_object("map_auto_pin.bpf.o");
+    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
     let mut auto_pin_map = open_obj
-        .maps()
+        .maps_mut()
         .find(|map| map.name() == OsStr::new("auto_pin_map"))
         .expect("failed to find `auto_pin_map` map");
     auto_pin_map
@@ -1936,9 +1936,9 @@ fn test_map_autocreate_disable() {
 fn test_map_resize() {
     bump_rlimit_mlock();
 
-    let open_obj = open_test_object("map_auto_pin.bpf.o");
+    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
     let mut resizable = open_obj
-        .maps()
+        .maps_mut()
         .find(|map| map.name() == OsStr::new(".data.resizable_data"))
         .expect("failed to find `.data.resizable_data` map");
 

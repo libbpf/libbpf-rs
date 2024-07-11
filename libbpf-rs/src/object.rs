@@ -15,6 +15,7 @@ use crate::util;
 use crate::Btf;
 use crate::Map;
 use crate::OpenMap;
+use crate::OpenMapMut;
 use crate::OpenProgram;
 use crate::OpenProgramMut;
 use crate::PrintLevel;
@@ -257,6 +258,11 @@ impl OpenObject {
     /// Retrieve an iterator over all BPF maps in the object.
     pub fn maps(&self) -> impl Iterator<Item = OpenMap> {
         MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMap::new(ptr) })
+    }
+
+    /// Retrieve an iterator over all BPF maps in the object.
+    pub fn maps_mut(&mut self) -> impl Iterator<Item = OpenMapMut> {
+        MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMapMut::new_mut(ptr) })
     }
 
     /// Retrieve an iterator over all BPF programs in the object.

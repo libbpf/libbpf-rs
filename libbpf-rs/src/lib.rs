@@ -116,6 +116,7 @@ pub use crate::map::MapInfo;
 pub use crate::map::MapKeyIter;
 pub use crate::map::MapType;
 pub use crate::map::OpenMap;
+pub use crate::map::OpenMapMut;
 pub use crate::object::AsRawLibbpf;
 pub use crate::object::MapIter;
 pub use crate::object::Object;

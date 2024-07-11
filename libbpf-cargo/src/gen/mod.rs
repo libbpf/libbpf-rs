@@ -299,8 +299,8 @@ fn gen_skel_map_defs(skel: &mut String, object: &Object, obj_name: &str, open: b
         let (struct_name, inner_ty, return_ty) = if open {
             (
                 format!("Open{obj_name}Maps{struct_suffix}"),
-                "std::collections::HashMap<std::string::String, libbpf_rs::OpenMap>",
-                "libbpf_rs::OpenMap",
+                "std::collections::HashMap<std::string::String, libbpf_rs::OpenMapMut>",
+                "libbpf_rs::OpenMapMut",
             )
         } else {
             (
@@ -838,10 +838,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
         impl {name}SkelBuilder {{
             fn retrieve_maps(
-                obj: &libbpf_rs::OpenObject,
-            ) -> libbpf_rs::Result<std::collections::HashMap<std::string::String, libbpf_rs::OpenMap>> {{
+                obj: &mut libbpf_rs::OpenObject,
+            ) -> libbpf_rs::Result<std::collections::HashMap<std::string::String, libbpf_rs::OpenMapMut>> {{
                 let mut maps = std::collections::HashMap::new();
-                for map in obj.maps() {{
+                for map in obj.maps_mut() {{
                     maps.insert(
                         map.name()
                             .to_str()
@@ -902,7 +902,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 //         allocated the object.
                 let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
                 let mut obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(obj_ptr) }};
-                let maps = Self::retrieve_maps(&obj)?;
+                let maps = Self::retrieve_maps(&mut obj)?;
                 let progs = Self::retrieve_progs(&mut obj)?;
 
                 #[allow(unused_mut)]
@@ -957,7 +957,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         pub struct Open{name}Skel<'dat> {{
             pub obj: libbpf_rs::OpenObject,
             progs: std::collections::HashMap<std::string::String, libbpf_rs::OpenProgramMut>,
-            maps: std::collections::HashMap<std::string::String, libbpf_rs::OpenMap>,
+            maps: std::collections::HashMap<std::string::String, libbpf_rs::OpenMapMut>,
             pub struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'dat>,
         }}
