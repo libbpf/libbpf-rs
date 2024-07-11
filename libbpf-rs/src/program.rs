@@ -263,7 +263,7 @@ impl OpenProgramMut {
         util::parse_ret(ret)
     }
 
-    pub fn set_flags(&self, flags: u32) -> Result<()> {
+    pub fn set_flags(&mut self, flags: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
         util::parse_ret(ret)
     }
