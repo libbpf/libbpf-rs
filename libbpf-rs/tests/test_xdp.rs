@@ -11,7 +11,7 @@ use libbpf_rs::Xdp;
 use libbpf_rs::XdpFlags;
 
 use crate::common::bump_rlimit_mlock;
-use crate::common::get_prog;
+use crate::common::get_prog_mut;
 use crate::common::get_test_object;
 
 
@@ -24,11 +24,11 @@ fn test_xdp() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("xdp.bpf.o");
-    let prog = get_prog(&mut obj, "xdp_filter");
+    let prog = get_prog_mut(&mut obj, "xdp_filter");
     let fd = prog.as_fd();
 
     let mut obj1 = get_test_object("xdp.bpf.o");
-    let prog1 = get_prog(&mut obj1, "xdp_filter");
+    let prog1 = get_prog_mut(&mut obj1, "xdp_filter");
     let fd1 = prog1.as_fd();
 
     let xdp_prog = Xdp::new(fd);

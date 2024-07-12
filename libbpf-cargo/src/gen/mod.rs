@@ -36,8 +36,8 @@ use libbpf_rs::MapCore as _;
 use libbpf_rs::MapIter;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
-
 use libbpf_rs::Program;
+
 use memmap2::Mmap;
 
 use crate::metadata;
@@ -293,7 +293,7 @@ fn get_map_name(map: &Map<'_>) -> Result<Option<String>> {
     }
 }
 
-fn get_prog_name(prog: &Program) -> Result<String> {
+fn get_prog_name(prog: &Program<'_>) -> Result<String> {
     let name = prog
         .name()
         .to_str()
@@ -598,7 +598,7 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
     write!(
         skel,
         r#"
-                pub struct Open{obj_name}Progs {{
+                pub struct Open{obj_name}Progs<'obj> {{
         "#,
     )?;
 
@@ -606,7 +606,7 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
         write!(
             skel,
             r#"
-                    pub {name}: libbpf_rs::OpenProgram,
+                    pub {name}: libbpf_rs::OpenProgram<'obj>,
             "#,
         )?;
     }
@@ -614,11 +614,12 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
     write!(
         skel,
         r#"
+                    _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
-                impl<'obj> Open{obj_name}Progs {{
-                    fn new(
-                        object: &'obj libbpf_rs::OpenObject,
+                impl<'obj> Open{obj_name}Progs<'obj> {{
+                    unsafe fn new(
+                        object: &libbpf_rs::OpenObject,
                     ) -> libbpf_rs::Result<Self> {{
         "#,
     )?;
@@ -630,6 +631,9 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
     write!(
         skel,
         r#"
+                        let object = unsafe {{
+                            std::mem::transmute::<&libbpf_rs::OpenObject, &'obj libbpf_rs::OpenObject>(object)
+                        }};
                         for prog in object.progs() {{
                             let name = prog
                                 .name()
@@ -675,6 +679,7 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
     write!(
         skel,
         r#"
+                            _phantom: std::marker::PhantomData,
                         }};
                         Ok(slf)
                     }}
@@ -689,7 +694,7 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
     write!(
         skel,
         r#"
-                pub struct {obj_name}Progs {{
+                pub struct {obj_name}Progs<'obj> {{
         "#,
     )?;
 
@@ -697,7 +702,7 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
         write!(
             skel,
             r#"
-                    pub {name}: libbpf_rs::ProgramMut,
+                    pub {name}: libbpf_rs::ProgramMut<'obj>,
             "#,
         )?;
     }
@@ -705,11 +710,12 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
     write!(
         skel,
         r#"
+                    _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
-                impl<'obj> {obj_name}Progs {{
+                impl<'obj> {obj_name}Progs<'obj> {{
                     #[allow(unused_variables)]
-                    fn new(open_progs: Open{obj_name}Progs) -> Self {{
+                    fn new(open_progs: Open{obj_name}Progs<'obj>) -> Self {{
                         Self {{
         "#,
     )?;
@@ -719,7 +725,7 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
             skel,
             r#"
                             {name}: unsafe {{
-                                libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_progs.{name}))
+                                libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_progs.{name}).as_mut())
                             }},
             "#,
         )?;
@@ -728,6 +734,7 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
     write!(
         skel,
         r#"
+                            _phantom: std::marker::PhantomData,
                         }}
                     }}
                 }}
@@ -1067,7 +1074,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 #[allow(unused_mut)]
                 let mut skel = Open{name}Skel {{
                     maps: unsafe {{ Open{name}Maps::new(&skel_config, obj_ref)? }},
-                    progs: Open{name}Progs::new(obj_ref)?,
+                    progs: unsafe {{ Open{name}Progs::new(obj_ref)? }},
                     obj: obj_ref,
                     // SAFETY: Our `struct_ops` type contains only pointers,
                     //         which are allowed to be NULL.
@@ -1113,7 +1120,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         pub struct Open{name}Skel<'obj> {{
             pub obj: &'obj mut libbpf_rs::OpenObject,
             pub maps: Open{name}Maps<'obj>,
-            pub progs: Open{name}Progs,
+            pub progs: Open{name}Progs<'obj>,
             pub struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         }}
@@ -1173,7 +1180,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         pub struct {name}Skel<'obj> {{
             pub obj: &'obj mut libbpf_rs::Object,
             pub maps: {name}Maps<'obj>,
-            pub progs: {name}Progs,
+            pub progs: {name}Progs<'obj>,
             struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         "#,
