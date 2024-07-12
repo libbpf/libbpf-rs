@@ -106,30 +106,29 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
 
 
 /// An immutable parsed but not yet loaded BPF program.
-pub type OpenProgram = OpenProgramImpl;
+pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF program.
-pub type OpenProgramMut = OpenProgramImpl<Mut>;
+pub type OpenProgramMut<'obj> = OpenProgramImpl<'obj, Mut>;
 
 /// Represents a parsed but not yet loaded BPF program.
 ///
 /// This object exposes operations that need to happen before the program is loaded.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct OpenProgramImpl<T = ()> {
+pub struct OpenProgramImpl<'obj, T = ()> {
     ptr: NonNull<libbpf_sys::bpf_program>,
-    _phantom: PhantomData<T>,
+    _phantom: PhantomData<&'obj T>,
 }
 
 // TODO: Document variants.
 #[allow(missing_docs)]
-impl OpenProgram {
+impl<'obj> OpenProgram<'obj> {
     /// Create a new [`OpenProgram`] from a ptr to a `libbpf_sys::bpf_program`.
-    ///
-    /// # Safety
-    /// The `bpf_program` pointer must be valid.
-    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+    pub fn new(prog: &'obj libbpf_sys::bpf_program) -> Self {
+        // SAFETY: We inferred the address from a reference, which is always
+        //         valid.
         Self {
-            ptr,
+            ptr: unsafe { NonNull::new_unchecked(prog as *const _ as *mut _) },
             _phantom: PhantomData,
         }
     }
@@ -183,14 +182,11 @@ impl OpenProgram {
     }
 }
 
-impl OpenProgramMut {
+impl<'obj> OpenProgramMut<'obj> {
     /// Create a new [`OpenProgram`] from a ptr to a `libbpf_sys::bpf_program`.
-    ///
-    /// # Safety
-    /// The `bpf_program` pointer must be valid.
-    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+    pub fn new_mut(prog: &'obj mut libbpf_sys::bpf_program) -> Self {
         Self {
-            ptr,
+            ptr: unsafe { NonNull::new_unchecked(prog as *mut _) },
             _phantom: PhantomData,
         }
     }
@@ -269,17 +265,17 @@ impl OpenProgramMut {
     }
 }
 
-impl Deref for OpenProgramMut {
-    type Target = OpenProgram;
+impl<'obj> Deref for OpenProgramMut<'obj> {
+    type Target = OpenProgram<'obj>;
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: `OpenProgramImpl` is `repr(transparent)` and so
         //         in-memory representation of both types is the same.
-        unsafe { transmute::<&OpenProgramMut, &OpenProgram>(self) }
+        unsafe { transmute::<&OpenProgramMut<'obj>, &OpenProgram<'obj>>(self) }
     }
 }
 
-impl<T> AsRawLibbpf for OpenProgramImpl<T> {
+impl<T> AsRawLibbpf for OpenProgramImpl<'_, T> {
     type LibbpfType = libbpf_sys::bpf_program;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].
@@ -549,9 +545,9 @@ pub struct Output<'dat> {
 }
 
 /// An immutable loaded BPF program.
-pub type Program = ProgramImpl;
+pub type Program<'obj> = ProgramImpl<'obj>;
 /// A mutable loaded BPF program.
-pub type ProgramMut = ProgramImpl<Mut>;
+pub type ProgramMut<'obj> = ProgramImpl<'obj, Mut>;
 
 
 /// Represents a loaded [`Program`].
@@ -563,19 +559,18 @@ pub type ProgramMut = ProgramImpl<Mut>;
 /// method will fail with the appropriate error.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct ProgramImpl<T = ()> {
+pub struct ProgramImpl<'obj, T = ()> {
     pub(crate) ptr: NonNull<libbpf_sys::bpf_program>,
-    _phantom: PhantomData<T>,
+    _phantom: PhantomData<&'obj T>,
 }
 
-impl Program {
+impl<'obj> Program<'obj> {
     /// Create a [`Program`] from a [`libbpf_sys::bpf_program`]
-    ///
-    /// # Safety
-    /// The pointer must point to a loaded program.
-    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+    pub fn new(prog: &'obj libbpf_sys::bpf_program) -> Self {
+        // SAFETY: We inferred the address from a reference, which is always
+        //         valid.
         Self {
-            ptr,
+            ptr: unsafe { NonNull::new_unchecked(prog as *const _ as *mut _) },
             _phantom: PhantomData,
         }
     }
@@ -669,14 +664,11 @@ impl Program {
     }
 }
 
-impl ProgramMut {
+impl<'obj> ProgramMut<'obj> {
     /// Create a [`Program`] from a [`libbpf_sys::bpf_program`]
-    ///
-    /// # Safety
-    /// The pointer must point to a loaded program.
-    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_program>) -> Self {
+    pub fn new_mut(prog: &'obj mut libbpf_sys::bpf_program) -> Self {
         Self {
-            ptr,
+            ptr: unsafe { NonNull::new_unchecked(prog as *mut _) },
             _phantom: PhantomData,
         }
     }
@@ -1136,24 +1128,24 @@ impl ProgramMut {
     }
 }
 
-impl Deref for ProgramMut {
-    type Target = Program;
+impl<'obj> Deref for ProgramMut<'obj> {
+    type Target = Program<'obj>;
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: `ProgramImpl` is `repr(transparent)` and so in-memory
         //         representation of both types is the same.
-        unsafe { transmute::<&ProgramMut, &Program>(self) }
+        unsafe { transmute::<&ProgramMut<'obj>, &Program<'obj>>(self) }
     }
 }
 
-impl<T> AsFd for ProgramImpl<T> {
+impl<T> AsFd for ProgramImpl<'_, T> {
     fn as_fd(&self) -> BorrowedFd<'_> {
         let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
         unsafe { BorrowedFd::borrow_raw(fd) }
     }
 }
 
-impl<T> AsRawLibbpf for ProgramImpl<T> {
+impl<T> AsRawLibbpf for ProgramImpl<'_, T> {
     type LibbpfType = libbpf_sys::bpf_program;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].

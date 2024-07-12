@@ -268,14 +268,15 @@ impl OpenObject {
     }
 
     /// Retrieve an iterator over all BPF programs in the object.
-    pub fn progs(&self) -> impl Iterator<Item = OpenProgram> {
-        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenProgram::new(ptr) })
+    pub fn progs(&self) -> impl Iterator<Item = OpenProgram<'_>> {
+        ProgIter::new(unsafe { self.ptr.as_ref() })
+            .map(|ptr| unsafe { OpenProgram::new(ptr.as_ref()) })
     }
 
     /// Retrieve an iterator over all BPF programs in the object.
-    pub fn progs_mut(&mut self) -> impl Iterator<Item = OpenProgramMut> {
+    pub fn progs_mut(&mut self) -> impl Iterator<Item = OpenProgramMut<'_>> {
         ProgIter::new(unsafe { self.ptr.as_ref() })
-            .map(|ptr| unsafe { OpenProgramMut::new_mut(ptr) })
+            .map(|mut ptr| unsafe { OpenProgramMut::new_mut(ptr.as_mut()) })
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
@@ -368,13 +369,14 @@ impl Object {
     }
 
     /// Retrieve an iterator over all BPF programs in the object.
-    pub fn progs(&self) -> impl Iterator<Item = Program> {
-        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { Program::new(ptr) })
+    pub fn progs(&self) -> impl Iterator<Item = Program<'_>> {
+        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { Program::new(ptr.as_ref()) })
     }
 
     /// Retrieve an iterator over all BPF programs in the object.
-    pub fn progs_mut(&self) -> impl Iterator<Item = ProgramMut> {
-        ProgIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { ProgramMut::new_mut(ptr) })
+    pub fn progs_mut(&self) -> impl Iterator<Item = ProgramMut<'_>> {
+        ProgIter::new(unsafe { self.ptr.as_ref() })
+            .map(|mut ptr| unsafe { ProgramMut::new_mut(ptr.as_mut()) })
     }
 }
 
