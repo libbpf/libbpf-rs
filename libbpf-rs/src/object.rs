@@ -257,13 +257,14 @@ impl OpenObject {
     }
 
     /// Retrieve an iterator over all BPF maps in the object.
-    pub fn maps(&self) -> impl Iterator<Item = OpenMap> {
-        MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMap::new(ptr) })
+    pub fn maps(&self) -> impl Iterator<Item = OpenMap<'_>> {
+        MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMap::new(ptr.as_ref()) })
     }
 
     /// Retrieve an iterator over all BPF maps in the object.
-    pub fn maps_mut(&mut self) -> impl Iterator<Item = OpenMapMut> {
-        MapIter::new(unsafe { self.ptr.as_ref() }).map(|ptr| unsafe { OpenMapMut::new_mut(ptr) })
+    pub fn maps_mut(&mut self) -> impl Iterator<Item = OpenMapMut<'_>> {
+        MapIter::new(unsafe { self.ptr.as_ref() })
+            .map(|mut ptr| unsafe { OpenMapMut::new_mut(ptr.as_mut()) })
     }
 
     /// Retrieve an iterator over all BPF programs in the object.
@@ -353,17 +354,17 @@ impl Object {
     }
 
     /// Retrieve an iterator over all BPF maps in the object.
-    pub fn maps(&self) -> impl Iterator<Item = Map> {
+    pub fn maps(&self) -> impl Iterator<Item = Map<'_>> {
         MapIter::new(unsafe { self.ptr.as_ref() })
             .filter(|ptr| map_fd(*ptr).is_some())
-            .map(|ptr| unsafe { Map::new(ptr) })
+            .map(|ptr| unsafe { Map::new(ptr.as_ref()) })
     }
 
     /// Retrieve an iterator over all BPF maps in the object.
-    pub fn maps_mut(&mut self) -> impl Iterator<Item = MapMut> {
+    pub fn maps_mut(&mut self) -> impl Iterator<Item = MapMut<'_>> {
         MapIter::new(unsafe { self.ptr.as_ref() })
             .filter(|ptr| map_fd(*ptr).is_some())
-            .map(|ptr| unsafe { MapMut::new_mut(ptr) })
+            .map(|mut ptr| unsafe { MapMut::new_mut(ptr.as_mut()) })
     }
 
     /// Retrieve an iterator over all BPF programs in the object.

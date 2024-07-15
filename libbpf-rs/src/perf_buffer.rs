@@ -43,7 +43,7 @@ impl Debug for CbStruct<'_> {
 
 /// Builds [`PerfBuffer`] instances.
 pub struct PerfBufferBuilder<'a, 'b> {
-    map: &'a Map,
+    map: &'a Map<'a>,
     pages: usize,
     sample_cb: Option<Box<dyn SampleCb + 'b>>,
     lost_cb: Option<Box<dyn LostCb + 'b>>,
@@ -51,7 +51,7 @@ pub struct PerfBufferBuilder<'a, 'b> {
 
 impl<'a> PerfBufferBuilder<'a, '_> {
     /// Create a new `PerfBufferBuilder` using the provided `Map`.
-    pub fn new(map: &'a Map) -> Self {
+    pub fn new(map: &'a Map<'a>) -> Self {
         Self {
             map,
             pages: 64,

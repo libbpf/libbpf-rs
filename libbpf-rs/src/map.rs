@@ -37,9 +37,9 @@ use crate::Mut;
 use crate::Result;
 
 /// An immutable parsed but not yet loaded BPF map.
-pub type OpenMap = OpenMapImpl;
+pub type OpenMap<'obj> = OpenMapImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF map.
-pub type OpenMapMut = OpenMapImpl<Mut>;
+pub type OpenMapMut<'obj> = OpenMapImpl<'obj, Mut>;
 
 
 /// Represents a parsed but not yet loaded BPF map.
@@ -50,21 +50,20 @@ pub type OpenMapMut = OpenMapImpl<Mut>;
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct OpenMapImpl<T = ()> {
+pub struct OpenMapImpl<'obj, T = ()> {
     ptr: NonNull<libbpf_sys::bpf_map>,
-    _phantom: PhantomData<T>,
+    _phantom: PhantomData<&'obj T>,
 }
 
 // TODO: Document members.
 #[allow(missing_docs)]
-impl OpenMap {
+impl<'obj> OpenMap<'obj> {
     /// Create a new [`OpenMap`] from a ptr to a `libbpf_sys::bpf_map`.
-    ///
-    /// # Safety
-    /// The pointer must point to an opened but not loaded map.
-    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+    pub fn new(object: &'obj libbpf_sys::bpf_map) -> Self {
+        // SAFETY: We inferred the address from a reference, which is always
+        //         valid.
         Self {
-            ptr,
+            ptr: unsafe { NonNull::new_unchecked(object as *const _ as *mut _) },
             _phantom: PhantomData,
         }
     }
@@ -105,14 +104,11 @@ impl OpenMap {
     }
 }
 
-impl OpenMapMut {
+impl<'obj> OpenMapMut<'obj> {
     /// Create a new [`OpenMapMut`] from a ptr to a `libbpf_sys::bpf_map`.
-    ///
-    /// # Safety
-    /// The pointer must point to an opened but not loaded map.
-    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+    pub fn new_mut(object: &'obj mut libbpf_sys::bpf_map) -> Self {
         Self {
-            ptr,
+            ptr: unsafe { NonNull::new_unchecked(object as *mut _) },
             _phantom: PhantomData,
         }
     }
@@ -222,17 +218,17 @@ impl OpenMapMut {
     }
 }
 
-impl Deref for OpenMapMut {
-    type Target = OpenMap;
+impl<'obj> Deref for OpenMapMut<'obj> {
+    type Target = OpenMap<'obj>;
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: `OpenMapImpl` is `repr(transparent)` and so in-memory
         //         representation of both types is the same.
-        unsafe { transmute::<&OpenMapMut, &OpenMap>(self) }
+        unsafe { transmute::<&OpenMapMut<'obj>, &OpenMap<'obj>>(self) }
     }
 }
 
-impl<T> AsRawLibbpf for OpenMapImpl<T> {
+impl<T> AsRawLibbpf for OpenMapImpl<'_, T> {
     type LibbpfType = libbpf_sys::bpf_map;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_map`].
@@ -353,7 +349,7 @@ mod private {
 
     pub trait Sealed {}
 
-    impl<T> Sealed for MapImpl<T> {}
+    impl<T> Sealed for MapImpl<'_, T> {}
     impl Sealed for MapHandle {}
 }
 
@@ -685,27 +681,26 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 }
 
 /// An immutable loaded BPF map.
-pub type Map = MapImpl;
+pub type Map<'obj> = MapImpl<'obj>;
 /// A mutable loaded BPF map.
-pub type MapMut = MapImpl<Mut>;
+pub type MapMut<'obj> = MapImpl<'obj, Mut>;
 
 /// Represents a libbpf-created map.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
-pub struct MapImpl<T = ()> {
+pub struct MapImpl<'obj, T = ()> {
     ptr: NonNull<libbpf_sys::bpf_map>,
-    _phantom: PhantomData<T>,
+    _phantom: PhantomData<&'obj T>,
 }
 
-impl Map {
+impl<'obj> Map<'obj> {
     /// Create a [`Map`] from a [`libbpf_sys::bpf_map`].
-    ///
-    /// # Safety
-    ///
-    /// The pointer must point to a loaded map.
-    pub unsafe fn new(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+    pub fn new(map: &'obj libbpf_sys::bpf_map) -> Self {
+        // SAFETY: We inferred the address from a reference, which is always
+        //         valid.
+        let ptr = unsafe { NonNull::new_unchecked(map as *const _ as *mut _) };
         assert!(
             map_fd(ptr).is_some(),
             "provided BPF map does not have file descriptor"
@@ -751,13 +746,12 @@ impl Map {
     }
 }
 
-impl MapMut {
+impl<'obj> MapMut<'obj> {
     /// Create a [`MapMut`] from a [`libbpf_sys::bpf_map`].
-    ///
-    /// # Safety
-    ///
-    /// The pointer must point to a loaded map.
-    pub unsafe fn new_mut(ptr: NonNull<libbpf_sys::bpf_map>) -> Self {
+    pub fn new_mut(map: &'obj mut libbpf_sys::bpf_map) -> Self {
+        // SAFETY: We inferred the address from a reference, which is always
+        //         valid.
+        let ptr = unsafe { NonNull::new_unchecked(map as *mut _) };
         assert!(
             map_fd(ptr).is_some(),
             "provided BPF map does not have file descriptor"
@@ -807,15 +801,15 @@ impl MapMut {
     }
 }
 
-impl Deref for MapMut {
-    type Target = Map;
+impl<'obj> Deref for MapMut<'obj> {
+    type Target = Map<'obj>;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { transmute::<&MapMut, &Map>(self) }
+        unsafe { transmute::<&MapMut<'obj>, &Map<'obj>>(self) }
     }
 }
 
-impl<T> AsFd for MapImpl<T> {
+impl<T> AsFd for MapImpl<'_, T> {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
         // SANITY: Our map must always have a file descriptor associated with
@@ -828,7 +822,7 @@ impl<T> AsFd for MapImpl<T> {
     }
 }
 
-impl<T> MapCore for MapImpl<T>
+impl<T> MapCore for MapImpl<'_, T>
 where
     T: Debug,
 {
@@ -858,7 +852,7 @@ where
     }
 }
 
-impl AsRawLibbpf for Map {
+impl AsRawLibbpf for Map<'_> {
     type LibbpfType = libbpf_sys::bpf_map;
 
     /// Retrieve the underlying [`libbpf_sys::bpf_map`].
@@ -1047,13 +1041,13 @@ impl AsFd for MapHandle {
     }
 }
 
-impl<T> TryFrom<&MapImpl<T>> for MapHandle
+impl<T> TryFrom<&MapImpl<'_, T>> for MapHandle
 where
     T: Debug,
 {
     type Error = Error;
 
-    fn try_from(other: &MapImpl<T>) -> Result<Self> {
+    fn try_from(other: &MapImpl<'_, T>) -> Result<Self> {
         Ok(Self {
             fd: other
                 .as_fd()
