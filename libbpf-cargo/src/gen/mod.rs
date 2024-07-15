@@ -85,7 +85,7 @@ enum MapMeta {
 }
 
 impl MapMeta {
-    fn new(idx: usize, map: &Map) -> Self {
+    fn new(idx: usize, map: &Map<'_>) -> Self {
         if map_is_datasec(map) {
             Self::Datasec {
                 mmap_idx: idx,
@@ -106,7 +106,7 @@ struct MapData {
 }
 
 impl MapData {
-    fn new(idx: usize, map: &Map) -> Result<Option<Self>> {
+    fn new(idx: usize, map: &Map<'_>) -> Result<Option<Self>> {
         let raw_name = map.name();
         let raw_name = raw_name
             .to_str()
@@ -240,7 +240,7 @@ fn capitalize_first_letter(s: &str) -> String {
     })
 }
 
-fn get_raw_map_name(map: &Map) -> Result<String> {
+fn get_raw_map_name(map: &Map<'_>) -> Result<String> {
     let name = map
         .name()
         .to_str()
@@ -283,7 +283,7 @@ pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType<
 }
 
 /// Same as `get_raw_map_name` except the name is canonicalized
-fn get_map_name(map: &Map) -> Result<Option<String>> {
+fn get_map_name(map: &Map<'_>) -> Result<Option<String>> {
     let name = get_raw_map_name(map)?;
 
     if unsafe { !libbpf_sys::bpf_map__is_internal(map.as_libbpf_object().as_ptr()) } {
@@ -302,19 +302,19 @@ fn get_prog_name(prog: &Program) -> Result<String> {
     Ok(name)
 }
 
-fn map_is_mmapable(map: &Map) -> bool {
+fn map_is_mmapable(map: &Map<'_>) -> bool {
     let map_ptr = map.as_libbpf_object().as_ptr();
     (unsafe { libbpf_sys::bpf_map__map_flags(map_ptr) } & libbpf_sys::BPF_F_MMAPABLE) > 0
 }
 
-fn map_is_datasec(map: &Map) -> bool {
+fn map_is_datasec(map: &Map<'_>) -> bool {
     let internal = unsafe { libbpf_sys::bpf_map__is_internal(map.as_libbpf_object().as_ptr()) };
     let mmapable = map_is_mmapable(map);
 
     internal && mmapable
 }
 
-fn map_is_readonly(map: &Map) -> bool {
+fn map_is_readonly(map: &Map<'_>) -> bool {
     assert!(map_is_mmapable(map));
 
     let map_ptr = map.as_libbpf_object().as_ptr();
@@ -322,7 +322,7 @@ fn map_is_readonly(map: &Map) -> bool {
     (unsafe { libbpf_sys::bpf_map__map_flags(map_ptr) } & libbpf_sys::BPF_F_RDONLY_PROG) > 0
 }
 
-fn maps(object: &Object) -> impl Iterator<Item = Map> {
+fn maps(object: &Object) -> impl Iterator<Item = Map<'_>> {
     // SAFETY: The pointer returned by `as_libbpf_object` is always valid.
     let obj = unsafe { object.as_libbpf_object().as_ref() };
     MapIter::new(obj)
@@ -397,7 +397,7 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
         write!(
             skel,
             r#"
-                    pub {name}: libbpf_rs::OpenMapMut,
+                    pub {name}: libbpf_rs::OpenMapMut<'obj>,
             "#,
             name = map.name
         )?;
@@ -421,8 +421,8 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
 
                 impl<'obj> Open{obj_name}Maps<'obj> {{
                     #[allow(unused_variables)]
-                    fn new(
-                        config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
+                    unsafe fn new(
+                        config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
                         object: &mut libbpf_rs::OpenObject,
                     ) -> libbpf_rs::Result<Self> {{
         "#,
@@ -528,7 +528,7 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
         write!(
             skel,
             r#"
-                    pub {name}: libbpf_rs::MapMut,
+                    pub {name}: libbpf_rs::MapMut<'obj>,
             "#,
             name = map.name
         )?;
@@ -564,7 +564,7 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
             skel,
             r#"
                             {name}: unsafe {{
-                                libbpf_rs::MapMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_maps.{name}))
+                                libbpf_rs::MapMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_maps.{name}).as_mut())
                             }},
             "#,
             name = map.name
@@ -1021,7 +1021,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     gen_skel_c_skel_constructor(&mut skel, &object, &libbpf_obj_name)?;
     gen_skel_open_map_defs(&mut skel, &maps, raw_obj_name)?;
     gen_skel_map_defs(&mut skel, &maps, raw_obj_name)?;
-    gen_skel_open_prog_defs(&mut skel, &progs, &raw_obj_name)?;
+    gen_skel_open_prog_defs(&mut skel, &progs, raw_obj_name)?;
     gen_skel_prog_defs(&mut skel, &progs, raw_obj_name)?;
 
     #[allow(clippy::uninlined_format_args)]
@@ -1066,7 +1066,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
                 #[allow(unused_mut)]
                 let mut skel = Open{name}Skel {{
-                    maps: Open{name}Maps::new(&skel_config, obj_ref)?,
+                    maps: unsafe {{ Open{name}Maps::new(&skel_config, obj_ref)? }},
                     progs: Open{name}Progs::new(obj_ref)?,
                     obj: obj_ref,
                     // SAFETY: Our `struct_ops` type contains only pointers,
