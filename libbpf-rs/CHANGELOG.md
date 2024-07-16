@@ -15,6 +15,8 @@ Unreleased
   - Changed `name` and `section` methods to return `&OsStr` and made
     constructors infallible
 - Adjusted `OpenObject::name` to return `Option<&OsStr>`
+- Removed `Result` return type from
+  `OpenProgram::{set_log_level,set_autoload,set_flags}`
 - Added `Object::name` method
 - Adjusted `OpenMap::set_inner_map_fd` to return `Result`
 - Made inner `query::Tag` contents publicly accessible

@@ -192,24 +192,19 @@ impl<'obj> OpenProgramMut<'obj> {
     }
 
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
-        unsafe {
-            libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32);
-        }
+        let rc = unsafe { libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32) };
+        debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
-        unsafe {
-            libbpf_sys::bpf_program__set_expected_attach_type(
-                self.ptr.as_ptr(),
-                attach_type as u32,
-            );
-        }
+        let rc = unsafe {
+            libbpf_sys::bpf_program__set_expected_attach_type(self.ptr.as_ptr(), attach_type as u32)
+        };
+        debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
     pub fn set_ifindex(&mut self, idx: u32) {
-        unsafe {
-            libbpf_sys::bpf_program__set_ifindex(self.ptr.as_ptr(), idx);
-        }
+        unsafe { libbpf_sys::bpf_program__set_ifindex(self.ptr.as_ptr(), idx) }
     }
 
     /// Set the log level for the bpf program.
@@ -220,16 +215,16 @@ impl<'obj> OpenProgramMut<'obj> {
     ///
     /// In general, a value of `0` disables logging while values `> 0` enables
     /// it.
-    pub fn set_log_level(&mut self, log_level: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_program__set_log_level(self.ptr.as_ptr(), log_level) };
-        util::parse_ret(ret)
+    pub fn set_log_level(&mut self, log_level: u32) {
+        let rc = unsafe { libbpf_sys::bpf_program__set_log_level(self.ptr.as_ptr(), log_level) };
+        debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
     /// Set whether a bpf program should be automatically loaded by default
     /// when the bpf object is loaded.
-    pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr.as_ptr(), autoload) };
-        util::parse_ret(ret)
+    pub fn set_autoload(&mut self, autoload: bool) {
+        let rc = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr.as_ptr(), autoload) };
+        debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
     pub fn set_attach_target(
@@ -259,9 +254,9 @@ impl<'obj> OpenProgramMut<'obj> {
         util::parse_ret(ret)
     }
 
-    pub fn set_flags(&mut self, flags: u32) -> Result<()> {
-        let ret = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
-        util::parse_ret(ret)
+    pub fn set_flags(&mut self, flags: u32) {
+        let rc = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
+        debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 }
 
