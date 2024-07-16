@@ -606,7 +606,7 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
         write!(
             skel,
             r#"
-                    pub {name}: libbpf_rs::OpenProgram<'obj>,
+                    pub {name}: libbpf_rs::OpenProgramMut<'obj>,
             "#,
         )?;
     }
@@ -619,7 +619,7 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
 
                 impl<'obj> Open{obj_name}Progs<'obj> {{
                     unsafe fn new(
-                        object: &libbpf_rs::OpenObject,
+                        object: &mut libbpf_rs::OpenObject,
                     ) -> libbpf_rs::Result<Self> {{
         "#,
     )?;
@@ -632,9 +632,9 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
         skel,
         r#"
                         let object = unsafe {{
-                            std::mem::transmute::<&libbpf_rs::OpenObject, &'obj libbpf_rs::OpenObject>(object)
+                            std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(object)
                         }};
-                        for prog in object.progs() {{
+                        for prog in object.progs_mut() {{
                             let name = prog
                                 .name()
                                 .to_str()
