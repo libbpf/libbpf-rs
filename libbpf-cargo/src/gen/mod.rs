@@ -335,13 +335,13 @@ fn maps(object: &Object) -> impl Iterator<Item = Map<'_>> {
 fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -> Result<()> {
     write!(
         skel,
-        r#"
+        "\
         fn build_skel_config() -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>>
         {{
             let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(DATA);
             builder
-                .name("{name}")
-        "#,
+                .name(\"{name}\")
+        ",
     )?;
 
     for map in maps(object) {
@@ -352,33 +352,22 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
             "false"
         };
 
-        write!(
-            skel,
-            r#"
-            .map("{raw_name}", {mmaped})
-            "#,
-        )?;
+        writeln!(skel, ".map(\"{raw_name}\", {mmaped})")?;
     }
 
     for prog in object.progs() {
         let name = get_prog_name(&prog)?;
-
-        write!(
-            skel,
-            r#"
-            .prog("{name}")
-            "#,
-        )?;
+        writeln!(skel, ".prog(\"{name}\")")?;
     }
 
     writeln!(skel, ";")?;
 
     write!(
         skel,
-        r#"
+        "\
             builder.build()
         }}
-        "#
+        "
     )?;
 
     Ok(())
@@ -388,26 +377,26 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
     let obj_name = capitalize_first_letter(raw_obj_name);
     write!(
         skel,
-        r#"
+        "\
                 pub struct Open{obj_name}Maps<'obj> {{
-        "#,
+        ",
     )?;
 
     for map in maps.iter() {
         write!(
             skel,
-            r#"
+            "\
                     pub {name}: libbpf_rs::OpenMapMut<'obj>,
-            "#,
+            ",
             name = map.name
         )?;
 
         if let MapMeta::Datasec { .. } = map.meta {
             write!(
                 skel,
-                r#"
+                "\
                     pub {name}_data: &'obj mut {raw_obj_name}_types::{name},
-                "#,
+                ",
                 name = map.name,
             )?;
         }
@@ -415,7 +404,7 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
 
     write!(
         skel,
-        r#"
+        "\
                     _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
@@ -425,16 +414,16 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                         config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
                         object: &mut libbpf_rs::OpenObject,
                     ) -> libbpf_rs::Result<Self> {{
-        "#,
+        ",
     )?;
 
     for map in maps.iter() {
-        write!(skel, r#"let mut {name} = None;"#, name = map.name)?;
+        writeln!(skel, "let mut {name} = None;", name = map.name)?;
     }
 
     write!(
         skel,
-        r#"
+        "\
                         let object = unsafe {{
                             std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(object)
                         }};
@@ -445,18 +434,19 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                                 .ok_or_else(|| {{
                                     libbpf_rs::Error::from(std::io::Error::new(
                                         std::io::ErrorKind::InvalidData,
-                                        "map has invalid name",
+                                        \"map has invalid name\",
                                     ))
                                 }})?;
                             match name {{
-        "#,
+        ",
     )?;
 
     for map in maps.iter() {
         write!(
             skel,
-            r#"
-                                "{raw_name}" => {name} = Some(map),"#,
+            "\
+                                \"{raw_name}\" => {name} = Some(map),
+            ",
             raw_name = map.raw_name,
             name = map.name
         )?;
@@ -464,28 +454,28 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
 
     write!(
         skel,
-        r#"
-                                _ => panic!("encountered unexpected map: `{{name}}`"),
+        "\
+                                _ => panic!(\"encountered unexpected map: `{{name}}`\"),
                             }}
                         }}
 
                         let slf = Self {{
-        "#,
+        ",
     )?;
 
     for map in maps.iter() {
         write!(
             skel,
-            r#"
-                            {name}: {name}.expect("map `{name}` not present"),
-            "#,
+            "\
+                            {name}: {name}.expect(\"map `{name}` not present\"),
+            ",
             name = map.name
         )?;
 
         if let MapMeta::Datasec { mmap_idx, .. } = map.meta {
             write!(
                 skel,
-                r#"
+                "\
                             {name}_data: unsafe {{
                                 config
                                     .map_mmap_ptr({mmap_idx})
@@ -493,10 +483,9 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                                     .unwrap_or_else(std::ptr::null_mut)
                                     .cast::<{raw_obj_name}_types::{name}>()
                                     .as_mut()
-                                    .expect("BPF map `{name}` does not have mmap pointer")
+                                    .expect(\"BPF map `{name}` does not have mmap pointer\")
                             }},
-
-                "#,
+                ",
                 name = map.name,
             )?;
         }
@@ -504,13 +493,13 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
 
     write!(
         skel,
-        r#"
+        "\
                             _phantom: std::marker::PhantomData,
                         }};
                         Ok(slf)
                     }}
                 }}
-        "#,
+        ",
     )?;
     Ok(())
 }
@@ -519,17 +508,17 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
     let obj_name = capitalize_first_letter(raw_obj_name);
     write!(
         skel,
-        r#"
+        "\
                 pub struct {obj_name}Maps<'obj> {{
-        "#,
+        ",
     )?;
 
     for map in maps.iter() {
         write!(
             skel,
-            r#"
+            "\
                     pub {name}: libbpf_rs::MapMut<'obj>,
-            "#,
+            ",
             name = map.name
         )?;
 
@@ -538,9 +527,9 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
 
             write!(
                 skel,
-                r#"
+                "\
                         pub {name}_data: &'obj{ref_mut} {raw_obj_name}_types::{name},
-                "#,
+                ",
                 name = map.name,
             )?;
         }
@@ -548,7 +537,7 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
 
     write!(
         skel,
-        r#"
+        "\
                     _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
@@ -556,26 +545,26 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
                     #[allow(unused_variables)]
                     fn new(open_maps: Open{obj_name}Maps<'obj>) -> Self {{
                         Self {{
-        "#,
+        ",
     )?;
 
     for map in maps.iter() {
         write!(
             skel,
-            r#"
+            "\
                             {name}: unsafe {{
                                 libbpf_rs::MapMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_maps.{name}).as_mut())
                             }},
-            "#,
+            ",
             name = map.name
         )?;
 
         if let MapMeta::Datasec { .. } = map.meta {
             write!(
                 skel,
-                r#"
+                "\
                             {name}_data: open_maps.{name}_data,
-                "#,
+                ",
                 name = map.name,
             )?;
         }
@@ -583,12 +572,12 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
 
     write!(
         skel,
-        r#"
+        "\
                             _phantom: std::marker::PhantomData,
                         }}
                     }}
                 }}
-        "#,
+        ",
     )?;
     Ok(())
 }
@@ -597,23 +586,23 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
     let obj_name = capitalize_first_letter(raw_obj_name);
     write!(
         skel,
-        r#"
+        "\
                 pub struct Open{obj_name}Progs<'obj> {{
-        "#,
+        ",
     )?;
 
     for name in progs.iter() {
         write!(
             skel,
-            r#"
+            "\
                     pub {name}: libbpf_rs::OpenProgramMut<'obj>,
-            "#,
+            ",
         )?;
     }
 
     write!(
         skel,
-        r#"
+        "\
                     _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
@@ -621,16 +610,16 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
                     unsafe fn new(
                         object: &mut libbpf_rs::OpenObject,
                     ) -> libbpf_rs::Result<Self> {{
-        "#,
+        ",
     )?;
 
     for name in progs.iter() {
-        write!(skel, r#"let mut {name} = None;"#)?;
+        writeln!(skel, "let mut {name} = None;")?;
     }
 
     write!(
         skel,
-        r#"
+        "\
                         let object = unsafe {{
                             std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(object)
                         }};
@@ -641,50 +630,46 @@ fn gen_skel_open_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &
                                 .ok_or_else(|| {{
                                     libbpf_rs::Error::from(std::io::Error::new(
                                         std::io::ErrorKind::InvalidData,
-                                        "prog has invalid name",
+                                        \"prog has invalid name\",
                                     ))
                                 }})?;
                             match name {{
-        "#,
+        ",
     )?;
 
     for name in progs.iter() {
-        write!(
-            skel,
-            r#"
-                                "{name}" => {name} = Some(prog),"#,
-        )?;
+        writeln!(skel, "      \"{name}\" => {name} = Some(prog),")?;
     }
 
     write!(
         skel,
-        r#"
-                                _ => panic!("encountered unexpected prog: `{{name}}`"),
+        "\
+                                _ => panic!(\"encountered unexpected prog: `{{name}}`\"),
                             }}
                         }}
 
                         let slf = Self {{
-        "#,
+        ",
     )?;
 
     for name in progs.iter() {
         write!(
             skel,
-            r#"
-                            {name}: {name}.expect("prog `{name}` not present"),
-            "#,
+            "\
+                            {name}: {name}.expect(\"prog `{name}` not present\"),
+            ",
         )?;
     }
 
     write!(
         skel,
-        r#"
+        "\
                             _phantom: std::marker::PhantomData,
                         }};
                         Ok(slf)
                     }}
                 }}
-        "#,
+        ",
     )?;
     Ok(())
 }
@@ -693,23 +678,23 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
     let obj_name = capitalize_first_letter(raw_obj_name);
     write!(
         skel,
-        r#"
+        "\
                 pub struct {obj_name}Progs<'obj> {{
-        "#,
+        ",
     )?;
 
     for name in progs.iter() {
         write!(
             skel,
-            r#"
+            "\
                     pub {name}: libbpf_rs::ProgramMut<'obj>,
-            "#,
+            ",
         )?;
     }
 
     write!(
         skel,
-        r#"
+        "\
                     _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
@@ -717,28 +702,28 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
                     #[allow(unused_variables)]
                     fn new(open_progs: Open{obj_name}Progs<'obj>) -> Self {{
                         Self {{
-        "#,
+        ",
     )?;
 
     for name in progs.iter() {
         write!(
             skel,
-            r#"
+            "\
                             {name}: unsafe {{
                                 libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_progs.{name}).as_mut())
                             }},
-            "#,
+            ",
         )?;
     }
 
     write!(
         skel,
-        r#"
+        "\
                             _phantom: std::marker::PhantomData,
                         }}
                     }}
                 }}
-        "#,
+        ",
     )?;
     Ok(())
 }
@@ -789,11 +774,11 @@ fn gen_skel_struct_ops_types(
     } else {
         write!(
             skel,
-            r#"
+            "
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct struct_ops {{}}
-"#
+"
         )?;
     }
     Ok(())
@@ -842,7 +827,7 @@ fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &st
 
     write!(
         skel,
-        r#"
+        "\
         pub fn struct_ops_raw(&self) -> *const {obj_name}_types::struct_ops {{
             &self.struct_ops
         }}
@@ -850,7 +835,7 @@ fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &st
         pub fn struct_ops(&self) -> &{obj_name}_types::struct_ops {{
             &self.struct_ops
         }}
-        "#,
+        ",
     )?;
 
     Ok(())
@@ -863,17 +848,16 @@ fn gen_skel_link_defs(skel: &mut String, object: &Object, obj_name: &str) -> Res
 
     write!(
         skel,
-        r#"
+        "\
         #[derive(Default)]
         pub struct {obj_name}Links {{
-        "#,
+        ",
     )?;
 
     for prog in object.progs() {
-        write!(
+        writeln!(
             skel,
-            r#"pub {}: Option<libbpf_rs::Link>,
-            "#,
+            "pub {}: Option<libbpf_rs::Link>,",
             get_prog_name(&prog)?
         )?;
     }
@@ -888,12 +872,7 @@ fn gen_skel_link_getter(skel: &mut String, object: &Object, obj_name: &str) -> R
         return Ok(());
     }
 
-    write!(
-        skel,
-        r#"pub links: {obj_name}Links,
-        "#
-    )?;
-
+    writeln!(skel, "pub links: {obj_name}Links,")?;
     Ok(())
 }
 
@@ -924,7 +903,7 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
 
     write!(
         skel,
-        r#"
+        "\
         fn attach(&mut self) -> libbpf_rs::Result<()> {{
             let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
             let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(skel_ptr) }};
@@ -933,7 +912,7 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
             }}
 
             self.links = {obj_name}Links {{
-        "#,
+        ",
     )?;
 
     for (idx, prog) in object.progs().enumerate() {
@@ -941,20 +920,20 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
 
         write!(
             skel,
-            r#"{prog_name}: core::ptr::NonNull::new(self.skel_config.prog_link_ptr({idx})?)
+            "{prog_name}: core::ptr::NonNull::new(self.skel_config.prog_link_ptr({idx})?)
                         .map(|ptr| unsafe {{ libbpf_rs::Link::from_ptr(ptr) }}),
-            "#
+            "
         )?;
     }
 
     write!(
         skel,
-        r#"
+        "
             }};
 
             Ok(())
         }}
-        "#,
+        ",
     )?;
 
     Ok(())
@@ -973,9 +952,9 @@ fn gen_skel_struct_ops_init(object: &Object) -> Result<String> {
 
         write!(
             def,
-            r#"
+            "\
             skel.struct_ops.{raw_name} = skel.maps.{raw_name}.initial_value_mut().unwrap().as_mut_ptr().cast();
-            "#,
+            ",
         )?;
     }
     Ok(def)
@@ -987,27 +966,28 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
     write!(
         skel,
-        r#"// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-           //
-           // THIS FILE IS AUTOGENERATED BY CARGO-LIBBPF-GEN!
+        "\
+        // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+        //
+        // THIS FILE IS AUTOGENERATED BY CARGO-LIBBPF-GEN!
 
-           pub use self::imp::*;
+        pub use self::imp::*;
 
-           #[allow(dead_code)]
-           #[allow(non_snake_case)]
-           #[allow(non_camel_case_types)]
-           #[allow(clippy::absolute_paths)]
-           #[allow(clippy::transmute_ptr_to_ref)]
-           #[allow(clippy::upper_case_acronyms)]
-           #[warn(single_use_lifetimes)]
-           mod imp {{
-           #[allow(unused_imports)]
-           use super::*;
-           use libbpf_rs::libbpf_sys;
-           use libbpf_rs::skel::OpenSkel;
-           use libbpf_rs::skel::Skel;
-           use libbpf_rs::skel::SkelBuilder;
-        "#
+        #[allow(dead_code)]
+        #[allow(non_snake_case)]
+        #[allow(non_camel_case_types)]
+        #[allow(clippy::absolute_paths)]
+        #[allow(clippy::transmute_ptr_to_ref)]
+        #[allow(clippy::upper_case_acronyms)]
+        #[warn(single_use_lifetimes)]
+        mod imp {{
+        #[allow(unused_imports)]
+        use super::*;
+        use libbpf_rs::libbpf_sys;
+        use libbpf_rs::skel::OpenSkel;
+        use libbpf_rs::skel::Skel;
+        use libbpf_rs::skel::SkelBuilder;
+        "
     )?;
 
     // The name we'll always hand to libbpf
@@ -1034,7 +1014,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     #[allow(clippy::uninlined_format_args)]
     write!(
         skel,
-        r#"
+        "\
         #[derive(Default)]
         pub struct {name}SkelBuilder {{
             pub obj_builder: libbpf_rs::ObjectBuilder,
@@ -1094,18 +1074,18 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 &mut self.obj_builder
             }}
         }}
-        "#,
+        ",
         name = obj_name,
         struct_ops_init = gen_skel_struct_ops_init(&object)?,
     )?;
 
     write!(
         skel,
-        r#"
+        "\
             pub mod {raw_obj_name}_types {{
                 #[allow(unused_imports)]
                 use super::*;
-            "#
+        "
     )?;
 
     let mut processed = HashSet::new();
@@ -1116,7 +1096,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
     write!(
         skel,
-        r#"
+        "\
         pub struct Open{name}Skel<'obj> {{
             pub obj: &'obj mut libbpf_rs::OpenObject,
             pub maps: Open{name}Maps<'obj>,
@@ -1162,10 +1142,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             fn open_object_mut(&mut self) -> &mut libbpf_rs::OpenObject {{
                 self.obj
             }}
-        "#,
+        ",
         name = &obj_name,
         links = if object.progs().next().is_some() {
-            format!(r#"links: {obj_name}Links::default()"#)
+            format!("links: {obj_name}Links::default()")
         } else {
             "".to_string()
         }
@@ -1176,20 +1156,20 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
     write!(
         skel,
-        r#"
+        "\
         pub struct {name}Skel<'obj> {{
             pub obj: &'obj mut libbpf_rs::Object,
             pub maps: {name}Maps<'obj>,
             pub progs: {name}Progs<'obj>,
             struct_ops: {raw_obj_name}_types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
-        "#,
+        ",
         name = &obj_name,
     )?;
     gen_skel_link_getter(&mut skel, &object, &obj_name)?;
     write!(
         skel,
-        r#"
+        "\
         }}
 
         unsafe impl Send for {name}Skel<'_> {{}}
@@ -1203,7 +1183,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             fn object_mut(&mut self) -> &mut libbpf_rs::Object {{
                 self.obj
             }}
-        "#,
+        ",
         name = &obj_name,
     )?;
     gen_skel_attach(&mut skel, &object, &obj_name)?;
@@ -1215,13 +1195,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
     // Coerce to &[u8] just to be safe, as we'll be using debug formatting
     let bytes: &[u8] = &mmap;
-    write!(
-        skel,
-        r#"
-        const DATA: &[u8] = &{bytes:?};
-        "#
-    )?;
-
+    writeln!(skel, "const DATA: &[u8] = &{bytes:?};")?;
     writeln!(skel, "}}")?;
 
     Ok(skel)
@@ -1271,33 +1245,27 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     let mut contents = String::new();
     write!(
         contents,
-        r#"
-        // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)"
+        "\
+        // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
         //
         // THIS FILE IS AUTOGENERATED BY CARGO-LIBBPF-GEN!
 
-        "#
+        "
     )?;
 
     for obj in objs {
         write!(
             contents,
-            r#"
-            #[path = "{name}.skel.rs"]
+            "
+            #[path = \"{name}.skel.rs\"]
             mod {name}_skel;
-            "#,
+            ",
             name = obj.name
         )?;
     }
 
     for obj in objs {
-        write!(
-            contents,
-            r#"
-            pub use {}_skel::*;
-            "#,
-            obj.name
-        )?;
+        writeln!(contents, "pub use {}_skel::*;", obj.name)?;
     }
 
     let mut file = File::create(path)?;
