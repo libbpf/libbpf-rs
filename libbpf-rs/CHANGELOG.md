@@ -5,8 +5,8 @@ Unreleased
 - Added `AsRawLibbpf` impl for `OpenObject` and `ObjectBuilder`
 - Decoupled `Map` and `MapHandle` more and introduced `MapCore` trait
   abstracting over common functionality
-- Adjusted `SkelBuilder::open` and `OpenSkel::load` methods to require mutable
-  reference to storage space for BPF object
+- Adjusted `SkelBuilder::open` method to require mutable reference to
+  storage space for BPF object
 - Adjusted `{Open,}Object::from_ptr` constructor to be infallible
 - Added `{Open,}Object::maps{_mut,}` and `{Open,}Object::progs{_mut,}`
   for BPF map and program iteration

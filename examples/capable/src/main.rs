@@ -206,8 +206,7 @@ fn main() -> Result<()> {
         .unique_type
         .write(opts.unique_type);
 
-    let mut object = MaybeUninit::uninit();
-    let mut skel = open_skel.load(&mut object)?;
+    let mut skel = open_skel.load()?;
     skel.attach()?;
 
     print_banner(opts.extra_fields);

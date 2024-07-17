@@ -376,7 +376,7 @@ pub trait OpenSkel<'obj> {
     type Output: Skel<'obj>;
 
     /// Load BPF object and return [`Skel`].
-    fn load(self, object: &'obj mut MaybeUninit<Object>) -> Result<Self::Output>;
+    fn load(self) -> Result<Self::Output>;
 
     /// Get a reference to [`OpenObject`].
     fn open_object(&self) -> &OpenObject;

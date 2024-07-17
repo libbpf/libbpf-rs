@@ -74,8 +74,7 @@ fn main() -> Result<()> {
     let builder = TcSkelBuilder::default();
     let mut open_object = MaybeUninit::uninit();
     let open = builder.open(&mut open_object)?;
-    let mut object = MaybeUninit::uninit();
-    let skel = open.load(&mut object)?;
+    let skel = open.load()?;
     let ifidx = if_nametoindex(opts.iface.as_str())? as i32;
 
     let mut tc_builder = TcHookBuilder::new(skel.progs.handle_tc.as_fd());

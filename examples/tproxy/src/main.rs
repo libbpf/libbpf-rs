@@ -74,8 +74,7 @@ fn main() -> Result<()> {
     open_skel.maps.rodata_data.proxy_port = opts.proxy_port.to_be();
 
     // Load into kernel
-    let mut object = MaybeUninit::uninit();
-    let skel = open_skel.load(&mut object)?;
+    let skel = open_skel.load()?;
     // Set up and attach ingress TC hook
     let mut ingress = TcHookBuilder::new(skel.progs.tproxy.as_fd())
         .ifindex(opts.ifindex)

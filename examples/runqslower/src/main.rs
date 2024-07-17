@@ -101,8 +101,7 @@ fn main() -> Result<()> {
     open_skel.maps.rodata_data.targ_tgid = opts.tid;
 
     // Begin tracing
-    let mut object = MaybeUninit::uninit();
-    let mut skel = open_skel.load(&mut object)?;
+    let mut skel = open_skel.load()?;
     skel.attach()?;
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");

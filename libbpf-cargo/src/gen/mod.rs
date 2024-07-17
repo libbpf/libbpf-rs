@@ -1107,7 +1107,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
 
         impl<'obj> OpenSkel<'obj> for Open{name}Skel<'obj> {{
             type Output = {name}Skel<'obj>;
-            fn load(self, object: &'obj mut std::mem::MaybeUninit<libbpf_rs::Object>) -> libbpf_rs::Result<{name}Skel<'obj>> {{
+            fn load(self) -> libbpf_rs::Result<{name}Skel<'obj>> {{
                 let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(skel_ptr) }};
@@ -1115,15 +1115,22 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
-                let obj_uninit = unsafe {{
+                let obj_ref = unsafe {{
                     std::mem::transmute::<
                         &'obj mut libbpf_rs::OpenObject,
                         &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
                     >(self.obj)
                 }};
-                let open_obj = std::mem::replace(obj_uninit, std::mem::MaybeUninit::uninit());
+                let open_obj = std::mem::replace(obj_ref, std::mem::MaybeUninit::uninit());
                 let obj = unsafe {{ libbpf_rs::Object::from_ptr(open_obj.assume_init().take_ptr()) }};
-                let obj_ref = object.write(obj);
+
+                let obj_ref = unsafe {{
+                    std::mem::transmute::<
+                        &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+                        &'obj mut std::mem::MaybeUninit<libbpf_rs::Object>,
+                    >(obj_ref)
+                }};
+                let obj_ref = obj_ref.write(obj);
 
                 Ok({name}Skel {{
                     obj: obj_ref,
