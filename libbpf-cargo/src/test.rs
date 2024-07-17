@@ -433,11 +433,10 @@ fn test_skeleton_empty_source() {
         fn main() {{
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
-            let mut object = MaybeUninit::uninit();
             let _skel = builder
                 .open(&mut open_object)
                 .expect("failed to open skel")
-                .load(&mut object)
+                .load()
                 .expect("failed to load skel");
         }}
         "#,
@@ -550,10 +549,7 @@ fn test_skeleton_basic() {
             let _open_map = &open_skel.maps.mymap;
             let _open_prog = &open_skel.progs.this_is_my_prog;
 
-            let mut object = MaybeUninit::uninit();
-            let mut skel = open_skel
-                .load(&mut object)
-                .expect("failed to load skel");
+            let mut skel = open_skel.load().expect("failed to load skel");
 
             // Check that we can grab handles to loaded maps/progs
             let _map = &skel.maps.mymap;
@@ -726,10 +722,7 @@ fn test_skeleton_datasec() {
             open_skel.maps.bss_custom_data.mycustombss = 12;
             assert_eq!(open_skel.maps.rodata_custom_1_data.mycustomrodata, 43);
 
-            let mut object = MaybeUninit::uninit();
-            let skel = open_skel
-                .load(&mut object)
-                .expect("failed to load skel");
+            let skel = open_skel.load().expect("failed to load skel");
 
             // We can always set bss vars
             skel.maps.bss_data.myglobal = 24;
@@ -860,10 +853,7 @@ fn test_skeleton_builder_basic() {
             let _open_map2 = &open_skel.maps.mymap2;
             let _open_prog = &open_skel.progs.this_is_my_prog;
 
-            let mut object = MaybeUninit::uninit();
-            let mut skel = open_skel
-                .load(&mut object)
-                .expect("failed to load skel");
+            let mut skel = open_skel.load().expect("failed to load skel");
 
             // Check that we can grab handles to loaded maps/progs
             let _map = &skel.maps.mymap;

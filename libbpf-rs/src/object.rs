@@ -212,6 +212,7 @@ impl AsRawLibbpf for ObjectBuilder {
 ///
 /// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct OpenObject {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
@@ -318,6 +319,7 @@ impl Drop for OpenObject {
 /// Note that this is an explanation of the motivation -- Rust's lifetime system should already be
 /// enforcing this invariant.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct Object {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }

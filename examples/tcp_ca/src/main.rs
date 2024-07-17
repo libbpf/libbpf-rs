@@ -151,8 +151,7 @@ fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) ->
     let ca_update = open_skel.struct_ops.ca_update_mut();
     ca_update.cong_control = ca_update_cong_control2;
 
-    let mut object = MaybeUninit::uninit();
-    let mut skel = open_skel.load(&mut object)?;
+    let mut skel = open_skel.load()?;
     let _link = skel.maps.ca_update.attach_struct_ops()?;
 
     println!(
