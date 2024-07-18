@@ -1140,6 +1140,134 @@ fn test_skeleton_generate_struct_with_pointer() {
     assert!(status.success());
 }
 
+/// Generate a skeleton that includes multiple "anon" type definitions.
+#[test]
+fn test_skeleton_builder_multiple_anon() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    // Add prog dir
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    // Add a prog
+    let mut prog = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .expect("failed to open prog.bpf.c");
+
+    write!(
+        prog,
+        r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct unique_key {{
+            struct {{
+                u32 foo;
+                u64 bar;
+            }} foobar;
+        }};
+
+        struct {{
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __type(key, struct unique_key);
+                __type(value, u64);
+        }} mymap SEC(".maps");
+
+        struct Foo {{
+            int x;
+            struct {{
+                u8 y[10];
+                u16 z[16];
+            }} bar;
+            struct {{
+                u32 w;
+                u64 *u;
+            }} baz;
+            int w;
+        }};
+
+struct Foo foo;
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {{
+                return 0;
+        }}
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    // Lay down the necessary header files
+    add_vmlinux_header(&proj_dir);
+
+    // Generate skeleton file
+    let skel = NamedTempFile::new().unwrap();
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .debug(true)
+        .build_and_generate(skel.path())
+        .unwrap();
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        #[path = "{skel_path}"]
+        mod skel;
+        use std::mem::MaybeUninit;
+        use skel::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
+
+        fn main() {{
+            let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
+            let open_skel = builder
+                .open(&mut open_object)
+                .expect("failed to open skel");
+
+            let _skel = open_skel.load().expect("failed to load skel");
+            let _key = prog_types::unique_key::default();
+        }}
+        "#,
+        skel_path = skel.path().display(),
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
 /// Check that skeleton creation is deterministic, i.e., that no temporary paths
 /// change the output between invocations.
 #[test]
