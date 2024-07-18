@@ -731,16 +731,14 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
 
 fn gen_skel_datasec_types(
     skel: &mut String,
-    object: &Object,
+    btf: Option<&GenBtf<'_>>,
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
-    let btf =
-        if let Some(btf) = Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })? {
-            btf
-        } else {
-            return Ok(());
-        };
-    let btf = GenBtf::from(btf);
+    let btf = if let Some(btf) = btf {
+        btf
+    } else {
+        return Ok(());
+    };
 
     for ty in btf.type_by_kind::<types::DataSec<'_>>() {
         let name = match ty.name() {
@@ -763,12 +761,10 @@ fn gen_skel_datasec_types(
 
 fn gen_skel_struct_ops_types(
     skel: &mut String,
-    object: &Object,
+    btf: Option<&GenBtf<'_>>,
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
-    if let Some(btf) = Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })? {
-        let btf = GenBtf::from(btf);
-
+    if let Some(btf) = btf {
         let def = btf.struct_ops_type_definition(processed)?;
         write!(skel, "{def}")?;
     } else {
@@ -787,15 +783,14 @@ pub struct struct_ops {{}}
 fn gen_skel_map_types(
     skel: &mut String,
     object: &Object,
+    btf: Option<&GenBtf<'_>>,
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
-    let btf =
-        if let Some(btf) = Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })? {
-            btf
-        } else {
-            return Ok(());
-        };
-    let btf = GenBtf::from(btf);
+    let btf = if let Some(btf) = btf {
+        btf
+    } else {
+        return Ok(());
+    };
 
     for map in maps(object) {
         let map_ptr = map.as_libbpf_object().as_ptr();
@@ -1002,6 +997,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         .with_context(|| format!("failed to open BPF object `{}`", obj_file_path.display()))?;
     let mmap = unsafe { Mmap::map(&file)? };
     let object = open_bpf_object(&libbpf_obj_name, &mmap)?;
+    let btf =
+        Btf::from_bpf_object(unsafe { object.as_libbpf_object().as_ref() })?.map(GenBtf::from);
     let maps = MapsData::new(&object)?;
     let progs = ProgsData::new(&object)?;
 
@@ -1089,9 +1086,9 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     )?;
 
     let mut processed = HashSet::new();
-    gen_skel_datasec_types(&mut skel, &object, &mut processed)?;
-    gen_skel_struct_ops_types(&mut skel, &object, &mut processed)?;
-    gen_skel_map_types(&mut skel, &object, &mut processed)?;
+    gen_skel_datasec_types(&mut skel, btf.as_ref(), &mut processed)?;
+    gen_skel_struct_ops_types(&mut skel, btf.as_ref(), &mut processed)?;
+    gen_skel_map_types(&mut skel, &object, btf.as_ref(), &mut processed)?;
     writeln!(skel, "}}")?;
 
     write!(
