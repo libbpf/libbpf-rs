@@ -26,7 +26,7 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 
-use libbpf_rs::btf::types;
+use libbpf_rs::btf::BtfType;
 use libbpf_rs::btf::TypeId;
 use libbpf_rs::libbpf_sys;
 use libbpf_rs::AsRawLibbpf;
@@ -730,7 +730,7 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
 }
 
 
-fn gen_skel_datasec_types(
+fn gen_skel_types(
     skel: &mut String,
     btf: Option<&GenBtf<'_>>,
     processed: &mut HashSet<TypeId>,
@@ -741,55 +741,14 @@ fn gen_skel_datasec_types(
         return Ok(());
     };
 
-    for ty in btf.type_by_kind::<types::DataSec<'_>>() {
-        let name = match ty.name() {
-            Some(s) => s.to_str().context("datasec has invalid name")?,
-            None => "",
-        };
+    for ty_id in 1..btf.len() {
+        let ty_id = TypeId::from(ty_id as u32);
+        // SANITY: A type with this ID should always exist given that BTF IDs
+        //         are fully populated up to `len`. Conversion to `BtfType` is
+        //         always infallible.
+        let ty = btf.type_by_id::<BtfType<'_>>(ty_id).unwrap();
 
-        if matches!(
-            canonicalize_internal_map_name(name),
-            None | Some(InternalMapType::StructOps)
-        ) {
-            continue;
-        };
-
-        let sec_def = btf.type_definition(*ty, processed)?;
-        write!(skel, "{sec_def}")?;
-    }
-    Ok(())
-}
-
-fn gen_skel_map_types(
-    skel: &mut String,
-    object: &Object,
-    btf: Option<&GenBtf<'_>>,
-    processed: &mut HashSet<TypeId>,
-) -> Result<()> {
-    let btf = if let Some(btf) = btf {
-        btf
-    } else {
-        return Ok(());
-    };
-
-    for map in maps(object) {
-        let map_ptr = map.as_libbpf_object().as_ptr();
-        // If not defined or on error, the reported BTF type ID will be 0, which
-        // is reserved for `void`. We will end up skipping all "final" types
-        // including `void`, so no need to special case here.
-        let key_id = unsafe { libbpf_sys::bpf_map__btf_key_type_id(map_ptr) };
-        let key_type = btf
-            .type_by_id(TypeId::from(key_id))
-            .with_context(|| format!("failed to look up BTF map key type with ID `{key_id}`"))?;
-        let sec_def = btf.type_definition(key_type, processed)?;
-        write!(skel, "{sec_def}")?;
-
-        let val_id = unsafe { libbpf_sys::bpf_map__btf_value_type_id(map_ptr) };
-        let val_type = btf
-            .type_by_id(TypeId::from(val_id))
-            .with_context(|| format!("failed to look up BTF map value type with ID `{val_id}`"))?;
-
-        let sec_def = btf.type_definition(val_type, processed)?;
+        let sec_def = btf.type_definition(ty, processed)?;
         write!(skel, "{sec_def}")?;
     }
     Ok(())
@@ -953,6 +912,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         #[allow(non_camel_case_types)]
         #[allow(clippy::absolute_paths)]
         #[allow(clippy::upper_case_acronyms)]
+        #[allow(clippy::zero_repeat_side_effects)]
         #[warn(single_use_lifetimes)]
         mod imp {{
         #[allow(unused_imports)]
@@ -1090,8 +1050,7 @@ pub struct StructOps {{}}
         )?;
     }
 
-    gen_skel_datasec_types(&mut skel, btf.as_ref(), &mut processed)?;
-    gen_skel_map_types(&mut skel, &object, btf.as_ref(), &mut processed)?;
+    gen_skel_types(&mut skel, btf.as_ref(), &mut processed)?;
     writeln!(skel, "}}")?;
 
     write!(

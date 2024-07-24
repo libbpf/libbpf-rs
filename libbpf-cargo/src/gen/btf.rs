@@ -802,12 +802,14 @@ impl<'s> GenBtf<'s> {
         dependent_types: &mut Vec<BtfType<'a>>,
         t: types::DataSec<'_>,
     ) -> Result<()> {
-        let mut sec_name = match t.name().map(|s| s.to_string_lossy()) {
+        let sec_name = match t.name().map(|s| s.to_string_lossy().into_owned()) {
             None => bail!("Datasec name is empty"),
-            Some(s) if !s.starts_with('.') => bail!("Datasec name is invalid: {s}"),
-            Some(s) => s.into_owned(),
+            Some(mut s) if s.starts_with('.') => {
+                s.remove(0);
+                s
+            }
+            Some(s) => s,
         };
-        sec_name.remove(0);
         let sec_name = sec_name.replace('.', "_");
 
         writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
