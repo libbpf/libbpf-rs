@@ -395,7 +395,7 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
             write!(
                 skel,
                 "\
-                    pub {name}_data: &'obj mut {raw_obj_name}_types::{name},
+                    pub {name}_data: &'obj mut types::{name},
                 ",
                 name = map.name,
             )?;
@@ -481,7 +481,7 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                                     .map_mmap_ptr({mmap_idx})
                                     .ok()
                                     .unwrap_or_else(std::ptr::null_mut)
-                                    .cast::<{raw_obj_name}_types::{name}>()
+                                    .cast::<types::{name}>()
                                     .as_mut()
                                     .expect(\"BPF map `{name}` does not have mmap pointer\")
                             }},
@@ -528,7 +528,7 @@ fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> 
             write!(
                 skel,
                 "\
-                        pub {name}_data: &'obj{ref_mut} {raw_obj_name}_types::{name},
+                        pub {name}_data: &'obj{ref_mut} types::{name},
                 ",
                 name = map.name,
             )?;
@@ -815,7 +815,7 @@ fn gen_skel_map_types(
     Ok(())
 }
 
-fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &str) -> Result<()> {
+fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object) -> Result<()> {
     if maps(object).next().is_none() {
         return Ok(());
     }
@@ -823,11 +823,11 @@ fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object, obj_name: &st
     write!(
         skel,
         "\
-        pub fn struct_ops_raw(&self) -> *const {obj_name}_types::struct_ops {{
+        pub fn struct_ops_raw(&self) -> *const types::struct_ops {{
             &self.struct_ops
         }}
 
-        pub fn struct_ops(&self) -> &{obj_name}_types::struct_ops {{
+        pub fn struct_ops(&self) -> &types::struct_ops {{
             &self.struct_ops
         }}
         ",
@@ -1079,7 +1079,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     write!(
         skel,
         "\
-            pub mod {raw_obj_name}_types {{
+            pub mod types {{
                 #[allow(unused_imports)]
                 use super::*;
         "
@@ -1100,7 +1100,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj: &'obj mut libbpf_rs::OpenObject,
             pub maps: Open{name}Maps<'obj>,
             pub progs: Open{name}Progs<'obj>,
-            pub struct_ops: {raw_obj_name}_types::struct_ops,
+            pub struct_ops: types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         }}
 
@@ -1167,7 +1167,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj: &'obj mut libbpf_rs::Object,
             pub maps: {name}Maps<'obj>,
             pub progs: {name}Progs<'obj>,
-            struct_ops: {raw_obj_name}_types::struct_ops,
+            struct_ops: types::struct_ops,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         ",
         name = &obj_name,
@@ -1196,7 +1196,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     writeln!(skel, "}}")?;
 
     write!(skel, "impl {name}Skel<'_> {{", name = &obj_name)?;
-    gen_skel_struct_ops_getters(&mut skel, &object, raw_obj_name)?;
+    gen_skel_struct_ops_getters(&mut skel, &object)?;
     writeln!(skel, "}}")?;
 
     // Coerce to &[u8] just to be safe, as we'll be using debug formatting

@@ -27,7 +27,7 @@ mod capable {
     ));
 }
 
-use capable::capable_types::uniqueness;
+use capable::types::uniqueness;
 use capable::*;
 
 static CAPS: phf::Map<i32, &'static str> = phf_map! {
@@ -108,7 +108,7 @@ struct Command {
     debug: bool,
 }
 
-unsafe impl Plain for capable_types::event {}
+unsafe impl Plain for capable::types::event {}
 
 fn bump_memlock_rlimit() -> Result<()> {
     let rlimit = libc::rlimit {
@@ -138,7 +138,7 @@ fn print_banner(extra_fields: bool) {
     }
 }
 
-fn _handle_event(opts: Command, event: capable_types::event) {
+fn _handle_event(opts: Command, event: capable::types::event) {
     let now = if let Ok(now) = OffsetDateTime::now_local() {
         let format = format_description!("[hour]:[minute]:[second]");
         now.format(&format)
@@ -211,7 +211,7 @@ fn main() -> Result<()> {
 
     print_banner(opts.extra_fields);
     let handle_event = move |_cpu: i32, data: &[u8]| {
-        let mut event = capable_types::event::default();
+        let mut event = capable::types::event::default();
         plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
         _handle_event(opts, event);
     };
