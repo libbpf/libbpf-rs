@@ -44,6 +44,7 @@ use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
 use self::btf::GenBtf;
+use self::btf::GenStructOps;
 
 /// Escape certain characters in a "raw" name of a section, for example.
 fn escape_raw_name(name: &str) -> String {
@@ -735,8 +736,9 @@ fn gen_skel_struct_ops_types(
     processed: &mut HashSet<TypeId>,
 ) -> Result<()> {
     if let Some(btf) = btf {
-        let def = btf.struct_ops_type_definition(processed)?;
-        write!(skel, "{def}")?;
+        let gen = GenStructOps::new(btf)?;
+        let () = gen.gen_struct_ops_def(skel)?;
+        let () = gen.gen_dependent_types(processed, skel)?;
     } else {
         write!(
             skel,
