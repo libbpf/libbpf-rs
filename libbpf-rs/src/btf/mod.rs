@@ -403,7 +403,7 @@ impl Debug for Btf<'_> {
             fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
                 f.debug_list()
                     .entries(
-                        (0..self.0.len())
+                        (1..self.0.len())
                             .map(|i| TypeId::from(i as u32))
                             // SANITY: A type with this ID should always exist
                             //         given that BTF IDs are fully populated up
