@@ -1487,7 +1487,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             r#type: u64::default(),
             r#mod: std::ptr::null_mut(),
         }
@@ -1529,7 +1529,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: [i8::default(); 10],
             z: std::ptr::null_mut(),
@@ -1631,7 +1631,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             __pad_4: [u8::default(); 60],
         }
@@ -1673,7 +1673,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: [i8::default(); 33],
             z: std::ptr::null_mut(),
@@ -1744,7 +1744,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             ip: std::ptr::null_mut(),
             ipp: std::ptr::null_mut(),
             bar: Bar::default(),
@@ -1795,7 +1795,7 @@ pub struct with_func_proto {
 }
 impl Default for with_func_proto {
     fn default() -> Self {
-        with_func_proto {
+        Self {
             next: std::ptr::null_mut(),
             func: std::ptr::null_mut(),
         }
@@ -1853,7 +1853,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             ip: std::ptr::null_mut(),
             ipp: std::ptr::null_mut(),
             bar: Bar::default(),
@@ -1873,7 +1873,7 @@ pub struct Bar {
 }
 impl Default for Bar {
     fn default() -> Self {
-        Bar {
+        Self {
             x: u16::default(),
             y: [u16::default(); 33],
         }
@@ -1949,7 +1949,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: i8::default(),
             z: [i32::default(); 33],
@@ -2028,7 +2028,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             name: std::ptr::null_mut(),
             kset: std::ptr::null_mut(),
             __pad_16: [u8::default(); 1],
@@ -2111,7 +2111,7 @@ impl std::fmt::Debug for Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
         }
     }
@@ -2200,7 +2200,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: [i8::default(); 10],
             z: std::ptr::null_mut(),
@@ -2306,7 +2306,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: [i8::default(); 33],
             z: std::ptr::null_mut(),
@@ -2372,7 +2372,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: [i8::default(); 10],
             z: std::ptr::null_mut(),
@@ -2440,7 +2440,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             x: i32::default(),
             y: [i8::default(); 33],
             z: std::ptr::null_mut(),
@@ -2516,7 +2516,7 @@ impl std::fmt::Debug for __anon_1 {
 }
 impl Default for __anon_1 {
     fn default() -> Self {
-        __anon_1 {
+        Self {
             y: [u8::default(); 10],
         }
     }
@@ -2534,7 +2534,7 @@ impl std::fmt::Debug for __anon_2 {
 }
 impl Default for __anon_2 {
     fn default() -> Self {
-        __anon_2 {
+        Self {
             w: u32::default(),
         }
     }
@@ -2597,7 +2597,7 @@ pub struct __anon_2 {
 }
 impl Default for __anon_2 {
     fn default() -> Self {
-        __anon_2 {
+        Self {
             w: u32::default(),
             __pad_4: [u8::default(); 4],
             u: std::ptr::null_mut(),
@@ -2676,7 +2676,7 @@ impl std::fmt::Debug for __anon_2 {
 }
 impl Default for __anon_2 {
     fn default() -> Self {
-        __anon_2 {
+        Self {
             a: std::ptr::null_mut(),
         }
     }
@@ -2690,7 +2690,7 @@ pub struct __anon_3 {
 }
 impl Default for __anon_3 {
     fn default() -> Self {
-        __anon_3 {
+        Self {
             w: u32::default(),
             __pad_4: [u8::default(); 4],
             u: std::ptr::null_mut(),
@@ -2710,7 +2710,7 @@ impl std::fmt::Debug for __anon_4 {
 }
 impl Default for __anon_4 {
     fn default() -> Self {
-        __anon_4 {
+        Self {
             c: u8::default(),
         }
     }
@@ -2761,7 +2761,7 @@ impl std::fmt::Debug for __anon_1 {
 }
 impl Default for __anon_1 {
     fn default() -> Self {
-        __anon_1 {
+        Self {
             name: std::ptr::null_mut(),
         }
     }
@@ -2798,7 +2798,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             test: std::mem::MaybeUninit::new(__anon_1::default()),
         }
     }
@@ -2848,7 +2848,7 @@ pub struct Foo {
 }
 impl Default for Foo {
     fn default() -> Self {
-        Foo {
+        Self {
             a: i32::default(),
             b: u16::default(),
             c: i16::default(),
@@ -2921,7 +2921,7 @@ impl std::fmt::Debug for __anon_1 {
 }
 impl Default for __anon_1 {
     fn default() -> Self {
-        __anon_1 {
+        Self {
             ipv4: __anon_3::default(),
         }
     }
@@ -2939,7 +2939,7 @@ impl std::fmt::Debug for __anon_2 {
 }
 impl Default for __anon_2 {
     fn default() -> Self {
-        __anon_2 {
+        Self {
             a: i32::default(),
         }
     }
@@ -3037,7 +3037,7 @@ pub struct bpf_dummy_ops {
 }
 impl Default for bpf_dummy_ops {
     fn default() -> Self {
-        bpf_dummy_ops {
+        Self {
             test_1: std::ptr::null_mut(),
             test_2: std::ptr::null_mut(),
         }
