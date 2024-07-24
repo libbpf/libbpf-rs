@@ -688,11 +688,7 @@ impl struct_ops {{
                 self.anon_types.type_name_or_anon(&t),
             )?;
             writeln!(def, r#"    fn default() -> Self {{"#)?;
-            writeln!(
-                def,
-                r#"        {} {{"#,
-                self.anon_types.type_name_or_anon(&t)
-            )?;
+            writeln!(def, r#"        Self {{"#,)?;
             for impl_def in impl_default {
                 writeln!(def, r#"{impl_def},"#)?;
             }
@@ -721,11 +717,7 @@ impl struct_ops {{
                 self.anon_types.type_name_or_anon(&t),
             )?;
             writeln!(def, r#"    fn default() -> Self {{"#)?;
-            writeln!(
-                def,
-                r#"        {} {{"#,
-                self.anon_types.type_name_or_anon(&t)
-            )?;
+            writeln!(def, r#"        Self {{"#,)?;
             writeln!(def, r#"{},"#, impl_default[0])?;
             writeln!(def, r#"        }}"#)?;
             writeln!(def, r#"    }}"#)?;
