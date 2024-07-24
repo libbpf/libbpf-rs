@@ -21,6 +21,7 @@ use tempfile::TempDir;
 
 use crate::build::build;
 use crate::gen::btf::GenBtf;
+use crate::gen::btf::GenStructOps;
 use crate::make::make;
 use crate::SkeletonBuilder;
 
@@ -3048,7 +3049,10 @@ impl Default for bpf_dummy_ops {
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
     let mut processed = HashSet::new();
-    let def = btf.struct_ops_type_definition(&mut processed).unwrap();
+    let mut def = String::new();
+    let gen = GenStructOps::new(&btf).unwrap();
+    let () = gen.gen_struct_ops_def(&mut def).unwrap();
+    let () = gen.gen_dependent_types(&mut processed, &mut def).unwrap();
 
     assert_output(&def, expected_output);
 }

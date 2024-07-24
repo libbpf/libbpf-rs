@@ -282,6 +282,155 @@ impl AnonTypes {
     }
 }
 
+
+#[derive(Debug)]
+pub(crate) struct GenStructOps<'btf> {
+    btf: &'btf GenBtf<'btf>,
+    deps: Vec<BtfType<'btf>>,
+    vars: Vec<types::Var<'btf>>,
+}
+
+impl<'btf> GenStructOps<'btf> {
+    pub fn new(btf: &'btf GenBtf<'btf>) -> Result<Self> {
+        let mut deps = Vec::new();
+        let mut vars = Vec::new();
+
+        // Take all the struct_ops datasec entries and collect their variables
+        // (and dependent types).
+        for ty in btf.type_by_kind::<types::DataSec<'_>>() {
+            let name = match ty.name() {
+                Some(s) => s.to_str().context("datasec has invalid name")?,
+                None => "",
+            };
+
+            if !matches!(
+                canonicalize_internal_map_name(name),
+                Some(InternalMapType::StructOps)
+            ) {
+                continue;
+            }
+
+            for var in ty.iter() {
+                let var = btf
+                    .type_by_id::<types::Var<'_>>(var.ty)
+                    .ok_or_else(|| anyhow!("datasec type does not point to a variable"))?;
+
+                if var.linkage() == types::Linkage::Static {
+                    // do not output Static Var
+                    continue;
+                }
+
+                let () = vars.push(var);
+
+                if let Some(next_ty) = next_type(*var)? {
+                    let () = deps.push(next_ty);
+                }
+            }
+        }
+
+        let slf = Self { btf, deps, vars };
+        Ok(slf)
+    }
+
+    pub fn gen_struct_ops_def(&self, def: &mut String) -> Result<()> {
+        // Emit a single struct_ops definition containing all variables
+        // discovered earlier.
+        write!(
+            def,
+            r#"
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct struct_ops {{
+"#
+        )?;
+
+        for var in self.vars.iter() {
+            writeln!(
+                def,
+                r#"    pub {var_name}: *mut {var_type},"#,
+                var_name = var.name().unwrap().to_string_lossy(),
+                var_type = self.btf.type_declaration(**var)?
+            )?;
+        }
+
+        writeln!(def, "}}")?;
+
+        write!(
+            def,
+            r#"
+impl struct_ops {{
+"#
+        )?;
+
+        for var in self.vars.iter() {
+            write!(
+                def,
+                r#"
+    pub fn {var_name}(&self) -> &{var_type} {{
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe {{ self.{var_name}.as_ref() }}.unwrap()
+    }}
+
+    pub fn {var_name}_mut(&mut self) -> &mut {var_type} {{
+        // SAFETY: The library ensures that the member is pointing to
+        //         valid data.
+        unsafe {{ self.{var_name}.as_mut() }}.unwrap()
+    }}
+"#,
+                var_name = var.name().unwrap().to_string_lossy(),
+                var_type = self.btf.type_declaration(**var)?
+            )?;
+        }
+
+        writeln!(def, "}}")?;
+        Ok(())
+    }
+
+    pub fn gen_dependent_types(
+        mut self,
+        processed: &mut HashSet<TypeId>,
+        def: &mut String,
+    ) -> Result<()> {
+        let vars = self
+            .vars
+            .iter()
+            .map(|ty| ty.next_type().unwrap().type_id())
+            .collect::<HashSet<_>>();
+
+        while !self.deps.is_empty() {
+            let ty = self.deps.remove(0);
+            if !processed.insert(ty.type_id()) {
+                continue;
+            }
+
+            btf_type_match!(match ty {
+                BtfKind::Composite(t) => {
+                    if vars.contains(&ty.type_id()) {
+                        let opts = TypeDeclOpts {
+                            func_type: "libbpf_rs::libbpf_sys::bpf_program",
+                        };
+                        self.btf.type_definition_for_composites_with_opts(
+                            def,
+                            &mut self.deps,
+                            t,
+                            &opts,
+                        )?
+                    } else {
+                        self.btf
+                            .type_definition_for_composites(def, &mut self.deps, t)?
+                    }
+                }
+                BtfKind::Enum(t) => self.btf.type_definition_for_enums(def, t)?,
+                _ => bail!("Invalid type: {:?}", ty.kind()),
+            });
+        }
+
+        Ok(())
+    }
+}
+
+
 pub struct GenBtf<'s> {
     btf: Btf<'s>,
     anon_types: AnonTypes,
@@ -391,130 +540,6 @@ impl<'s> GenBtf<'s> {
         Ok(def)
     }
 
-    pub fn struct_ops_type_definition(&self, processed: &mut HashSet<TypeId>) -> Result<String> {
-        let mut def = String::new();
-        let mut dependent_types = vec![];
-        let mut vars = vec![];
-
-        // Take all the struct_ops datasec entries and collect their variables
-        // (and dependent types).
-        for ty in self.type_by_kind::<types::DataSec<'_>>() {
-            let name = match ty.name() {
-                Some(s) => s.to_str().context("datasec has invalid name")?,
-                None => "",
-            };
-
-            if !matches!(
-                canonicalize_internal_map_name(name),
-                Some(InternalMapType::StructOps)
-            ) {
-                continue;
-            }
-
-            for var in ty.iter() {
-                let var = self
-                    .type_by_id::<types::Var<'_>>(var.ty)
-                    .ok_or_else(|| anyhow!("datasec type does not point to a variable"))?;
-
-                if var.linkage() == types::Linkage::Static {
-                    // do not output Static Var
-                    continue;
-                }
-
-                let () = vars.push(*var);
-
-                if let Some(next_ty) = next_type(*var)? {
-                    let () = dependent_types.push(next_ty);
-                }
-            }
-        }
-
-        // Emit a single struct_ops definition containing all variables
-        // discovered earlier.
-        write!(
-            def,
-            r#"
-#[derive(Debug, Clone)]
-#[repr(C)]
-pub struct struct_ops {{
-"#
-        )?;
-
-        for var in vars.iter() {
-            writeln!(
-                def,
-                r#"    pub {var_name}: *mut {var_type},"#,
-                var_name = var.name().unwrap().to_string_lossy(),
-                var_type = self.type_declaration(*var)?
-            )?;
-        }
-
-        writeln!(def, "}}")?;
-
-        write!(
-            def,
-            r#"
-impl struct_ops {{
-"#
-        )?;
-
-        for var in vars.iter() {
-            write!(
-                def,
-                r#"
-    pub fn {var_name}(&self) -> &{var_type} {{
-        // SAFETY: The library ensures that the member is pointing to
-        //         valid data.
-        unsafe {{ self.{var_name}.as_ref() }}.unwrap()
-    }}
-
-    pub fn {var_name}_mut(&mut self) -> &mut {var_type} {{
-        // SAFETY: The library ensures that the member is pointing to
-        //         valid data.
-        unsafe {{ self.{var_name}.as_mut() }}.unwrap()
-    }}
-"#,
-                var_name = var.name().unwrap().to_string_lossy(),
-                var_type = self.type_declaration(*var)?
-            )?;
-        }
-
-        writeln!(def, "}}")?;
-
-        let vars = vars
-            .into_iter()
-            .map(|ty| ty.next_type().unwrap().type_id())
-            .collect::<HashSet<_>>();
-
-        while !dependent_types.is_empty() {
-            let ty = dependent_types.remove(0);
-            if !processed.insert(ty.type_id()) {
-                continue;
-            }
-
-            btf_type_match!(match ty {
-                BtfKind::Composite(t) => {
-                    if vars.contains(&ty.type_id()) {
-                        let opts = TypeDeclOpts {
-                            func_type: "libbpf_rs::libbpf_sys::bpf_program",
-                        };
-                        self.type_definition_for_composites_with_opts(
-                            &mut def,
-                            &mut dependent_types,
-                            t,
-                            &opts,
-                        )?
-                    } else {
-                        self.type_definition_for_composites(&mut def, &mut dependent_types, t)?
-                    }
-                }
-                BtfKind::Enum(t) => self.type_definition_for_enums(&mut def, t)?,
-                _ => bail!("Invalid type: {:?}", ty.kind()),
-            });
-        }
-
-        Ok(def)
-    }
     fn type_definition_for_composites<'a>(
         &'a self,
         def: &mut String,
