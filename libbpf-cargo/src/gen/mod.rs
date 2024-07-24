@@ -730,28 +730,6 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
 }
 
 
-fn gen_skel_struct_ops_types(
-    skel: &mut String,
-    btf: Option<&GenBtf<'_>>,
-    processed: &mut HashSet<TypeId>,
-) -> Result<()> {
-    if let Some(btf) = btf {
-        let gen = GenStructOps::new(btf)?;
-        let () = gen.gen_struct_ops_def(skel)?;
-        let () = gen.gen_dependent_types(processed, skel)?;
-    } else {
-        write!(
-            skel,
-            "
-#[derive(Debug, Clone)]
-#[repr(C)]
-pub struct struct_ops {{}}
-"
-        )?;
-    }
-    Ok(())
-}
-
 fn gen_skel_datasec_types(
     skel: &mut String,
     btf: Option<&GenBtf<'_>>,
@@ -825,11 +803,11 @@ fn gen_skel_struct_ops_getters(skel: &mut String, object: &Object) -> Result<()>
     write!(
         skel,
         "\
-        pub fn struct_ops_raw(&self) -> *const types::struct_ops {{
+        pub fn struct_ops_raw(&self) -> *const StructOps {{
             &self.struct_ops
         }}
 
-        pub fn struct_ops(&self) -> &types::struct_ops {{
+        pub fn struct_ops(&self) -> &StructOps {{
             &self.struct_ops
         }}
         ",
@@ -1077,19 +1055,41 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         struct_ops_init = gen_skel_struct_ops_init(&object)?,
     )?;
 
-    write!(
-        skel,
-        "\
-            pub mod types {{
-                #[allow(unused_imports)]
-                use super::*;
-        "
-    )?;
-
     let mut processed = HashSet::new();
     // Generate struct_ops types before anything else, as they are slightly
     // modified compared to the dumb structure contained in BTF.
-    gen_skel_struct_ops_types(&mut skel, btf.as_ref(), &mut processed)?;
+    if let Some(btf) = &btf {
+        let gen = GenStructOps::new(btf)?;
+        let () = gen.gen_struct_ops_def(&mut skel)?;
+        write!(
+            skel,
+            "\
+                pub mod types {{
+                    #[allow(unused_imports)]
+                    use super::*;
+            "
+        )?;
+
+        let () = gen.gen_dependent_types(&mut processed, &mut skel)?;
+    } else {
+        write!(
+            skel,
+            "
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct StructOps {{}}
+"
+        )?;
+        write!(
+            skel,
+            "\
+                pub mod types {{
+                    #[allow(unused_imports)]
+                    use super::*;
+            "
+        )?;
+    }
+
     gen_skel_datasec_types(&mut skel, btf.as_ref(), &mut processed)?;
     gen_skel_map_types(&mut skel, &object, btf.as_ref(), &mut processed)?;
     writeln!(skel, "}}")?;
@@ -1101,7 +1101,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj: &'obj mut libbpf_rs::OpenObject,
             pub maps: Open{name}Maps<'obj>,
             pub progs: Open{name}Progs<'obj>,
-            pub struct_ops: types::struct_ops,
+            pub struct_ops: StructOps,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         }}
 
@@ -1168,7 +1168,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj: &'obj mut libbpf_rs::Object,
             pub maps: {name}Maps<'obj>,
             pub progs: {name}Progs<'obj>,
-            struct_ops: types::struct_ops,
+            struct_ops: StructOps,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         ",
         name = &obj_name,

@@ -2999,32 +2999,32 @@ struct bpf_dummy_ops dummy_2 = {
     let expected_output = r#"
 #[derive(Debug, Clone)]
 #[repr(C)]
-pub struct struct_ops {
-    pub dummy_1: *mut bpf_dummy_ops,
-    pub dummy_2: *mut bpf_dummy_ops,
+pub struct StructOps {
+    pub dummy_1: *mut types::bpf_dummy_ops,
+    pub dummy_2: *mut types::bpf_dummy_ops,
 }
 
-impl struct_ops {
+impl StructOps {
 
-    pub fn dummy_1(&self) -> &bpf_dummy_ops {
+    pub fn dummy_1(&self) -> &types::bpf_dummy_ops {
         // SAFETY: The library ensures that the member is pointing to
         //         valid data.
         unsafe { self.dummy_1.as_ref() }.unwrap()
     }
 
-    pub fn dummy_1_mut(&mut self) -> &mut bpf_dummy_ops {
+    pub fn dummy_1_mut(&mut self) -> &mut types::bpf_dummy_ops {
         // SAFETY: The library ensures that the member is pointing to
         //         valid data.
         unsafe { self.dummy_1.as_mut() }.unwrap()
     }
 
-    pub fn dummy_2(&self) -> &bpf_dummy_ops {
+    pub fn dummy_2(&self) -> &types::bpf_dummy_ops {
         // SAFETY: The library ensures that the member is pointing to
         //         valid data.
         unsafe { self.dummy_2.as_ref() }.unwrap()
     }
 
-    pub fn dummy_2_mut(&mut self) -> &mut bpf_dummy_ops {
+    pub fn dummy_2_mut(&mut self) -> &mut types::bpf_dummy_ops {
         // SAFETY: The library ensures that the member is pointing to
         //         valid data.
         unsafe { self.dummy_2.as_mut() }.unwrap()
