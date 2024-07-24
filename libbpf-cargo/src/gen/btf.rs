@@ -333,21 +333,21 @@ impl<'btf> GenStructOps<'btf> {
     }
 
     pub fn gen_struct_ops_def(&self, def: &mut String) -> Result<()> {
-        // Emit a single struct_ops definition containing all variables
-        // discovered earlier.
+        // Emit a single struct_ops type definition containing all
+        // variables discovered earlier.
         write!(
             def,
             r#"
 #[derive(Debug, Clone)]
 #[repr(C)]
-pub struct struct_ops {{
+pub struct StructOps {{
 "#
         )?;
 
         for var in self.vars.iter() {
             writeln!(
                 def,
-                r#"    pub {var_name}: *mut {var_type},"#,
+                r#"    pub {var_name}: *mut types::{var_type},"#,
                 var_name = var.name().unwrap().to_string_lossy(),
                 var_type = self.btf.type_declaration(**var)?
             )?;
@@ -358,7 +358,7 @@ pub struct struct_ops {{
         write!(
             def,
             r#"
-impl struct_ops {{
+impl StructOps {{
 "#
         )?;
 
@@ -366,13 +366,13 @@ impl struct_ops {{
             write!(
                 def,
                 r#"
-    pub fn {var_name}(&self) -> &{var_type} {{
+    pub fn {var_name}(&self) -> &types::{var_type} {{
         // SAFETY: The library ensures that the member is pointing to
         //         valid data.
         unsafe {{ self.{var_name}.as_ref() }}.unwrap()
     }}
 
-    pub fn {var_name}_mut(&mut self) -> &mut {var_type} {{
+    pub fn {var_name}_mut(&mut self) -> &mut types::{var_type} {{
         // SAFETY: The library ensures that the member is pointing to
         //         valid data.
         unsafe {{ self.{var_name}.as_mut() }}.unwrap()
