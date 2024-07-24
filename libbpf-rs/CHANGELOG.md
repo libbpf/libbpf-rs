@@ -18,6 +18,7 @@ Unreleased
 - Removed `Result` return type from
   `OpenProgram::{set_log_level,set_autoload,set_flags}`
 - Added `Object::name` method
+- Added `Copy` and `Clone` impls for types inside `btf::types` module
 - Adjusted `OpenMap::set_inner_map_fd` to return `Result`
 - Made inner `query::Tag` contents publicly accessible
 - Removed `Display` implementation of various `enum` types

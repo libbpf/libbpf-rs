@@ -19,7 +19,7 @@ macro_rules! gen_fieldless_concrete_type {
         $name:ident $(with $trait:ident)?
     ) => {
         $(#[$docs])*
-        #[derive(Debug)]
+        #[derive(Clone, Copy, Debug)]
         pub struct $name<'btf> {
             source: BtfType<'btf>,
         }
@@ -58,7 +58,7 @@ macro_rules! gen_concrete_type {
         $libbpf_ty:ident as $name:ident $(with $trait:ident)?
     ) => {
         $(#[$docs])*
-        #[derive(Debug)]
+        #[derive(Clone, Copy, Debug)]
         pub struct $name<'btf> {
             source: BtfType<'btf>,
             ptr: &'btf libbpf_sys::$libbpf_ty,
@@ -167,7 +167,7 @@ macro_rules! gen_collection_members_concrete_type {
         }
 
         $(#[$docs])*
-        #[derive(Debug)]
+        #[derive(Clone, Copy, Debug)]
         pub struct $member_name $(<$lt>)? {
             $(
                 $(#[$field_docs])*
@@ -190,7 +190,7 @@ macro_rules! gen_collection_concrete_type {
         $($rest:tt)+
     ) => {
         $(#[$docs])*
-        #[derive(Debug)]
+        #[derive(Clone, Copy, Debug)]
         pub struct $name<'btf> {
             source: BtfType<'btf>,
             members: &'btf [libbpf_sys::$libbpf_ty],
@@ -238,7 +238,7 @@ macro_rules! gen_collection_concrete_type {
 }
 
 /// The attributes of a member.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum MemberAttr {
     /// Member is a normal field.
     Normal {
@@ -332,7 +332,7 @@ gen_fieldless_concrete_type! {
 /// An integer.
 ///
 /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-int)
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Int<'btf> {
     source: BtfType<'btf>,
     /// The encoding of the number.
@@ -345,7 +345,7 @@ pub struct Int<'btf> {
 }
 
 /// The kinds of ways a btf [Int] can be encoded.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum IntEncoding {
     /// No encoding.
     None,
@@ -511,7 +511,7 @@ gen_collection_concrete_type! {
 ///
 /// Sometimes it's not useful to distinguish them, in that case, one can use this
 /// type to inspect any of them.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Composite<'btf> {
     source: BtfType<'btf>,
     /// Whether this type is a struct.
