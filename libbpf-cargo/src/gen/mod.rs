@@ -729,6 +729,27 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
 }
 
 
+fn gen_skel_struct_ops_types(
+    skel: &mut String,
+    btf: Option<&GenBtf<'_>>,
+    processed: &mut HashSet<TypeId>,
+) -> Result<()> {
+    if let Some(btf) = btf {
+        let def = btf.struct_ops_type_definition(processed)?;
+        write!(skel, "{def}")?;
+    } else {
+        write!(
+            skel,
+            "
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct struct_ops {{}}
+"
+        )?;
+    }
+    Ok(())
+}
+
 fn gen_skel_datasec_types(
     skel: &mut String,
     btf: Option<&GenBtf<'_>>,
@@ -755,27 +776,6 @@ fn gen_skel_datasec_types(
 
         let sec_def = btf.type_definition(*ty, processed)?;
         write!(skel, "{sec_def}")?;
-    }
-    Ok(())
-}
-
-fn gen_skel_struct_ops_types(
-    skel: &mut String,
-    btf: Option<&GenBtf<'_>>,
-    processed: &mut HashSet<TypeId>,
-) -> Result<()> {
-    if let Some(btf) = btf {
-        let def = btf.struct_ops_type_definition(processed)?;
-        write!(skel, "{def}")?;
-    } else {
-        write!(
-            skel,
-            "
-#[derive(Debug, Clone)]
-#[repr(C)]
-pub struct struct_ops {{}}
-"
-        )?;
     }
     Ok(())
 }
@@ -1086,8 +1086,10 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     )?;
 
     let mut processed = HashSet::new();
-    gen_skel_datasec_types(&mut skel, btf.as_ref(), &mut processed)?;
+    // Generate struct_ops types before anything else, as they are slightly
+    // modified compared to the dumb structure contained in BTF.
     gen_skel_struct_ops_types(&mut skel, btf.as_ref(), &mut processed)?;
+    gen_skel_datasec_types(&mut skel, btf.as_ref(), &mut processed)?;
     gen_skel_map_types(&mut skel, &object, btf.as_ref(), &mut processed)?;
     writeln!(skel, "}}")?;
 
