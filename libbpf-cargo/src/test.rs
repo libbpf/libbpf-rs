@@ -731,7 +731,7 @@ fn test_skeleton_datasec() {
             assert_eq!(skel.maps.rodata_custom_1_data.mycustomrodata, 43);
 
             // Read only for rodata after load
-            let _rodata: &prog_types::rodata = skel.maps.rodata_data;
+            let _rodata: &types::rodata = skel.maps.rodata_data;
         }}
         "#,
     )
@@ -866,7 +866,7 @@ fn test_skeleton_builder_basic() {
             // Check that Option<Link> field is generated
             let _mylink = skel.links.this_is_my_prog.unwrap();
 
-            let _key = prog_types::unique_key::default();
+            let _key = types::unique_key::default();
         }}
         "#,
         skel_path = skel.path().display(),
@@ -1250,7 +1250,7 @@ struct Foo foo;
                 .expect("failed to open skel");
 
             let _skel = open_skel.load().expect("failed to load skel");
-            let _key = prog_types::unique_key::default();
+            let _key = types::unique_key::default();
         }}
         "#,
         skel_path = skel.path().display(),

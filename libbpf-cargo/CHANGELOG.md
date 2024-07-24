@@ -4,6 +4,7 @@ Unreleased
   program members, no longer requiring method calls
 - Adjusted skeleton creation logic to generate Rust types for types used in BPF
   maps
+- Renamed module for generated Rust types from `<project>_types` to just `types`
 
 
 0.23.3
