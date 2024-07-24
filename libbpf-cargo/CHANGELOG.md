@@ -2,8 +2,8 @@ Unreleased
 ----------
 - Reworked generated skeletons to contain publicly accessible maps and
   program members, no longer requiring method calls
-- Adjusted skeleton creation logic to generate Rust types for types used in BPF
-  maps
+- Adjusted skeleton creation logic to generate Rust types for all types
+  available in BPF
 - Renamed module for generated Rust types from `<project>_types` to just `types`
 - Renamed generated `struct_ops` type to `StructOps` and moved it out of `types`
   module
