@@ -254,8 +254,27 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
         "please keep reserved keywords sorted",
     );
 
+    // Some keywords just cannot be used, even in raw form.
+    // See https://internals.rust-lang.org/t/raw-identifiers-dont-work-for-all-identifiers/9094
+    let disallowed_raw = ["Self", "crate", "self", "super"];
+    debug_assert_eq!(
+        disallowed_raw.as_slice(),
+        {
+            let mut vec = disallowed_raw.to_vec();
+            vec.sort();
+            vec
+        },
+        "please keep reserved keywords sorted",
+    );
+
     if reserved.binary_search(&identifier.as_ref()).is_ok() {
-        Cow::Owned(format!("r#{identifier}"))
+        if disallowed_raw.binary_search(&identifier.as_ref()).is_ok() {
+            // Just remove the first 'a' or 'e' character. Yes, that could
+            // conceivably be the cause of a collision in itself ¯\_(ツ)_/¯
+            Cow::Owned(identifier.replacen(|chr| chr == 'a' || chr == 'e', "", 1))
+        } else {
+            Cow::Owned(format!("r#{identifier}"))
+        }
     } else {
         identifier
     }
