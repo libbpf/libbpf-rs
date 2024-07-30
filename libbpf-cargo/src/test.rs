@@ -945,6 +945,52 @@ fn test_skeleton_builder_multiple_anon() {
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
+/// Test that we generate a valid skeleton when multiple kfuncs are being used.
+#[test]
+fn test_skeleton_multipl_kfuncs() {
+    let bpf_c = r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        extern int bpf_dynptr_from_xdp(
+            struct xdp_md* xdp,
+            __u64 flags,
+            struct bpf_dynptr* ptr__uninit) __ksym;
+
+        extern void* bpf_dynptr_slice(
+            const struct bpf_dynptr* ptr,
+            __u32 offset,
+            void* buffer,
+            __u32 buffer__szk) __ksym;
+
+        SEC("xdp")
+        int steering(struct xdp_md* xdp) {
+            u8 ethb[sizeof(struct ethhdr)];
+            struct bpf_dynptr ptr;
+            struct ethhdr* eth;
+
+            if (bpf_dynptr_from_xdp(xdp, 0, &ptr)) {
+              return XDP_PASS;
+            }
+            eth = bpf_dynptr_slice(&ptr, 0, ethb, sizeof(ethb));
+            (void)eth;
+        }
+    "#
+    .to_string();
+
+    let rust = r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use bpf::*;
+
+        fn main() {
+            let _builder = ProgSkelBuilder::default();
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+}
+
 /// Check that skeleton creation is deterministic, i.e., that no temporary paths
 /// change the output between invocations.
 #[test]

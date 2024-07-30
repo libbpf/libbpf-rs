@@ -812,6 +812,13 @@ impl<'s> GenBtf<'s> {
         };
         let sec_name = sec_name.replace('.', "_");
 
+        // Don't generate anything for ksyms. The BTF is patched up by libbpf at
+        // load time and the result can contain multiple variables with the same
+        // name, which is could result in invalid generated code.
+        if sec_name == "ksyms" {
+            return Ok(())
+        }
+
         writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
         writeln!(def, r#"#[repr(C)]"#)?;
         writeln!(def, r#"pub struct {sec_name} {{"#)?;
