@@ -912,7 +912,7 @@ fn test_skeleton_builder_multiple_anon() {
             int w;
         };
 
-struct Foo foo;
+        struct Foo foo;
 
         SEC("kprobe/foo")
         int this_is_my_prog(u64 *ctx)
@@ -1456,8 +1456,8 @@ fn test_btf_dump_struct_definition_func_proto() {
 #include <bpf/bpf_helpers.h>
 
 struct with_func_proto {
-	struct with_func_proto *next;
-	void (*func)(struct with_func_proto *);
+    struct with_func_proto *next;
+    void (*func)(struct with_func_proto *);
 };
 
 struct with_func_proto w;
@@ -2554,20 +2554,20 @@ fn test_btf_dump_definition_unnamed_union() {
 // re-typed 'struct bpf_sock_tuple tup' from vmlinux as of kernel 5.15
 // with a little bit added for additional complexity testing
 struct bpf_sock_tuple_5_15 {
-	union {
-		struct {
-			__be32 saddr;
-			__be32 daddr;
-			__be16 sport;
-			__be16 dport;
-		} ipv4;
-		struct {
-			__be32 saddr[4];
-			__be32 daddr[4];
-			__be16 sport;
-			__be16 dport;
-		} ipv6;
-	};
+    union {
+        struct {
+            __be32 saddr;
+            __be32 daddr;
+            __be16 sport;
+            __be16 dport;
+        } ipv4;
+        struct {
+            __be32 saddr[4];
+            __be32 daddr[4];
+            __be16 sport;
+            __be16 dport;
+        } ipv6;
+    };
 
     union {
         int a;
@@ -2658,17 +2658,17 @@ fn test_btf_dump_definition_struct_ops_mixed() {
 SEC("struct_ops/test_1")
 int BPF_PROG(test_1, struct bpf_dummy_ops_state *state)
 {
-	return 0;
+    return 0;
 }
 
 SEC(".struct_ops")
 struct bpf_dummy_ops dummy_1 = {
-	.test_1 = (void *)test_1,
+    .test_1 = (void *)test_1,
 };
 
 SEC(".struct_ops.link")
 struct bpf_dummy_ops dummy_2 = {
-	.test_1 = (void *)test_1,
+    .test_1 = (void *)test_1,
 };
 "#;
 
