@@ -377,86 +377,7 @@ fn test_make_workspace() {
         .exists());
 }
 
-#[test]
-fn test_skeleton_empty_source() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let _prog_file =
-        File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
-
-    make(
-        true,
-        Some(&cargo_toml),
-        None,
-        Vec::new(),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
-
-    let mut cargo = OpenOptions::new()
-        .append(true)
-        .open(&cargo_toml)
-        .expect("failed to open Cargo.toml");
-
-    // Make test project use our development libbpf-rs version
-    writeln!(
-        cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
-        get_libbpf_rs_path().as_path().display()
-    )
-    .expect("failed to write to Cargo.toml");
-
-    let mut source = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(proj_dir.join("src/main.rs"))
-        .expect("failed to open main.rs");
-
-    write!(
-        source,
-        r#"
-        #![warn(elided_lifetimes_in_paths)]
-        mod bpf;
-        use std::mem::MaybeUninit;
-        use bpf::*;
-        use libbpf_rs::skel::SkelBuilder;
-        use libbpf_rs::skel::OpenSkel;
-
-        fn main() {{
-            let builder = ProgSkelBuilder::default();
-            let mut open_object = MaybeUninit::uninit();
-            let _skel = builder
-                .open(&mut open_object)
-                .expect("failed to open skel")
-                .load()
-                .expect("failed to load skel");
-        }}
-        "#,
-    )
-    .expect("failed to write to main.rs");
-
-    let status = Command::new("cargo")
-        .arg("build")
-        .arg("--quiet")
-        .arg("--manifest-path")
-        .arg(cargo_toml.into_os_string())
-        .env("RUSTFLAGS", "-Dwarnings")
-        .status()
-        .expect("failed to spawn cargo-build");
-    assert!(status.success());
-}
-
-#[test]
-fn test_skeleton_basic() {
+fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // Add prog dir
@@ -469,28 +390,8 @@ fn test_skeleton_basic() {
         .truncate(true)
         .open(proj_dir.join("src/bpf/prog.bpf.c"))
         .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
-        #include "vmlinux.h"
-        #include <bpf/bpf_helpers.h>
-
-        struct {{
-                __uint(type, BPF_MAP_TYPE_HASH);
-                __uint(max_entries, 1024);
-                __type(key, u32);
-                __type(value, u64);
-        }} mymap SEC(".maps");
-
-        SEC("kprobe/foo")
-        int this_is_my_prog(u64 *ctx)
-        {{
-                return 0;
-        }}
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+    prog.write_all(bpf_c.as_bytes())
+        .expect("failed to write prog.bpf.c");
 
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
@@ -528,9 +429,67 @@ fn test_skeleton_basic() {
         .open(proj_dir.join("src/main.rs"))
         .expect("failed to open main.rs");
 
-    write!(
-        source,
-        r#"
+    source
+        .write_all(rust.as_bytes())
+        .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
+#[test]
+fn test_skeleton_empty_source() {
+    let bpf_c = String::new();
+    let rust = r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use std::mem::MaybeUninit;
+        use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
+
+        fn main() {
+            let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
+            let _skel = builder
+                .open(&mut open_object)
+                .expect("failed to open skel")
+                .load()
+                .expect("failed to load skel");
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+}
+
+#[test]
+fn test_skeleton_basic() {
+    let bpf_c = r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct {
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __type(key, u32);
+                __type(value, u64);
+        } mymap SEC(".maps");
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {
+                return 0;
+        }
+    "#
+    .to_string();
+    let rust = r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -539,7 +498,7 @@ fn test_skeleton_basic() {
         use libbpf_rs::skel::OpenSkel;
         use libbpf_rs::skel::Skel;
 
-        fn main() {{
+        fn main() {
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
             let open_skel = builder
@@ -561,87 +520,44 @@ fn test_skeleton_basic() {
 
             // Check that Option<Link> field is generated
             let _mylink = skel.links.this_is_my_prog.unwrap();
-        }}
-        "#,
-    )
-    .expect("failed to write to main.rs");
+        }
+    "#
+    .to_string();
 
-    let status = Command::new("cargo")
-        .arg("build")
-        .arg("--quiet")
-        .arg("--manifest-path")
-        .arg(cargo_toml.into_os_string())
-        .env("RUSTFLAGS", "-Dwarnings")
-        .status()
-        .expect("failed to spawn cargo-build");
-    assert!(status.success());
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
 fn test_skeleton_generate_datasec_static() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
+    let bpf_c = r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
         SEC("kprobe/foo")
         int this_is_my_prog(u64 *ctx)
-        {{
+        {
                 bpf_printk("this should not cause an error");
                 return 0;
-        }}
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+        }
+    "#
+    .to_string();
 
-    // Lay down the necessary header files
-    add_vmlinux_header(&proj_dir);
+    let rust = r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use bpf::*;
 
-    make(
-        true,
-        Some(&cargo_toml),
-        None,
-        Vec::new(),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
+        fn main() {
+            let _builder = ProgSkelBuilder::default();
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
 fn test_skeleton_datasec() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
+    let bpf_c = r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -653,52 +569,13 @@ fn test_skeleton_datasec() {
 
         SEC("kprobe/foo")
         int this_is_my_prog(u64 *ctx)
-        {{
+        {
                 return 0;
-        }}
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+        }
+    "#
+    .to_string();
 
-    // Lay down the necessary header files
-    add_vmlinux_header(&proj_dir);
-
-    make(
-        true,
-        Some(&cargo_toml),
-        None,
-        Vec::new(),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
-
-    let mut cargo = OpenOptions::new()
-        .append(true)
-        .open(&cargo_toml)
-        .expect("failed to open Cargo.toml");
-
-    // Make test project use our development libbpf-rs version
-    writeln!(
-        cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
-        get_libbpf_rs_path().as_path().display()
-    )
-    .expect("failed to write to Cargo.toml");
-
-    let mut source = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(proj_dir.join("src/main.rs"))
-        .expect("failed to open main.rs");
-
-    write!(
-        source,
-        r#"
+    let rust = r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -706,7 +583,7 @@ fn test_skeleton_datasec() {
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::skel::OpenSkel;
 
-        fn main() {{
+        fn main() {
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
             let open_skel = builder
@@ -733,20 +610,10 @@ fn test_skeleton_datasec() {
 
             // Read only for rodata after load
             let _rodata: &types::rodata = skel.maps.rodata_data;
-        }}
-        "#,
-    )
-    .expect("failed to write to main.rs");
-
-    let status = Command::new("cargo")
-        .arg("build")
-        .arg("--quiet")
-        .arg("--manifest-path")
-        .arg(cargo_toml.into_os_string())
-        .env("RUSTFLAGS", "-Dwarnings")
-        .status()
-        .expect("failed to spawn cargo-build");
-    assert!(status.success());
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
@@ -932,89 +799,35 @@ fn test_skeleton_builder_clang_opts() {
 
 #[test]
 fn test_skeleton_builder_arrays_ptrs() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
+    let bpf_c = r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
-        struct inner {{
+        struct inner {
             int a;
-        }};
+        };
 
-        struct mystruct {{
+        struct mystruct {
             int x;
-            struct {{
+            struct {
                 int b;
-            }} y[2];
+            } y[2];
             struct inner z[2];
-        }};
+        };
 
-        const volatile struct mystruct my_array[1] = {{ {{0}} }};
+        const volatile struct mystruct my_array[1] = { {0} };
         struct mystruct * const my_ptr = NULL;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+    "#
+    .to_string();
 
-    // Lay down the necessary header files
-    add_vmlinux_header(&proj_dir);
-
-    make(
-        true,
-        Some(&cargo_toml),
-        None,
-        Vec::new(),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
-
-    let mut cargo = OpenOptions::new()
-        .append(true)
-        .open(&cargo_toml)
-        .expect("failed to open Cargo.toml");
-
-    // Make test project use our development libbpf-rs version
-    writeln!(
-        cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
-        get_libbpf_rs_path().as_path().display()
-    )
-    .expect("failed to write to Cargo.toml");
-
-    let mut source = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(proj_dir.join("src/main.rs"))
-        .expect("failed to open main.rs");
-
-    write!(
-        source,
-        r#"
+    let rust = r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
 
-        fn main() {{
+        fn main() {
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
             let open_skel = builder
@@ -1026,224 +839,97 @@ fn test_skeleton_builder_arrays_ptrs() {
             let _ = open_skel.maps.rodata_data.my_array[0].y[1].b;
             let _ = open_skel.maps.rodata_data.my_array[0].z[0].a;
             let _ = open_skel.maps.rodata_data.my_ptr;
-        }}
-        "#,
-    )
-    .expect("failed to write to main.rs");
-
-    let status = Command::new("cargo")
-        .arg("build")
-        .arg("--quiet")
-        .arg("--manifest-path")
-        .arg(cargo_toml.into_os_string())
-        .env("RUSTFLAGS", "-Dwarnings")
-        .status()
-        .expect("failed to spawn cargo-build");
-
-    assert!(status.success());
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
 fn test_skeleton_generate_struct_with_pointer() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
+    let bpf_c = r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
-        struct list {{
+        struct list {
             struct list *next;
-        }};
+        };
 
         struct list l;
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+    "#
+    .to_string();
 
-    // Lay down the necessary header files
-    add_vmlinux_header(&proj_dir);
-
-    make(
-        true,
-        Some(&cargo_toml),
-        None,
-        Vec::new(),
-        true,
-        true,
-        Vec::new(),
-        None,
-    )
-    .unwrap();
-
-    let mut cargo = OpenOptions::new()
-        .append(true)
-        .open(&cargo_toml)
-        .expect("failed to open Cargo.toml");
-
-    // Make test project use our development libbpf-rs version
-    writeln!(
-        cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
-        get_libbpf_rs_path().as_path().display()
-    )
-    .expect("failed to write to Cargo.toml");
-
-    let mut source = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(proj_dir.join("src/main.rs"))
-        .expect("failed to open main.rs");
-
-    write!(
-        source,
-        r#"
+    let rust = r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
         use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
 
-        fn main() {{
+        fn main() {
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
             let _open_skel = builder
                 .open(&mut open_object)
                 .expect("failed to open skel");
-        }}
-        "#,
-    )
-    .expect("failed to write to main.rs");
-
-    let status = Command::new("cargo")
-        .arg("build")
-        .arg("--quiet")
-        .arg("--manifest-path")
-        .arg(cargo_toml.into_os_string())
-        .env("RUSTFLAGS", "-Dwarnings")
-        .status()
-        .expect("failed to spawn cargo-build");
-
-    assert!(status.success());
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Generate a skeleton that includes multiple "anon" type definitions.
 #[test]
 fn test_skeleton_builder_multiple_anon() {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
-        .expect("failed to open prog.bpf.c");
-
-    write!(
-        prog,
-        r#"
+    let bpf_c = r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
-        struct unique_key {{
-            struct {{
+        struct unique_key {
+            struct {
                 u32 foo;
                 u64 bar;
-            }} foobar;
-        }};
+            } foobar;
+        };
 
-        struct {{
+        struct {
                 __uint(type, BPF_MAP_TYPE_HASH);
                 __uint(max_entries, 1024);
                 __type(key, struct unique_key);
                 __type(value, u64);
-        }} mymap SEC(".maps");
+        } mymap SEC(".maps");
 
-        struct Foo {{
+        struct Foo {
             int x;
-            struct {{
+            struct {
                 u8 y[10];
                 u16 z[16];
-            }} bar;
-            struct {{
+            } bar;
+            struct {
                 u32 w;
                 u64 *u;
-            }} baz;
+            } baz;
             int w;
-        }};
+        };
 
 struct Foo foo;
 
         SEC("kprobe/foo")
         int this_is_my_prog(u64 *ctx)
-        {{
+        {
                 return 0;
-        }}
-        "#,
-    )
-    .expect("failed to write prog.bpf.c");
+        }
+    "#
+    .to_string();
 
-    // Lay down the necessary header files
-    add_vmlinux_header(&proj_dir);
-
-    // Generate skeleton file
-    let skel = NamedTempFile::new().unwrap();
-    SkeletonBuilder::new()
-        .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .debug(true)
-        .build_and_generate(skel.path())
-        .unwrap();
-
-    let mut cargo = OpenOptions::new()
-        .append(true)
-        .open(&cargo_toml)
-        .expect("failed to open Cargo.toml");
-
-    // Make test project use our development libbpf-rs version
-    writeln!(
-        cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
-        get_libbpf_rs_path().as_path().display()
-    )
-    .expect("failed to write to Cargo.toml");
-
-    let mut source = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(proj_dir.join("src/main.rs"))
-        .expect("failed to open main.rs");
-
-    write!(
-        source,
-        r#"
-        #[path = "{skel_path}"]
-        mod skel;
+    let rust = r#"
+        mod bpf;
         use std::mem::MaybeUninit;
-        use skel::*;
+        use bpf::*;
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::skel::OpenSkel;
 
-        fn main() {{
+        fn main() {
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
             let open_skel = builder
@@ -1252,21 +938,11 @@ struct Foo foo;
 
             let _skel = open_skel.load().expect("failed to load skel");
             let _key = types::unique_key::default();
-        }}
-        "#,
-        skel_path = skel.path().display(),
-    )
-    .expect("failed to write to main.rs");
+        }
+    "#
+    .to_string();
 
-    let status = Command::new("cargo")
-        .arg("build")
-        .arg("--quiet")
-        .arg("--manifest-path")
-        .arg(cargo_toml.into_os_string())
-        .env("RUSTFLAGS", "-Dwarnings")
-        .status()
-        .expect("failed to spawn cargo-build");
-    assert!(status.success());
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Check that skeleton creation is deterministic, i.e., that no temporary paths
