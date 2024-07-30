@@ -1196,6 +1196,7 @@ fn test_btf_dump_reserved_keyword_escaping() {
 struct Foo {
     u64 type;
     void* mod;
+    void* self;
 };
 
 struct Foo foo = {{0}};
@@ -1207,12 +1208,14 @@ struct Foo foo = {{0}};
 pub struct Foo {
     pub r#type: u64,
     pub r#mod: *mut std::ffi::c_void,
+    pub slf: *mut std::ffi::c_void,
 }
 impl Default for Foo {
     fn default() -> Self {
         Self {
             r#type: u64::default(),
             r#mod: std::ptr::null_mut(),
+            slf: std::ptr::null_mut(),
         }
     }
 }
