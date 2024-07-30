@@ -640,6 +640,10 @@ impl<'s> GenBtf<'s> {
                     if ft.capacity() > 32 {
                         gen_impl_default = true
                     }
+
+                    if self.type_by_id::<types::Ptr<'_>>(ft.ty()).is_some() {
+                        gen_impl_default = true
+                    }
                 }
 
                 // Rust does not implement `Default` for pointers, no matter if

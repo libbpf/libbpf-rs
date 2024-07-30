@@ -878,6 +878,42 @@ fn test_skeleton_generate_struct_with_pointer() {
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
+/// Check that we generate valid Rust code for an array of pointers.
+#[test]
+fn test_skeleton_generate_struct_with_pointer_array() {
+    let bpf_c = r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct vm_area_struct;
+
+        struct vmacache {
+            struct vm_area_struct *vmas[4];
+        };
+
+        struct vmacache c;
+    "#
+    .to_string();
+
+    let rust = r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use std::mem::MaybeUninit;
+        use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+
+        fn main() {
+            let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
+            let _open_skel = builder
+                .open(&mut open_object)
+                .expect("failed to open skel");
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+}
+
 /// Generate a skeleton that includes multiple "anon" type definitions.
 #[test]
 fn test_skeleton_builder_multiple_anon() {
