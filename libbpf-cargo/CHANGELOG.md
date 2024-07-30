@@ -7,6 +7,8 @@ Unreleased
 - Renamed module for generated Rust types from `<project>_types` to just `types`
 - Renamed generated `struct_ops` type to `StructOps` and moved it out of `types`
   module
+- Fixed Rust code generation logic to properly create `Default` impl for arrays
+  of pointers
 
 
 0.23.3
