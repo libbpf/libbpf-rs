@@ -1056,10 +1056,7 @@ impl<'obj> ProgramMut<'obj> {
     /// [BPF_PROG_RUN](https://www.kernel.org/doc/html/latest/bpf/bpf_prog_run.html)
     /// facility.
     pub fn test_run<'dat>(&mut self, input: Input<'dat>) -> Result<Output<'dat>> {
-        pub(crate) unsafe fn slice_from_array<'t, T>(
-            items: *mut T,
-            num_items: usize,
-        ) -> Option<&'t mut [T]> {
+        unsafe fn slice_from_array<'t, T>(items: *mut T, num_items: usize) -> Option<&'t mut [T]> {
             if items.is_null() {
                 None
             } else {
