@@ -1,7 +1,5 @@
-use std::any::type_name;
 use std::ffi::CStr;
 use std::ffi::CString;
-use std::io;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::os::raw::c_char;
@@ -94,42 +92,6 @@ pub fn validate_bpf_ret<T>(ptr: *mut T) -> Result<NonNull<T>> {
     }
 }
 
-
-pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Result<NonNull<B>> {
-    create_bpf_entity_checked_opt(f).and_then(|ptr| {
-        ptr.ok_or_else(|| {
-            Error::with_io_error(
-                io::ErrorKind::Other,
-                format!(
-                    "bpf call {:?} returned NULL",
-                    type_name::<F>() /* this is usually a library bug, hopefully this will
-                                      * help diagnose the bug.
-                                      *
-                                      * One way to fix the bug might be to change to calling
-                                      * create_bpf_entity_checked_opt and handling Ok(None)
-                                      * as a meaningful value. */
-                ),
-            )
-        })
-    })
-}
-
-fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
-    f: F,
-) -> Result<Option<NonNull<B>>> {
-    let ptr = f();
-    if ptr.is_null() {
-        return Ok(None);
-    }
-    // SAFETY: `libbpf_get_error` is always safe to call.
-    match unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) } {
-        0 => Ok(Some(unsafe {
-            // SAFETY: We checked if the pointer was non null before.
-            NonNull::new_unchecked(ptr)
-        })),
-        err => Err(Error::from_raw_os_error(-err as i32)),
-    }
-}
 
 // Fix me, If std::sync::LazyLock is stable(https://github.com/rust-lang/rust/issues/109736).
 pub(crate) struct LazyLock<T> {
