@@ -12,8 +12,10 @@ use std::slice;
 use std::time::Duration;
 
 use crate::util;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
+use crate::ErrorExt as _;
 use crate::MapCore;
 use crate::MapType;
 use crate::Result;
@@ -83,22 +85,24 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     /// Build a new [`RingBuffer`]. Must have added at least one ringbuf.
     pub fn build(self) -> Result<RingBuffer<'cb>> {
         let mut cbs = vec![];
-        let mut ptr: Option<NonNull<libbpf_sys::ring_buffer>> = None;
+        let mut rb_ptr: Option<NonNull<libbpf_sys::ring_buffer>> = None;
         let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
 
         for (fd, callback) in self.fd_callbacks {
             let sample_cb_ptr = Box::into_raw(Box::new(callback));
-            match ptr {
+            match rb_ptr {
                 None => {
                     // Allocate a new ringbuf manager and add a ringbuf to it
-                    ptr = Some(util::create_bpf_entity_checked(|| unsafe {
+                    let ptr = unsafe {
                         libbpf_sys::ring_buffer__new(
                             fd.as_raw_fd(),
                             c_sample_cb,
                             sample_cb_ptr as *mut _,
                             null_mut(),
                         )
-                    })?);
+                    };
+                    let ptr = validate_bpf_ret(ptr).context("failed to create new ring buffer")?;
+                    rb_ptr = Some(ptr)
                 }
                 Some(ptr) => {
                     // Add a ringbuf to the existing ringbuf manager
@@ -121,7 +125,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
             unsafe { cbs.push(Box::from_raw(sample_cb_ptr)) };
         }
 
-        match ptr {
+        match rb_ptr {
             Some(ptr) => Ok(RingBuffer { ptr, _cbs: cbs }),
             None => Err(Error::with_invalid_data(
                 "You must add at least one ring buffer map and callback before building",

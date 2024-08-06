@@ -10,8 +10,10 @@ use std::slice;
 use std::time::Duration;
 
 use crate::util;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
+use crate::ErrorExt as _;
 use crate::Map;
 use crate::MapCore as _;
 use crate::MapType;
@@ -126,7 +128,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
             lost_cb: self.lost_cb,
         }));
 
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::perf_buffer__new(
                 self.map.as_fd().as_raw_fd(),
                 self.pages as libbpf_sys::size_t,
@@ -135,11 +137,13 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
                 callback_struct_ptr as *mut _,
                 ptr::null(),
             )
-        })
-        .map(|ptr| PerfBuffer {
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to create perf buffer")?;
+        let pb = PerfBuffer {
             ptr,
             _cb_struct: unsafe { Box::from_raw(callback_struct_ptr) },
-        })
+        };
+        Ok(pb)
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {

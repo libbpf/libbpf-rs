@@ -29,6 +29,7 @@ use libbpf_sys::bpf_obj_get_info_by_fd;
 
 use crate::util;
 use crate::util::parse_ret_i32;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
@@ -791,13 +792,11 @@ impl<'obj> MapMut<'obj> {
             )));
         }
 
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_map__attach_struct_ops(self.ptr.as_ptr())
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_map__attach_struct_ops(self.ptr.as_ptr()) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach struct_ops")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 }
 

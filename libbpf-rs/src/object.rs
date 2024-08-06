@@ -12,7 +12,9 @@ use std::ptr::NonNull;
 use crate::map::map_fd;
 use crate::set_print;
 use crate::util;
+use crate::util::validate_bpf_ret;
 use crate::Btf;
+use crate::ErrorExt as _;
 use crate::Map;
 use crate::MapMut;
 use crate::OpenMap;
@@ -171,13 +173,15 @@ impl ObjectBuilder {
 
     /// Open an object using the provided path on the file system.
     pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
+        let path = path.as_ref();
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
         let opts_ptr = self.as_libbpf_object().as_ptr();
 
-        let ptr = util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_object__open_file(path_ptr, opts_ptr)
-        })?;
+        let ptr = unsafe { libbpf_sys::bpf_object__open_file(path_ptr, opts_ptr) };
+        let ptr = validate_bpf_ret(ptr)
+            .with_context(|| format!("failed to open object from `{}`", path.display()))?;
+
         let obj = unsafe { OpenObject::from_ptr(ptr) };
         Ok(obj)
     }
@@ -185,13 +189,14 @@ impl ObjectBuilder {
     /// Open an object from memory.
     pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
         let opts_ptr = self.as_libbpf_object().as_ptr();
-        let ptr = util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 mem.as_ptr() as *const c_void,
                 mem.len() as libbpf_sys::size_t,
                 opts_ptr,
             )
-        })?;
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to open object from memory")?;
         let obj = unsafe { OpenObject::from_ptr(ptr) };
         Ok(obj)
     }

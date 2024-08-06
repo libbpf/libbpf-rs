@@ -2,8 +2,8 @@ use std::path::Path;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
 
-use crate::util;
 use crate::util::path_to_cstring;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
@@ -27,12 +27,12 @@ impl Linker {
         P: AsRef<Path>,
     {
         let output = path_to_cstring(output)?;
-        util::create_bpf_entity_checked(|| {
-            let opts = null_mut();
-            // SAFETY: `output` is a valid pointer and `opts` is accepted as NULL.
-            unsafe { libbpf_sys::bpf_linker__new(output.as_ptr(), opts) }
-        })
-        .map(|linker| Self { linker })
+        let opts = null_mut();
+        // SAFETY: `output` is a valid pointer and `opts` is accepted as NULL.
+        let ptr = unsafe { libbpf_sys::bpf_linker__new(output.as_ptr(), opts) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach iterator")?;
+        let slf = Self { linker: ptr };
+        Ok(slf)
     }
 
     /// Add a file to the set of files to link.
