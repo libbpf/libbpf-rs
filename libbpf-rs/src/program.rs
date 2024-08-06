@@ -104,6 +104,7 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
     }
 }
 
+
 /// An immutable parsed but not yet loaded BPF program.
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF program.
@@ -505,6 +506,8 @@ impl From<u32> for ProgramAttachType {
 #[derive(Debug, Default)]
 pub struct Input<'dat> {
     /// The input context to provide.
+    ///
+    /// The input is mutable because the kernel may modify it.
     pub context_in: Option<&'dat mut [u8]>,
     /// The output context buffer provided to the program.
     pub context_out: Option<&'dat mut [u8]>,
@@ -542,6 +545,7 @@ pub struct Output<'dat> {
 pub type Program<'obj> = ProgramImpl<'obj>;
 /// A mutable loaded BPF program.
 pub type ProgramMut<'obj> = ProgramImpl<'obj, Mut>;
+
 
 /// Represents a loaded [`Program`].
 ///

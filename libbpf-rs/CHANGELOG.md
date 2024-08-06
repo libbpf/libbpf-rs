@@ -20,6 +20,7 @@ Unreleased
 - Added `Object::name` method
 - Added `Copy` and `Clone` impls for types inside `btf::types` module
 - Adjusted `OpenMap::set_inner_map_fd` to return `Result`
+- Adjusted `ProgramInput::context_in` field to be a mutable reference
 - Made inner `query::Tag` contents publicly accessible
 - Removed `Display` implementation of various `enum` types
 
