@@ -37,7 +37,6 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 
-use crate::util::create_bpf_entity_checked;
 use crate::util::parse_ret_i32;
 use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
@@ -173,9 +172,8 @@ impl Btf<'static> {
             let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
                 Error::with_invalid_data(format!("invalid path {path:?}, has null bytes"))
             })?;
-            let ptr = create_bpf_entity_checked(|| unsafe {
-                libbpf_sys::btf__parse(path.as_ptr(), ptr::null_mut())
-            })?;
+            let ptr = unsafe { libbpf_sys::btf__parse(path.as_ptr(), ptr::null_mut()) };
+            let ptr = validate_bpf_ret(ptr).context("failed to parse BTF information")?;
             Ok(Btf {
                 ptr,
                 drop_policy: DropPolicy::SelfPtrOnly,
@@ -187,7 +185,8 @@ impl Btf<'static> {
 
     /// Load the vmlinux btf information from few well-known locations.
     pub fn from_vmlinux() -> Result<Self> {
-        let ptr = create_bpf_entity_checked(|| unsafe { libbpf_sys::btf__load_vmlinux_btf() })?;
+        let ptr = unsafe { libbpf_sys::btf__load_vmlinux_btf() };
+        let ptr = validate_bpf_ret(ptr).context("failed to load BTF from vmlinux")?;
 
         Ok(Btf {
             ptr,
@@ -212,9 +211,8 @@ impl Btf<'static> {
             )
         })?;
 
-        let ptr = create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::btf__load_from_kernel_by_id(info.btf_id)
-        })?;
+        let ptr = unsafe { libbpf_sys::btf__load_from_kernel_by_id(info.btf_id) };
+        let ptr = validate_bpf_ret(ptr).context("failed to load BTF from kernel")?;
 
         Ok(Self {
             ptr,
@@ -261,14 +259,16 @@ impl<'btf> Btf<'btf> {
             ..Default::default()
         };
 
-        let mut bpf_obj = create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr() as *const c_void,
                 object_file.len() as c_ulong,
                 &obj_opts,
             )
-        })?;
+        };
 
+        let mut bpf_obj = validate_bpf_ret(ptr).context("failed to open BPF object from memory")?;
+        // SAFETY: The pointer has been validated.
         let bpf_obj = unsafe { bpf_obj.as_mut() };
         match Self::from_bpf_object_raw(bpf_obj) {
             Ok(Some(this)) => Ok(Some(Self {
@@ -276,12 +276,12 @@ impl<'btf> Btf<'btf> {
                 ..this
             })),
             x => {
+                // SAFETY: The obj pointer is valid because we checked
+                //         its validity.
                 unsafe {
-                    // SAFETY:
-                    // The obj pointer is valid, create_bpf_entity_checked has checked it.
-                    //
-                    // We free it here, otherwise it will be a memory leak as this codepath
-                    // (Ok(None) | Err(e)) does not reference it anymore and as such it can be
+                    // We free it here, otherwise it will be a memory
+                    // leak as this codepath (Ok(None) | Err(e)) does
+                    // not reference it anymore and as such it can be
                     // dropped.
                     libbpf_sys::bpf_object__close(bpf_obj)
                 };
