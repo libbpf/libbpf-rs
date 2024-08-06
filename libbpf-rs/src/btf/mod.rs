@@ -38,10 +38,11 @@ use std::ptr;
 use std::ptr::NonNull;
 
 use crate::util::create_bpf_entity_checked;
-use crate::util::create_bpf_entity_checked_opt;
 use crate::util::parse_ret_i32;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
+use crate::ErrorExt as _;
 use crate::Result;
 
 use self::types::Composite;
@@ -230,17 +231,22 @@ impl<'btf> Btf<'btf> {
     }
 
     fn from_bpf_object_raw(obj: *const libbpf_sys::bpf_object) -> Result<Option<Self>> {
-        create_bpf_entity_checked_opt(|| unsafe {
+        let ptr = unsafe {
             // SAFETY: the obj pointer is valid since it's behind a reference.
             libbpf_sys::bpf_object__btf(obj)
-        })
-        .map(|opt| {
-            opt.map(|ptr| Self {
-                ptr,
-                drop_policy: DropPolicy::Nothing,
-                _marker: PhantomData,
-            })
-        })
+        };
+        // Contrary to general `libbpf` contract, `bpf_object__btf` may
+        // return `NULL` without setting `errno`.
+        if ptr.is_null() {
+            return Ok(None)
+        }
+        let ptr = validate_bpf_ret(ptr).context("failed to create BTF from BPF object")?;
+        let slf = Self {
+            ptr,
+            drop_policy: DropPolicy::Nothing,
+            _marker: PhantomData,
+        };
+        Ok(Some(slf))
     }
 
     /// From raw bytes coming from an object file.
