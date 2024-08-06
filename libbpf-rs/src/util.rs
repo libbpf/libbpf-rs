@@ -76,6 +76,25 @@ pub fn parse_ret_i32(ret: i32) -> Result<i32> {
     parse_ret(ret).map(|()| ret)
 }
 
+
+/// Check the returned pointer of a `libbpf` call, extracting any
+/// reported errors and converting them.
+pub fn validate_bpf_ret<T>(ptr: *mut T) -> Result<NonNull<T>> {
+    // SAFETY: `libbpf_get_error` is always safe to call.
+    match unsafe { libbpf_sys::libbpf_get_error(ptr as *const _) } {
+        0 => {
+            debug_assert!(!ptr.is_null());
+            // SAFETY: libbpf guarantees that if NULL is returned an
+            //         error it set, so we will always end up with a
+            //         valid pointer when `libbpf_get_error` returned 0.
+            let ptr = unsafe { NonNull::new_unchecked(ptr) };
+            Ok(ptr)
+        }
+        err => Err(Error::from_raw_os_error(-err as i32)),
+    }
+}
+
+
 pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Result<NonNull<B>> {
     create_bpf_entity_checked_opt(f).and_then(|ptr| {
         ptr.ok_or_else(|| {
@@ -95,7 +114,7 @@ pub fn create_bpf_entity_checked<B: 'static, F: FnOnce() -> *mut B>(f: F) -> Res
     })
 }
 
-pub fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
+fn create_bpf_entity_checked_opt<B: 'static, F: FnOnce() -> *mut B>(
     f: F,
 ) -> Result<Option<NonNull<B>>> {
     let ptr = f();
