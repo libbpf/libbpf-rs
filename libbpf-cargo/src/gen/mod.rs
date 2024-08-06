@@ -1057,7 +1057,7 @@ pub struct StructOps {{}}
         skel,
         "\
         pub struct Open{name}Skel<'obj> {{
-            pub obj: &'obj mut libbpf_rs::OpenObject,
+            obj: &'obj mut libbpf_rs::OpenObject,
             pub maps: Open{name}Maps<'obj>,
             pub progs: Open{name}Progs<'obj>,
             pub struct_ops: StructOps,
@@ -1124,7 +1124,7 @@ pub struct StructOps {{}}
         skel,
         "\
         pub struct {name}Skel<'obj> {{
-            pub obj: &'obj mut libbpf_rs::Object,
+            obj: &'obj mut libbpf_rs::Object,
             pub maps: {name}Maps<'obj>,
             pub progs: {name}Progs<'obj>,
             struct_ops: StructOps,
