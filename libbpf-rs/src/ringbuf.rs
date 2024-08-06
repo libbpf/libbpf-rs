@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::ops::Deref as _;
+use std::ops::DerefMut as _;
 use std::os::raw::c_ulong;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::BorrowedFd;
@@ -89,40 +90,48 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
         let c_sample_cb: libbpf_sys::ring_buffer_sample_fn = Some(Self::call_sample_cb);
 
         for (fd, callback) in self.fd_callbacks {
-            let sample_cb_ptr = Box::into_raw(Box::new(callback));
+            let mut sample_cb = Box::new(callback);
             match rb_ptr {
                 None => {
                     // Allocate a new ringbuf manager and add a ringbuf to it
+                    // SAFETY: All pointers are valid or rightly NULL.
+                    //         The object referenced by `sample_cb` is
+                    //         not modified by `libbpf`
                     let ptr = unsafe {
                         libbpf_sys::ring_buffer__new(
                             fd.as_raw_fd(),
                             c_sample_cb,
-                            sample_cb_ptr as *mut _,
+                            sample_cb.deref_mut() as *mut _ as *mut _,
                             null_mut(),
                         )
                     };
                     let ptr = validate_bpf_ret(ptr).context("failed to create new ring buffer")?;
                     rb_ptr = Some(ptr)
                 }
-                Some(ptr) => {
+                Some(mut ptr) => {
                     // Add a ringbuf to the existing ringbuf manager
+                    // SAFETY: All pointers are valid or rightly NULL.
+                    //         The object referenced by `sample_cb` is
+                    //         not modified by `libbpf`
                     let err = unsafe {
                         libbpf_sys::ring_buffer__add(
                             ptr.as_ptr(),
                             fd.as_raw_fd(),
                             c_sample_cb,
-                            sample_cb_ptr as *mut _,
+                            sample_cb.deref_mut() as *mut _ as *mut _,
                         )
                     };
 
                     // Handle errors
                     if err != 0 {
+                        // SAFETY: The pointer is valid.
+                        let () = unsafe { libbpf_sys::ring_buffer__free(ptr.as_mut()) };
                         return Err(Error::from_raw_os_error(err));
                     }
                 }
             }
 
-            unsafe { cbs.push(Box::from_raw(sample_cb_ptr)) };
+            let () = cbs.push(sample_cb);
         }
 
         match rb_ptr {

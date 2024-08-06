@@ -22,6 +22,7 @@ Unreleased
 - Adjusted `OpenMap::set_inner_map_fd` to return `Result`
 - Adjusted `ProgramInput::context_in` field to be a mutable reference
 - Made inner `query::Tag` contents publicly accessible
+- Fixed potential memory leak in `RingBufferBuilder::build`
 - Removed `Display` implementation of various `enum` types
 
 
