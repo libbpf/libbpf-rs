@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.0
+------
 - Split `{Open,}{Map,Program}` into `{Open,}{Map,Program}` (for shared
   access) and `{Open,}{Map,Program}Mut` (for exclusive access)
 - Added `AsRawLibbpf` impl for `OpenObject` and `ObjectBuilder`
