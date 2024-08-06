@@ -6,7 +6,9 @@ use std::path::PathBuf;
 use std::ptr::NonNull;
 
 use crate::util;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
+use crate::ErrorExt as _;
 use crate::Program;
 use crate::Result;
 
@@ -33,8 +35,10 @@ impl Link {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
-        util::create_bpf_entity_checked(|| unsafe { libbpf_sys::bpf_link__open(path_ptr) })
-            .map(|ptr| unsafe { Self::new(ptr) })
+        let ptr = unsafe { libbpf_sys::bpf_link__open(path_ptr) };
+        let ptr = validate_bpf_ret(ptr).context("failed to open link")?;
+        let slf = unsafe { Self::new(ptr) };
+        Ok(slf)
     }
 
     /// Takes ownership from pointer.
