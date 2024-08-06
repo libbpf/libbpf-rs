@@ -25,8 +25,10 @@ use std::slice;
 use libbpf_sys::bpf_func_id;
 
 use crate::util;
+use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
+use crate::ErrorExt as _;
 use crate::Link;
 use crate::Mut;
 use crate::Result;
@@ -692,36 +694,30 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Auto-attach based on prog section
     pub fn attach(&mut self) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach(self.ptr.as_ptr())
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach(self.ptr.as_ptr()) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach BPF program")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a
     /// [cgroup](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html).
     pub fn attach_cgroup(&mut self, cgroup_fd: i32) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach_cgroup(self.ptr.as_ptr(), cgroup_fd)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_cgroup(self.ptr.as_ptr(), cgroup_fd) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach cgroup")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
     pub fn attach_perf_event(&mut self, pfd: i32) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a [userspace
@@ -735,7 +731,7 @@ impl<'obj> ProgramMut<'obj> {
     ) -> Result<Link> {
         let path = util::path_to_cstring(binary_path)?;
         let path_ptr = path.as_ptr();
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_uprobe(
                 self.ptr.as_ptr(),
                 retprobe,
@@ -743,11 +739,11 @@ impl<'obj> ProgramMut<'obj> {
                 path_ptr,
                 func_offset as libbpf_sys::size_t,
             )
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach uprobe")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a [userspace
@@ -780,7 +776,7 @@ impl<'obj> ProgramMut<'obj> {
             ..Default::default()
         };
 
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_uprobe_opts(
                 self.ptr.as_ptr(),
                 pid,
@@ -788,11 +784,11 @@ impl<'obj> ProgramMut<'obj> {
                 func_offset as libbpf_sys::size_t,
                 &opts as *const _,
             )
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach uprobe")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a [kernel
@@ -800,13 +796,13 @@ impl<'obj> ProgramMut<'obj> {
     pub fn attach_kprobe<T: AsRef<str>>(&mut self, retprobe: bool, func_name: T) -> Result<Link> {
         let func_name = util::str_to_cstring(func_name.as_ref())?;
         let func_name_ptr = func_name.as_ptr();
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_kprobe(self.ptr.as_ptr(), retprobe, func_name_ptr)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach kprobe")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to the specified syscall
@@ -823,13 +819,13 @@ impl<'obj> ProgramMut<'obj> {
 
         let syscall_name = util::str_to_cstring(syscall_name.as_ref())?;
         let syscall_name_ptr = syscall_name.as_ptr();
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_ksyscall(self.ptr.as_ptr(), syscall_name_ptr, &opts)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach ksyscall")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     fn attach_tracepoint_impl(
@@ -843,31 +839,30 @@ impl<'obj> ProgramMut<'obj> {
         let tp_name = util::str_to_cstring(tp_name)?;
         let tp_name_ptr = tp_name.as_ptr();
 
-        util::create_bpf_entity_checked(|| {
-            if let Some(tp_opts) = tp_opts {
-                let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
-                unsafe {
-                    libbpf_sys::bpf_program__attach_tracepoint_opts(
-                        self.ptr.as_ptr(),
-                        tp_category_ptr,
-                        tp_name_ptr,
-                        &tp_opts as *const _,
-                    )
-                }
-            } else {
-                unsafe {
-                    libbpf_sys::bpf_program__attach_tracepoint(
-                        self.ptr.as_ptr(),
-                        tp_category_ptr,
-                        tp_name_ptr,
-                    )
-                }
+        let ptr = if let Some(tp_opts) = tp_opts {
+            let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
+            unsafe {
+                libbpf_sys::bpf_program__attach_tracepoint_opts(
+                    self.ptr.as_ptr(),
+                    tp_category_ptr,
+                    tp_name_ptr,
+                    &tp_opts as *const _,
+                )
             }
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        } else {
+            unsafe {
+                libbpf_sys::bpf_program__attach_tracepoint(
+                    self.ptr.as_ptr(),
+                    tp_category_ptr,
+                    tp_name_ptr,
+                )
+            }
+        };
+
+        let ptr = validate_bpf_ret(ptr).context("failed to attach tracepoint")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a [kernel
@@ -897,35 +892,31 @@ impl<'obj> ProgramMut<'obj> {
     pub fn attach_raw_tracepoint<T: AsRef<str>>(&mut self, tp_name: T) -> Result<Link> {
         let tp_name = util::str_to_cstring(tp_name.as_ref())?;
         let tp_name_ptr = tp_name.as_ptr();
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr.as_ptr(), tp_name_ptr)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach raw tracepoint")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
     pub fn attach_lsm(&mut self) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach_lsm(self.ptr.as_ptr())
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_lsm(self.ptr.as_ptr()) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach LSM")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
     pub fn attach_trace(&mut self) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach_trace(self.ptr.as_ptr())
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr.as_ptr()) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach fentry/fexit kernel probe")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
@@ -943,24 +934,20 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
     pub fn attach_xdp(&mut self, ifindex: i32) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach_xdp(self.ptr.as_ptr(), ifindex)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_xdp(self.ptr.as_ptr(), ifindex) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach XDP program")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
     pub fn attach_netns(&mut self, netns_fd: i32) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd)
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        let ptr = unsafe { libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach network namespace program")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     fn attach_usdt_impl(
@@ -983,7 +970,7 @@ impl<'obj> ProgramMut<'obj> {
             .map(|opts| opts as *const _)
             .unwrap_or_else(ptr::null);
 
-        util::create_bpf_entity_checked(|| unsafe {
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_usdt(
                 self.ptr.as_ptr(),
                 pid,
@@ -992,11 +979,11 @@ impl<'obj> ProgramMut<'obj> {
                 usdt_name_ptr,
                 usdt_opts_ptr,
             )
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach USDT")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
@@ -1042,25 +1029,25 @@ impl<'obj> ProgramMut<'obj> {
     /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
     pub fn attach_iter(&mut self, map_fd: BorrowedFd<'_>) -> Result<Link> {
-        util::create_bpf_entity_checked(|| unsafe {
-            let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
-            linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
-            let attach_opt = libbpf_sys::bpf_iter_attach_opts {
-                link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
-                link_info_len: size_of::<libbpf_sys::bpf_iter_link_info>() as _,
-                sz: size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
-                ..Default::default()
-            };
-
+        let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
+        linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
+        let attach_opt = libbpf_sys::bpf_iter_attach_opts {
+            link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
+            link_info_len: size_of::<libbpf_sys::bpf_iter_link_info>() as _,
+            sz: size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
+            ..Default::default()
+        };
+        let ptr = unsafe {
             libbpf_sys::bpf_program__attach_iter(
                 self.ptr.as_ptr(),
                 &attach_opt as *const libbpf_sys::bpf_iter_attach_opts,
             )
-        })
-        .map(|ptr| unsafe {
-            // SAFETY: the pointer came from libbpf and has been checked for errors
-            Link::new(ptr)
-        })
+        };
+
+        let ptr = validate_bpf_ret(ptr).context("failed to attach iterator")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
     }
 
     /// Test run the program with the given input data.
