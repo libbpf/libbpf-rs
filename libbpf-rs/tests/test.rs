@@ -13,6 +13,7 @@ use std::hint;
 use std::io;
 use std::io::Read;
 use std::mem::size_of;
+use std::mem::size_of_val;
 use std::os::unix::io::AsFd;
 use std::path::Path;
 use std::path::PathBuf;
@@ -54,7 +55,6 @@ use crate::common::get_prog_mut;
 use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
-
 
 /// A helper function for instantiating a `RingBuffer` with a callback meant to
 /// be invoked when `action` is executed and that is intended to trigger a write
@@ -1994,9 +1994,11 @@ fn test_run_prog_success() {
 
     let value = 42;
     let state = bpf_dummy_ops_state { val: value };
-    let args = [addr_of!(state) as u64];
+    let mut args = [addr_of!(state) as u64];
     let input = ProgramInput {
-        context_in: Some(unsafe { plain::as_bytes(&args) }),
+        context_in: Some(unsafe {
+            slice::from_raw_parts_mut(&mut args as *mut _ as *mut u8, size_of_val(&args))
+        }),
         ..Default::default()
     };
     let output = prog.test_run(input).unwrap();

@@ -104,7 +104,6 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
     }
 }
 
-
 /// An immutable parsed but not yet loaded BPF program.
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF program.
@@ -506,7 +505,7 @@ impl From<u32> for ProgramAttachType {
 #[derive(Debug, Default)]
 pub struct Input<'dat> {
     /// The input context to provide.
-    pub context_in: Option<&'dat [u8]>,
+    pub context_in: Option<&'dat mut [u8]>,
     /// The output context buffer provided to the program.
     pub context_out: Option<&'dat mut [u8]>,
     /// Additional data to provide to the program.
@@ -543,7 +542,6 @@ pub struct Output<'dat> {
 pub type Program<'obj> = ProgramImpl<'obj>;
 /// A mutable loaded BPF program.
 pub type ProgramMut<'obj> = ProgramImpl<'obj, Mut>;
-
 
 /// Represents a loaded [`Program`].
 ///
@@ -1091,6 +1089,7 @@ impl<'obj> ProgramMut<'obj> {
         let mut opts = unsafe { mem::zeroed::<libbpf_sys::bpf_test_run_opts>() };
         opts.sz = size_of_val(&opts) as _;
         opts.ctx_in = context_in
+            .as_ref()
             .map(|data| data.as_ptr().cast())
             .unwrap_or_else(ptr::null);
         opts.ctx_size_in = context_in.map(|data| data.len() as _).unwrap_or(0);
