@@ -71,9 +71,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get install -y libelf-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - run: |
+      - name: Run tcp_ca
+        env:
+          CFLAGS: '-fsanitize=leak'
+          CXXFLAGS: '-fsanitize=leak'
+          RUSTFLAGS: '-Zsanitizer=leak'
+        run: |
           cargo build --package tcp_ca
           sudo target/debug/tcp_ca
 
