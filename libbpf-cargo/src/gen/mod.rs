@@ -951,6 +951,44 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     write!(
         skel,
         "\
+        struct OwnedRef<'obj, O> {{
+            object: Option<&'obj mut std::mem::MaybeUninit<O>>,
+        }}
+
+        impl<'obj, O> OwnedRef<'obj, O> {{
+            /// # Safety
+            /// The object has to be initialized.
+            unsafe fn new(object: &'obj mut std::mem::MaybeUninit<O>) -> Self {{
+                Self {{
+                    object: Some(object),
+                }}
+            }}
+
+            fn as_ref(&self) -> &O {{
+                // SAFETY: As per the contract during construction, the
+                //         object has to be initialized.
+                unsafe {{ self.object.as_ref().unwrap().assume_init_ref() }}
+            }}
+
+            fn as_mut(&mut self) -> &mut O {{
+                // SAFETY: As per the contract during construction, the
+                //         object has to be initialized.
+                unsafe {{ self.object.as_mut().unwrap().assume_init_mut() }}
+            }}
+
+            fn take(mut self) -> &'obj mut std::mem::MaybeUninit<O> {{
+                self.object.take().unwrap()
+            }}
+        }}
+
+        impl<O> Drop for OwnedRef<'_, O> {{
+            fn drop(&mut self) {{
+                if let Some(object) = &mut self.object {{
+                    unsafe {{ object.assume_init_drop() }}
+                }}
+            }}
+        }}
+
         #[derive(Default)]
         pub struct {name}SkelBuilder {{
             pub obj_builder: libbpf_rs::ObjectBuilder,
@@ -980,17 +1018,23 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
+                // SAFETY: `skel_ptr` points to a valid object after the
+                //         open call.
                 let obj_ptr = unsafe {{ *skel_ptr.as_ref().obj }};
                 // SANITY: `bpf_object__open_skeleton` should have
                 //         allocated the object.
                 let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
+                // SAFETY: `obj_ptr` points to an opened object after
+                //         skeleton open.
                 let obj = unsafe {{ libbpf_rs::OpenObject::from_ptr(obj_ptr) }};
-                let obj_ref = object.write(obj);
+                let _obj = object.write(obj);
+                // SAFETY: We just wrote initialized data to `object`.
+                let mut obj_ref = unsafe {{ OwnedRef::new(object) }};
 
                 #[allow(unused_mut)]
                 let mut skel = Open{name}Skel {{
-                    maps: unsafe {{ Open{name}Maps::new(&skel_config, obj_ref)? }},
-                    progs: unsafe {{ Open{name}Progs::new(obj_ref)? }},
+                    maps: unsafe {{ Open{name}Maps::new(&skel_config, obj_ref.as_mut())? }},
+                    progs: unsafe {{ Open{name}Progs::new(obj_ref.as_mut())? }},
                     obj: obj_ref,
                     // SAFETY: Our `struct_ops` type contains only pointers,
                     //         which are allowed to be NULL.
@@ -1057,7 +1101,7 @@ pub struct StructOps {{}}
         skel,
         "\
         pub struct Open{name}Skel<'obj> {{
-            obj: &'obj mut libbpf_rs::OpenObject,
+            obj: OwnedRef<'obj, libbpf_rs::OpenObject>,
             pub maps: Open{name}Maps<'obj>,
             pub progs: Open{name}Progs<'obj>,
             pub struct_ops: StructOps,
@@ -1074,22 +1118,25 @@ pub struct StructOps {{}}
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
 
-                let obj_ref = unsafe {{
-                    std::mem::transmute::<
-                        &'obj mut libbpf_rs::OpenObject,
-                        &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
-                    >(self.obj)
-                }};
+                let obj_ref = self.obj.take();
                 let open_obj = std::mem::replace(obj_ref, std::mem::MaybeUninit::uninit());
-                let obj = unsafe {{ libbpf_rs::Object::from_ptr(open_obj.assume_init().take_ptr()) }};
-
+                // SAFETY: `open_obj` is guaranteed to be properly
+                //         initialized as it came from an `OwnedRef`.
+                let obj_ptr = unsafe {{ open_obj.assume_init().take_ptr() }};
+                // SAFETY: `obj_ptr` points to a loaded object after
+                //         skeleton load.
+                let obj = unsafe {{ libbpf_rs::Object::from_ptr(obj_ptr) }};
+                // SAFETY: `OpenObject` and `Object` are guaranteed to
+                //         have the same memory layout.
                 let obj_ref = unsafe {{
                     std::mem::transmute::<
                         &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
                         &'obj mut std::mem::MaybeUninit<libbpf_rs::Object>,
                     >(obj_ref)
                 }};
-                let obj_ref = obj_ref.write(obj);
+                let _obj = obj_ref.write(obj);
+                // SAFETY: We just wrote initialized data to `obj_ref`.
+                let obj_ref = unsafe {{ OwnedRef::new(obj_ref) }};
 
                 Ok({name}Skel {{
                     obj: obj_ref,
@@ -1102,11 +1149,11 @@ pub struct StructOps {{}}
             }}
 
             fn open_object(&self) -> &libbpf_rs::OpenObject {{
-                self.obj
+                self.obj.as_ref()
             }}
 
             fn open_object_mut(&mut self) -> &mut libbpf_rs::OpenObject {{
-                self.obj
+                self.obj.as_mut()
             }}
         ",
         name = &obj_name,
@@ -1124,7 +1171,7 @@ pub struct StructOps {{}}
         skel,
         "\
         pub struct {name}Skel<'obj> {{
-            obj: &'obj mut libbpf_rs::Object,
+            obj: OwnedRef<'obj, libbpf_rs::Object>,
             pub maps: {name}Maps<'obj>,
             pub progs: {name}Progs<'obj>,
             struct_ops: StructOps,
@@ -1143,11 +1190,11 @@ pub struct StructOps {{}}
 
         impl<'obj> Skel<'obj> for {name}Skel<'obj> {{
             fn object(&self) -> &libbpf_rs::Object {{
-                self.obj
+                self.obj.as_ref()
             }}
 
             fn object_mut(&mut self) -> &mut libbpf_rs::Object {{
-                self.obj
+                self.obj.as_mut()
             }}
         ",
         name = &obj_name,

@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed missing BPF object cleanup after skeleton destruction
+
+
 0.24.0
 ------
 - Reworked generated skeletons to contain publicly accessible maps and
