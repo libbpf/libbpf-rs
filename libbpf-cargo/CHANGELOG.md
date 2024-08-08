@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.1
+------
 - Fixed missing BPF object cleanup after skeleton destruction
 
 
