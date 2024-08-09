@@ -5,6 +5,7 @@
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::OsStr;
+use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::mem::size_of;
@@ -393,6 +394,47 @@ impl From<u32> for ProgramType {
             x if x == Syscall as u32 => Syscall,
             _ => Unknown,
         }
+    }
+}
+
+impl fmt::Display for ProgramType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let program_type_str = match self {
+            ProgramType::Unspec => "Unspec",
+            ProgramType::SocketFilter => "SocketFilter",
+            ProgramType::Kprobe => "Kprobe",
+            ProgramType::SchedCls => "SchedCls",
+            ProgramType::SchedAct => "SchedAct",
+            ProgramType::Tracepoint => "Tracepoint",
+            ProgramType::Xdp => "Xdp",
+            ProgramType::PerfEvent => "PerfEvent",
+            ProgramType::CgroupSkb => "CgroupSkb",
+            ProgramType::CgroupSock => "CgroupSock",
+            ProgramType::LwtIn => "LwtIn",
+            ProgramType::LwtOut => "LwtOut",
+            ProgramType::LwtXmit => "LwtXmit",
+            ProgramType::SockOps => "SockOps",
+            ProgramType::SkSkb => "SkSkb",
+            ProgramType::CgroupDevice => "CgroupDevice",
+            ProgramType::SkMsg => "SkMsg",
+            ProgramType::RawTracepoint => "RawTracepoint",
+            ProgramType::CgroupSockAddr => "CgroupSockAddr",
+            ProgramType::LwtSeg6local => "LwtSeg6local",
+            ProgramType::LircMode2 => "LircMode2",
+            ProgramType::SkReuseport => "SkReuseport",
+            ProgramType::FlowDissector => "FlowDissector",
+            ProgramType::CgroupSysctl => "CgroupSysctl",
+            ProgramType::RawTracepointWritable => "RawTracepointWritable",
+            ProgramType::CgroupSockopt => "CgroupSockopt",
+            ProgramType::Tracing => "Tracing",
+            ProgramType::StructOps => "StructOps",
+            ProgramType::Ext => "Ext",
+            ProgramType::Lsm => "Lsm",
+            ProgramType::SkLookup => "SkLookup",
+            ProgramType::Syscall => "Syscall",
+            _ => "Unknown",
+        };
+        write!(f, "{}", program_type_str)
     }
 }
 
@@ -1184,6 +1226,10 @@ mod tests {
             // check if discriminants match after a roundtrip conversion
             assert_eq!(discriminant(&t), discriminant(&ProgramType::from(t as u32)));
         }
+
+        // verify that fmt::Display is implemented and works as expected
+        assert_eq!("Tracepoint", Tracepoint.to_string());
+        assert_eq!("Unknown", Unknown.to_string());
     }
 
     #[test]
