@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed panic on "open" of skeleton with `kconfig` map
+
+
 0.24.1
 ------
 - Fixed missing BPF object cleanup after skeleton destruction

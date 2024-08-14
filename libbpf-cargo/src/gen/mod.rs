@@ -46,6 +46,14 @@ use crate::metadata::UnprocessedObj;
 use self::btf::GenBtf;
 use self::btf::GenStructOps;
 
+
+/// Name of the `.kconfig` map.
+///
+/// It requires special treatment because `libbpf` doesn't set the
+/// corresponding mmap pointer during "open", only as part of "load".
+const MAP_NAME_KCONFIG: &str = "kconfig";
+
+
 /// Escape certain characters in a "raw" name of a section, for example.
 fn escape_raw_name(name: &str) -> String {
     name.replace('.', "_")
@@ -82,15 +90,20 @@ impl Display for InternalMapType<'_> {
 /// Meta-data about a BPF map.
 enum MapMeta {
     NonDatasec,
-    Datasec { mmap_idx: usize, read_only: bool },
+    Datasec {
+        mmap_idx: usize,
+        read_only: bool,
+        not_openable: bool,
+    },
 }
 
 impl MapMeta {
-    fn new(idx: usize, map: &Map<'_>) -> Self {
+    fn new(name: &str, idx: usize, map: &Map<'_>) -> Self {
         if map_is_datasec(map) {
             Self::Datasec {
                 mmap_idx: idx,
                 read_only: map_is_readonly(map),
+                not_openable: name == MAP_NAME_KCONFIG,
             }
         } else {
             Self::NonDatasec
@@ -124,8 +137,8 @@ impl MapData {
 
         let slf = Self {
             raw_name,
+            meta: MapMeta::new(&name, idx, map),
             name,
-            meta: MapMeta::new(idx, map),
         };
         Ok(Some(slf))
     }
@@ -399,17 +412,24 @@ fn gen_skel_map_defs(
             name = map.name
         )?;
 
-        if let MapMeta::Datasec { read_only, .. } = map.meta {
-            // After "open" all maps are writable. That's the point,
-            // they can be modified.
-            let ref_mut = if open || !read_only { " mut" } else { "" };
-            write!(
-                skel,
-                "\
-                    pub {name}_data: &'obj{ref_mut} types::{name},
-                ",
-                name = map.name,
-            )?;
+        if let MapMeta::Datasec {
+            read_only,
+            not_openable,
+            ..
+        } = map.meta
+        {
+            if !(open && not_openable) {
+                // After "open" all maps are writable. That's the point,
+                // they can be modified.
+                let ref_mut = if open || !read_only { " mut" } else { "" };
+                write!(
+                    skel,
+                    "\
+                        pub {name}_data: &'obj{ref_mut} types::{name},
+                    ",
+                    name = map.name,
+                )?;
+            }
         }
     }
 
@@ -486,23 +506,26 @@ fn gen_skel_map_defs(
         if let MapMeta::Datasec {
             mmap_idx,
             read_only,
+            not_openable,
         } = map.meta
         {
-            let ref_conv = if open || !read_only { "mut" } else { "ref" };
-            write!(
-                skel,
-                "\
-                            {name}_data: unsafe {{
-                                config
-                                    .map_mmap_ptr({mmap_idx})
-                                    .expect(\"BPF map `{name}` does not have mmap pointer\")
-                                    .cast::<types::{name}>()
-                                    .as_{ref_conv}()
-                                    .expect(\"BPF map `{name}` mmap pointer is NULL\")
-                            }},
-                ",
-                name = map.name,
-            )?;
+            if !(open && not_openable) {
+                let ref_conv = if open || !read_only { "mut" } else { "ref" };
+                write!(
+                    skel,
+                    "\
+                                {name}_data: unsafe {{
+                                    config
+                                        .map_mmap_ptr({mmap_idx})
+                                        .expect(\"BPF map `{name}` does not have mmap pointer\")
+                                        .cast::<types::{name}>()
+                                        .as_{ref_conv}()
+                                        .expect(\"BPF map `{name}` mmap pointer is NULL\")
+                                }},
+                    ",
+                    name = map.name,
+                )?;
+            }
         }
     }
 
