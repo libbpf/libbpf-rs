@@ -480,11 +480,10 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                             {name}_data: unsafe {{
                                 config
                                     .map_mmap_ptr({mmap_idx})
-                                    .ok()
-                                    .unwrap_or_else(std::ptr::null_mut)
+                                    .expect(\"BPF map `{name}` does not have mmap pointer\")
                                     .cast::<types::{name}>()
                                     .as_mut()
-                                    .expect(\"BPF map `{name}` does not have mmap pointer\")
+                                    .expect(\"BPF map `{name}` mmap pointer is NULL\")
                             }},
                 ",
                 name = map.name,
