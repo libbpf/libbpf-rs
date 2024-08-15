@@ -670,7 +670,7 @@ fn gen_skel_prog_defs(skel: &mut String, progs: &ProgsData, raw_obj_name: &str) 
             skel,
             "\
                             {name}: unsafe {{
-                                libbpf_rs::ProgramMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_progs.{name}).as_mut())
+                                libbpf_rs::ProgramMut::new_mut(open_progs.{name}.as_libbpf_object().as_mut())
                             }},
             ",
         )?;
@@ -798,7 +798,7 @@ fn gen_skel_attach(skel: &mut String, object: &Object, obj_name: &str) -> Result
         skel,
         "\
         fn attach(&mut self) -> libbpf_rs::Result<()> {{
-            let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
             let ret = unsafe {{ libbpf_sys::bpf_object__attach_skeleton(skel_ptr) }};
             if ret != 0 {{
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
@@ -877,10 +877,11 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         #[allow(unused_imports)]
         use super::*;
         use libbpf_rs::libbpf_sys;
-        use libbpf_rs::MapCore as _;
         use libbpf_rs::skel::OpenSkel;
         use libbpf_rs::skel::Skel;
         use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::AsRawLibbpf as _;
+        use libbpf_rs::MapCore as _;
         "
     )?;
 
@@ -960,8 +961,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 self,
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
             ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
-                let opts =
-                    unsafe {{ libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.obj_builder).as_ref() }};
+                let opts = unsafe {{ self.obj_builder.as_libbpf_object().as_ref() }};
                 self.open_opts(*opts, object)
             }}
 
@@ -971,7 +971,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
             ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
                 let skel_config = build_skel_config()?;
-                let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&skel_config);
+                let skel_ptr = skel_config.as_libbpf_object();
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), &open_opts) }};
                 if ret != 0 {{
@@ -1071,7 +1071,7 @@ pub struct StructOps {{}}
         impl<'obj> OpenSkel<'obj> for Open{name}Skel<'obj> {{
             type Output = {name}Skel<'obj>;
             fn load(self) -> libbpf_rs::Result<{name}Skel<'obj>> {{
-                let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
+                let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
 
                 let ret = unsafe {{ libbpf_sys::bpf_object__load_skeleton(skel_ptr) }};
                 if ret != 0 {{
