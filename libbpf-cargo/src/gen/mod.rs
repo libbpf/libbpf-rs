@@ -374,12 +374,19 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
     Ok(())
 }
 
-fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> Result<()> {
+fn gen_skel_map_defs(
+    skel: &mut String,
+    maps: &MapsData,
+    raw_obj_name: &str,
+    open: bool,
+) -> Result<()> {
+    let prefix = if open { "Open" } else { "" };
+
     let obj_name = capitalize_first_letter(raw_obj_name);
     write!(
         skel,
         "\
-                pub struct Open{obj_name}Maps<'obj> {{
+                pub struct {prefix}{obj_name}Maps<'obj> {{
         ",
     )?;
 
@@ -387,16 +394,19 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
         write!(
             skel,
             "\
-                    pub {name}: libbpf_rs::OpenMapMut<'obj>,
+                    pub {name}: libbpf_rs::{prefix}MapMut<'obj>,
             ",
             name = map.name
         )?;
 
-        if let MapMeta::Datasec { .. } = map.meta {
+        if let MapMeta::Datasec { read_only, .. } = map.meta {
+            // After "open" all maps are writable. That's the point,
+            // they can be modified.
+            let ref_mut = if open || !read_only { " mut" } else { "" };
             write!(
                 skel,
                 "\
-                    pub {name}_data: &'obj mut types::{name},
+                    pub {name}_data: &'obj{ref_mut} types::{name},
                 ",
                 name = map.name,
             )?;
@@ -409,11 +419,11 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                     _phantom: std::marker::PhantomData<&'obj ()>,
                 }}
 
-                impl<'obj> Open{obj_name}Maps<'obj> {{
+                impl<'obj> {prefix}{obj_name}Maps<'obj> {{
                     #[allow(unused_variables)]
                     unsafe fn new(
                         config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
-                        object: &mut libbpf_rs::OpenObject,
+                        object: &mut libbpf_rs::{prefix}Object,
                     ) -> libbpf_rs::Result<Self> {{
         ",
     )?;
@@ -426,7 +436,7 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
         skel,
         "\
                         let object = unsafe {{
-                            std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(object)
+                            std::mem::transmute::<&mut libbpf_rs::{prefix}Object, &'obj mut libbpf_rs::{prefix}Object>(object)
                         }};
                         for map in object.maps_mut() {{
                             let name = map
@@ -473,7 +483,12 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
             name = map.name
         )?;
 
-        if let MapMeta::Datasec { mmap_idx, .. } = map.meta {
+        if let MapMeta::Datasec {
+            mmap_idx,
+            read_only,
+        } = map.meta
+        {
+            let ref_conv = if open || !read_only { "mut" } else { "ref" };
             write!(
                 skel,
                 "\
@@ -482,7 +497,7 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                                     .map_mmap_ptr({mmap_idx})
                                     .expect(\"BPF map `{name}` does not have mmap pointer\")
                                     .cast::<types::{name}>()
-                                    .as_mut()
+                                    .as_{ref_conv}()
                                     .expect(\"BPF map `{name}` mmap pointer is NULL\")
                             }},
                 ",
@@ -497,84 +512,6 @@ fn gen_skel_open_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str
                             _phantom: std::marker::PhantomData,
                         }};
                         Ok(slf)
-                    }}
-                }}
-        ",
-    )?;
-    Ok(())
-}
-
-fn gen_skel_map_defs(skel: &mut String, maps: &MapsData, raw_obj_name: &str) -> Result<()> {
-    let obj_name = capitalize_first_letter(raw_obj_name);
-    write!(
-        skel,
-        "\
-                pub struct {obj_name}Maps<'obj> {{
-        ",
-    )?;
-
-    for map in maps.iter() {
-        write!(
-            skel,
-            "\
-                    pub {name}: libbpf_rs::MapMut<'obj>,
-            ",
-            name = map.name
-        )?;
-
-        if let MapMeta::Datasec { read_only, .. } = map.meta {
-            let ref_mut = if read_only { "" } else { " mut" };
-
-            write!(
-                skel,
-                "\
-                        pub {name}_data: &'obj{ref_mut} types::{name},
-                ",
-                name = map.name,
-            )?;
-        }
-    }
-
-    write!(
-        skel,
-        "\
-                    _phantom: std::marker::PhantomData<&'obj ()>,
-                }}
-
-                impl<'obj> {obj_name}Maps<'obj> {{
-                    #[allow(unused_variables)]
-                    fn new(open_maps: Open{obj_name}Maps<'obj>) -> Self {{
-                        Self {{
-        ",
-    )?;
-
-    for map in maps.iter() {
-        write!(
-            skel,
-            "\
-                            {name}: unsafe {{
-                                libbpf_rs::MapMut::new_mut(libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_maps.{name}).as_mut())
-                            }},
-            ",
-            name = map.name
-        )?;
-
-        if let MapMeta::Datasec { .. } = map.meta {
-            write!(
-                skel,
-                "\
-                            {name}_data: open_maps.{name}_data,
-                ",
-                name = map.name,
-            )?;
-        }
-    }
-
-    write!(
-        skel,
-        "\
-                            _phantom: std::marker::PhantomData,
-                        }}
                     }}
                 }}
         ",
@@ -917,6 +854,7 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
         #[allow(unused_imports)]
         use super::*;
         use libbpf_rs::libbpf_sys;
+        use libbpf_rs::MapCore as _;
         use libbpf_rs::skel::OpenSkel;
         use libbpf_rs::skel::Skel;
         use libbpf_rs::skel::SkelBuilder;
@@ -941,8 +879,8 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
     let progs = ProgsData::new(&object)?;
 
     gen_skel_c_skel_constructor(&mut skel, &object, &libbpf_obj_name)?;
-    gen_skel_open_map_defs(&mut skel, &maps, raw_obj_name)?;
-    gen_skel_map_defs(&mut skel, &maps, raw_obj_name)?;
+    gen_skel_map_defs(&mut skel, &maps, raw_obj_name, true)?;
+    gen_skel_map_defs(&mut skel, &maps, raw_obj_name, false)?;
     gen_skel_open_prog_defs(&mut skel, &progs, raw_obj_name)?;
     gen_skel_prog_defs(&mut skel, &progs, raw_obj_name)?;
 
@@ -1135,12 +1073,12 @@ pub struct StructOps {{}}
                 }};
                 let _obj = obj_ref.write(obj);
                 // SAFETY: We just wrote initialized data to `obj_ref`.
-                let obj_ref = unsafe {{ OwnedRef::new(obj_ref) }};
+                let mut obj_ref = unsafe {{ OwnedRef::new(obj_ref) }};
 
                 Ok({name}Skel {{
-                    obj: obj_ref,
-                    maps: {name}Maps::new(self.maps),
+                    maps: unsafe {{ {name}Maps::new(&self.skel_config, obj_ref.as_mut())? }},
                     progs: {name}Progs::new(self.progs),
+                    obj: obj_ref,
                     struct_ops: self.struct_ops,
                     skel_config: self.skel_config,
                     {links}
