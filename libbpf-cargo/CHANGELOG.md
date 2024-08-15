@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.2
+------
 - Fixed panic on "open" of skeleton with `kconfig` map
 
 
