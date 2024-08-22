@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Added `Program::fd_from_pinned_path` method for restoring program descriptor
+  from a pinned path
+
+
 0.24.0
 ------
 - Split `{Open,}{Map,Program}` into `{Open,}{Map,Program}` (for shared

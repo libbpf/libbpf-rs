@@ -26,6 +26,7 @@ use libbpf_sys::bpf_func_id;
 
 use crate::util;
 use crate::util::validate_bpf_ret;
+use crate::util::BpfObjectType;
 use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
@@ -622,6 +623,35 @@ impl<'obj> Program<'obj> {
         };
         util::parse_ret(ret)?;
         Ok(prog_info.id)
+    }
+
+    /// Returns fd of a previously pinned program
+    ///
+    /// Returns error, if the pinned path doesn't represent an eBPF program.
+    pub fn fd_from_pinned_path<P: AsRef<Path>>(path: P) -> Result<OwnedFd> {
+        let path_c = util::path_to_cstring(&path)?;
+        let path_ptr = path_c.as_ptr();
+
+        let fd = unsafe { libbpf_sys::bpf_obj_get(path_ptr) };
+        let fd = util::parse_ret_i32(fd).with_context(|| {
+            format!(
+                "failed to retrieve BPF object from pinned path `{}`",
+                path.as_ref().display()
+            )
+        })?;
+        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
+
+        // A pinned path may represent an object of any kind, including map
+        // and link. This may cause unexpected behaviour for following functions,
+        // like bpf_*_get_info_by_fd(), which allow objects of any type.
+        let fd_type = util::object_type_from_fd(fd.as_fd())?;
+        match fd_type {
+            BpfObjectType::Program => Ok(fd),
+            other => Err(Error::with_invalid_data(format!(
+                "retrieved BPF fd is not a program fd: {:#?}",
+                other
+            ))),
+        }
     }
 
     /// Returns flags that have been set for the program.

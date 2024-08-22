@@ -1,12 +1,16 @@
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::fs;
 use std::mem::transmute;
 use std::ops::Deref;
+use std::os::fd::AsRawFd;
+use std::os::fd::BorrowedFd;
 use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::NonNull;
 use std::sync::OnceLock;
 
+use crate::error::IntoError;
 use crate::Error;
 use crate::Result;
 
@@ -92,6 +96,40 @@ pub fn validate_bpf_ret<T>(ptr: *mut T) -> Result<NonNull<T>> {
     }
 }
 
+/// An enum describing type of eBPF object.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum BpfObjectType {
+    /// The object is a map.
+    Map,
+    /// The object is a program.
+    Program,
+    /// The object is a BPF link.
+    Link,
+}
+
+/// Get type of BPF object by fd.
+///
+/// This information is not exported directly by bpf_*_get_info_by_fd() functions,
+/// as kernel relies on the userspace code to know what kind of object it
+/// queries. The type of object can be recovered by fd only from the proc
+/// filesystem. The same approach is used in bpftool.
+pub fn object_type_from_fd(fd: BorrowedFd<'_>) -> Result<BpfObjectType> {
+    let fd_link = format!("/proc/self/fd/{}", fd.as_raw_fd());
+    let link_type = fs::read_link(fd_link)
+        .map_err(|e| Error::with_invalid_data(format!("can't read fd link: {}", e)))?;
+    let link_type = link_type
+        .to_str()
+        .ok_or_invalid_data(|| "can't convert PathBuf to str")?;
+
+    match link_type {
+        "anon_inode:bpf-link" => Ok(BpfObjectType::Link),
+        "anon_inode:bpf-map" => Ok(BpfObjectType::Map),
+        "anon_inode:bpf-prog" => Ok(BpfObjectType::Program),
+        other => Err(Error::with_invalid_data(format!(
+            "unknown type of BPF fd: {other}"
+        ))),
+    }
+}
 
 // Fix me, If std::sync::LazyLock is stable(https://github.com/rust-lang/rust/issues/109736).
 pub(crate) struct LazyLock<T> {
@@ -119,6 +157,9 @@ impl<T> Deref for LazyLock<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::io;
+    use std::os::fd::AsFd;
 
     #[test]
     fn test_roundup() {
@@ -164,5 +205,21 @@ mod tests {
         // Missing terminating NUL byte.
         let slice = ['a' as _, 'b' as _, 'c' as _];
         assert_eq!(c_char_slice_to_cstr(&slice), None);
+    }
+
+    /// Check that object_type_from_fd() doesn't allow descriptors of usual
+    /// files to be used. Testing with BPF objects requires BPF to be
+    /// loaded.
+    #[test]
+    fn test_object_type_from_fd_with_unexpected_fds() {
+        let path = "/tmp/libbpf-rs_not_a_bpf_object";
+        let not_object = fs::File::create(path).expect("failed to create a plain file");
+
+        let _ = object_type_from_fd(not_object.as_fd())
+            .expect_err("a common file was treated as a BPF object");
+        let _ = object_type_from_fd(io::stdout().as_fd())
+            .expect_err("the stdout fd was treated as a BPF object");
+
+        fs::remove_file(path).expect("failed to remove temporary file");
     }
 }
