@@ -868,6 +868,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
 
         pub use self::imp::*;
 
+        #[allow(renamed_and_removed_lints)]
         #[allow(dead_code)]
         #[allow(non_snake_case)]
         #[allow(non_camel_case_types)]
