@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.3
+------
 - Silenced possible `clippy` reported warnings in generated skeleton
   when BPF object file does not contain any maps
 
