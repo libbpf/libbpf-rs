@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Silenced possible `clippy` reported warnings in generated skeleton
+  when BPF object file does not contain any maps
+
+
 0.24.2
 ------
 - Fixed panic on "open" of skeleton with `kconfig` map

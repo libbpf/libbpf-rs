@@ -458,6 +458,7 @@ fn gen_skel_map_defs(
                         let object = unsafe {{
                             std::mem::transmute::<&mut libbpf_rs::{prefix}Object, &'obj mut libbpf_rs::{prefix}Object>(object)
                         }};
+                        #[allow(clippy::never_loop)]
                         for map in object.maps_mut() {{
                             let name = map
                                 .name()
@@ -468,6 +469,7 @@ fn gen_skel_map_defs(
                                         \"map has invalid name\",
                                     ))
                                 }})?;
+                            #[allow(clippy::match_single_binding)]
                             match name {{
         ",
     )?;
