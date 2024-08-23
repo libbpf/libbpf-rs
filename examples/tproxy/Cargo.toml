@@ -1,9 +1,9 @@
 [package]
 name = "tproxy"
 version = "0.1.0"
+edition.workspace = true
 authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
 license = "LGPL-2.1-only OR BSD-2-Clause"
-edition = "2021"
 
 [[bin]]
 name = "proxy"

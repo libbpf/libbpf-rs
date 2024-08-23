@@ -1,7 +1,7 @@
 [package]
 name = "vmlinux"
 version = "0.0.0"
-edition = "2021"
+edition.workspace = true
 authors = ["Daniel Müller <deso@posteo.net>"]
 # Not intended to be published at this point and only meant to be used as a
 # dev-dependency; licensing is not 100% clear but more importantly we can't

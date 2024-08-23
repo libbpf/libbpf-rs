@@ -1,9 +1,9 @@
 [package]
 name = "capable"
 version = "0.1.0"
+edition.workspace = true
 authors = ["Devasia Thomas <https://www.linkedin.com/in/devasiathomas>"]
 license = "LGPL-2.1-only OR BSD-2-Clause"
-edition = "2021"
 
 [build-dependencies]
 libbpf-cargo = { path = "../../libbpf-cargo" }

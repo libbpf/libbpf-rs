@@ -1,3 +1,11 @@
+[workspace.package]
+version = "0.24.3"
+edition = "2021"
+rust-version = "1.71"
+license = "LGPL-2.1-only OR BSD-2-Clause"
+repository = "https://github.com/libbpf/libbpf-rs"
+homepage = "https://github.com/libbpf/libbpf-rs"
+
 [workspace]
 members = [
   "vmlinux",
