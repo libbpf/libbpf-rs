@@ -1,15 +1,14 @@
 [package]
 name = "libbpf-cargo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
 description = "Cargo plugin to build bpf programs"
-repository = "https://github.com/libbpf/libbpf-rs"
-homepage = "https://github.com/libbpf/libbpf-rs"
-documentation = "https://docs.rs/crate/libbpf-cargo"
 readme = "README.md"
-version = "0.24.3"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>", "Daniel Müller <deso@posteo.net>"]
-edition = "2021"
-rust-version = "1.71"
-license = "LGPL-2.1-only OR BSD-2-Clause"
 keywords = ["bpf", "ebpf", "libbpf"]
 
 [badges]
