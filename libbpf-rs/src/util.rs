@@ -161,6 +161,9 @@ mod tests {
     use std::io;
     use std::os::fd::AsFd;
 
+    use tempfile::NamedTempFile;
+
+
     #[test]
     fn test_roundup() {
         for i in 1..=256 {
@@ -212,14 +215,11 @@ mod tests {
     /// loaded.
     #[test]
     fn test_object_type_from_fd_with_unexpected_fds() {
-        let path = "/tmp/libbpf-rs_not_a_bpf_object";
-        let not_object = fs::File::create(path).expect("failed to create a plain file");
+        let not_object = NamedTempFile::new().unwrap();
 
         let _ = object_type_from_fd(not_object.as_fd())
             .expect_err("a common file was treated as a BPF object");
         let _ = object_type_from_fd(io::stdout().as_fd())
             .expect_err("the stdout fd was treated as a BPF object");
-
-        fs::remove_file(path).expect("failed to remove temporary file");
     }
 }
