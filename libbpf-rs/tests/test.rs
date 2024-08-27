@@ -1952,7 +1952,7 @@ fn test_program_get_fd_and_id() {
     let prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let prog_fd = prog.as_fd();
     let prog_id = Program::id_from_fd(prog_fd).expect("failed to get program id from fd");
-    let _owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd from id");
+    let _owned_prog_fd = Program::fd_from_id(prog_id).expect("failed to get program fd from id");
 }
 
 /// Check that autocreate disabled maps don't prevent object loading
