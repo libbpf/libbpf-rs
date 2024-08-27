@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.4
+------
 - Added `Program::fd_from_pinned_path` method for restoring program descriptor
   from a pinned path
 

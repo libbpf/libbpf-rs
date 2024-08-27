@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.4
+------
 - Adjusted skeleton generation code to work around `libbpf` forward
   compatibility issue when an old system `libbpf` is being used instead
   of the vendored copy
