@@ -1,3 +1,10 @@
+Unreleased
+----------
+- Adjusted skeleton generation code to work around `libbpf` forward
+  compatibility issue when an old system `libbpf` is being used instead
+  of the vendored copy
+
+
 0.24.3
 ------
 - Silenced possible `clippy` reported warnings in generated skeleton

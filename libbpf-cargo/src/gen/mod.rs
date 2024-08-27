@@ -957,25 +957,16 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
             pub obj_builder: libbpf_rs::ObjectBuilder,
         }}
 
-        impl<'obj> SkelBuilder<'obj> for {name}SkelBuilder {{
-            type Output = Open{name}Skel<'obj>;
-            fn open(
+        impl<'obj> {name}SkelBuilder {{
+            fn open_opts_impl(
                 self,
-                object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
-            ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
-                let opts = unsafe {{ self.obj_builder.as_libbpf_object().as_ref() }};
-                self.open_opts(*opts, object)
-            }}
-
-            fn open_opts(
-                self,
-                open_opts: libbpf_sys::bpf_object_open_opts,
+                open_opts: *const libbpf_sys::bpf_object_open_opts,
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
             ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
                 let skel_config = build_skel_config()?;
                 let skel_ptr = skel_config.as_libbpf_object();
 
-                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), &open_opts) }};
+                let ret = unsafe {{ libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), open_opts) }};
                 if ret != 0 {{
                     return Err(libbpf_rs::Error::from_raw_os_error(-ret));
                 }}
@@ -1007,6 +998,24 @@ fn gen_skel_contents(_debug: bool, raw_obj_name: &str, obj_file_path: &Path) -> 
                 }};
                 {struct_ops_init}
                 Ok(skel)
+            }}
+        }}
+
+        impl<'obj> SkelBuilder<'obj> for {name}SkelBuilder {{
+            type Output = Open{name}Skel<'obj>;
+            fn open(
+                self,
+                object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+            ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
+                self.open_opts_impl(std::ptr::null(), object)
+            }}
+
+            fn open_opts(
+                self,
+                open_opts: libbpf_sys::bpf_object_open_opts,
+                object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+            ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
+                self.open_opts_impl(&open_opts, object)
             }}
 
             fn object_builder(&self) -> &libbpf_rs::ObjectBuilder {{
