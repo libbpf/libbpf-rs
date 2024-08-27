@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Renamed `Program::get_id_by_fd` to `id_from_fd`
+  - Deprecated `Program::get_id_by_fd`
+
+
 0.24.4
 ------
 - Added `Program::fd_from_pinned_path` method for restoring program descriptor

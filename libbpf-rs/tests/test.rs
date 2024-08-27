@@ -759,12 +759,12 @@ fn test_program_loading_fd_from_pinned_path() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut prog = get_prog_mut(&mut obj, prog_name);
     prog.pin(path).expect("pinning prog failed");
-    let prog_id = Program::get_id_by_fd(prog.as_fd()).expect("failed to determine prog id");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to determine prog id");
 
     let pinned_prog_fd =
         Program::fd_from_pinned_path(path).expect("failed to get fd of pinned prog");
     let pinned_prog_id =
-        Program::get_id_by_fd(pinned_prog_fd.as_fd()).expect("failed to determine pinned prog id");
+        Program::id_from_fd(pinned_prog_fd.as_fd()).expect("failed to determine pinned prog id");
 
     assert_eq!(prog_id, pinned_prog_id);
 
@@ -1951,8 +1951,8 @@ fn test_program_get_fd_and_id() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let prog_fd = prog.as_fd();
-    let prog_id = Program::get_id_by_fd(prog_fd).expect("failed to get program id by fd");
-    let _owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd by id");
+    let prog_id = Program::id_from_fd(prog_fd).expect("failed to get program id from fd");
+    let _owned_prog_fd = Program::get_fd_by_id(prog_id).expect("failed to get program fd from id");
 }
 
 /// Check that autocreate disabled maps don't prevent object loading
