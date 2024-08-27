@@ -2,6 +2,8 @@ Unreleased
 ----------
 - Renamed `Program::get_id_by_fd` to `id_from_fd`
   - Deprecated `Program::get_id_by_fd`
+- Renamed `Program::get_fd_by_id` to `fd_from_id`
+  - Deprecated `Program::get_fd_by_id`
 
 
 0.24.4

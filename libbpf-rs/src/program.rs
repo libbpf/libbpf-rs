@@ -599,8 +599,14 @@ impl<'obj> Program<'obj> {
         ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
     }
 
-    /// Returns program fd by id
+    #[deprecated = "renamed to Program::fd_from_id"]
+    #[inline]
     pub fn get_fd_by_id(id: u32) -> Result<OwnedFd> {
+        Self::fd_from_id(id)
+    }
+
+    /// Returns program file descriptor given a program ID.
+    pub fn fd_from_id(id: u32) -> Result<OwnedFd> {
         let ret = unsafe { libbpf_sys::bpf_prog_get_fd_by_id(id) };
         let fd = util::parse_ret_i32(ret)?;
         // SAFETY
