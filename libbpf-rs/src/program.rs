@@ -609,8 +609,15 @@ impl<'obj> Program<'obj> {
         Ok(unsafe { OwnedFd::from_raw_fd(fd) })
     }
 
-    /// Returns program id by fd
+    // TODO: Remove once 0.25 is cut.
+    #[deprecated = "renamed to Program::id_from_fd"]
+    #[inline]
     pub fn get_id_by_fd(fd: BorrowedFd<'_>) -> Result<u32> {
+        Self::id_from_fd(fd)
+    }
+
+    /// Returns program ID given a file descriptor.
+    pub fn id_from_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         let mut prog_info = libbpf_sys::bpf_prog_info::default();
         let prog_info_ptr: *mut libbpf_sys::bpf_prog_info = &mut prog_info;
         let mut len = size_of::<libbpf_sys::bpf_prog_info>() as u32;
