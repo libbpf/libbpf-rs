@@ -271,7 +271,7 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
         if disallowed_raw.binary_search(&identifier.as_ref()).is_ok() {
             // Just remove the first 'a' or 'e' character. Yes, that could
             // conceivably be the cause of a collision in itself ¯\_(ツ)_/¯
-            Cow::Owned(identifier.replacen(|chr| chr == 'a' || chr == 'e', "", 1))
+            Cow::Owned(identifier.replacen(['a', 'e'], "", 1))
         } else {
             Cow::Owned(format!("r#{identifier}"))
         }
