@@ -14,8 +14,7 @@ use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
-use crate::Map;
-use crate::MapCore as _;
+use crate::MapCore;
 use crate::MapType;
 use crate::Result;
 
@@ -44,16 +43,22 @@ impl Debug for CbStruct<'_> {
 }
 
 /// Builds [`PerfBuffer`] instances.
-pub struct PerfBufferBuilder<'a, 'b> {
-    map: &'a Map<'a>,
+pub struct PerfBufferBuilder<'a, 'b, M>
+where
+    M: MapCore + AsFd,
+{
+    map: &'a M,
     pages: usize,
     sample_cb: Option<Box<dyn SampleCb + 'b>>,
     lost_cb: Option<Box<dyn LostCb + 'b>>,
 }
 
-impl<'a> PerfBufferBuilder<'a, '_> {
-    /// Create a new `PerfBufferBuilder` using the provided `Map`.
-    pub fn new(map: &'a Map<'a>) -> Self {
+impl<'a, M> PerfBufferBuilder<'a, '_, M>
+where
+    M: MapCore + AsFd,
+{
+    /// Create a new `PerfBufferBuilder` using the provided `MapCore + AsFd` trait.
+    pub fn new(map: &'a M) -> Self {
         Self {
             map,
             pages: 64,
@@ -63,14 +68,17 @@ impl<'a> PerfBufferBuilder<'a, '_> {
     }
 }
 
-impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
+impl<'a, 'b, M> PerfBufferBuilder<'a, 'b, M>
+where
+    M: MapCore + AsFd,
+{
     /// Callback to run when a sample is received.
     ///
     /// This callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn sample_cb<NewCb: SampleCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b> {
+    pub fn sample_cb<NewCb: SampleCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b, M> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -82,7 +90,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn lost_cb<NewCb: LostCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b> {
+    pub fn lost_cb<NewCb: LostCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b, M> {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -92,7 +100,7 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     }
 
     /// The number of pages to size the ring buffer.
-    pub fn pages(self, pages: usize) -> PerfBufferBuilder<'a, 'b> {
+    pub fn pages(self, pages: usize) -> PerfBufferBuilder<'a, 'b, M> {
         PerfBufferBuilder {
             map: self.map,
             pages,
@@ -164,7 +172,10 @@ impl<'a, 'b> PerfBufferBuilder<'a, 'b> {
     }
 }
 
-impl Debug for PerfBufferBuilder<'_, '_> {
+impl<M> Debug for PerfBufferBuilder<'_, '_, M>
+where
+    M: MapCore + AsFd,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let Self {
             map,
@@ -181,7 +192,7 @@ impl Debug for PerfBufferBuilder<'_, '_> {
     }
 }
 
-/// Represents a special kind of [`Map`]. Typically used to transfer data between
+/// Represents a special kind of [`MapCore`]. Typically used to transfer data between
 /// [`Program`][crate::Program]s and userspace.
 #[derive(Debug)]
 pub struct PerfBuffer<'b> {
