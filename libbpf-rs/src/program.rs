@@ -564,6 +564,13 @@ pub struct ProgramImpl<'obj, T = ()> {
     _phantom: PhantomData<&'obj T>,
 }
 
+impl<T> ProgramImpl<'_, T> {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
+        unsafe { BorrowedFd::borrow_raw(fd) }
+    }
+}
+
 impl<'obj> Program<'obj> {
     /// Create a [`Program`] from a [`libbpf_sys::bpf_program`]
     pub fn new(prog: &'obj libbpf_sys::bpf_program) -> Self {
@@ -703,6 +710,12 @@ impl<'obj> Program<'obj> {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
+    }
+}
+
+impl AsFd for Program<'_> {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        ProgramImpl::as_fd(self)
     }
 }
 
@@ -1153,6 +1166,12 @@ impl<'obj> ProgramMut<'obj> {
     }
 }
 
+impl AsFd for ProgramMut<'_> {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        ProgramImpl::as_fd(self)
+    }
+}
+
 impl<'obj> Deref for ProgramMut<'obj> {
     type Target = Program<'obj>;
 
@@ -1160,13 +1179,6 @@ impl<'obj> Deref for ProgramMut<'obj> {
         // SAFETY: `ProgramImpl` is `repr(transparent)` and so in-memory
         //         representation of both types is the same.
         unsafe { transmute::<&ProgramMut<'obj>, &Program<'obj>>(self) }
-    }
-}
-
-impl<T> AsFd for ProgramImpl<'_, T> {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
-        unsafe { BorrowedFd::borrow_raw(fd) }
     }
 }
 
