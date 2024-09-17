@@ -125,10 +125,14 @@ impl<'obj> OpenMapMut<'obj> {
         }
     }
 
+    /// Bind map to a particular network device.
+    ///
+    /// Used for offloading maps to hardware.
     pub fn set_map_ifindex(&mut self, idx: u32) {
         unsafe { libbpf_sys::bpf_map__set_ifindex(self.ptr.as_ptr(), idx) };
     }
 
+    /// Set the initial value of the map.
     pub fn set_initial_value(&mut self, data: &[u8]) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_initial_value(
@@ -141,36 +145,45 @@ impl<'obj> OpenMapMut<'obj> {
         util::parse_ret(ret)
     }
 
+    /// Set the type of the map.
     pub fn set_type(&mut self, ty: MapType) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_type(self.ptr.as_ptr(), ty as u32) };
         util::parse_ret(ret)
     }
 
+    /// Set the key size of the map in bytes.
     pub fn set_key_size(&mut self, size: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_key_size(self.ptr.as_ptr(), size) };
         util::parse_ret(ret)
     }
 
+    /// Set the value size of the map in bytes.
     pub fn set_value_size(&mut self, size: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_value_size(self.ptr.as_ptr(), size) };
         util::parse_ret(ret)
     }
 
+    /// Set the maximum number of entries this map can have.
     pub fn set_max_entries(&mut self, count: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_max_entries(self.ptr.as_ptr(), count) };
         util::parse_ret(ret)
     }
 
+    /// Set flags on this map.
     pub fn set_map_flags(&mut self, flags: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_map_flags(self.ptr.as_ptr(), flags) };
         util::parse_ret(ret)
     }
 
+    // TODO: Document member.
+    #[allow(missing_docs)]
     pub fn set_numa_node(&mut self, numa_node: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr.as_ptr(), numa_node) };
         util::parse_ret(ret)
     }
 
+    // TODO: Document member.
+    #[allow(missing_docs)]
     pub fn set_inner_map_fd(&mut self, inner_map_fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner_map_fd.as_raw_fd())
@@ -178,16 +191,22 @@ impl<'obj> OpenMapMut<'obj> {
         util::parse_ret(ret)
     }
 
+    // TODO: Document member.
+    #[allow(missing_docs)]
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr.as_ptr(), map_extra) };
         util::parse_ret(ret)
     }
 
+    /// Set whether or not libbpf should automatically create this map during load phase.
     pub fn set_autocreate(&mut self, autocreate: bool) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_autocreate(self.ptr.as_ptr(), autocreate) };
         util::parse_ret(ret)
     }
 
+    /// Set where the map should be pinned.
+    ///
+    /// Note this does not actually create the pin.
     pub fn set_pin_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();

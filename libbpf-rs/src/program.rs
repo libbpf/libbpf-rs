@@ -123,8 +123,6 @@ pub struct OpenProgramImpl<'obj, T = ()> {
     _phantom: PhantomData<&'obj T>,
 }
 
-// TODO: Document variants.
-#[allow(missing_docs)]
 impl<'obj> OpenProgram<'obj> {
     /// Create a new [`OpenProgram`] from a ptr to a `libbpf_sys::bpf_program`.
     pub fn new(prog: &'obj libbpf_sys::bpf_program) -> Self {
@@ -136,7 +134,7 @@ impl<'obj> OpenProgram<'obj> {
         }
     }
 
-    // The `ProgramType` of this `OpenProgram`.
+    /// The `ProgramType` of this `OpenProgram`.
     pub fn prog_type(&self) -> ProgramType {
         ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
     }
@@ -194,11 +192,13 @@ impl<'obj> OpenProgramMut<'obj> {
         }
     }
 
+    /// Set the program type.
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
         let rc = unsafe { libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32) };
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
+    /// Set the attachment type of the program.
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
         let rc = unsafe {
             libbpf_sys::bpf_program__set_expected_attach_type(self.ptr.as_ptr(), attach_type as u32)
@@ -206,6 +206,9 @@ impl<'obj> OpenProgramMut<'obj> {
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
+    /// Bind the program to a particular network device.
+    ///
+    /// Currently only used for hardware offload and certain XDP features such like HW metadata.
     pub fn set_ifindex(&mut self, idx: u32) {
         unsafe { libbpf_sys::bpf_program__set_ifindex(self.ptr.as_ptr(), idx) }
     }
@@ -230,6 +233,7 @@ impl<'obj> OpenProgramMut<'obj> {
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
+    #[allow(missing_docs)]
     pub fn set_attach_target(
         &mut self,
         attach_prog_fd: i32,
@@ -257,6 +261,7 @@ impl<'obj> OpenProgramMut<'obj> {
         util::parse_ret(ret)
     }
 
+    /// Set flags on the program.
     pub fn set_flags(&mut self, flags: u32) {
         let rc = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
@@ -600,6 +605,7 @@ impl<'obj> Program<'obj> {
     }
 
     #[deprecated = "renamed to Program::fd_from_id"]
+    #[allow(missing_docs)]
     #[inline]
     pub fn get_fd_by_id(id: u32) -> Result<OwnedFd> {
         Self::fd_from_id(id)
@@ -617,6 +623,7 @@ impl<'obj> Program<'obj> {
 
     // TODO: Remove once 0.25 is cut.
     #[deprecated = "renamed to Program::id_from_fd"]
+    #[allow(missing_docs)]
     #[inline]
     pub fn get_id_by_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         Self::id_from_fd(fd)
