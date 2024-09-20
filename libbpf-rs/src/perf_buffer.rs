@@ -2,7 +2,6 @@ use core::ffi::c_void;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
-use std::os::unix::io::AsFd;
 use std::os::unix::prelude::AsRawFd;
 use std::ptr;
 use std::ptr::NonNull;
@@ -45,7 +44,7 @@ impl Debug for CbStruct<'_> {
 /// Builds [`PerfBuffer`] instances.
 pub struct PerfBufferBuilder<'a, 'b, M>
 where
-    M: MapCore + AsFd,
+    M: MapCore,
 {
     map: &'a M,
     pages: usize,
@@ -55,9 +54,10 @@ where
 
 impl<'a, M> PerfBufferBuilder<'a, '_, M>
 where
-    M: MapCore + AsFd,
+    M: MapCore,
 {
-    /// Create a new `PerfBufferBuilder` using the provided `MapCore + AsFd` trait.
+    /// Create a new `PerfBufferBuilder` using the provided `MapCore`
+    /// object.
     pub fn new(map: &'a M) -> Self {
         Self {
             map,
@@ -70,7 +70,7 @@ where
 
 impl<'a, 'b, M> PerfBufferBuilder<'a, 'b, M>
 where
-    M: MapCore + AsFd,
+    M: MapCore,
 {
     /// Callback to run when a sample is received.
     ///
@@ -174,7 +174,7 @@ where
 
 impl<M> Debug for PerfBufferBuilder<'_, '_, M>
 where
-    M: MapCore + AsFd,
+    M: MapCore,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let Self {
