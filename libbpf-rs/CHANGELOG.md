@@ -4,6 +4,7 @@ Unreleased
   - Deprecated `Program::get_id_by_fd`
 - Renamed `Program::get_fd_by_id` to `fd_from_id`
   - Deprecated `Program::get_fd_by_id`
+- Adjusted `PerfBufferBuilder` to work with `MapCore` objects
 
 
 0.24.4
