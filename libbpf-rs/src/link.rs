@@ -17,6 +17,7 @@ use crate::Result;
 /// This struct is used to model ownership. The underlying program will be detached
 /// when this object is dropped if nothing else is holding a reference count.
 #[derive(Debug)]
+#[must_use = "not using this `Link` will detach the underlying program immediately"]
 pub struct Link {
     ptr: NonNull<libbpf_sys::bpf_link>,
 }
