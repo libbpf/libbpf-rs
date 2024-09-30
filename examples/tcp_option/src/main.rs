@@ -106,7 +106,7 @@ fn main() -> Result<()> {
     open.maps.rodata_data.targ_ip = u32::from_be_bytes(ip.octets()).to_be();
     open.maps.rodata_data.data_such_as_trace_id = opts.trace_id;
 
-    let mut skel = open.load()?;
+    let skel = open.load()?;
 
     let cgroup_fd = OpenOptions::new()
         .read(true)
