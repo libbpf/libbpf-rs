@@ -2027,7 +2027,7 @@ fn test_run_prog_success() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("run_prog.bpf.o");
-    let mut prog = get_prog_mut(&mut obj, "test_1");
+    let prog = get_prog_mut(&mut obj, "test_1");
 
     #[repr(C)]
     struct bpf_dummy_ops_state {
@@ -2054,7 +2054,7 @@ fn test_run_prog_fail() {
     bump_rlimit_mlock();
 
     let mut obj = get_test_object("run_prog.bpf.o");
-    let mut prog = get_prog_mut(&mut obj, "test_2");
+    let prog = get_prog_mut(&mut obj, "test_2");
 
     let input = ProgramInput::default();
     let _err = prog.test_run(input).unwrap_err();
