@@ -743,7 +743,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Auto-attach based on prog section
-    pub fn attach(&mut self) -> Result<Link> {
+    pub fn attach(&self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach(self.ptr.as_ptr()) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach BPF program")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -753,7 +753,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a
     /// [cgroup](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html).
-    pub fn attach_cgroup(&mut self, cgroup_fd: i32) -> Result<Link> {
+    pub fn attach_cgroup(&self, cgroup_fd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_cgroup(self.ptr.as_ptr(), cgroup_fd) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach cgroup")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -762,7 +762,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
-    pub fn attach_perf_event(&mut self, pfd: i32) -> Result<Link> {
+    pub fn attach_perf_event(&self, pfd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -773,7 +773,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [userspace
     /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html).
     pub fn attach_uprobe<T: AsRef<Path>>(
-        &mut self,
+        &self,
         retprobe: bool,
         pid: i32,
         binary_path: T,
@@ -800,7 +800,7 @@ impl<'obj> ProgramMut<'obj> {
     /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html),
     /// providing additional options.
     pub fn attach_uprobe_with_opts(
-        &mut self,
+        &self,
         pid: i32,
         binary_path: impl AsRef<Path>,
         func_offset: usize,
@@ -843,7 +843,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [kernel
     /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html).
-    pub fn attach_kprobe<T: AsRef<str>>(&mut self, retprobe: bool, func_name: T) -> Result<Link> {
+    pub fn attach_kprobe<T: AsRef<str>>(&self, retprobe: bool, func_name: T) -> Result<Link> {
         let func_name = util::str_to_cstring(func_name.as_ref())?;
         let func_name_ptr = func_name.as_ptr();
         let ptr = unsafe {
@@ -856,11 +856,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to the specified syscall
-    pub fn attach_ksyscall<T: AsRef<str>>(
-        &mut self,
-        retprobe: bool,
-        syscall_name: T,
-    ) -> Result<Link> {
+    pub fn attach_ksyscall<T: AsRef<str>>(&self, retprobe: bool, syscall_name: T) -> Result<Link> {
         let opts = libbpf_sys::bpf_ksyscall_opts {
             sz: size_of::<libbpf_sys::bpf_ksyscall_opts>() as _,
             retprobe,
@@ -879,7 +875,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     fn attach_tracepoint_impl(
-        &mut self,
+        &self,
         tp_category: &str,
         tp_name: &str,
         tp_opts: Option<TracepointOpts>,
@@ -918,7 +914,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [kernel
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
     pub fn attach_tracepoint(
-        &mut self,
+        &self,
         tp_category: impl AsRef<str>,
         tp_name: impl AsRef<str>,
     ) -> Result<Link> {
@@ -929,7 +925,7 @@ impl<'obj> ProgramMut<'obj> {
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html),
     /// providing additional options.
     pub fn attach_tracepoint_with_opts(
-        &mut self,
+        &self,
         tp_category: impl AsRef<str>,
         tp_name: impl AsRef<str>,
         tp_opts: TracepointOpts,
@@ -939,7 +935,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [raw kernel
     /// tracepoint](https://lwn.net/Articles/748352/).
-    pub fn attach_raw_tracepoint<T: AsRef<str>>(&mut self, tp_name: T) -> Result<Link> {
+    pub fn attach_raw_tracepoint<T: AsRef<str>>(&self, tp_name: T) -> Result<Link> {
         let tp_name = util::str_to_cstring(tp_name.as_ref())?;
         let tp_name_ptr = tp_name.as_ptr();
         let ptr = unsafe {
@@ -952,7 +948,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
-    pub fn attach_lsm(&mut self) -> Result<Link> {
+    pub fn attach_lsm(&self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_lsm(self.ptr.as_ptr()) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach LSM")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -961,7 +957,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
-    pub fn attach_trace(&mut self) -> Result<Link> {
+    pub fn attach_trace(&self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr.as_ptr()) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach fentry/fexit kernel probe")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -983,7 +979,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
-    pub fn attach_xdp(&mut self, ifindex: i32) -> Result<Link> {
+    pub fn attach_xdp(&self, ifindex: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_xdp(self.ptr.as_ptr(), ifindex) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach XDP program")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -992,7 +988,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
-    pub fn attach_netns(&mut self, netns_fd: i32) -> Result<Link> {
+    pub fn attach_netns(&self, netns_fd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach network namespace program")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -1001,7 +997,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     fn attach_usdt_impl(
-        &mut self,
+        &self,
         pid: i32,
         binary_path: &Path,
         usdt_provider: &str,
@@ -1040,7 +1036,7 @@ impl<'obj> ProgramMut<'obj> {
     /// point. The entry point of the program must be defined with
     /// `SEC("usdt")`.
     pub fn attach_usdt(
-        &mut self,
+        &self,
         pid: i32,
         binary_path: impl AsRef<Path>,
         usdt_provider: impl AsRef<str>,
@@ -1059,7 +1055,7 @@ impl<'obj> ProgramMut<'obj> {
     /// point, providing additional options. The entry point of the program must
     /// be defined with `SEC("usdt")`.
     pub fn attach_usdt_with_opts(
-        &mut self,
+        &self,
         pid: i32,
         binary_path: impl AsRef<Path>,
         usdt_provider: impl AsRef<str>,
@@ -1078,7 +1074,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a
     /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
-    pub fn attach_iter(&mut self, map_fd: BorrowedFd<'_>) -> Result<Link> {
+    pub fn attach_iter(&self, map_fd: BorrowedFd<'_>) -> Result<Link> {
         let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
         linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
         let attach_opt = libbpf_sys::bpf_iter_attach_opts {

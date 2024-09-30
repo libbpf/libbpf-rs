@@ -4,6 +4,8 @@ Unreleased
   - Deprecated `Program::get_id_by_fd`
 - Renamed `Program::get_fd_by_id` to `fd_from_id`
   - Deprecated `Program::get_fd_by_id`
+- Adjusted various `Program::attach_*` methods to work on shared
+  receivers
 - Adjusted `PerfBufferBuilder` to work with `MapCore` objects
 
 
