@@ -56,7 +56,6 @@ use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
 
-
 /// A helper function for instantiating a `RingBuffer` with a callback meant to
 /// be invoked when `action` is executed and that is intended to trigger a write
 /// to said `RingBuffer` from kernel space, which then reads a single `i32` from
@@ -1565,6 +1564,10 @@ fn test_object_map_handle_clone() {
     );
 }
 
+#[cfg(not(any(
+    all(target_arch = "powerpc64", target_endian = "little"),
+    target_arch = "s390x"
+)))]
 #[tag(root)]
 #[test]
 fn test_object_usdt() {
@@ -1593,6 +1596,10 @@ fn test_object_usdt() {
     assert_eq!(result, 1);
 }
 
+#[cfg(not(any(
+    all(target_arch = "powerpc64", target_endian = "little"),
+    target_arch = "s390x"
+)))]
 #[tag(root)]
 #[test]
 fn test_object_usdt_cookie() {
