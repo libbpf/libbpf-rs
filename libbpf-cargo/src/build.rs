@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::env;
 use std::env::consts::ARCH;
 use std::ffi::OsStr;
 use std::ffi::OsString;
@@ -184,7 +185,8 @@ fn compile_one(
     {
         // We may end up being invoked by a build script, in which case
         // `CARGO_CFG_TARGET_ARCH` would represent the target architecture.
-        let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or(ARCH);
+        let arch = env::var("CARGO_CFG_TARGET_ARCH");
+        let arch = arch.as_deref().unwrap_or(ARCH);
         let arch = match arch {
             "x86_64" => "x86",
             "aarch64" => "arm64",
