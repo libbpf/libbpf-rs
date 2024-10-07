@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Fixed incorrect Cargo environment variable query when used in build
+  script context
+
+
 0.24.4
 ------
 - Adjusted skeleton generation code to work around `libbpf` forward
