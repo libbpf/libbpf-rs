@@ -185,12 +185,17 @@ fn prepare_test_files(crate_root: &Path) {
             let obj = Path::new(&src).with_extension("o");
             let src = src_dir.join(&src);
             let dst = bin_dir.join(obj);
-            let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or(ARCH);
+            let arch = env::var("CARGO_CFG_TARGET_ARCH");
+            let arch = arch.as_deref().unwrap_or(ARCH);
             let arch = match arch {
                 "x86_64" => "x86",
                 "aarch64" => "arm64",
                 "powerpc64" => "powerpc",
                 "s390x" => "s390",
+                "riscv64" => "riscv",
+                "loongarch64" => "loongarch",
+                "sparc64" => "sparc",
+                "mips64" => "mips",
                 x => x,
             };
 
