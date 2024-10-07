@@ -192,6 +192,10 @@ fn compile_one(
             "aarch64" => "arm64",
             "powerpc64" => "powerpc",
             "s390x" => "s390",
+            "riscv64" => "riscv",
+            "loongarch64" => "loongarch",
+            "sparc64" => "sparc",
+            "mips64" => "mips",
             x => x,
         };
         cmd.arg(format!("-D__TARGET_ARCH_{arch}"));
