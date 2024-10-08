@@ -41,10 +41,11 @@ jobs:
         version: ${{ needs.version.outputs.version }}
       run: |
         curl --location \
+          --fail-with-body \
           --request POST \
           --url https://api.github.com/repos/${{ github.repository }}/releases \
           --header "Accept: application/vnd.github+json" \
-          --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"\
+          --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           --header "X-GitHub-Api-Version: 2022-11-28" \
           --data "{
               \"tag_name\":\"v${version}\",
