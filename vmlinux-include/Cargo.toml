@@ -1,0 +1,23 @@
+# This package is a loathsome hack for making contents of the
+# unpublished vmlinux.h crate available in a context that is
+# conceptually dev-only, but in reality, because of Cargo manifest
+# expressiveness limitations, really isn't.
+# This package is deliberately not part of any workspace, because it is
+# called build from a build.rs script, meaning we are in a recursive
+# Cargo invocation. Best to not have any connection to other workspace
+# data, in case commong file locks get acquired etc.
+[workspace]
+
+[package]
+name = "vmlinux-include"
+version = "0.0.0"
+edition = "2021"
+authors = ["Daniel Müller <deso@posteo.net>"]
+publish = false
+
+[[bin]]
+name = "vmlinux-include"
+path = "bin.rs"
+
+[dependencies]
+vmlinux_h = { package = "vmlinux", version = "0.0", git = "https://github.com/libbpf/vmlinux.h.git", rev = "a9c092aa771310bf8b00b5018f7d40a1fdb6ec82" }
