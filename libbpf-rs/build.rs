@@ -66,8 +66,7 @@ where
 }
 
 
-/// Run a command with the provided arguments.
-fn run<C, A, S>(command: C, args: A) -> Result<()>
+fn run_impl<C, A, S>(command: C, args: A, stdout: Stdio) -> Result<Output>
 where
     C: AsRef<OsStr>,
     A: IntoIterator<Item = S> + Clone,
@@ -75,7 +74,7 @@ where
 {
     let output = Command::new(command.as_ref())
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdout(stdout)
         .env_clear()
         .envs(env::vars().filter(|(k, _)| k == "PATH"))
         .args(args.clone())
@@ -91,6 +90,17 @@ where
         })?;
 
     let () = evaluate(&output, command, args)?;
+    Ok(output)
+}
+
+/// Run a command with the provided arguments.
+fn run<C, A, S>(command: C, args: A) -> Result<()>
+where
+    C: AsRef<OsStr>,
+    A: IntoIterator<Item = S> + Clone,
+    S: AsRef<OsStr>,
+{
+    let _output = run_impl(command, args, Stdio::null())?;
     Ok(())
 }
 
