@@ -10,6 +10,7 @@ use std::io::Result;
 use std::ops::Deref as _;
 use std::path::Path;
 use std::process::Command;
+use std::process::Output;
 use std::process::Stdio;
 
 
@@ -30,38 +31,21 @@ where
     )
 }
 
-/// Run a command with the provided arguments.
-fn run<C, A, S>(command: C, args: A) -> Result<()>
+
+fn evaluate<C, A, S>(output: &Output, command: C, args: A) -> Result<()>
 where
     C: AsRef<OsStr>,
-    A: IntoIterator<Item = S> + Clone,
+    A: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let instance = Command::new(command.as_ref())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .env_clear()
-        .envs(env::vars().filter(|(k, _)| k == "PATH"))
-        .args(args.clone())
-        .output()
-        .map_err(|err| {
-            Error::new(
-                ErrorKind::Other,
-                format!(
-                    "failed to run `{}`: {err}",
-                    format_command(command.as_ref(), args.clone())
-                ),
-            )
-        })?;
-
-    if !instance.status.success() {
-        let code = if let Some(code) = instance.status.code() {
+    if !output.status.success() {
+        let code = if let Some(code) = output.status.code() {
             format!(" ({code})")
         } else {
             " (terminated by signal)".to_string()
         };
 
-        let stderr = String::from_utf8_lossy(&instance.stderr);
+        let stderr = String::from_utf8_lossy(&output.stderr);
         let stderr = stderr.trim_end();
         let stderr = if !stderr.is_empty() {
             format!(": {stderr}")
@@ -79,6 +63,35 @@ where
     } else {
         Ok(())
     }
+}
+
+
+/// Run a command with the provided arguments.
+fn run<C, A, S>(command: C, args: A) -> Result<()>
+where
+    C: AsRef<OsStr>,
+    A: IntoIterator<Item = S> + Clone,
+    S: AsRef<OsStr>,
+{
+    let output = Command::new(command.as_ref())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .env_clear()
+        .envs(env::vars().filter(|(k, _)| k == "PATH"))
+        .args(args.clone())
+        .output()
+        .map_err(|err| {
+            Error::new(
+                ErrorKind::Other,
+                format!(
+                    "failed to run `{}`: {err}",
+                    format_command(command.as_ref(), args.clone())
+                ),
+            )
+        })?;
+
+    let () = evaluate(&output, command, args)?;
+    Ok(())
 }
 
 fn adjust_mtime(path: &Path) -> Result<()> {
