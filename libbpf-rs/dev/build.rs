@@ -271,9 +271,12 @@ fn prepare_test_files(crate_root: &Path) {
 }
 
 fn main() {
-    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let crate_dir = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
+        .parent()
+        .unwrap()
+        .to_path_buf();
 
     if cfg!(feature = "generate-test-files") && !cfg!(feature = "dont-generate-test-files") {
-        prepare_test_files(crate_dir.as_ref());
+        prepare_test_files(&crate_dir);
     }
 }

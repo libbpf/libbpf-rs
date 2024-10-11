@@ -1,0 +1,23 @@
+# A development-only package for generating libbpf-rs test artifacts.
+
+[package]
+name = "libbpf-rs-dev"
+version = "0.0.0"
+edition.workspace = true
+authors = ["Daniel Müller <deso@posteo.net>"]
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[features]
+# Enable this feature to opt in to the generation of unit test files.
+# Having these test files created is necessary for running tests.
+generate-test-files = ["libbpf-sys/vendored-libbpf", "dep:tempfile"]
+# Disable generation of test files. This feature takes preference over
+# `generate-test-files`.
+dont-generate-test-files = []
+
+[build-dependencies]
+libbpf-sys = { version = "1.4.1", default-features = false, optional = true }
+tempfile = { version = "3.3", optional = true }

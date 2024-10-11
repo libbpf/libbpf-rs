@@ -10,6 +10,7 @@ homepage = "https://github.com/libbpf/libbpf-rs"
 members = [
   "libbpf-cargo",
   "libbpf-rs",
+  "libbpf-rs/dev",
   "examples/bpf_query",
   "examples/capable",
   "examples/runqslower",
