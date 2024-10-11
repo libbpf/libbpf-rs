@@ -308,6 +308,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cc",
  "libbpf-rs",
+ "libbpf-rs-dev",
  "libbpf-sys",
  "libc",
  "log",
@@ -320,6 +321,14 @@ dependencies = [
  "tempfile",
  "test-tag",
  "vsprintf",
+]
+
+[[package]]
+name = "libbpf-rs-dev"
+version = "0.0.0"
+dependencies = [
+ "libbpf-sys",
+ "tempfile",
 ]
 
 [[package]]
