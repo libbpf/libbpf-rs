@@ -329,6 +329,7 @@ version = "0.0.0"
 dependencies = [
  "libbpf-sys",
  "tempfile",
+ "vmlinux",
 ]
 
 [[package]]
