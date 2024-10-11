@@ -21,3 +21,4 @@ dont-generate-test-files = []
 [build-dependencies]
 libbpf-sys = { version = "1.4.1", default-features = false, optional = true }
 tempfile = { version = "3.3", optional = true }
+vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "a9c092aa771310bf8b00b5018f7d40a1fdb6ec82" }

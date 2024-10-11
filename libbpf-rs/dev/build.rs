@@ -9,7 +9,6 @@ use std::io::ErrorKind;
 use std::io::Result;
 use std::ops::Deref as _;
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command;
 use std::process::Output;
 use std::process::Stdio;
@@ -67,19 +66,13 @@ where
 }
 
 
-fn run_impl<C, A, S>(command: C, args: A, stdout: Stdio, cwd: Option<&Path>) -> Result<Output>
+fn run_impl<C, A, S>(command: C, args: A, stdout: Stdio) -> Result<Output>
 where
     C: AsRef<OsStr>,
     A: IntoIterator<Item = S> + Clone,
     S: AsRef<OsStr>,
 {
-    let mut builder = Command::new(command.as_ref());
-
-    if let Some(cwd) = cwd {
-        builder.current_dir(cwd);
-    }
-
-    let output = builder
+    let output = Command::new(command.as_ref())
         .stdin(Stdio::null())
         .stdout(stdout)
         .env_clear()
@@ -107,21 +100,8 @@ where
     A: IntoIterator<Item = S> + Clone,
     S: AsRef<OsStr>,
 {
-    let cwd = None;
-    let _output = run_impl(command, args, Stdio::null(), cwd)?;
+    let _output = run_impl(command, args, Stdio::null())?;
     Ok(())
-}
-
-/// Run a command and capture its output.
-fn output<C, A, S, P>(command: C, args: A, cwd: P) -> Result<Vec<u8>>
-where
-    C: AsRef<OsStr>,
-    A: IntoIterator<Item = S> + Clone,
-    S: AsRef<OsStr>,
-    P: AsRef<Path>,
-{
-    let output = run_impl(command, args, Stdio::piped(), Some(cwd.as_ref()))?;
-    Ok(output.stdout)
 }
 
 fn adjust_mtime(path: &Path) -> Result<()> {
@@ -219,13 +199,7 @@ where
 fn prepare_test_files(crate_root: &Path) {
     let bin_dir = crate_root.join("tests").join("bin");
     let src_dir = bin_dir.join("src");
-    let include_root = output(
-        "cargo",
-        ["run", "--quiet"],
-        crate_root.parent().unwrap().join("vmlinux-include"),
-    )
-    .unwrap();
-    let include = PathBuf::from(&String::from_utf8(include_root).unwrap().trim_end()).join(ARCH);
+    let include = vmlinux::include_path_root().join(ARCH);
 
     with_bpf_headers(|bpf_hdr_dir| {
         for result in read_dir(&src_dir).unwrap() {
