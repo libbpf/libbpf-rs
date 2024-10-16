@@ -311,7 +311,6 @@ dependencies = [
  "libbpf-rs-dev",
  "libbpf-sys",
  "libc",
- "log",
  "memmem",
  "pkg-config",
  "plain",
