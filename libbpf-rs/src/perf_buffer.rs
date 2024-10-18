@@ -17,18 +17,12 @@ use crate::MapCore;
 use crate::MapType;
 use crate::Result;
 
-// Workaround for `trait_alias`
-// (https://doc.rust-lang.org/unstable-book/language-features/trait-alias.html)
-// not being available yet. This is just a custom trait plus a blanket implementation.
-pub trait SampleCb: FnMut(i32, &[u8]) {}
-impl<T> SampleCb for T where T: FnMut(i32, &[u8]) {}
-
-pub trait LostCb: FnMut(i32, u64) {}
-impl<T> LostCb for T where T: FnMut(i32, u64) {}
+type SampleCb<'b> = Box<dyn FnMut(i32, &[u8]) + 'b>;
+type LostCb<'b> = Box<dyn FnMut(i32, u64) + 'b>;
 
 struct CbStruct<'b> {
-    sample_cb: Option<Box<dyn SampleCb + 'b>>,
-    lost_cb: Option<Box<dyn LostCb + 'b>>,
+    sample_cb: Option<SampleCb<'b>>,
+    lost_cb: Option<LostCb<'b>>,
 }
 
 impl Debug for CbStruct<'_> {
@@ -48,8 +42,8 @@ where
 {
     map: &'a M,
     pages: usize,
-    sample_cb: Option<Box<dyn SampleCb + 'b>>,
-    lost_cb: Option<Box<dyn LostCb + 'b>>,
+    sample_cb: Option<SampleCb<'b>>,
+    lost_cb: Option<LostCb<'b>>,
 }
 
 impl<'a, M> PerfBufferBuilder<'a, '_, M>
@@ -78,7 +72,10 @@ where
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn sample_cb<NewCb: SampleCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b, M> {
+    pub fn sample_cb<F>(self, cb: F) -> PerfBufferBuilder<'a, 'b, M>
+    where
+        F: FnMut(i32, &[u8]) + 'b,
+    {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
@@ -90,7 +87,10 @@ where
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn lost_cb<NewCb: LostCb + 'b>(self, cb: NewCb) -> PerfBufferBuilder<'a, 'b, M> {
+    pub fn lost_cb<F>(self, cb: F) -> PerfBufferBuilder<'a, 'b, M>
+    where
+        F: FnMut(i32, u64) + 'b,
+    {
         PerfBufferBuilder {
             map: self.map,
             pages: self.pages,
