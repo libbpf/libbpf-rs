@@ -9,7 +9,6 @@ use libbpf_rs::ObjectBuilder;
 use libbpf_rs::OpenObject;
 use libbpf_rs::ProgramMut;
 
-
 pub fn get_test_object_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::new();
     // env!() macro fails at compile time if var not found
