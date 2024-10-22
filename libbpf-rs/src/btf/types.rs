@@ -579,6 +579,13 @@ impl<'btf> TryFrom<Composite<'btf>> for Union<'btf> {
     }
 }
 
+impl Composite<'_> {
+    /// Returns whether this composite type is a `union {}`.
+    pub fn is_empty_union(&self) -> bool {
+        !self.is_struct && self.is_empty()
+    }
+}
+
 // Composite
 gen_collection_members_concrete_type! {
     btf_member as Composite with HasSize;

@@ -2734,6 +2734,36 @@ pub struct __anon_4 {
 }
 
 #[test]
+fn test_btf_dump_definition_empty_union() {
+    let prog_text = r#"
+#include "vmlinux.h"
+
+struct struct_with_empty_union {
+    int member;
+    union {};
+};
+struct struct_with_empty_union s;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct struct_with_empty_union {
+    pub member: i32,
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    // Find the struct
+    let struct_with_empty_union =
+        find_type_in_btf!(btf, types::Struct<'_>, "struct_with_empty_union");
+
+    assert_definition(&btf, &struct_with_empty_union, expected_output);
+}
+
+#[test]
 fn test_btf_dump_definition_struct_ops_mixed() {
     let prog_text = r#"
 #include "vmlinux.h"
