@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed handling of empty unions in BPF types
+
+
 0.24.6
 ------
 - Fixed incorrect Cargo environment variable query when used in build

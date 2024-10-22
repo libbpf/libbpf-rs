@@ -578,6 +578,11 @@ impl<'s> GenBtf<'s> {
         t: types::Composite<'_>,
         opts: &TypeDeclOpts,
     ) -> Result<()> {
+        if t.is_empty_union() {
+            // Ignore empty union; Rust does not allow unions with no fields.
+            return Ok(());
+        }
+
         let packed = is_struct_packed(&t, &self.btf)?;
 
         // fields in the aggregate
@@ -602,6 +607,14 @@ impl<'s> GenBtf<'s> {
                 .type_by_id::<BtfType<'_>>(member.ty)
                 .unwrap()
                 .skip_mods_and_typedefs();
+
+            if let Ok(composite) = TryInto::<types::Composite<'_>>::try_into(field_ty) {
+                if composite.is_empty_union() {
+                    // Skip empty union field; we do not generate a type for them.
+                    continue;
+                }
+            }
+
             if let Some(next_ty_id) = next_type(field_ty)? {
                 dependent_types.push(next_ty_id);
             }
