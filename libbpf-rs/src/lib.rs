@@ -84,6 +84,7 @@ mod iter;
 mod link;
 mod linker;
 mod map;
+mod netfilter;
 mod object;
 mod perf_buffer;
 mod print;
@@ -120,6 +121,14 @@ pub use crate::map::MapType;
 pub use crate::map::OpenMap;
 pub use crate::map::OpenMapImpl;
 pub use crate::map::OpenMapMut;
+pub use crate::netfilter::NetfilterOpts;
+pub use crate::netfilter::NFPROTO_IPV4;
+pub use crate::netfilter::NFPROTO_IPV6;
+pub use crate::netfilter::NF_INET_FORWARD;
+pub use crate::netfilter::NF_INET_LOCAL_IN;
+pub use crate::netfilter::NF_INET_LOCAL_OUT;
+pub use crate::netfilter::NF_INET_POST_ROUTING;
+pub use crate::netfilter::NF_INET_PRE_ROUTING;
 pub use crate::object::AsRawLibbpf;
 pub use crate::object::MapIter;
 pub use crate::object::Object;
@@ -162,7 +171,6 @@ pub use crate::user_ringbuf::UserRingBufferSample;
 pub use crate::util::num_possible_cpus;
 pub use crate::xdp::Xdp;
 pub use crate::xdp::XdpFlags;
-
 
 /// An unconstructible dummy type used for tagging mutable type
 /// variants.

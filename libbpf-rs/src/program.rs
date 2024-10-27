@@ -24,6 +24,7 @@ use std::slice;
 
 use libbpf_sys::bpf_func_id;
 
+use crate::netfilter;
 use crate::util;
 use crate::util::validate_bpf_ret;
 use crate::util::BpfObjectType;
@@ -990,6 +991,23 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
     pub fn attach_netns(&self, netns_fd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach network namespace program")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to [netfilter programs](https://lwn.net/Articles/925082/)
+    pub fn attach_netfilter(&self, netfilter_opt: netfilter::NetfilterOpts) -> Result<Link> {
+        let netfilter_opts = libbpf_sys::bpf_netfilter_opts::from(netfilter_opt);
+
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_netfilter(
+                self.ptr.as_ptr(),
+                &netfilter_opts as *const _,
+            )
+        };
+
         let ptr = validate_bpf_ret(ptr).context("failed to attach network namespace program")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
