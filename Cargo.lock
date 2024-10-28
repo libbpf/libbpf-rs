@@ -402,6 +402,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "netfilter_blocklist"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ctrlc",
+ "libbpf-cargo",
+ "libbpf-rs",
+ "plain",
+]
+
+[[package]]
 name = "nix"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -18,5 +18,6 @@ members = [
   "examples/tcp_ca",
   "examples/tcp_option",
   "examples/tproxy",
+  "examples/netfilter_blocklist",
 ]
 resolver = "2"
