@@ -1,6 +1,7 @@
 0.24.7
 ------
 - Fixed handling of empty unions in BPF types
+- Represent C enums with custom types and const fields
 
 
 0.24.6

@@ -797,6 +797,8 @@ impl<'s> GenBtf<'s> {
             _ => bail!("Invalid enum size: {}", t.size()),
         };
 
+        let enum_name = self.anon_types.type_name_or_anon(&t);
+
         let mut signed = "u";
         for value in t.iter() {
             if value.value < 0 {
@@ -805,30 +807,37 @@ impl<'s> GenBtf<'s> {
             }
         }
 
-        writeln!(
-            def,
-            r#"#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]"#
-        )?;
-        writeln!(def, r#"#[repr({signed}{repr_size})]"#)?;
-        writeln!(
-            def,
-            r#"pub enum {name} {{"#,
-            name = self.anon_types.type_name_or_anon(&t),
-        )?;
+        let mut first_field = None;
 
-        for (i, value) in t.iter().enumerate() {
-            if i == 0 {
-                writeln!(def, r#"    #[default]"#)?;
-            }
+        writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+        writeln!(def, r#"#[repr(transparent)]"#)?;
+        writeln!(def, r#"pub struct {enum_name}({signed}{repr_size});"#)?;
+        writeln!(def, "#[allow(non_upper_case_globals)]")?;
+        writeln!(def, r#"impl {enum_name} {{"#,)?;
+
+        for value in t.iter() {
+            first_field = first_field.or(Some(value));
+
             writeln!(
                 def,
-                r#"    {name} = {value},"#,
+                r#"    pub const {name}: {enum_name} = {enum_name}({value});"#,
                 name = value.name.unwrap().to_string_lossy(),
                 value = value.value,
             )?;
         }
 
-        writeln!(def, "}}")?;
+        writeln!(def, r#"}}"#)?;
+
+        if let Some(first_field) = first_field {
+            writeln!(def, r#"impl Default for {enum_name} {{"#)?;
+            writeln!(
+                def,
+                r#"    fn default() -> Self {{ {enum_name}::{name} }}"#,
+                name = first_field.name.unwrap().to_string_lossy()
+            )?;
+            writeln!(def, r#"}}"#)?;
+        }
+
         Ok(())
     }
 

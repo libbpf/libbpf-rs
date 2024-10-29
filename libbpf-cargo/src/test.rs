@@ -1817,20 +1817,26 @@ fn test_btf_dump_definition_enum() {
 enum Foo {
     Zero = 0,
     One,
-    seven = 7,
+    Seven = 7,
+    ZeroDup = Zero,
 };
 
 enum Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
-#[repr(u32)]
-pub enum Foo {
-    #[default]
-    Zero = 0,
-    One = 1,
-    seven = 7,
+#[derive(Debug, Copy, Clone)]
+#[repr(transparent)]
+pub struct Foo(u32);
+#[allow(non_upper_case_globals)]
+impl Foo {
+    pub const Zero: Foo = Foo(0);
+    pub const One: Foo = Foo(1);
+    pub const Seven: Foo = Foo(7);
+    pub const ZeroDup: Foo = Foo(0);
+}
+impl Default for Foo {
+    fn default() -> Self { Foo::Zero }
 }
 "#;
 
@@ -1841,6 +1847,26 @@ pub enum Foo {
     let enum_foo = find_type_in_btf!(btf, types::Enum<'_>, "Foo");
 
     assert_definition(&btf, &enum_foo, expected_output);
+
+    // Ensure this code is valid Rust. See https://github.com/libbpf/libbpf-rs/issues/982.
+    let mut rust_code = NamedTempFile::new().unwrap();
+    let temp_dir = TempDir::new().unwrap();
+    rust_code.write_all(expected_output.as_bytes()).unwrap();
+    rust_code.write_all(b"\n").unwrap();
+    // Add `main` so the code compiles.
+    rust_code.write_all(b"fn main() {}").unwrap();
+    let status = Command::new("rustc")
+        .arg(rust_code.path())
+        // Crate names can't contain certain symbols that might be used
+        // by `tempfile` so override its name.
+        .arg("--crate-name")
+        .arg("btf_to_rust_test")
+        // We don't care about the produced object file.
+        .arg("--out-dir")
+        .arg(temp_dir.into_path())
+        .status()
+        .expect("failed to compile rust code");
+    assert!(status.success());
 }
 
 #[test]
@@ -2565,13 +2591,16 @@ impl Default for Foo {
         }
     }
 }
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
-#[repr(u32)]
-pub enum __anon_1 {
-    #[default]
-    FOO = 1,
+#[derive(Debug, Copy, Clone)]
+#[repr(transparent)]
+pub struct __anon_1(u32);
+#[allow(non_upper_case_globals)]
+impl __anon_1 {
+    pub const FOO: __anon_1 = __anon_1(1);
 }
-"#;
+impl Default for __anon_1 {
+    fn default() -> Self { __anon_1::FOO }
+}"#;
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
