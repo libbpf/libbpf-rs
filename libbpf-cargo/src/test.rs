@@ -2826,12 +2826,14 @@ impl StructOps {
 pub struct bpf_dummy_ops {
     pub test_1: *mut libbpf_rs::libbpf_sys::bpf_program,
     pub test_2: *mut libbpf_rs::libbpf_sys::bpf_program,
+    pub test_sleepable: *mut libbpf_rs::libbpf_sys::bpf_program,
 }
 impl Default for bpf_dummy_ops {
     fn default() -> Self {
         Self {
             test_1: std::ptr::null_mut(),
             test_2: std::ptr::null_mut(),
+            test_sleepable: std::ptr::null_mut(),
         }
     }
 }
