@@ -69,9 +69,11 @@ fn main() -> Result<()> {
     // Load into kernel
     let skel = open_skel.load()?;
 
+    let block_ip = Ipv4Addr::from_str(&opts.block_ip)?;
+    let block_ip: u32 = block_ip.into();
     let block_ip_key = types::lpm_key {
-        prefixlen: (32 as u32),
-        addr: Ipv4Addr::from_str(&opts.block_ip)?.to_bits().to_be(),
+        prefixlen: (32_u32),
+        addr: block_ip.to_be(),
     };
 
     let block_ip_key = unsafe { plain::as_bytes(&block_ip_key) };
