@@ -16,8 +16,8 @@ pub const NF_INET_LOCAL_OUT: u32 = 3;
 /// Netfilter hook number for post-routing (4).
 pub const NF_INET_POST_ROUTING: u32 = 4;
 
-#[derive(Clone, Debug, Default)]
 /// Options to be provided when attaching a program to a netfilter hook.
+#[derive(Clone, Debug, Default)]
 pub struct NetfilterOpts {
     /// Protocol family for netfilter; supported values are `NFPROTO_IPV4` (2) for IPv4
     /// and `NFPROTO_IPV6` (10) for IPv6.

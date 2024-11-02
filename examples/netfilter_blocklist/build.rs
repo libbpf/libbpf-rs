@@ -14,11 +14,14 @@ fn main() {
     .join("bpf")
     .join("netfilter_blocklist.skel.rs");
 
+    let arch = env::var("CARGO_CFG_TARGET_ARCH")
+        .expect("CARGO_CFG_TARGET_ARCH must be set in build script");
+
     SkeletonBuilder::new()
         .source(SRC)
         .clang_args([
-            OsStr::new("-Wno-compare-distinct-pointer-types"),
             OsStr::new("-I"),
+            vmlinux::include_path_root().join(arch).as_os_str(),
         ])
         .build_and_generate(&out)
         .unwrap();

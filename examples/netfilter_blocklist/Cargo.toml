@@ -6,6 +6,10 @@ license = "LGPL-2.1-only OR BSD-2-Clause"
 
 [build-dependencies]
 libbpf-cargo = { path = "../../libbpf-cargo" }
+vmlinux = { version = "0.0", git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+
+[[bin]]
+name = "netfilter_blocklist"
 
 [dependencies]
 anyhow = "1.0"

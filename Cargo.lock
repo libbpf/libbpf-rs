@@ -411,6 +411,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "plain",
+ "vmlinux",
 ]
 
 [[package]]

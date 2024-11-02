@@ -7,14 +7,10 @@ This project demonstrates how to use eBPF and Rust to implement a Netfilter hook
 
 Linux kernel [version 6.4 or later](https://github.com/torvalds/linux/commit/84601d6ee68ae820dec97450934797046d62db4b) with eBPF support.
 
-```shell
-bpftool btf dump file /sys/kernel/btf/vmlinux format c > ./examples/netfilter_blocklist/src/bpf/vmlinux.h
-```
-
 ## Building
 
 ```shell
-$ cargo build
+$ cargo build --release
 ```
 
 ## Usage
