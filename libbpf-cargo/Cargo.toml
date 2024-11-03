@@ -41,5 +41,5 @@ tempfile = "3.3"
 clap = { version = "4.0.32", features = ["derive"] }
 
 [dev-dependencies]
-goblin = "0.6"
+goblin = "0.9"
 vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
