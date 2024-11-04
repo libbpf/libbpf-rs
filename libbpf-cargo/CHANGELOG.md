@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.7
+------
 - Fixed handling of empty unions in BPF types
 
 
