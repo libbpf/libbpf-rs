@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Added `Program::attach_netfilter_with_opts` for attaching to netfilter
+  hooks
+
+
 0.24.5
 ------
 - Renamed `Program::get_id_by_fd` to `id_from_fd`

@@ -51,8 +51,8 @@ int netfilter_local_in(struct bpf_nf_ctx *ctx) {
         /* To view log output, use: cat /sys/kernel/debug/tracing/trace_pipe */
         __be32 addr_host = bpf_ntohl(key.addr);
         bpf_printk("Blocked IP: %d.%d.%d.%d, prefix length: %d, map value: %d\n",
-           (addr_host >> 24) & 0xFF, (addr_host >> 16) & 0xFF, 
-           (addr_host >> 8) & 0xFF, addr_host & 0xFF, 
+           (addr_host >> 24) & 0xFF, (addr_host >> 16) & 0xFF,
+           (addr_host >> 8) & 0xFF, addr_host & 0xFF,
            key.prefixlen, *match_value);
         return NF_DROP;
     }

@@ -21,7 +21,7 @@ int handle_netfilter(struct bpf_nf_ctx *ctx) {
 
     *value = 1;
     bpf_ringbuf_submit(value, 0);
-    
+
     bpf_printk("handle_netfilter: submitted ringbuf value");
     return NF_ACCEPT;
 }
