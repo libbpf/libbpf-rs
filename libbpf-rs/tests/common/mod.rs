@@ -75,3 +75,29 @@ pub fn get_prog_mut<'obj>(object: &'obj mut Object, name: &str) -> ProgramMut<'o
         .find(|map| map.name() == name)
         .unwrap_or_else(|| panic!("failed to find program `{name}`"))
 }
+
+/// A helper function for instantiating a `RingBuffer` with a callback meant to
+/// be invoked when `action` is executed and that is intended to trigger a write
+/// to said `RingBuffer` from kernel space, which then reads a single `i32` from
+/// this buffer from user space and returns it.
+pub fn with_ringbuffer<F>(map: &Map, action: F) -> i32
+where
+    F: FnOnce(),
+{
+    let mut value = 0i32;
+    {
+        let callback = |data: &[u8]| {
+            plain::copy_from_bytes(&mut value, data).expect("Wrong size");
+            0
+        };
+
+        let mut builder = libbpf_rs::RingBufferBuilder::new();
+        builder.add(map, callback).expect("failed to add ringbuf");
+        let mgr = builder.build().expect("failed to build");
+
+        action();
+        mgr.consume().expect("failed to consume ringbuf");
+    }
+
+    value
+}

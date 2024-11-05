@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 
 
     let local_in_netfilter_opt = NetfilterOpts {
-        pf: NFPROTO_IPV4,
+        protocol_family: NFPROTO_IPV4,
         hooknum: NF_INET_LOCAL_OUT,
         priority: -128,
         ..NetfilterOpts::default()
@@ -95,7 +95,7 @@ fn main() -> Result<()> {
     let local_in_link = skel
         .progs
         .netfilter_local_in
-        .attach_netfilter(local_in_netfilter_opt)
+        .attach_netfilter_with_opts(local_in_netfilter_opt)
         .unwrap();
 
     // Block until SIGINT
