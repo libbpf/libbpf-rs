@@ -27,7 +27,6 @@ use libbpf_rs::num_possible_cpus;
 use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::Linker;
-use libbpf_rs::Map;
 use libbpf_rs::MapCore;
 use libbpf_rs::MapFlags;
 use libbpf_rs::MapHandle;
@@ -55,33 +54,8 @@ use crate::common::get_prog_mut;
 use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
+use crate::common::with_ringbuffer;
 
-
-/// A helper function for instantiating a `RingBuffer` with a callback meant to
-/// be invoked when `action` is executed and that is intended to trigger a write
-/// to said `RingBuffer` from kernel space, which then reads a single `i32` from
-/// this buffer from user space and returns it.
-fn with_ringbuffer<F>(map: &Map, action: F) -> i32
-where
-    F: FnOnce(),
-{
-    let mut value = 0i32;
-    {
-        let callback = |data: &[u8]| {
-            plain::copy_from_bytes(&mut value, data).expect("Wrong size");
-            0
-        };
-
-        let mut builder = libbpf_rs::RingBufferBuilder::new();
-        builder.add(map, callback).expect("failed to add ringbuf");
-        let mgr = builder.build().expect("failed to build");
-
-        action();
-        mgr.consume().expect("failed to consume ringbuf");
-    }
-
-    value
-}
 
 #[tag(root)]
 #[test]

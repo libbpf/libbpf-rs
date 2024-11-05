@@ -998,7 +998,10 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to [netfilter programs](https://lwn.net/Articles/925082/)
-    pub fn attach_netfilter(&self, netfilter_opt: netfilter::NetfilterOpts) -> Result<Link> {
+    pub fn attach_netfilter_with_opts(
+        &self,
+        netfilter_opt: netfilter::NetfilterOpts,
+    ) -> Result<Link> {
         let netfilter_opts = libbpf_sys::bpf_netfilter_opts::from(netfilter_opt);
 
         let ptr = unsafe {
@@ -1008,7 +1011,7 @@ impl<'obj> ProgramMut<'obj> {
             )
         };
 
-        let ptr = validate_bpf_ret(ptr).context("failed to attach network namespace program")?;
+        let ptr = validate_bpf_ret(ptr).context("failed to attach netfilter program")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
         Ok(link)
