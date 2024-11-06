@@ -3,6 +3,7 @@
 
 mod common;
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env::current_exe;
 use std::ffi::c_int;
@@ -57,7 +58,6 @@ use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
 use crate::common::with_ringbuffer;
-
 
 #[tag(root)]
 #[test]
@@ -251,6 +251,68 @@ fn test_object_map_update_batch() {
             MapFlags::NO_EXIST
         )
         .is_err());
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_batch() {
+    bump_rlimit_mlock();
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+    let data = HashMap::from([
+        (1u32, 9999u64),
+        (2u32, 42u64),
+        (3u32, 18u64),
+        (4u32, 1337u64),
+    ]);
+
+    for (key, val) in data.iter() {
+        assert!(start
+            .update(&key.to_ne_bytes(), &val.to_ne_bytes(), MapFlags::ANY)
+            .is_ok());
+    }
+
+    let elems = start
+        .lookup_batch(2, MapFlags::ANY, MapFlags::ANY)
+        .expect("failed to lookup batch")
+        .collect::<Vec<_>>();
+    assert_eq!(elems.len(), 4);
+
+    for (key, val) in elems.into_iter() {
+        let key = u32::from_ne_bytes(key.try_into().unwrap());
+        let val = u64::from_ne_bytes(val.try_into().unwrap());
+        assert_eq!(val, data[&key]);
+    }
+
+    // test lookup with batch size larger than the number of keys
+    let elems = start
+        .lookup_batch(5, MapFlags::ANY, MapFlags::ANY)
+        .expect("failed to lookup batch")
+        .collect::<Vec<_>>();
+    assert_eq!(elems.len(), 4);
+
+    for (key, val) in elems.into_iter() {
+        let key = u32::from_ne_bytes(key.try_into().unwrap());
+        let val = u64::from_ne_bytes(val.try_into().unwrap());
+        assert_eq!(val, data[&key]);
+    }
+
+    // test lookup and delete with batch size that does not divide total count
+    let elems = start
+        .lookup_and_delete_batch(3, MapFlags::ANY, MapFlags::ANY)
+        .expect("failed to lookup batch")
+        .collect::<Vec<_>>();
+    assert_eq!(elems.len(), 4);
+
+    for (key, val) in elems.into_iter() {
+        let key = u32::from_ne_bytes(key.try_into().unwrap());
+        let val = u64::from_ne_bytes(val.try_into().unwrap());
+        assert_eq!(val, data[&key]);
+    }
+
+    // Map should be empty now.
+    assert!(start.keys().collect::<Vec<_>>().is_empty())
 }
 
 #[tag(root)]

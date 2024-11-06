@@ -27,6 +27,7 @@ use bitflags::bitflags;
 use libbpf_sys::bpf_map_info;
 use libbpf_sys::bpf_obj_get_info_by_fd;
 
+use crate::error;
 use crate::util;
 use crate::util::parse_ret_i32;
 use crate::util::validate_bpf_ret;
@@ -41,7 +42,6 @@ use crate::Result;
 pub type OpenMap<'obj> = OpenMapImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF map.
 pub type OpenMapMut<'obj> = OpenMapImpl<'obj, Mut>;
-
 
 /// Represents a parsed but not yet loaded BPF map.
 ///
@@ -363,6 +363,57 @@ where
     util::parse_ret(ret)
 }
 
+/// Internal function to batch lookup (and delete) elements from a map.
+fn lookup_batch_raw<M>(
+    map: &M,
+    count: u32,
+    elem_flags: MapFlags,
+    flags: MapFlags,
+    delete: bool,
+) -> BatchedMapIter<'_>
+where
+    M: MapCore + ?Sized,
+{
+    #[allow(clippy::needless_update)]
+    let opts = libbpf_sys::bpf_map_batch_opts {
+        sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+        elem_flags: elem_flags.bits(),
+        flags: flags.bits(),
+        // bpf_map_batch_opts might have padding fields on some platform
+        ..Default::default()
+    };
+
+    // for maps of type BPF_MAP_TYPE_{HASH, PERCPU_HASH, LRU_HASH, LRU_PERCPU_HASH}
+    // the key size must be at least 4 bytes
+    let key_size = if map.map_type().is_hash_map() {
+        map.key_size().max(4)
+    } else {
+        map.key_size()
+    };
+
+    BatchedMapIter::new(map.as_fd(), count, key_size, map.value_size(), opts, delete)
+}
+
+/// Intneral function that returns an error for per-cpu and bloom filter maps.
+fn check_not_bloom_or_percpu<M>(map: &M) -> Result<()>
+where
+    M: MapCore + ?Sized,
+{
+    if map.map_type().is_bloom_filter() {
+        return Err(Error::with_invalid_data(
+            "lookup_bloom_filter() must be used for bloom filter maps",
+        ));
+    }
+    if map.map_type().is_percpu() {
+        return Err(Error::with_invalid_data(format!(
+            "lookup_percpu() must be used for per-cpu maps (type of the map is {:?})",
+            map.map_type(),
+        )));
+    }
+
+    Ok(())
+}
+
 #[allow(clippy::wildcard_imports)]
 mod private {
     use super::*;
@@ -410,20 +461,35 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// must be used.
     /// If the map is of type bloom_filter the function [`Self::lookup_bloom_filter()`] must be used
     fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
-        if self.map_type().is_bloom_filter() {
-            return Err(Error::with_invalid_data(
-                "lookup_bloom_filter() must be used for bloom filter maps",
-            ));
-        }
-        if self.map_type().is_percpu() {
-            return Err(Error::with_invalid_data(format!(
-                "lookup_percpu() must be used for per-cpu maps (type of the map is {:?})",
-                self.map_type(),
-            )));
-        }
-
+        check_not_bloom_or_percpu(self)?;
         let out_size = self.value_size() as usize;
         lookup_raw(self, key, flags, out_size)
+    }
+
+    /// Returns many elements in batch mode from the map.
+    ///
+    /// `count` specifies the batch size.
+    fn lookup_batch(
+        &self,
+        count: u32,
+        elem_flags: MapFlags,
+        flags: MapFlags,
+    ) -> Result<BatchedMapIter<'_>> {
+        check_not_bloom_or_percpu(self)?;
+        Ok(lookup_batch_raw(self, count, elem_flags, flags, false))
+    }
+
+    /// Returns many elements in batch mode from the map.
+    ///
+    /// `count` specifies the batch size.
+    fn lookup_and_delete_batch(
+        &self,
+        count: u32,
+        elem_flags: MapFlags,
+        flags: MapFlags,
+    ) -> Result<BatchedMapIter<'_>> {
+        check_not_bloom_or_percpu(self)?;
+        Ok(lookup_batch_raw(self, count, elem_flags, flags, true))
     }
 
     /// Returns if the given value is likely present in bloom_filter as `bool`.
@@ -1169,6 +1235,14 @@ impl MapType {
         )
     }
 
+    /// Returns if the map is of one of the hashmap types.
+    pub fn is_hash_map(&self) -> bool {
+        matches!(
+            self,
+            MapType::Hash | MapType::PercpuHash | MapType::LruHash | MapType::LruPercpuHash
+        )
+    }
+
     /// Returns if the map is keyless map type as per documentation of libbpf
     /// Keyless map types are: Queues, Stacks and Bloom Filters
     fn is_keyless(&self) -> bool {
@@ -1279,6 +1353,129 @@ impl Iterator for MapKeyIter<'_> {
             self.prev = Some(self.next.clone());
             Some(self.next.clone())
         }
+    }
+}
+
+/// An iterator over batches of key value pairs of a BPF map.
+#[derive(Debug)]
+pub struct BatchedMapIter<'map> {
+    map_fd: BorrowedFd<'map>,
+    delete: bool,
+    count: usize,
+    key_size: usize,
+    value_size: usize,
+    keys: Vec<u8>,
+    values: Vec<u8>,
+    prev: Option<Vec<u8>>,
+    next: Vec<u8>,
+    batch_opts: libbpf_sys::bpf_map_batch_opts,
+    index: Option<usize>,
+}
+
+impl<'map> BatchedMapIter<'map> {
+    fn new(
+        map_fd: BorrowedFd<'map>,
+        count: u32,
+        key_size: u32,
+        value_size: u32,
+        batch_opts: libbpf_sys::bpf_map_batch_opts,
+        delete: bool,
+    ) -> Self {
+        Self {
+            map_fd,
+            delete,
+            count: count as usize,
+            key_size: key_size as usize,
+            value_size: value_size as usize,
+            keys: vec![0; (count * key_size) as usize],
+            values: vec![0; (count * value_size) as usize],
+            prev: None,
+            next: vec![0; key_size as usize],
+            batch_opts,
+            index: None,
+        }
+    }
+
+    fn lookup_next_batch(&mut self) {
+        let prev = self.prev.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        let mut count = self.count as u32;
+
+        let ret = unsafe {
+            if self.delete {
+                libbpf_sys::bpf_map_lookup_and_delete_batch(
+                    self.map_fd.as_raw_fd(),
+                    prev as _,
+                    self.next.as_mut_ptr().cast(),
+                    self.keys.as_mut_ptr().cast(),
+                    self.values.as_mut_ptr().cast(),
+                    (&mut count) as *mut u32,
+                    &self.batch_opts as *const libbpf_sys::bpf_map_batch_opts,
+                )
+            } else {
+                libbpf_sys::bpf_map_lookup_batch(
+                    self.map_fd.as_raw_fd(),
+                    prev as _,
+                    self.next.as_mut_ptr().cast(),
+                    self.keys.as_mut_ptr().cast(),
+                    self.values.as_mut_ptr().cast(),
+                    (&mut count) as *mut u32,
+                    &self.batch_opts as *const libbpf_sys::bpf_map_batch_opts,
+                )
+            }
+        };
+
+        if let Err(e) = util::parse_ret(ret) {
+            match e.kind() {
+                // in this case we can trust the returned count value
+                error::ErrorKind::NotFound => {}
+                // retry with same input arguments
+                error::ErrorKind::Interrupted => {
+                    return self.lookup_next_batch();
+                }
+                _ => {
+                    self.index = None;
+                    return;
+                }
+            }
+        }
+
+        self.prev = Some(self.next.clone());
+        self.index = Some(0);
+
+        unsafe {
+            self.keys.set_len(self.key_size * count as usize);
+            self.values.set_len(self.value_size * count as usize);
+        }
+    }
+}
+
+impl Iterator for BatchedMapIter<'_> {
+    type Item = (Vec<u8>, Vec<u8>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let load_next_batch = match self.index {
+            Some(index) => {
+                let batch_finished = index * self.key_size >= self.keys.len();
+                let last_batch = self.keys.len() < self.key_size * self.count;
+                batch_finished && !last_batch
+            }
+            None => true,
+        };
+
+        if load_next_batch {
+            self.lookup_next_batch();
+        }
+
+        let index = self.index?;
+        let key = self.keys.chunks_exact(self.key_size).nth(index)?.to_vec();
+        let val = self
+            .values
+            .chunks_exact(self.value_size)
+            .nth(index)?
+            .to_vec();
+
+        self.index = Some(index + 1);
+        Some((key, val))
     }
 }
 
