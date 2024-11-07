@@ -497,7 +497,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 
     /// Deletes many elements in batch mode from the map.
     ///
-    /// `keys` must have exactly [`Self::key_size()` * count] elements.
+    /// `keys` must have exactly `Self::key_size() * count` elements.
     fn delete_batch(
         &self,
         keys: &[u8],
