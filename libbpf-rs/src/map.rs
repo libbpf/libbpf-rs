@@ -602,8 +602,8 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 
     /// Updates many elements in batch mode in the map
     ///
-    /// `keys` must have exactly [`Self::key_size()` * count] elements. `value` must have exactly
-    /// [`Self::key_size()` * count] elements
+    /// `keys` must have exactly `Self::key_size() * count` elements. `values` must have exactly
+    /// `Self::key_size() * count` elements.
     fn update_batch(
         &self,
         keys: &[u8],
