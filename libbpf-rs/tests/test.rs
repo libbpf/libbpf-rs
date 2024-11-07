@@ -20,6 +20,8 @@ use std::path::PathBuf;
 use std::ptr;
 use std::ptr::addr_of;
 use std::slice;
+use std::sync::atomic::AtomicI32;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
@@ -918,17 +920,14 @@ fn test_object_ringbuf_raw() {
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
 
-    static mut V1: i32 = 0;
-    static mut V2: i32 = 0;
+    static V1: AtomicI32 = AtomicI32::new(0);
+    static V2: AtomicI32 = AtomicI32::new(0);
 
     fn callback1(data: &[u8]) -> i32 {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        unsafe {
-            V1 = value;
-        }
-
+        V1.store(value, Ordering::SeqCst);
         0
     }
 
@@ -936,10 +935,7 @@ fn test_object_ringbuf_raw() {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        unsafe {
-            V2 = value;
-        }
-
+        V2.store(value, Ordering::SeqCst);
         0
     }
 
@@ -978,8 +974,8 @@ fn test_object_ringbuf_raw() {
     // triggering the BPF program
     assert!(ret >= 2);
 
-    unsafe { assert_eq!(V1, 1) };
-    unsafe { assert_eq!(V2, 2) };
+    assert_eq!(V1.load(Ordering::SeqCst), 1);
+    assert_eq!(V2.load(Ordering::SeqCst), 2);
 
     // Consume from a (potentially) empty ring buffer
     let ret = mgr.consume_raw();
@@ -1061,17 +1057,14 @@ fn test_object_ringbuf() {
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
 
-    static mut V1: i32 = 0;
-    static mut V2: i32 = 0;
+    static V1: AtomicI32 = AtomicI32::new(0);
+    static V2: AtomicI32 = AtomicI32::new(0);
 
     fn callback1(data: &[u8]) -> i32 {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        unsafe {
-            V1 = value;
-        }
-
+        V1.store(value, Ordering::SeqCst);
         0
     }
 
@@ -1079,10 +1072,7 @@ fn test_object_ringbuf() {
         let mut value: i32 = 0;
         plain::copy_from_bytes(&mut value, data).expect("Wrong size");
 
-        unsafe {
-            V2 = value;
-        }
-
+        V2.store(value, Ordering::SeqCst);
         0
     }
 
@@ -1118,12 +1108,12 @@ fn test_object_ringbuf() {
     mgr.consume().expect("failed to consume ringbuf");
 
     // Our values should both reflect that the callbacks have been called
-    unsafe { assert_eq!(V1, 1) };
-    unsafe { assert_eq!(V2, 2) };
+    assert_eq!(V1.load(Ordering::SeqCst), 1);
+    assert_eq!(V2.load(Ordering::SeqCst), 2);
 
     // Reset both values
-    unsafe { V1 = 0 };
-    unsafe { V2 = 0 };
+    V1.store(0, Ordering::SeqCst);
+    V2.store(0, Ordering::SeqCst);
 
     // Call getpid to ensure the BPF program runs
     unsafe { libc::getpid() };
@@ -1133,8 +1123,8 @@ fn test_object_ringbuf() {
         .expect("failed to poll ringbuf");
 
     // Our values should both reflect that the callbacks have been called
-    unsafe { assert_eq!(V1, 1) };
-    unsafe { assert_eq!(V2, 2) };
+    assert_eq!(V1.load(Ordering::SeqCst), 1);
+    assert_eq!(V2.load(Ordering::SeqCst), 2);
 }
 
 #[tag(root)]
