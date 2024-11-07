@@ -528,7 +528,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
             libbpf_sys::bpf_map_delete_batch(
                 self.as_fd().as_raw_fd(),
                 keys.as_ptr() as *const c_void,
-                (&mut count) as *mut u32,
+                &mut count,
                 &opts as *const libbpf_sys::bpf_map_batch_opts,
             )
         };
@@ -645,7 +645,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
                 self.as_fd().as_raw_fd(),
                 keys.as_ptr() as *const c_void,
                 values.as_ptr() as *const c_void,
-                (&mut count) as *mut u32,
+                &mut count,
                 &opts as *const libbpf_sys::bpf_map_batch_opts,
             )
         };
