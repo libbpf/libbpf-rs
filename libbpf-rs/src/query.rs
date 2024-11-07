@@ -368,7 +368,7 @@ impl ProgramInfo {
         };
         util::parse_ret(ret)?;
 
-        return Ok(ProgramInfo {
+        Ok(ProgramInfo {
             name: name.to_owned(),
             ty,
             tag: Tag(item.tag),
@@ -395,7 +395,7 @@ impl ProgramInfo {
             run_time_ns: item.run_time_ns,
             run_cnt: item.run_cnt,
             recursion_misses: item.recursion_misses,
-        });
+        })
     }
 }
 
