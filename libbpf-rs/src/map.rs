@@ -1397,31 +1397,27 @@ impl<'map> BatchedMapIter<'map> {
     }
 
     fn lookup_next_batch(&mut self) {
-        let prev = self.prev.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        let prev = self
+            .prev
+            .as_mut()
+            .map_or(ptr::null_mut(), |p| p.as_mut_ptr());
         let mut count = self.count as u32;
 
         let ret = unsafe {
-            if self.delete {
-                libbpf_sys::bpf_map_lookup_and_delete_batch(
-                    self.map_fd.as_raw_fd(),
-                    prev as _,
-                    self.next.as_mut_ptr().cast(),
-                    self.keys.as_mut_ptr().cast(),
-                    self.values.as_mut_ptr().cast(),
-                    (&mut count) as *mut u32,
-                    &self.batch_opts as *const libbpf_sys::bpf_map_batch_opts,
-                )
+            let lookup_fn = if self.delete {
+                libbpf_sys::bpf_map_lookup_and_delete_batch
             } else {
-                libbpf_sys::bpf_map_lookup_batch(
-                    self.map_fd.as_raw_fd(),
-                    prev as _,
-                    self.next.as_mut_ptr().cast(),
-                    self.keys.as_mut_ptr().cast(),
-                    self.values.as_mut_ptr().cast(),
-                    (&mut count) as *mut u32,
-                    &self.batch_opts as *const libbpf_sys::bpf_map_batch_opts,
-                )
-            }
+                libbpf_sys::bpf_map_lookup_batch
+            };
+            lookup_fn(
+                self.map_fd.as_raw_fd(),
+                prev.cast(),
+                self.next.as_mut_ptr().cast(),
+                self.keys.as_mut_ptr().cast(),
+                self.values.as_mut_ptr().cast(),
+                &mut count,
+                &self.batch_opts,
+            )
         };
 
         if let Err(e) = util::parse_ret(ret) {

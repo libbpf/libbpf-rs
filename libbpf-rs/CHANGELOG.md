@@ -1,8 +1,12 @@
+Unreleased
+----------
+- Added `Map::lookup_batch` and `Map::lookup_and_delete_batch` method
+
+
 0.24.8
 ------
 - Added `Program::attach_netfilter_with_opts` for attaching to netfilter
   hooks
-- Added `Map::lookup_batch` and `Map::lookup_and_delete_batch` method
 
 
 0.24.5
