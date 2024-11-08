@@ -1853,10 +1853,25 @@ enum Foo {
     ZeroDup = Zero,
 };
 
-enum Foo foo;
+struct Bar {
+    enum Foo foo;
+};
+struct Bar bar;
 "#;
 
     let expected_output = r#"
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Bar {
+    pub foo: std::mem::MaybeUninit<Foo>,
+}
+impl Default for Bar {
+    fn default() -> Self {
+        Self {
+            foo: std::mem::MaybeUninit::new(Foo::default()),
+        }
+    }
+}
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
 pub struct Foo(u32);
@@ -1870,15 +1885,15 @@ impl Foo {
 impl Default for Foo {
     fn default() -> Self { Foo::Zero }
 }
+
 "#;
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
 
     // Find our struct
-    let enum_foo = find_type_in_btf!(btf, types::Enum<'_>, "Foo");
-
-    assert_definition(&btf, &enum_foo, expected_output);
+    let struct_bar = find_type_in_btf!(btf, types::Struct<'_>, "Bar");
+    assert_definition(&btf, &struct_bar, expected_output);
 }
 
 #[test]
