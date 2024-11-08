@@ -40,7 +40,6 @@ fn is_unsafe(ty: BtfType<'_>) -> bool {
 
     btf_type_match!(match ty {
         BtfKind::Int(t) => matches!(t.encoding, types::IntEncoding::Bool),
-        BtfKind::Enum | BtfKind::Enum64 => true,
         _ => false,
     })
 }

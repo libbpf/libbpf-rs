@@ -1,6 +1,8 @@
 Unreleased
 ----------
 - Represent C enums with custom types and const fields
+  - Adjusted Rust correspondents in generated skeletons to no longer be
+    wrapped in `MaybeUninit`
 
 
 0.24.7
@@ -74,7 +76,7 @@ Unreleased
 - Fixed potential naming issues by escaping reserved keywords used in
   identifiers
 - Fixed potential unsoundness issues in generated skeletons by wrapping "unsafe"
-  type in `MaybeUninit`
+  types in `MaybeUninit`
 - Added pointer based ("raw") access to datasec type to generated skeletons
 - Added better handling for bitfields to code generation logic
 - Updated `libbpf-sys` dependency to `1.4.0`
