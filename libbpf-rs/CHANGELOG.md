@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.24.8
+------
 - Added `Program::attach_netfilter_with_opts` for attaching to netfilter
   hooks
 
