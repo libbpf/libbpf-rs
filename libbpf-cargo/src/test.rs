@@ -845,6 +845,38 @@ fn test_skeleton_builder_arrays_ptrs() {
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
+/// Check that we can correctly work with C enums that contain multiple
+/// variants with the same value.
+#[test]
+fn test_skeleton_enum_with_same_value_variants() {
+    let bpf_c = r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        enum Foo {
+            Zero = 0,
+            ZeroDup = Zero,
+            One,
+        };
+
+        enum Foo foo;
+    "#
+    .to_string();
+
+    let rust = r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use bpf::*;
+
+        fn main() {
+            let _zero1 = types::Foo::Zero;
+            let _zero2 = types::Foo::ZeroDup;
+        }
+    "#
+    .to_string();
+    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+}
+
 #[test]
 fn test_skeleton_generate_struct_with_pointer() {
     let bpf_c = r#"
@@ -1847,26 +1879,6 @@ impl Default for Foo {
     let enum_foo = find_type_in_btf!(btf, types::Enum<'_>, "Foo");
 
     assert_definition(&btf, &enum_foo, expected_output);
-
-    // Ensure this code is valid Rust. See https://github.com/libbpf/libbpf-rs/issues/982.
-    let mut rust_code = NamedTempFile::new().unwrap();
-    let temp_dir = TempDir::new().unwrap();
-    rust_code.write_all(expected_output.as_bytes()).unwrap();
-    rust_code.write_all(b"\n").unwrap();
-    // Add `main` so the code compiles.
-    rust_code.write_all(b"fn main() {}").unwrap();
-    let status = Command::new("rustc")
-        .arg(rust_code.path())
-        // Crate names can't contain certain symbols that might be used
-        // by `tempfile` so override its name.
-        .arg("--crate-name")
-        .arg("btf_to_rust_test")
-        // We don't care about the produced object file.
-        .arg("--out-dir")
-        .arg(temp_dir.into_path())
-        .status()
-        .expect("failed to compile rust code");
-    assert!(status.success());
 }
 
 #[test]
