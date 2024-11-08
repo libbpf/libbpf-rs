@@ -199,12 +199,7 @@ fn main() -> Result<()> {
         .tool_config
         .verbose
         .write(opts.verbose);
-    open_skel
-        .maps
-        .rodata_data
-        .tool_config
-        .unique_type
-        .write(opts.unique_type);
+    open_skel.maps.rodata_data.tool_config.unique_type = opts.unique_type;
 
     let mut skel = open_skel.load()?;
     skel.attach()?;

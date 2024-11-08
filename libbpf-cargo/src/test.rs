@@ -1860,17 +1860,10 @@ struct Bar bar;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Bar {
-    pub foo: std::mem::MaybeUninit<Foo>,
-}
-impl Default for Bar {
-    fn default() -> Self {
-        Self {
-            foo: std::mem::MaybeUninit::new(Foo::default()),
-        }
-    }
+    pub foo: Foo,
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
@@ -1885,7 +1878,6 @@ impl Foo {
 impl Default for Foo {
     fn default() -> Self { Foo::Zero }
 }
-
 "#;
 
     let mmap = build_btf_mmap(prog_text);
@@ -2606,17 +2598,10 @@ struct Foo foo;
 "#;
 
     let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[repr(C)]
 pub struct Foo {
-    pub test: std::mem::MaybeUninit<__anon_1>,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            test: std::mem::MaybeUninit::new(__anon_1::default()),
-        }
-    }
+    pub test: __anon_1,
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
@@ -2627,7 +2612,8 @@ impl __anon_1 {
 }
 impl Default for __anon_1 {
     fn default() -> Self { __anon_1::FOO }
-}"#;
+}
+"#;
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
