@@ -58,6 +58,7 @@
 #![allow(clippy::let_unit_value)]
 #![warn(
     elided_lifetimes_in_paths,
+    missing_debug_implementations,
     single_use_lifetimes,
     clippy::absolute_paths,
     clippy::wildcard_imports
@@ -106,6 +107,7 @@ mod test;
 ///     .build_and_generate("/output/path")
 ///     .unwrap();
 /// ```
+#[derive(Debug)]
 pub struct SkeletonBuilder {
     debug: bool,
     source: Option<PathBuf>,
