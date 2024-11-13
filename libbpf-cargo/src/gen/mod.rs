@@ -191,7 +191,7 @@ impl ProgsData {
 }
 
 
-pub enum OutputDest<'a> {
+pub(crate) enum OutputDest<'a> {
     Stdout,
     /// Infer a filename and place file in specified directory
     Directory(&'a Path),
@@ -1217,7 +1217,7 @@ fn gen_skel(
 /// Generate mod.rs in src/bpf directory of each project.
 ///
 /// Each `UnprocessedObj` in `objs` must belong to same project.
-pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Result<()> {
+pub(crate) fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Result<()> {
     if objs.is_empty() {
         return Ok(());
     }
@@ -1258,7 +1258,7 @@ pub fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Resu
     Ok(())
 }
 
-pub fn gen_single(
+pub(crate) fn gen_single(
     debug: bool,
     obj_file: &Path,
     output: OutputDest<'_>,
@@ -1352,7 +1352,7 @@ fn gen_project(
     Ok(())
 }
 
-pub fn gen(
+pub(crate) fn gen(
     debug: bool,
     manifest_path: Option<&PathBuf>,
     rustfmt_path: Option<&PathBuf>,
