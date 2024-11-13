@@ -65,6 +65,8 @@
 )]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+pub use build::CompilationOutput;
+
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
@@ -210,17 +212,17 @@ impl SkeletonBuilder {
     }
 
     /// Build BPF programs and generate the skeleton at path `output`
-    pub fn build_and_generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
-        self.build()?;
+    pub fn build_and_generate<P: AsRef<Path>>(&mut self, output: P) -> Result<CompilationOutput> {
+        let comp_output = self.build()?;
         self.generate(output)?;
 
-        Ok(())
+        Ok(comp_output)
     }
 
     // Build BPF programs without generating a skeleton.
     //
     // [`SkeletonBuilder::source`] must be set for this to succeed.
-    pub fn build(&mut self) -> Result<()> {
+    pub fn build(&mut self) -> Result<CompilationOutput> {
         let source = self
             .source
             .as_ref()
@@ -257,9 +259,7 @@ impl SkeletonBuilder {
             self.skip_clang_version_check,
             self.clang_args.clone(),
         )
-        .with_context(|| format!("failed to build `{}`", source.display()))?;
-
-        Ok(())
+        .with_context(|| format!("failed to build `{}`", source.display()))
     }
 
     // Generate a skeleton at path `output` without building BPF programs.
