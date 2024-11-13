@@ -1,4 +1,4 @@
-pub mod btf;
+mod btf;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -43,8 +43,8 @@ use memmap2::Mmap;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
-use self::btf::GenBtf;
-use self::btf::GenStructOps;
+pub(crate) use self::btf::GenBtf;
+pub(crate) use self::btf::GenStructOps;
 
 
 /// Name of the `.kconfig` map.
@@ -195,9 +195,7 @@ pub(crate) enum OutputDest<'a> {
     Stdout,
     /// Infer a filename and place file in specified directory
     Directory(&'a Path),
-    #[allow(dead_code)]
     /// File to place output in
-    // Only constructed in libbpf-cargo library
     File(&'a Path),
 }
 
@@ -1352,7 +1350,7 @@ fn gen_project(
     Ok(())
 }
 
-pub(crate) fn gen(
+pub fn gen(
     debug: bool,
     manifest_path: Option<&PathBuf>,
     rustfmt_path: Option<&PathBuf>,

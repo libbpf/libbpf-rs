@@ -279,7 +279,7 @@ fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn build(
+pub fn build(
     debug: bool,
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
@@ -309,7 +309,6 @@ pub(crate) fn build(
 }
 
 // Only used in libbpf-cargo library
-#[allow(dead_code)]
 pub(crate) fn build_single(
     debug: bool,
     source: &Path,
