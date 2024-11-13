@@ -3,6 +3,8 @@ Unreleased
 - Represent C enums with custom types and const fields
   - Adjusted Rust correspondents in generated skeletons to no longer be
     wrapped in `MaybeUninit`
+- Adjusted `SkeletonBuilder::build*` methods to return
+  `CompilationOutput` on success
 
 
 0.24.7

@@ -26,8 +26,6 @@ pub struct CompilationOutput {
 }
 
 impl CompilationOutput {
-    // Only used in libbpf-cargo library
-    #[allow(dead_code)]
     /// Read the stderr from the compilation
     pub fn stderr(&self) -> &[u8] {
         &self.stderr
