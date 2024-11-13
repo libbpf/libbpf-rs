@@ -20,8 +20,8 @@ use tempfile::NamedTempFile;
 use tempfile::TempDir;
 
 use crate::build::build;
-use crate::gen::btf::GenBtf;
-use crate::gen::btf::GenStructOps;
+use crate::gen::GenBtf;
+use crate::gen::GenStructOps;
 use crate::make::make;
 use crate::SkeletonBuilder;
 

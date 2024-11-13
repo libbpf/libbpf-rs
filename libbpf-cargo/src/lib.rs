@@ -77,15 +77,9 @@ use anyhow::Result;
 use tempfile::tempdir;
 use tempfile::TempDir;
 
-// libbpf-cargo binary is the primary consumer of the following modules. As such,
-// we do not use all the symbols. Silence any unused code warnings.
-#[allow(dead_code)]
 mod build;
-#[allow(dead_code)]
 mod gen;
-#[allow(dead_code)]
 mod make;
-#[allow(dead_code)]
 mod metadata;
 
 #[cfg(test)]
@@ -283,5 +277,22 @@ impl SkeletonBuilder {
         .with_context(|| format!("failed to generate `{}`", objfile.display()))?;
 
         Ok(())
+    }
+}
+
+
+/// Implementation details shared with the binary.
+///
+/// NOT PART OF PUBLIC API SURFACE!
+#[doc(hidden)]
+pub mod __private {
+    pub mod build {
+        pub use crate::build::build;
+    }
+    pub mod gen {
+        pub use crate::gen::gen;
+    }
+    pub mod make {
+        pub use crate::make::make;
     }
 }

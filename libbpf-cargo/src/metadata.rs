@@ -24,7 +24,7 @@ struct PackageMetadata {
 }
 
 #[derive(Debug, Clone)]
-pub struct UnprocessedObj {
+pub(crate) struct UnprocessedObj {
     /// Package the object belongs to
     pub package: String,
     /// Path to .c
@@ -142,7 +142,10 @@ fn get_package(
 }
 
 /// Returns the `target_directory` and a list of objects to compile.
-pub fn get(debug: bool, manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
+pub(crate) fn get(
+    debug: bool,
+    manifest_path: Option<&PathBuf>,
+) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {

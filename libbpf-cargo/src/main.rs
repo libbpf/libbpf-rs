@@ -9,11 +9,10 @@ use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 
-#[doc(hidden)]
-mod build;
-mod gen;
-mod make;
-mod metadata;
+use libbpf_cargo::__private::build;
+use libbpf_cargo::__private::gen;
+use libbpf_cargo::__private::make;
+
 
 #[doc(hidden)]
 #[derive(Debug, Parser)]

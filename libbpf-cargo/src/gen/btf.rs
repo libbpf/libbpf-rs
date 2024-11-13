@@ -449,7 +449,7 @@ impl StructOps {{
 }
 
 
-pub struct GenBtf<'s> {
+pub(crate) struct GenBtf<'s> {
     btf: Btf<'s>,
     anon_types: AnonTypes,
 }
