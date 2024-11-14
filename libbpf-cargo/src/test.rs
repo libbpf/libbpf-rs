@@ -377,7 +377,7 @@ fn test_make_workspace() {
         .exists());
 }
 
-fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
+fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // Add prog dir
@@ -434,7 +434,7 @@ fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
         .expect("failed to write to main.rs");
 
     let status = Command::new("cargo")
-        .arg("build")
+        .arg(if run { "run" } else { "build" })
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(cargo_toml.into_os_string())
@@ -442,6 +442,16 @@ fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
         .status()
         .expect("failed to spawn cargo-build");
     assert!(status.success());
+}
+
+fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
+    let run = false;
+    build_rust_project_from_bpf_c_impl(bpf_c, rust, run)
+}
+
+fn run_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
+    let run = true;
+    build_rust_project_from_bpf_c_impl(bpf_c, rust, run)
 }
 
 #[test]
@@ -869,12 +879,15 @@ fn test_skeleton_enum_with_same_value_variants() {
         use bpf::*;
 
         fn main() {
-            let _zero1 = types::Foo::Zero;
-            let _zero2 = types::Foo::ZeroDup;
+            let zero1 = types::Foo::Zero;
+            let zero2 = types::Foo::ZeroDup;
+
+            assert_eq!(zero1, zero2);
+            assert_ne!(types::Foo::Zero, types::Foo::One);
         }
     "#
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    let () = run_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
@@ -1865,7 +1878,7 @@ struct Bar bar;
 pub struct Bar {
     pub foo: Foo,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Foo(u32);
 #[allow(non_upper_case_globals)]
@@ -2603,7 +2616,7 @@ struct Foo foo;
 pub struct Foo {
     pub test: __anon_1,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct __anon_1(u32);
 #[allow(non_upper_case_globals)]

@@ -808,7 +808,7 @@ impl<'s> GenBtf<'s> {
 
         let mut first_field = None;
 
-        writeln!(def, r#"#[derive(Debug, Copy, Clone)]"#)?;
+        writeln!(def, r#"#[derive(Debug, Copy, Clone, Eq, PartialEq)]"#)?;
         writeln!(def, r#"#[repr(transparent)]"#)?;
         writeln!(def, r#"pub struct {enum_name}({signed}{repr_size});"#)?;
         writeln!(def, "#[allow(non_upper_case_globals)]")?;
