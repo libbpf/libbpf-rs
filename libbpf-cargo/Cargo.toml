@@ -31,7 +31,7 @@ default = ["libbpf-rs/default"]
 [dependencies]
 anyhow = "1.0.1"
 cargo_metadata = "0.15.0"
-libbpf-rs = { version = "0.24", default-features = false, path = "../libbpf-rs" }
+libbpf-rs = { version = "=0.25.0-beta.0", default-features = false, path = "../libbpf-rs" }
 memmap2 = "0.5"
 regex = { version = "1.6.0", default-features = false, features = ["std", "unicode-perl"] }
 semver = "1.0"

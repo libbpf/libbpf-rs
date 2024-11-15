@@ -107,7 +107,7 @@ jobs:
           cargo init --bin libbpf-rs-test-project
           cd libbpf-rs-test-project
           cat >> Cargo.toml <<EOF
-          libbpf-rs = { version = "*", path = "../libbpf-rs", ${{ matrix.args }} }
+          libbpf-rs = { path = "../libbpf-rs", ${{ matrix.args }} }
           EOF
           cat > src/main.rs <<EOF
           fn main() {

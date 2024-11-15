@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.25.0-beta.0
+-------------
 - Represent C enums with custom types and const fields
   - Adjusted Rust correspondents in generated skeletons to no longer be
     wrapped in `MaybeUninit`
