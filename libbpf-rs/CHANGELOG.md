@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.25.0-beta.0
+-------------
 - Added `Map::lookup_batch` and `Map::lookup_and_delete_batch` method
 
 
