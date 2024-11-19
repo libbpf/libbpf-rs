@@ -1880,7 +1880,7 @@ pub struct Bar {
 }
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct Foo(u32);
+pub struct Foo(pub u32);
 #[allow(non_upper_case_globals)]
 impl Foo {
     pub const Zero: Foo = Foo(0);
@@ -2618,7 +2618,7 @@ pub struct Foo {
 }
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct __anon_1(u32);
+pub struct __anon_1(pub u32);
 #[allow(non_upper_case_globals)]
 impl __anon_1 {
     pub const FOO: __anon_1 = __anon_1(1);

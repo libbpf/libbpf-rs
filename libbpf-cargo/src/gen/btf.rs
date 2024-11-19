@@ -810,7 +810,7 @@ impl<'s> GenBtf<'s> {
 
         writeln!(def, r#"#[derive(Debug, Copy, Clone, Eq, PartialEq)]"#)?;
         writeln!(def, r#"#[repr(transparent)]"#)?;
-        writeln!(def, r#"pub struct {enum_name}({signed}{repr_size});"#)?;
+        writeln!(def, r#"pub struct {enum_name}(pub {signed}{repr_size});"#)?;
         writeln!(def, "#[allow(non_upper_case_globals)]")?;
         writeln!(def, r#"impl {enum_name} {{"#,)?;
 
