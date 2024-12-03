@@ -113,6 +113,19 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
     }
 }
 
+/// Options to optionally be provided when attaching to multiple kprobes.
+#[derive(Clone, Debug, Default)]
+pub struct KprobeMultiOpts {
+    /// List of symbol names to attach to.
+    pub symbols: Vec<String>,
+    /// Array of custom user-provided values accessible through `bpf_get_attach_cookie`.
+    pub cookies: Vec<u64>,
+    /// kprobes are return probes, invoked at function return time.
+    pub retprobe: bool,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
 
 /// An immutable parsed but not yet loaded BPF program.
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
@@ -453,6 +466,7 @@ pub enum ProgramAttachType {
     SkReuseportSelect = libbpf_sys::BPF_SK_REUSEPORT_SELECT,
     SkReuseportSelectOrMigrate = libbpf_sys::BPF_SK_REUSEPORT_SELECT_OR_MIGRATE,
     PerfEvent = libbpf_sys::BPF_PERF_EVENT,
+    KprobeMulti = libbpf_sys::BPF_TRACE_KPROBE_MULTI,
     /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
 }
@@ -862,6 +876,98 @@ impl<'obj> ProgramMut<'obj> {
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
         Ok(link)
+    }
+
+    fn check_kprobe_multi_args<T: AsRef<str>>(symbols: &[T], cookies: &[u64]) -> Result<usize> {
+        if symbols.is_empty() {
+            return Err(Error::with_invalid_input("Symbols list cannot be empty"));
+        }
+
+        if !cookies.is_empty() && symbols.len() != cookies.len() {
+            return Err(Error::with_invalid_input(
+                "Symbols and cookies list must have the same size",
+            ));
+        }
+
+        Ok(symbols.len())
+    }
+
+    fn attach_kprobe_multi_impl(&self, opts: libbpf_sys::bpf_kprobe_multi_opts) -> Result<Link> {
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_kprobe_multi_opts(
+                self.ptr.as_ptr(),
+                ptr::null(),
+                &opts as *const _,
+            )
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach kprobe multi")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to multiple [kernel
+    /// probes](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html)
+    /// at once.
+    pub fn attach_kprobe_multi<T: AsRef<str>>(
+        &self,
+        symbols: Vec<T>,
+        retprobe: bool,
+    ) -> Result<Link> {
+        let cnt = Self::check_kprobe_multi_args(&symbols, &[])?;
+
+        let csyms = symbols
+            .iter()
+            .map(|s| util::str_to_cstring(s.as_ref()))
+            .collect::<Result<Vec<_>>>()?;
+        let mut syms = csyms.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();
+
+        let opts = libbpf_sys::bpf_kprobe_multi_opts {
+            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
+            syms: syms.as_mut_ptr() as _,
+            cnt: cnt as libbpf_sys::size_t,
+            retprobe,
+            // bpf_kprobe_multi_opts might have padding fields on some platform
+            ..Default::default()
+        };
+
+        self.attach_kprobe_multi_impl(opts)
+    }
+
+    /// Attach this program to multiple [kernel
+    /// probes](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html)
+    /// at once, providing additional options.
+    pub fn attach_kprobe_multi_with_opts(&self, opts: KprobeMultiOpts) -> Result<Link> {
+        let KprobeMultiOpts {
+            symbols,
+            mut cookies,
+            retprobe,
+            _non_exhaustive,
+        } = opts;
+
+        let cnt = Self::check_kprobe_multi_args(&symbols, &cookies)?;
+
+        let csyms = symbols
+            .iter()
+            .map(|s| util::str_to_cstring(s.as_ref()))
+            .collect::<Result<Vec<_>>>()?;
+        let mut syms = csyms.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();
+
+        let opts = libbpf_sys::bpf_kprobe_multi_opts {
+            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
+            syms: syms.as_mut_ptr() as _,
+            cookies: if !cookies.is_empty() {
+                cookies.as_mut_ptr() as _
+            } else {
+                ptr::null()
+            },
+            cnt: cnt as libbpf_sys::size_t,
+            retprobe,
+            // bpf_kprobe_multi_opts might have padding fields on some platform
+            ..Default::default()
+        };
+
+        self.attach_kprobe_multi_impl(opts)
     }
 
     /// Attach this program to the specified syscall
