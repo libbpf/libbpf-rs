@@ -354,6 +354,14 @@ impl Error {
         Self::with_io_error(io::ErrorKind::InvalidData, error)
     }
 
+    #[inline]
+    pub(crate) fn with_invalid_input<E>(error: E) -> Self
+    where
+        E: ToString,
+    {
+        Self::with_io_error(io::ErrorKind::InvalidInput, error)
+    }
+
     /// Retrieve a rough error classification in the form of an
     /// [`ErrorKind`].
     #[inline]

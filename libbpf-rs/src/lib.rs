@@ -142,6 +142,7 @@ pub use crate::print::set_print;
 pub use crate::print::PrintCallback;
 pub use crate::print::PrintLevel;
 pub use crate::program::Input as ProgramInput;
+pub use crate::program::KprobeMultiOpts;
 pub use crate::program::OpenProgram;
 pub use crate::program::OpenProgramImpl;
 pub use crate::program::OpenProgramMut;
