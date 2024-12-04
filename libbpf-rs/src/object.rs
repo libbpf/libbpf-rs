@@ -222,6 +222,9 @@ pub struct OpenObject {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
 
+unsafe impl Send for OpenObject {}
+unsafe impl Sync for OpenObject {}
+
 impl OpenObject {
     /// Takes ownership from pointer.
     ///
@@ -328,6 +331,9 @@ impl Drop for OpenObject {
 pub struct Object {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
+
+unsafe impl Send for Object {}
+unsafe impl Sync for Object {}
 
 impl Object {
     /// Takes ownership from pointer.
