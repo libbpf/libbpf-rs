@@ -222,9 +222,6 @@ pub struct OpenObject {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
 
-unsafe impl Send for OpenObject {}
-unsafe impl Sync for OpenObject {}
-
 impl OpenObject {
     /// Takes ownership from pointer.
     ///
@@ -299,6 +296,11 @@ impl OpenObject {
     }
 }
 
+// SAFETY: `bpf_object` is freely transferable between threads.
+unsafe impl Send for OpenObject {}
+// SAFETY: `bpf_object` has no interior mutability.
+unsafe impl Sync for OpenObject {}
+
 impl AsRawLibbpf for OpenObject {
     type LibbpfType = libbpf_sys::bpf_object;
 
@@ -317,6 +319,7 @@ impl Drop for OpenObject {
     }
 }
 
+
 /// Represents a loaded BPF object file.
 ///
 /// An `Object` is logically in charge of all the contained [`Program`]s and [`Map`]s as well as
@@ -331,9 +334,6 @@ impl Drop for OpenObject {
 pub struct Object {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
-
-unsafe impl Send for Object {}
-unsafe impl Sync for Object {}
 
 impl Object {
     /// Takes ownership from pointer.
@@ -392,6 +392,11 @@ impl Object {
             .map(|mut ptr| unsafe { ProgramMut::new_mut(ptr.as_mut()) })
     }
 }
+
+// SAFETY: `bpf_object` is freely transferable between threads.
+unsafe impl Send for Object {}
+// SAFETY: `bpf_object` has no interior mutability.
+unsafe impl Sync for Object {}
 
 impl AsRawLibbpf for Object {
     type LibbpfType = libbpf_sys::bpf_object;
