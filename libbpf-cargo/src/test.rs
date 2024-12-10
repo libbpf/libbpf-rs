@@ -1948,6 +1948,94 @@ impl Default for Foo {
 }
 
 #[test]
+fn test_btf_dump_definition_enum64() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+enum Foo {
+    Zero = 0,
+    Infinite = 0xffffffffffffffff,
+};
+
+struct Bar {
+    enum Foo foo;
+};
+struct Bar bar;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Bar {
+    pub foo: Foo,
+}
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct Foo(pub u64);
+#[allow(non_upper_case_globals)]
+impl Foo {
+    pub const Zero: Foo = Foo(0);
+    pub const Infinite: Foo = Foo(18446744073709551615);
+}
+impl Default for Foo {
+    fn default() -> Self { Foo::Zero }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    // Find our struct
+    let struct_bar = find_type_in_btf!(btf, types::Struct<'_>, "Bar");
+    assert_definition(&btf, &struct_bar, expected_output);
+}
+
+#[test]
+fn test_btf_dump_definition_enum64_signed() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+enum Foo {
+    Zero = 0,
+    Whatevs = -922337854775808,
+};
+
+struct Bar {
+    enum Foo foo;
+};
+struct Bar bar;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Bar {
+    pub foo: Foo,
+}
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct Foo(pub i64);
+#[allow(non_upper_case_globals)]
+impl Foo {
+    pub const Zero: Foo = Foo(0);
+    pub const Whatevs: Foo = Foo(-922337854775808);
+}
+impl Default for Foo {
+    fn default() -> Self { Foo::Zero }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    // Find our struct
+    let struct_bar = find_type_in_btf!(btf, types::Struct<'_>, "Bar");
+    assert_definition(&btf, &struct_bar, expected_output);
+}
+
+#[test]
 fn test_btf_dump_definition_union() {
     let prog_text = r#"
 #include "vmlinux.h"

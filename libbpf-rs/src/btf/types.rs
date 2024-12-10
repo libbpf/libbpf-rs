@@ -852,6 +852,15 @@ gen_collection_concrete_type! {
     }
 }
 
+impl Enum64<'_> {
+    /// Check whether the enum is signed or not.
+    #[inline]
+    pub fn is_signed(&self) -> bool {
+        self.kind_flag()
+    }
+}
+
+
 /// A macro that allows matching on the type of a [`BtfType`] as if it was an enum.
 ///
 /// Each pattern can be of two types.
