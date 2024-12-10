@@ -797,15 +797,7 @@ impl<'s> GenBtf<'s> {
         };
 
         let enum_name = self.anon_types.type_name_or_anon(&t);
-
-        let mut signed = "u";
-        for value in t.iter() {
-            if value.value < 0 {
-                signed = "i";
-                break;
-            }
-        }
-
+        let signed = if t.is_signed() { "i" } else { "u" };
         let mut first_field = None;
 
         writeln!(def, r#"#[derive(Debug, Copy, Clone, Eq, PartialEq)]"#)?;
