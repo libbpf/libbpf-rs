@@ -634,6 +634,15 @@ gen_collection_concrete_type! {
     }
 }
 
+impl Enum<'_> {
+    /// Check whether the enum is signed or not.
+    #[inline]
+    pub fn is_signed(&self) -> bool {
+        self.kind_flag()
+    }
+}
+
+
 // Fwd
 gen_fieldless_concrete_type! {
     /// A forward declared C type.
