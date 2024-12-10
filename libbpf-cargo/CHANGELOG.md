@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed skeleton generation when `enum64` types are present
+
+
 0.25.0-beta.0
 -------------
 - Represent C enums with custom types and const fields
