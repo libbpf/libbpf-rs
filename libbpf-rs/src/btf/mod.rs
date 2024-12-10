@@ -507,7 +507,7 @@ impl<'btf> BtfType<'btf> {
         (self.ty.info >> 31) == 1
     }
 
-    /// Whether this represent's a modifier.
+    /// Whether this represents a modifier.
     #[inline]
     pub fn is_mod(&self) -> bool {
         matches!(
