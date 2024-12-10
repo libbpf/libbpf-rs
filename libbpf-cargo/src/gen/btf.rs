@@ -525,7 +525,8 @@ impl<'s> GenBtf<'s> {
                     | BtfKind::FuncProto
                     | BtfKind::Var
                     | BtfKind::DeclTag
-                    | BtfKind::TypeTag,
+                    | BtfKind::TypeTag
+                    | BtfKind::Enum64,
             )
         };
 
@@ -549,6 +550,7 @@ impl<'s> GenBtf<'s> {
                 BtfKind::Composite(t) =>
                     self.type_definition_for_composites(&mut def, &mut dependent_types, t)?,
                 BtfKind::Enum(t) => self.type_definition_for_enums(&mut def, t)?,
+                BtfKind::Enum64(t) => self.type_definition_for_enum64(&mut def, t)?,
                 BtfKind::DataSec(t) =>
                     self.type_definition_for_datasec(&mut def, &mut dependent_types, t)?,
                 _ => bail!("Invalid type: {:?}", ty.kind()),
@@ -840,6 +842,51 @@ impl<'s> GenBtf<'s> {
         Ok(())
     }
 
+    fn type_definition_for_enum64(&self, def: &mut String, t: types::Enum64<'_>) -> Result<()> {
+        let enum_name = self.anon_types.type_name_or_anon(&t);
+        let repr_size = 64;
+
+        let mut signed = "u";
+        for value in t.iter() {
+            if value.value < 0 {
+                signed = "i";
+                break;
+            }
+        }
+
+        let mut first_field = None;
+
+        writeln!(def, r#"#[derive(Debug, Copy, Clone, Eq, PartialEq)]"#)?;
+        writeln!(def, r#"#[repr(transparent)]"#)?;
+        writeln!(def, r#"pub struct {enum_name}(pub {signed}{repr_size});"#)?;
+        writeln!(def, "#[allow(non_upper_case_globals)]")?;
+        writeln!(def, r#"impl {enum_name} {{"#,)?;
+
+        for value in t.iter() {
+            first_field = first_field.or(Some(value));
+
+            writeln!(
+                def,
+                r#"    pub const {name}: {enum_name} = {enum_name}({value});"#,
+                name = value.name.unwrap().to_string_lossy(),
+                value = value.value,
+            )?;
+        }
+
+        writeln!(def, r#"}}"#)?;
+
+        if let Some(first_field) = first_field {
+            writeln!(def, r#"impl Default for {enum_name} {{"#)?;
+            writeln!(
+                def,
+                r#"    fn default() -> Self {{ {enum_name}::{name} }}"#,
+                name = first_field.name.unwrap().to_string_lossy()
+            )?;
+            writeln!(def, r#"}}"#)?;
+        }
+
+        Ok(())
+    }
     fn type_definition_for_datasec<'a>(
         &'a self,
         def: &mut String,
