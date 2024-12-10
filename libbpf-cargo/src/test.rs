@@ -1864,6 +1864,7 @@ enum Foo {
     One,
     Seven = 7,
     ZeroDup = Zero,
+    Infinite = 0xffffffff,
 };
 
 struct Bar {
@@ -1887,6 +1888,51 @@ impl Foo {
     pub const One: Foo = Foo(1);
     pub const Seven: Foo = Foo(7);
     pub const ZeroDup: Foo = Foo(0);
+    pub const Infinite: Foo = Foo(4294967295);
+}
+impl Default for Foo {
+    fn default() -> Self { Foo::Zero }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    // Find our struct
+    let struct_bar = find_type_in_btf!(btf, types::Struct<'_>, "Bar");
+    assert_definition(&btf, &struct_bar, expected_output);
+}
+
+#[test]
+fn test_btf_dump_definition_enum_signed() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+enum Foo {
+    Zero = 0,
+    Infinite = -1,
+};
+
+struct Bar {
+    enum Foo foo;
+};
+struct Bar bar;
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Bar {
+    pub foo: Foo,
+}
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct Foo(pub i32);
+#[allow(non_upper_case_globals)]
+impl Foo {
+    pub const Zero: Foo = Foo(0);
+    pub const Infinite: Foo = Foo(-1);
 }
 impl Default for Foo {
     fn default() -> Self { Foo::Zero }

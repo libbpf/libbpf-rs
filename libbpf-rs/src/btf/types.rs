@@ -619,12 +619,18 @@ gen_collection_concrete_type! {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
-        pub value: i32,
+        pub value: i64,
     }
 
-    |btf, member| EnumMember {
-        name: btf.name_at(member.name_off),
-        value: member.val,
+    |btf, member, signed| {
+        EnumMember {
+            name: btf.name_at(member.name_off),
+            value: if signed {
+                member.val.into()
+            } else {
+                u32::from_ne_bytes(member.val.to_ne_bytes()).into()
+            }
+        }
     }
 }
 
