@@ -31,6 +31,93 @@ use super::InternalMapType;
 
 const ANON_PREFIX: &str = "__anon_";
 
+
+#[derive(Clone, Debug)]
+pub(crate) enum Either<A, B> {
+    A(A),
+    B(B),
+}
+
+impl<A, B, T> Iterator for Either<A, B>
+where
+    A: Iterator<Item = T>,
+    B: Iterator<Item = T>,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::A(a) => a.next(),
+            Self::B(b) => b.next(),
+        }
+    }
+}
+
+impl<A, B, T> ExactSizeIterator for Either<A, B>
+where
+    A: ExactSizeIterator<Item = T>,
+    B: ExactSizeIterator<Item = T>,
+{
+}
+
+
+/// Convert an `EnumMember` into a `Enum64Member`.
+fn enum64_member_from_enum_member(other: types::EnumMember<'_>) -> types::Enum64Member<'_> {
+    types::Enum64Member {
+        name: other.name,
+        value: other.value.into(),
+    }
+}
+
+
+type EitherEnum<'btf> = Either<types::Enum<'btf>, types::Enum64<'btf>>;
+
+impl EitherEnum<'_> {
+    fn size(&self) -> usize {
+        match self {
+            Self::A(t) => t.size(),
+            Self::B(t) => t.size(),
+        }
+    }
+
+    fn is_signed(&self) -> bool {
+        match self {
+            Self::A(t) => t.is_signed(),
+            Self::B(t) => t.is_signed(),
+        }
+    }
+
+    fn iter(&self) -> impl ExactSizeIterator<Item = types::Enum64Member<'_>> {
+        match self {
+            Self::A(t) => Either::A(t.iter().map(enum64_member_from_enum_member)),
+            Self::B(t) => Either::B(t.iter()),
+        }
+    }
+}
+
+impl<'btf> From<types::Enum<'btf>> for EitherEnum<'btf> {
+    fn from(other: types::Enum<'btf>) -> Self {
+        Self::A(other)
+    }
+}
+
+impl<'btf> From<types::Enum64<'btf>> for EitherEnum<'btf> {
+    fn from(other: types::Enum64<'btf>) -> Self {
+        Self::B(other)
+    }
+}
+
+impl<'btf> Deref for EitherEnum<'btf> {
+    type Target = BtfType<'btf>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::A(t) => t,
+            Self::B(t) => t,
+        }
+    }
+}
+
 /// Check whether the provided type is "unsafe" to use.
 ///
 /// A type is considered unsafe by this function if it is not valid for
@@ -439,7 +526,8 @@ impl StructOps {{
                             .type_definition_for_composites(def, &mut self.deps, t)?
                     }
                 }
-                BtfKind::Enum(t) => self.btf.type_definition_for_enums(def, t)?,
+                BtfKind::Enum(t) => self.btf.type_definition_for_enums(def, t.into())?,
+                BtfKind::Enum64(t) => self.btf.type_definition_for_enums(def, t.into())?,
                 _ => bail!("Invalid type: {:?}", ty.kind()),
             });
         }
@@ -548,7 +636,8 @@ impl<'s> GenBtf<'s> {
             btf_type_match!(match ty {
                 BtfKind::Composite(t) =>
                     self.type_definition_for_composites(&mut def, &mut dependent_types, t)?,
-                BtfKind::Enum(t) => self.type_definition_for_enums(&mut def, t)?,
+                BtfKind::Enum(t) => self.type_definition_for_enums(&mut def, t.into())?,
+                BtfKind::Enum64(t) => self.type_definition_for_enums(&mut def, t.into())?,
                 BtfKind::DataSec(t) =>
                     self.type_definition_for_datasec(&mut def, &mut dependent_types, t)?,
                 _ => bail!("Invalid type: {:?}", ty.kind()),
@@ -786,7 +875,7 @@ impl<'s> GenBtf<'s> {
         Ok(())
     }
 
-    fn type_definition_for_enums(&self, def: &mut String, t: types::Enum<'_>) -> Result<()> {
+    fn type_definition_for_enums(&self, def: &mut String, t: EitherEnum<'_>) -> Result<()> {
         let repr_size = match t.size() {
             1 => "8",
             2 => "16",
