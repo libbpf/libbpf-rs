@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Adjusted `btf::types::EnumMember` to store value as `i64`
+- Adjusted `btf::types::Enum64Member` to store value as `i128`
 
 
 0.25.0-beta.0
