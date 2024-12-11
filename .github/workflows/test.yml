@@ -12,7 +12,7 @@ on:
 jobs:
   test:
     name: Test [${{ matrix.rust }}, ${{ matrix.profile }}]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -52,9 +52,9 @@ jobs:
         components: rustfmt
     - name: Install deps
       run: |
-        sudo apt-get install -y clang-14 libelf-dev zlib1g-dev linux-headers-$(uname -r)
+        sudo apt-get install -y clang-18 libelf-dev zlib1g-dev linux-headers-$(uname -r)
         sudo ln -s /usr/include/asm-generic /usr/include/asm
-        sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-14 /bin/clang
+        sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-18 /bin/clang
     - uses: Swatinem/rust-cache@v2
     - name: Build
       run: cargo build --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower
