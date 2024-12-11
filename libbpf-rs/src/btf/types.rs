@@ -619,14 +619,29 @@ gen_collection_concrete_type! {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
-        pub value: i32,
+        pub value: i64,
     }
 
-    |btf, member| EnumMember {
-        name: btf.name_at(member.name_off),
-        value: member.val,
+    |btf, member, signed| {
+        EnumMember {
+            name: btf.name_at(member.name_off),
+            value: if signed {
+                member.val.into()
+            } else {
+                u32::from_ne_bytes(member.val.to_ne_bytes()).into()
+            }
+        }
     }
 }
+
+impl Enum<'_> {
+    /// Check whether the enum is signed or not.
+    #[inline]
+    pub fn is_signed(&self) -> bool {
+        self.kind_flag()
+    }
+}
+
 
 // Fwd
 gen_fieldless_concrete_type! {
@@ -819,18 +834,32 @@ gen_collection_concrete_type! {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
-        pub value: u64,
+        pub value: i128,
     }
 
-    |btf, member| Enum64Member {
+    |btf, member, signed| Enum64Member {
         name: btf.name_at(member.name_off),
         value: {
             let hi: u64 = member.val_hi32.into();
             let lo: u64 = member.val_lo32.into();
-            hi << 32 | lo
+            let val = hi << 32 | lo;
+            if signed {
+                i64::from_ne_bytes(val.to_ne_bytes()).into()
+            } else {
+                val.into()
+            }
         },
     }
 }
+
+impl Enum64<'_> {
+    /// Check whether the enum is signed or not.
+    #[inline]
+    pub fn is_signed(&self) -> bool {
+        self.kind_flag()
+    }
+}
+
 
 /// A macro that allows matching on the type of a [`BtfType`] as if it was an enum.
 ///
