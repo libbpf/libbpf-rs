@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.25.0-beta.1
+-------------
 - Fixed skeleton generation when `enum64` types are present
 
 
