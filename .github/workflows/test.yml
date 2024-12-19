@@ -147,7 +147,9 @@ jobs:
         run: sudo apt-get install -y libelf-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu" cargo build --locked --package capable --features=static
+      # `-lzstd` is necessary because Ubuntu's system libelf.a is built
+      # with zstd support.
+      - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu -lzstd" cargo build --locked --package capable --features=static
 
   build-aarch64:
     name: Build for aarch64
