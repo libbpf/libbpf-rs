@@ -121,6 +121,8 @@ impl AsRawLibbpf for Link {
 
 // SAFETY: `bpf_link` objects can safely be sent to a different thread.
 unsafe impl Send for Link {}
+// SAFETY: `bpf_link` has no interior mutability.
+unsafe impl Sync for Link {}
 
 impl AsFd for Link {
     #[inline]
