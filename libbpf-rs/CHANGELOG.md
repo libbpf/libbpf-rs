@@ -1,8 +1,12 @@
+Unreleased
+----------
+- Implemented `Sync` for `Link`
+
+
 0.25.0-beta.1
 -------------
 - Adjusted `btf::types::EnumMember` to store value as `i64`
 - Adjusted `btf::types::Enum64Member` to store value as `i128`
-- Implemented `Sync` for `Link`
 
 
 0.25.0-beta.0
