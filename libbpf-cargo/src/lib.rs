@@ -269,7 +269,6 @@ impl SkeletonBuilder {
         let objfile = self.obj.as_ref().ok_or_else(|| anyhow!("No object file"))?;
 
         gen::gen_single(
-            self.debug,
             objfile,
             gen::OutputDest::File(output.as_ref()),
             Some(&self.rustfmt),
