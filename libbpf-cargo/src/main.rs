@@ -52,9 +52,6 @@ pub struct ClangOpts {
     /// Additional arguments to pass to `clang`.
     #[arg(long, value_parser)]
     clang_args: Vec<OsString>,
-    /// Skip clang version checks
-    #[arg(long)]
-    skip_clang_version_checks: bool,
 }
 
 /// cargo-libbpf is a cargo subcommand that helps develop and build eBPF (BPF) programs.
@@ -116,14 +113,12 @@ fn main() -> Result<()> {
                     ClangOpts {
                         clang_path,
                         clang_args,
-                        skip_clang_version_checks,
                     },
             } => build::build(
                 debug,
                 manifest_path.as_ref(),
                 clang_path.as_ref(),
                 clang_args,
-                skip_clang_version_checks,
             ),
             Command::Gen {
                 manifest_path,
@@ -141,7 +136,6 @@ fn main() -> Result<()> {
                     ClangOpts {
                         clang_path,
                         clang_args,
-                        skip_clang_version_checks,
                     },
                 quiet,
                 cargo_build_args,
@@ -151,7 +145,6 @@ fn main() -> Result<()> {
                 manifest_path.as_ref(),
                 clang_path.as_ref(),
                 clang_args,
-                skip_clang_version_checks,
                 quiet,
                 cargo_build_args,
                 rustfmt_path.as_ref(),

@@ -15,7 +15,6 @@ pub fn make(
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
-    skip_clang_version_checks: bool,
     quiet: bool,
     cargo_build_args: Vec<String>,
     rustfmt_path: Option<&PathBuf>,
@@ -23,14 +22,8 @@ pub fn make(
     if !quiet {
         println!("Compiling BPF objects");
     }
-    build::build(
-        debug,
-        manifest_path,
-        clang,
-        clang_args,
-        skip_clang_version_checks,
-    )
-    .context("Failed to compile BPF objects")?;
+    build::build(debug, manifest_path, clang, clang_args)
+        .context("Failed to compile BPF objects")?;
 
     if !quiet {
         println!("Generating skeletons");

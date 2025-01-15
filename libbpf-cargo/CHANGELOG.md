@@ -1,3 +1,10 @@
+Unreleased
+----------
+- Removed `SkeletonBuilder::skip_clang_version_check`
+- Removed `--skip-clang-version-checks` option of `libbpf build`
+  sub-command
+
+
 0.25.0-beta.1
 -------------
 - Fixed skeleton generation when `enum64` types are present
