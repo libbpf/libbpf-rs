@@ -52,7 +52,7 @@ jobs:
         components: rustfmt
     - name: Install deps
       run: |
-        sudo apt-get install -y clang-18 libelf-dev zlib1g-dev linux-headers-$(uname -r)
+        sudo apt-get install --yes --no-install-recommends clang-18 libelf-dev zlib1g-dev linux-headers-$(uname -r)
         sudo ln -s /usr/include/asm-generic /usr/include/asm
         sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-18 /bin/clang
     - uses: Swatinem/rust-cache@v2
@@ -70,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install -y libelf-dev
+        run: sudo apt-get install --yes --no-install-recommends libelf-dev
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
@@ -99,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install -y libelf-dev autopoint
+        run: sudo apt-get install --yes --no-install-recommends libelf-dev autopoint
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build libbpf-rs sample
@@ -123,7 +123,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install -y libelf-dev
+        run: sudo apt-get install --yes --no-install-recommends libelf-dev
       - name: Install Nightly Rust
         uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly -Z minimal-versions update
@@ -144,7 +144,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install -y libelf-dev
+        run: sudo apt-get install --yes --no-install-recommends libelf-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       # `-lzstd` is necessary because Ubuntu's system libelf.a is built
@@ -174,7 +174,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libelf-dev:arm64 zlib1g-dev:arm64 gcc-aarch64-linux-gnu
+          sudo apt-get install --yes --no-install-recommends libelf-dev:arm64 zlib1g-dev:arm64 gcc-aarch64-linux-gnu
       - uses: Swatinem/rust-cache@v2
       - name: Build
         env:
@@ -205,7 +205,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libelf-dev:armhf zlib1g-dev:armhf gcc-arm-linux-gnueabihf
+          sudo apt-get install --yes --no-install-recommends libelf-dev:armhf zlib1g-dev:armhf gcc-arm-linux-gnueabihf
       - uses: Swatinem/rust-cache@v2
       - name: Build
         env:
@@ -219,7 +219,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install -y libelf-dev
+        run: sudo apt-get install --yes --no-install-recommends libelf-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -248,6 +248,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install -y libelf-dev
+        run: sudo apt-get install --yes --no-install-recommends libelf-dev
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo doc --locked --no-deps
