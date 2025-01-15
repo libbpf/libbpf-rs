@@ -110,7 +110,6 @@ pub struct SkeletonBuilder {
     obj: Option<PathBuf>,
     clang: Option<PathBuf>,
     clang_args: Vec<OsString>,
-    skip_clang_version_check: bool,
     rustfmt: PathBuf,
     dir: Option<TempDir>,
 }
@@ -129,7 +128,6 @@ impl SkeletonBuilder {
             obj: None,
             clang: None,
             clang_args: Vec::new(),
-            skip_clang_version_check: false,
             rustfmt: "rustfmt".into(),
             dir: None,
         }
@@ -195,14 +193,6 @@ impl SkeletonBuilder {
         self
     }
 
-    /// Specify whether or not to skip clang version check
-    ///
-    /// Default is `false`
-    pub fn skip_clang_version_check(&mut self, skip: bool) -> &mut SkeletonBuilder {
-        self.skip_clang_version_check = skip;
-        self
-    }
-
     /// Specify which `rustfmt` binary to use
     ///
     /// Default searches `$PATH` for `rustfmt`
@@ -256,7 +246,6 @@ impl SkeletonBuilder {
             // Unwrap is safe here since we guarantee that obj.is_some() above
             self.obj.as_ref().unwrap(),
             self.clang.as_ref(),
-            self.skip_clang_version_check,
             self.clang_args.clone(),
         )
         .with_context(|| format!("failed to build `{}`", source.display()))

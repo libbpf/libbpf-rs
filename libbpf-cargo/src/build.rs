@@ -12,8 +12,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use regex::Regex;
-use semver::Version;
 use tempfile::tempdir;
 
 use crate::metadata;
@@ -51,18 +49,6 @@ fn check_progs(objs: &[UnprocessedObj]) -> Result<()> {
     Ok(())
 }
 
-fn extract_version(output: &str) -> Result<&str> {
-    let re = Regex::new(r"clang\s+version\s+(?P<version_str>\d+\.\d+\.\d+)")?;
-    let captures = re
-        .captures(output)
-        .ok_or_else(|| anyhow!("Failed to run regex on version string"))?;
-
-    captures.name("version_str").map_or_else(
-        || Err(anyhow!("Failed to find version capture group")),
-        |v| Ok(v.as_str()),
-    )
-}
-
 /// Extract vendored libbpf header files to a temporary directory.
 ///
 /// Directory and enclosed contents will be removed when return object is dropped.
@@ -91,44 +77,6 @@ fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> 
 #[cfg(not(feature = "default"))]
 fn extract_libbpf_headers_to_disk(_target_dir: &Path) -> Result<Option<PathBuf>> {
     Ok(None)
-}
-
-fn check_clang(debug: bool, clang: &Path, skip_version_checks: bool) -> Result<()> {
-    let output = Command::new(clang.as_os_str())
-        .arg("--version")
-        .output()
-        .context("Failed to execute clang")?;
-
-    if !output.status.success() {
-        bail!("Failed to execute clang binary");
-    }
-
-    if skip_version_checks {
-        return Ok(());
-    }
-
-    // Example output:
-    //
-    //     clang version 10.0.0
-    //     Target: x86_64-pc-linux-gnu
-    //     Thread model: posix
-    //     InstalledDir: /bin
-    //
-    let output = String::from_utf8_lossy(&output.stdout);
-    let version_str = extract_version(&output)?;
-    let version = Version::parse(version_str)?;
-    if debug {
-        println!("{} is version {}", clang.display(), version);
-    }
-
-    if version < Version::parse("10.0.0").unwrap() {
-        bail!(
-            "version {} is too old. Use --skip-clang-version-checks to skip version check",
-            version
-        );
-    }
-
-    Ok(())
 }
 
 /// Strip DWARF information from the provided BPF object file.
@@ -302,7 +250,6 @@ pub fn build(
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
-    skip_clang_version_checks: bool,
 ) -> Result<()> {
     let (target_dir, to_compile) = metadata::get(debug, manifest_path)?;
 
@@ -318,8 +265,6 @@ pub fn build(
     check_progs(&to_compile)?;
 
     let clang = extract_clang_or_default(clang);
-    check_clang(debug, &clang, skip_clang_version_checks)
-        .with_context(|| anyhow!("{} is invalid", clang.display()))?;
     compile(debug, &to_compile, &clang, clang_args, &target_dir)
         .context("Failed to compile progs")?;
 
@@ -332,11 +277,9 @@ pub(crate) fn build_single(
     source: &Path,
     out: &Path,
     clang: Option<&PathBuf>,
-    skip_clang_version_checks: bool,
     mut clang_args: Vec<OsString>,
 ) -> Result<CompilationOutput> {
     let clang = extract_clang_or_default(clang);
-    check_clang(debug, &clang, skip_clang_version_checks)?;
     let header_parent_dir = tempdir()?;
     let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())?;
 
@@ -350,24 +293,4 @@ pub(crate) fn build_single(
     clang_args.push(OsString::from("-fno-stack-protector"));
 
     compile_one(debug, source, out, &clang, &clang_args)
-}
-
-#[test]
-fn test_extract_version() {
-    let upstream_format = r"clang version 10.0.0
-Target: x86_64-pc-linux-gnu
-Thread model: posix
-InstalledDir: /bin
-";
-    assert_eq!(extract_version(upstream_format).unwrap(), "10.0.0");
-
-    let ubuntu_format = r"Ubuntu clang version 11.0.1-++20201121072624+973b95e0a84-1~exp1~20201121063303.19
-Target: x86_64-pc-linux-gnu
-Thread model: posix
-InstalledDir: /bin
-";
-    assert_eq!(extract_version(ubuntu_format).unwrap(), "11.0.1");
-
-    assert!(extract_version("askldfjwe").is_err());
-    assert!(extract_version("my clang version 1.5").is_err());
 }
