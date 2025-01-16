@@ -109,8 +109,10 @@ impl BpfObjBuilder {
         })
     }
 
-    /// Build a BPF object file.
-    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
+    fn with_compiler_args<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&[OsString]) -> Result<R>,
+    {
         let mut compiler_args = self.compiler_args.clone();
 
         let header_parent_dir = tempdir().context("failed to create temporary directory")?;
@@ -148,8 +150,17 @@ impl BpfObjBuilder {
             compiler_args.push(format!("-D__TARGET_ARCH_{arch}").into());
         }
 
-        let output = Self::compile_single(src, dst, &self.compiler, &compiler_args)
-            .with_context(|| format!("failed to compile `{}`", src.display()))?;
+        f(&compiler_args)
+    }
+
+    /// Build a BPF object file.
+    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
+        let output = self.with_compiler_args(|compiler_args| {
+            let output = Self::compile_single(src, dst, &self.compiler, compiler_args)
+                .with_context(|| format!("failed to compile `{}`", src.display()))?;
+
+            Ok(output)
+        })?;
 
         // Compilation with clang may contain DWARF information that references
         // system specific and temporary paths. That can render our generated
