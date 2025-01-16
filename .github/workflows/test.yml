@@ -154,9 +154,6 @@ jobs:
   build-aarch64:
     name: Build for aarch64
     runs-on: ubuntu-22.04
-    # Make this job optional until Ubuntu gets their act together and
-    # provides usable infrastructure.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Add apt sources for arm64
@@ -185,9 +182,6 @@ jobs:
   build-armhf:
     name: Build for aarch32
     runs-on: ubuntu-22.04
-    # Make this job optional until Ubuntu gets their act together and
-    # provides usable infrastructure.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Add apt sources for armhf
