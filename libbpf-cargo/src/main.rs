@@ -126,7 +126,7 @@ fn main() -> Result<()> {
                         clang_path,
                         clang_args,
                     },
-            } => build::build(manifest_path.as_ref(), clang_path.as_ref(), clang_args),
+            } => build::build_project(manifest_path.as_ref(), clang_path.as_ref(), clang_args),
             Command::Gen {
                 manifest_path,
                 rustfmt_path,
