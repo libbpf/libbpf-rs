@@ -263,35 +263,6 @@ fn format_command(command: &Command) -> String {
     concat_command(prog, args).to_string_lossy().to_string()
 }
 
-fn compile(
-    objs: &[UnprocessedObj],
-    clang: &Path,
-    clang_args: Vec<OsString>,
-) -> Result<Vec<CompilationOutput>> {
-    objs.iter()
-        .map(|obj| -> Result<_> {
-            let stem = obj.path.file_stem().with_context(|| {
-                format!(
-                    "Could not calculate destination name for obj={}",
-                    obj.path.display()
-                )
-            })?;
-
-            let mut dest_name = stem.to_os_string();
-            dest_name.push(".o");
-
-            let mut dest_path = obj.out.to_path_buf();
-            dest_path.push(&dest_name);
-            fs::create_dir_all(&obj.out)?;
-
-            BpfObjBuilder::default()
-                .compiler(clang)
-                .compiler_args(&clang_args)
-                .build(&obj.path, &dest_path)
-        })
-        .collect::<Result<_, _>>()
-}
-
 fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
     match clang {
         Some(c) => c.into(),
@@ -319,7 +290,36 @@ pub fn build(
     check_progs(&to_compile)?;
 
     let clang = extract_clang_or_default(clang);
-    compile(&to_compile, &clang, clang_args).context("Failed to compile progs")?;
+    let _output = to_compile
+        .iter()
+        .map(|obj| {
+            let stem = obj.path.file_stem().with_context(|| {
+                format!(
+                    "Could not calculate destination name for obj={}",
+                    obj.path.display()
+                )
+            })?;
+
+            let mut dest_name = stem.to_os_string();
+            dest_name.push(".o");
+
+            let mut dest_path = obj.out.to_path_buf();
+            dest_path.push(&dest_name);
+            fs::create_dir_all(&obj.out)?;
+
+            BpfObjBuilder::default()
+                .compiler(&clang)
+                .compiler_args(&clang_args)
+                .build(&obj.path, &dest_path)
+                .with_context(|| {
+                    format!(
+                        "failed to compile `{}` into `{}`",
+                        obj.path.display(),
+                        dest_path.display()
+                    )
+                })
+        })
+        .collect::<Result<Vec<CompilationOutput>, _>>()?;
 
     Ok(())
 }
