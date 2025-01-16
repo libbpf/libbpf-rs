@@ -78,6 +78,28 @@ impl BpfObjBuilder {
         // BPF. See https://lkml.org/lkml/2020/2/21/1000.
         compiler_args.push(OsString::from("-fno-stack-protector"));
 
+        if !compiler_args
+            .iter()
+            .any(|arg| arg.to_string_lossy().contains("__TARGET_ARCH_"))
+        {
+            // We may end up being invoked by a build script, in which case
+            // `CARGO_CFG_TARGET_ARCH` would represent the target architecture.
+            let arch = env::var("CARGO_CFG_TARGET_ARCH");
+            let arch = arch.as_deref().unwrap_or(ARCH);
+            let arch = match arch {
+                "x86_64" => "x86",
+                "aarch64" => "arm64",
+                "powerpc64" => "powerpc",
+                "s390x" => "s390",
+                "riscv64" => "riscv",
+                "loongarch64" => "loongarch",
+                "sparc64" => "sparc",
+                "mips64" => "mips",
+                x => x,
+            };
+            compiler_args.push(format!("-D__TARGET_ARCH_{arch}").into());
+        }
+
         compile_one(src, dst, &self.compiler, &compiler_args)
             .with_context(|| format!("failed to compile `{}`", src.display()))
     }
@@ -199,28 +221,6 @@ fn compile_one(
 
     let mut cmd = Command::new(clang.as_os_str());
     cmd.args(clang_args);
-
-    if !clang_args
-        .iter()
-        .any(|arg| arg.to_string_lossy().contains("__TARGET_ARCH_"))
-    {
-        // We may end up being invoked by a build script, in which case
-        // `CARGO_CFG_TARGET_ARCH` would represent the target architecture.
-        let arch = env::var("CARGO_CFG_TARGET_ARCH");
-        let arch = arch.as_deref().unwrap_or(ARCH);
-        let arch = match arch {
-            "x86_64" => "x86",
-            "aarch64" => "arm64",
-            "powerpc64" => "powerpc",
-            "s390x" => "s390",
-            "riscv64" => "riscv",
-            "loongarch64" => "loongarch",
-            "sparc64" => "sparc",
-            "mips64" => "mips",
-            x => x,
-        };
-        cmd.arg(format!("-D__TARGET_ARCH_{arch}"));
-    }
 
     cmd.arg("-g")
         .arg("-O2")
