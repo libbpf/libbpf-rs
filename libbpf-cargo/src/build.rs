@@ -267,7 +267,6 @@ fn compile(
     objs: &[UnprocessedObj],
     clang: &Path,
     clang_args: Vec<OsString>,
-    _target_dir: &Path,
 ) -> Result<Vec<CompilationOutput>> {
     objs.iter()
         .map(|obj| -> Result<_> {
@@ -306,7 +305,7 @@ pub fn build(
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
 ) -> Result<()> {
-    let (target_dir, to_compile) = metadata::get(manifest_path)?;
+    let (_target_dir, to_compile) = metadata::get(manifest_path)?;
 
     if !to_compile.is_empty() {
         debug!("Found bpf progs to compile:");
@@ -320,7 +319,7 @@ pub fn build(
     check_progs(&to_compile)?;
 
     let clang = extract_clang_or_default(clang);
-    compile(&to_compile, &clang, clang_args, &target_dir).context("Failed to compile progs")?;
+    compile(&to_compile, &clang, clang_args).context("Failed to compile progs")?;
 
     Ok(())
 }
