@@ -268,7 +268,7 @@ impl SkeletonBuilder {
 #[doc(hidden)]
 pub mod __private {
     pub mod build {
-        pub use crate::build::build;
+        pub use crate::build::build_project;
     }
     pub mod gen {
         pub use crate::gen::gen;

@@ -20,7 +20,8 @@ pub fn make(
     rustfmt_path: Option<&PathBuf>,
 ) -> Result<()> {
     debug!("Compiling BPF objects");
-    build::build(manifest_path, clang, clang_args).context("Failed to compile BPF objects")?;
+    build::build_project(manifest_path, clang, clang_args)
+        .context("Failed to compile BPF objects")?;
 
     debug!("Generating skeletons");
     gen::gen(manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;

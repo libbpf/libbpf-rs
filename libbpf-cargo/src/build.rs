@@ -271,7 +271,7 @@ fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
     }
 }
 
-pub fn build(
+pub fn build_project(
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
