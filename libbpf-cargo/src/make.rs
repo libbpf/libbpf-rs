@@ -11,7 +11,6 @@ use crate::gen;
 
 #[allow(clippy::too_many_arguments)]
 pub fn make(
-    debug: bool,
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
@@ -22,13 +21,12 @@ pub fn make(
     if !quiet {
         println!("Compiling BPF objects");
     }
-    build::build(debug, manifest_path, clang, clang_args)
-        .context("Failed to compile BPF objects")?;
+    build::build(manifest_path, clang, clang_args).context("Failed to compile BPF objects")?;
 
     if !quiet {
         println!("Generating skeletons");
     }
-    gen::gen(debug, manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;
+    gen::gen(manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;
 
     let mut cmd = Command::new("cargo");
     cmd.arg("build");

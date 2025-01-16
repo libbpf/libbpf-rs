@@ -12,6 +12,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use log::debug;
 use tempfile::tempdir;
 
 use crate::metadata;
@@ -127,15 +128,12 @@ fn format_command(command: &Command) -> String {
 ///
 /// for each prog.
 fn compile_one(
-    debug: bool,
     source: &Path,
     out: &Path,
     clang: &Path,
     clang_args: &[OsString],
 ) -> Result<CompilationOutput> {
-    if debug {
-        println!("Building {}", source.display());
-    }
+    debug!("Building {}", source.display());
 
     let mut cmd = Command::new(clang.as_os_str());
     cmd.args(clang_args);
@@ -204,7 +202,6 @@ fn compile_one(
 }
 
 fn compile(
-    debug: bool,
     objs: &[UnprocessedObj],
     clang: &Path,
     mut clang_args: Vec<OsString>,
@@ -231,7 +228,7 @@ fn compile(
             let mut dest_path = obj.out.to_path_buf();
             dest_path.push(&dest_name);
             fs::create_dir_all(&obj.out)?;
-            compile_one(debug, &obj.path, &dest_path, clang, &clang_args)
+            compile_one(&obj.path, &dest_path, clang, &clang_args)
         })
         .collect::<Result<_, _>>()
 }
@@ -244,19 +241,17 @@ fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn build(
-    debug: bool,
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
 ) -> Result<()> {
-    let (target_dir, to_compile) = metadata::get(debug, manifest_path)?;
+    let (target_dir, to_compile) = metadata::get(manifest_path)?;
 
-    if debug && !to_compile.is_empty() {
-        println!("Found bpf progs to compile:");
+    if !to_compile.is_empty() {
+        debug!("Found bpf progs to compile:");
         for obj in &to_compile {
-            println!("\t{obj:?}");
+            debug!("\t{obj:?}");
         }
     } else if to_compile.is_empty() {
         bail!("Did not find any bpf progs to compile");
@@ -265,15 +260,13 @@ pub fn build(
     check_progs(&to_compile)?;
 
     let clang = extract_clang_or_default(clang);
-    compile(debug, &to_compile, &clang, clang_args, &target_dir)
-        .context("Failed to compile progs")?;
+    compile(&to_compile, &clang, clang_args, &target_dir).context("Failed to compile progs")?;
 
     Ok(())
 }
 
 // Only used in libbpf-cargo library
 pub(crate) fn build_single(
-    debug: bool,
     source: &Path,
     out: &Path,
     clang: Option<&PathBuf>,
@@ -292,5 +285,5 @@ pub(crate) fn build_single(
     // BPF. See https://lkml.org/lkml/2020/2/21/1000.
     clang_args.push(OsString::from("-fno-stack-protector"));
 
-    compile_one(debug, source, out, &clang, &clang_args)
+    compile_one(source, out, &clang, &clang_args)
 }
