@@ -31,6 +31,68 @@ impl CompilationOutput {
     }
 }
 
+
+/// A helper for compiling BPF C code into a loadable BPF object file.
+// TODO: Before exposing this functionality publicly, consider whether
+//       we should support per-input-file compiler arguments.
+#[derive(Debug)]
+pub(crate) struct BpfObjBuilder {
+    compiler: PathBuf,
+    compiler_args: Vec<OsString>,
+}
+
+impl BpfObjBuilder {
+    /// Specify which C compiler to use.
+    pub fn compiler<P: AsRef<Path>>(&mut self, compiler: P) -> &mut Self {
+        self.compiler = compiler.as_ref().to_path_buf();
+        self
+    }
+
+    /// Pass additional arguments to the compiler when building the BPF object file.
+    pub fn compiler_args<A, S>(&mut self, args: A) -> &mut Self
+    where
+        A: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        self.compiler_args = args
+            .into_iter()
+            .map(|arg| arg.as_ref().to_os_string())
+            .collect();
+        self
+    }
+
+    /// Build a BPF object file.
+    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
+        let mut compiler_args = self.compiler_args.clone();
+
+        let header_parent_dir = tempdir().context("failed to create temporary directory")?;
+        let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())
+            .context("failed to extract libbpf header")?;
+
+        if let Some(dir) = header_dir {
+            compiler_args.push(OsString::from("-I"));
+            compiler_args.push(dir.into_os_string());
+        }
+
+        // Explicitly disable stack protector logic, which doesn't work with
+        // BPF. See https://lkml.org/lkml/2020/2/21/1000.
+        compiler_args.push(OsString::from("-fno-stack-protector"));
+
+        compile_one(src, dst, &self.compiler, &compiler_args)
+            .with_context(|| format!("failed to compile `{}`", src.display()))
+    }
+}
+
+impl Default for BpfObjBuilder {
+    fn default() -> Self {
+        Self {
+            compiler: "clang".into(),
+            compiler_args: Vec::new(),
+        }
+    }
+}
+
+
 fn check_progs(objs: &[UnprocessedObj]) -> Result<()> {
     let mut set = HashSet::with_capacity(objs.len());
     for obj in objs {
@@ -263,27 +325,4 @@ pub fn build(
     compile(&to_compile, &clang, clang_args, &target_dir).context("Failed to compile progs")?;
 
     Ok(())
-}
-
-// Only used in libbpf-cargo library
-pub(crate) fn build_single(
-    source: &Path,
-    out: &Path,
-    clang: Option<&PathBuf>,
-    mut clang_args: Vec<OsString>,
-) -> Result<CompilationOutput> {
-    let clang = extract_clang_or_default(clang);
-    let header_parent_dir = tempdir()?;
-    let header_dir = extract_libbpf_headers_to_disk(header_parent_dir.path())?;
-
-    if let Some(dir) = header_dir {
-        clang_args.push(OsString::from("-I"));
-        clang_args.push(dir.into_os_string());
-    }
-
-    // Explicitly disable stack protector logic, which doesn't work with
-    // BPF. See https://lkml.org/lkml/2020/2/21/1000.
-    clang_args.push(OsString::from("-fno-stack-protector"));
-
-    compile_one(source, out, &clang, &clang_args)
 }

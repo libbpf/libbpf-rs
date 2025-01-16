@@ -87,6 +87,9 @@ mod metadata;
 #[cfg(test)]
 mod test;
 
+use build::BpfObjBuilder;
+
+
 /// `SkeletonBuilder` builds and generates a single skeleton.
 ///
 /// This interface is meant to be used in build scripts.
@@ -229,14 +232,16 @@ impl SkeletonBuilder {
             self.dir = Some(dir);
         }
 
-        build::build_single(
-            source,
-            // Unwrap is safe here since we guarantee that obj.is_some() above
-            self.obj.as_ref().unwrap(),
-            self.clang.as_ref(),
-            self.clang_args.clone(),
-        )
-        .with_context(|| format!("failed to build `{}`", source.display()))
+        let mut builder = BpfObjBuilder::default();
+        if let Some(clang) = &self.clang {
+            builder.compiler(clang);
+        }
+        builder.compiler_args(&self.clang_args);
+
+        // SANITY: Unwrap is safe here since we guarantee that obj.is_some() above.
+        builder
+            .build(source, self.obj.as_ref().unwrap())
+            .with_context(|| format!("failed to build `{}`", source.display()))
     }
 
     // Generate a skeleton at path `output` without building BPF programs.
