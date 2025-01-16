@@ -155,19 +155,35 @@ impl BpfObjBuilder {
 
     /// Build a BPF object file.
     pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
+        let obj_dir = tempdir().context("failed to create temporary directory")?;
+        let mut linker = libbpf_rs::Linker::new(dst)
+            .context("failed to instantiate libbpf object file linker")?;
+
         let output = self.with_compiler_args(|compiler_args| {
-            let output = Self::compile_single(src, dst, &self.compiler, compiler_args)
+            let tmp_dst = obj_dir.path().join(src.file_name().with_context(|| {
+                format!(
+                    "input path `{}` does not have a proper file name",
+                    src.display()
+                )
+            })?);
+
+            let output = Self::compile_single(src, &tmp_dst, &self.compiler, compiler_args)
                 .with_context(|| format!("failed to compile `{}`", src.display()))?;
+
+            linker
+                .add_file(tmp_dst)
+                .context("failed to add object file to BPF linker")?;
 
             Ok(output)
         })?;
 
-        // Compilation with clang may contain DWARF information that references
-        // system specific and temporary paths. That can render our generated
-        // skeletons unstable, potentially rendering them unsuitable for inclusion
-        // in version control systems. So strip this information.
-        strip_dwarf_info(dst)
-            .with_context(|| format!("Failed to strip object file {}", dst.display()))?;
+        // The resulting object file may contain DWARF information
+        // that references system specific and temporary paths. That
+        // can render our generated skeletons unstable, potentially
+        // making them unsuitable for inclusion in version control
+        // systems. Linking has the side effect of stripping this
+        // information.
+        linker.link().context("failed to link object file")?;
 
         Ok(output)
     }
@@ -230,25 +246,6 @@ fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> 
 #[cfg(not(feature = "default"))]
 fn extract_libbpf_headers_to_disk(_target_dir: &Path) -> Result<Option<PathBuf>> {
     Ok(None)
-}
-
-/// Strip DWARF information from the provided BPF object file.
-///
-/// We rely on the `libbpf` linker here, which removes debug information as a
-/// side-effect.
-fn strip_dwarf_info(file: &Path) -> Result<()> {
-    let mut temp_file = file.as_os_str().to_os_string();
-    temp_file.push(".tmp");
-
-    fs::rename(file, &temp_file).context("Failed to rename compiled BPF object file")?;
-
-    let mut linker =
-        libbpf_rs::Linker::new(file).context("Failed to instantiate libbpf object file linker")?;
-    linker
-        .add_file(temp_file)
-        .context("Failed to add object file to BPF linker")?;
-    linker.link().context("Failed to link object file")?;
-    Ok(())
 }
 
 /// Concatenate a command and its arguments into a single string.
