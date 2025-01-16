@@ -153,28 +153,36 @@ impl BpfObjBuilder {
         f(&compiler_args)
     }
 
-    /// Build a BPF object file.
-    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
+    /// Build a BPF object file from a set of input files.
+    pub fn build_many<S, P>(&mut self, srcs: S, dst: &Path) -> Result<Vec<CompilationOutput>>
+    where
+        S: IntoIterator<Item = P>,
+        P: AsRef<Path>,
+    {
         let obj_dir = tempdir().context("failed to create temporary directory")?;
         let mut linker = libbpf_rs::Linker::new(dst)
             .context("failed to instantiate libbpf object file linker")?;
 
         let output = self.with_compiler_args(|compiler_args| {
-            let tmp_dst = obj_dir.path().join(src.file_name().with_context(|| {
-                format!(
-                    "input path `{}` does not have a proper file name",
-                    src.display()
-                )
-            })?);
+            srcs.into_iter()
+                .map(|src| {
+                    let src = src.as_ref();
+                    let tmp_dst = obj_dir.path().join(src.file_name().with_context(|| {
+                        format!(
+                            "input path `{}` does not have a proper file name",
+                            src.display()
+                        )
+                    })?);
 
-            let output = Self::compile_single(src, &tmp_dst, &self.compiler, compiler_args)
-                .with_context(|| format!("failed to compile `{}`", src.display()))?;
+                    let output = Self::compile_single(src, &tmp_dst, &self.compiler, compiler_args)
+                        .with_context(|| format!("failed to compile `{}`", src.display()))?;
 
-            linker
-                .add_file(tmp_dst)
-                .context("failed to add object file to BPF linker")?;
-
-            Ok(output)
+                    linker
+                        .add_file(tmp_dst)
+                        .context("failed to add object file to BPF linker")?;
+                    Ok(output)
+                })
+                .collect::<Result<_, _>>()
         })?;
 
         // The resulting object file may contain DWARF information
@@ -186,6 +194,16 @@ impl BpfObjBuilder {
         linker.link().context("failed to link object file")?;
 
         Ok(output)
+    }
+
+    /// Build a BPF object file.
+    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
+        self.build_many([src], dst).map(|vec| {
+            // SANITY: We pass in a single file we `build_many` is
+            //         guaranteed to produce as many outputs as input
+            //         files; so there must be one.
+            vec.into_iter().next().unwrap()
+        })
     }
 }
 
