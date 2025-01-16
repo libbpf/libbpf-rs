@@ -98,14 +98,12 @@ mod test;
 ///
 /// SkeletonBuilder::new()
 ///     .source("myobject.bpf.c")
-///     .debug(true)
 ///     .clang("/opt/clang/clang")
 ///     .build_and_generate("/output/path")
 ///     .unwrap();
 /// ```
 #[derive(Debug)]
 pub struct SkeletonBuilder {
-    debug: bool,
     source: Option<PathBuf>,
     obj: Option<PathBuf>,
     clang: Option<PathBuf>,
@@ -123,7 +121,6 @@ impl Default for SkeletonBuilder {
 impl SkeletonBuilder {
     pub fn new() -> Self {
         SkeletonBuilder {
-            debug: false,
             source: None,
             obj: None,
             clang: None,
@@ -146,14 +143,6 @@ impl SkeletonBuilder {
     /// Default is None
     pub fn obj<P: AsRef<Path>>(&mut self, obj: P) -> &mut SkeletonBuilder {
         self.obj = Some(obj.as_ref().to_path_buf());
-        self
-    }
-
-    /// Turn debug output on or off
-    ///
-    /// Default is off
-    pub fn debug(&mut self, debug: bool) -> &mut SkeletonBuilder {
-        self.debug = debug;
         self
     }
 
