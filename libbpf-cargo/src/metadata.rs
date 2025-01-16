@@ -7,6 +7,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use cargo_metadata::MetadataCommand;
 use cargo_metadata::Package;
+use log::debug;
 use serde::Deserialize;
 use serde_json::value::Value;
 
@@ -35,15 +36,9 @@ pub(crate) struct UnprocessedObj {
     pub name: String,
 }
 
-fn get_package(
-    debug: bool,
-    package: &Package,
-    workspace_target_dir: &Path,
-) -> Result<Vec<UnprocessedObj>> {
-    if debug {
-        println!("Metadata for package={}", package.name);
-        println!("\t{}", package.metadata);
-    }
+fn get_package(package: &Package, workspace_target_dir: &Path) -> Result<Vec<UnprocessedObj>> {
+    debug!("Metadata for package={}", package.name);
+    debug!("\t{}", package.metadata);
 
     let package_metadata = if package.metadata != Value::Null {
         let PackageMetadata { libbpf } = serde_json::from_value(package.metadata.clone())?;
@@ -57,9 +52,7 @@ fn get_package(
     // Remove "Cargo.toml"
     package_root.pop();
     if let Some(d) = package_metadata.prog_dir {
-        if debug {
-            println!("Custom prog_dir={}", d.to_string_lossy());
-        }
+        debug!("Custom prog_dir={}", d.to_string_lossy());
         // Add requested path
         package_root.push(d);
     } else {
@@ -70,10 +63,7 @@ fn get_package(
     // Respect custom target directories specified by package
     let mut target_dir = workspace_target_dir.to_path_buf();
     if let Some(d) = package_metadata.target_dir {
-        if debug {
-            println!("Custom target_dir={}", d.to_string_lossy());
-        }
-
+        debug!("Custom target_dir={}", d.to_string_lossy());
         // Add requested path
         target_dir.push(d);
     } else {
@@ -142,10 +132,7 @@ fn get_package(
 }
 
 /// Returns the `target_directory` and a list of objects to compile.
-pub(crate) fn get(
-    debug: bool,
-    manifest_path: Option<&PathBuf>,
-) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
+pub(crate) fn get(manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {
@@ -162,7 +149,7 @@ pub(crate) fn get(
     for id in &metadata.workspace_members {
         for package in &metadata.packages {
             if id == &package.id {
-                let vv = &mut get_package(debug, package, &target_directory)
+                let vv = &mut get_package(package, &target_directory)
                     .with_context(|| format!("Failed to process package={}", package.name))?;
                 let () = v.append(vv);
             }

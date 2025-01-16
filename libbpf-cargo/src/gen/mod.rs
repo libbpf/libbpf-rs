@@ -38,6 +38,8 @@ use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::Program;
 
+use log::debug;
+use log::info;
 use memmap2::Mmap;
 
 use crate::metadata;
@@ -289,7 +291,7 @@ pub(crate) fn canonicalize_internal_map_name(s: &str) -> Option<InternalMapType<
         let name = s.get(".bss.".len()..).unwrap();
         Some(InternalMapType::CustomBss(name))
     } else {
-        eprintln!("Warning: unrecognized map: {s}");
+        info!("encountered unrecognized map: {s}");
         None
     }
 }
@@ -1293,16 +1295,12 @@ pub(crate) fn gen_single(
     Ok(())
 }
 
-fn gen_project(
-    debug: bool,
-    manifest_path: Option<&PathBuf>,
-    rustfmt_path: Option<&PathBuf>,
-) -> Result<()> {
-    let (_target_dir, to_gen) = metadata::get(debug, manifest_path)?;
-    if debug && !to_gen.is_empty() {
-        println!("Found bpf objs to gen skel:");
+fn gen_project(manifest_path: Option<&PathBuf>, rustfmt_path: Option<&PathBuf>) -> Result<()> {
+    let (_target_dir, to_gen) = metadata::get(manifest_path)?;
+    if !to_gen.is_empty() {
+        debug!("Found bpf objs to gen skel:");
         for obj in &to_gen {
-            println!("\t{obj:?}");
+            debug!("\t{obj:?}");
         }
     } else if to_gen.is_empty() {
         bail!("Did not find any bpf objects to generate skeleton");
@@ -1348,7 +1346,6 @@ fn gen_project(
 }
 
 pub fn gen(
-    debug: bool,
     manifest_path: Option<&PathBuf>,
     rustfmt_path: Option<&PathBuf>,
     object: Option<&PathBuf>,
@@ -1360,6 +1357,6 @@ pub fn gen(
     if let Some(obj_file) = object {
         gen_single(obj_file, OutputDest::Stdout, rustfmt_path)
     } else {
-        gen_project(debug, manifest_path, rustfmt_path)
+        gen_project(manifest_path, rustfmt_path)
     }
 }

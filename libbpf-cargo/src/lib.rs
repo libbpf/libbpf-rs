@@ -241,7 +241,6 @@ impl SkeletonBuilder {
         }
 
         build::build_single(
-            self.debug,
             source,
             // Unwrap is safe here since we guarantee that obj.is_some() above
             self.obj.as_ref().unwrap(),

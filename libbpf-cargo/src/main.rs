@@ -4,7 +4,9 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use anyhow::Context as _;
 use anyhow::Result;
+use clap::ArgAction;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -12,6 +14,7 @@ use clap::Subcommand;
 use libbpf_cargo::__private::build;
 use libbpf_cargo::__private::gen;
 use libbpf_cargo::__private::make;
+use log::Level;
 
 
 #[doc(hidden)]
@@ -21,9 +24,9 @@ use libbpf_cargo::__private::make;
 struct Opt {
     #[command(subcommand)]
     wrapper: Wrapper,
-    /// Enable debug output.
-    #[clap(short, long, global = true)]
-    debug: bool,
+    /// Increase verbosity (can be supplied multiple times).
+    #[clap(short = 'v', long = "verbose", global = true, action = ArgAction::Count)]
+    verbosity: u8,
 }
 
 // cargo invokes subcommands with the first argument as
@@ -103,7 +106,19 @@ enum Command {
 #[doc(hidden)]
 fn main() -> Result<()> {
     let opts = Opt::parse();
-    let Opt { wrapper, debug } = opts;
+    let Opt { wrapper, verbosity } = opts;
+
+    let level = match verbosity {
+        0 => Level::Warn,
+        1 => Level::Info,
+        2 => Level::Debug,
+        _ => Level::Trace,
+    };
+
+    let () = env_logger::builder()
+        .parse_env(env_logger::Env::default().default_filter_or(level.as_str()))
+        .try_init()
+        .context("failed to initialize logging infrastructure")?;
 
     match wrapper {
         Wrapper::Libbpf(cmd) => match cmd {
@@ -114,18 +129,12 @@ fn main() -> Result<()> {
                         clang_path,
                         clang_args,
                     },
-            } => build::build(
-                debug,
-                manifest_path.as_ref(),
-                clang_path.as_ref(),
-                clang_args,
-            ),
+            } => build::build(manifest_path.as_ref(), clang_path.as_ref(), clang_args),
             Command::Gen {
                 manifest_path,
                 rustfmt_path,
                 object,
             } => gen::gen(
-                debug,
                 manifest_path.as_ref(),
                 rustfmt_path.as_ref(),
                 object.as_ref(),
@@ -141,7 +150,6 @@ fn main() -> Result<()> {
                 cargo_build_args,
                 rustfmt_path,
             } => make::make(
-                debug,
                 manifest_path.as_ref(),
                 clang_path.as_ref(),
                 clang_args,
