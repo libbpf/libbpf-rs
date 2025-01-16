@@ -5,32 +5,29 @@ use std::process::Command;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use log::debug;
+use log::log_enabled;
+use log::Level::Info;
 
 use crate::build;
 use crate::gen;
 
-#[allow(clippy::too_many_arguments)]
 pub fn make(
     manifest_path: Option<&PathBuf>,
     clang: Option<&PathBuf>,
     clang_args: Vec<OsString>,
-    quiet: bool,
     cargo_build_args: Vec<String>,
     rustfmt_path: Option<&PathBuf>,
 ) -> Result<()> {
-    if !quiet {
-        println!("Compiling BPF objects");
-    }
+    debug!("Compiling BPF objects");
     build::build(manifest_path, clang, clang_args).context("Failed to compile BPF objects")?;
 
-    if !quiet {
-        println!("Generating skeletons");
-    }
+    debug!("Generating skeletons");
     gen::gen(manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;
 
     let mut cmd = Command::new("cargo");
     cmd.arg("build");
-    if quiet {
+    if !log_enabled!(Info) {
         cmd.arg("--quiet");
     }
     for arg in cargo_build_args {

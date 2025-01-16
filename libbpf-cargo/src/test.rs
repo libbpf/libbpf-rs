@@ -301,7 +301,7 @@ fn test_make_basic() {
     let _prog_file =
         File::create(proj_dir.join("src/bpf/prog.bpf.c")).expect("failed to create prog file");
 
-    make(Some(&cargo_toml), None, Vec::new(), true, Vec::new(), None).unwrap();
+    make(Some(&cargo_toml), None, Vec::new(), Vec::new(), None).unwrap();
 
     // Validate generated object file
     validate_bpf_o(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path());
@@ -333,7 +333,6 @@ fn test_make_workspace() {
         Some(&workspace_cargo_toml),
         None,
         Vec::new(),
-        true,
         Vec::new(),
         None,
     )
@@ -385,7 +384,7 @@ fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) {
     // Lay down the necessary header files
     add_vmlinux_header(&proj_dir);
 
-    make(Some(&cargo_toml), None, Vec::new(), true, Vec::new(), None).unwrap();
+    make(Some(&cargo_toml), None, Vec::new(), Vec::new(), None).unwrap();
 
     let mut cargo = OpenOptions::new()
         .append(true)

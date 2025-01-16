@@ -90,9 +90,6 @@ enum Command {
         manifest_path: Option<PathBuf>,
         #[command(flatten)]
         clang_opts: ClangOpts,
-        #[arg(short, long)]
-        /// Quiet output
-        quiet: bool,
         /// Arguments to pass to `cargo build`
         ///
         /// Example: cargo libbpf build -- --package mypackage
@@ -146,14 +143,12 @@ fn main() -> Result<()> {
                         clang_path,
                         clang_args,
                     },
-                quiet,
                 cargo_build_args,
                 rustfmt_path,
             } => make::make(
                 manifest_path.as_ref(),
                 clang_path.as_ref(),
                 clang_args,
-                quiet,
                 cargo_build_args,
                 rustfmt_path.as_ref(),
             ),
