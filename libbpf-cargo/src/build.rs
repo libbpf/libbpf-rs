@@ -61,6 +61,54 @@ impl BpfObjBuilder {
         self
     }
 
+    /// We're essentially going to run:
+    ///
+    ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
+    ///
+    /// for each prog.
+    fn compile_single(
+        src: &Path,
+        dst: &Path,
+        compiler: &Path,
+        compiler_args: &[OsString],
+    ) -> Result<CompilationOutput> {
+        debug!("Building {}", src.display());
+
+        let mut cmd = Command::new(compiler.as_os_str());
+        cmd.args(compiler_args);
+
+        cmd.arg("-g")
+            .arg("-O2")
+            .arg("-target")
+            .arg("bpf")
+            .arg("-c")
+            .arg(src.as_os_str())
+            .arg("-o")
+            .arg(dst);
+
+        let output = cmd
+            .output()
+            .with_context(|| format!("failed to execute `{}`", compiler.display()))?;
+        if !output.status.success() {
+            let err = Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()))
+                .with_context(|| {
+                    format!(
+                        "command `{}` failed ({})",
+                        format_command(&cmd),
+                        output.status
+                    )
+                })
+                .with_context(|| {
+                    format!("failed to compile {} from {}", dst.display(), src.display())
+                });
+            return err;
+        }
+
+        Ok(CompilationOutput {
+            stderr: output.stderr,
+        })
+    }
+
     /// Build a BPF object file.
     pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
         let mut compiler_args = self.compiler_args.clone();
@@ -100,8 +148,17 @@ impl BpfObjBuilder {
             compiler_args.push(format!("-D__TARGET_ARCH_{arch}").into());
         }
 
-        compile_one(src, dst, &self.compiler, &compiler_args)
-            .with_context(|| format!("failed to compile `{}`", src.display()))
+        let output = Self::compile_single(src, dst, &self.compiler, &compiler_args)
+            .with_context(|| format!("failed to compile `{}`", src.display()))?;
+
+        // Compilation with clang may contain DWARF information that references
+        // system specific and temporary paths. That can render our generated
+        // skeletons unstable, potentially rendering them unsuitable for inclusion
+        // in version control systems. So strip this information.
+        strip_dwarf_info(dst)
+            .with_context(|| format!("Failed to strip object file {}", dst.display()))?;
+
+        Ok(output)
     }
 }
 
@@ -206,75 +263,12 @@ fn format_command(command: &Command) -> String {
     concat_command(prog, args).to_string_lossy().to_string()
 }
 
-/// We're essentially going to run:
-///
-///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
-///
-/// for each prog.
-fn compile_one(
-    source: &Path,
-    out: &Path,
-    clang: &Path,
-    clang_args: &[OsString],
-) -> Result<CompilationOutput> {
-    debug!("Building {}", source.display());
-
-    let mut cmd = Command::new(clang.as_os_str());
-    cmd.args(clang_args);
-
-    cmd.arg("-g")
-        .arg("-O2")
-        .arg("-target")
-        .arg("bpf")
-        .arg("-c")
-        .arg(source.as_os_str())
-        .arg("-o")
-        .arg(out);
-
-    let output = cmd.output().context("Failed to execute clang")?;
-    if !output.status.success() {
-        let err = Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()))
-            .with_context(|| {
-                format!(
-                    "Command `{}` failed ({})",
-                    format_command(&cmd),
-                    output.status
-                )
-            })
-            .with_context(|| {
-                format!(
-                    "Failed to compile {} from {}",
-                    out.display(),
-                    source.display()
-                )
-            });
-        return err;
-    }
-
-    // Compilation with clang may contain DWARF information that references
-    // system specific and temporary paths. That can render our generated
-    // skeletons unstable, potentially rendering them unsuitable for inclusion
-    // in version control systems. So strip this information.
-    strip_dwarf_info(out)
-        .with_context(|| format!("Failed to strip object file {}", out.display()))?;
-
-    Ok(CompilationOutput {
-        stderr: output.stderr,
-    })
-}
-
 fn compile(
     objs: &[UnprocessedObj],
     clang: &Path,
-    mut clang_args: Vec<OsString>,
-    target_dir: &Path,
+    clang_args: Vec<OsString>,
+    _target_dir: &Path,
 ) -> Result<Vec<CompilationOutput>> {
-    let header_dir = extract_libbpf_headers_to_disk(target_dir)?;
-    if let Some(dir) = header_dir {
-        clang_args.push(OsString::from("-I"));
-        clang_args.push(dir.into_os_string());
-    }
-
     objs.iter()
         .map(|obj| -> Result<_> {
             let stem = obj.path.file_stem().with_context(|| {
@@ -290,7 +284,11 @@ fn compile(
             let mut dest_path = obj.out.to_path_buf();
             dest_path.push(&dest_name);
             fs::create_dir_all(&obj.out)?;
-            compile_one(&obj.path, &dest_path, clang, &clang_args)
+
+            BpfObjBuilder::default()
+                .compiler(clang)
+                .compiler_args(&clang_args)
+                .build(&obj.path, &dest_path)
         })
         .collect::<Result<_, _>>()
 }
