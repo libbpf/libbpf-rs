@@ -661,7 +661,6 @@ fn test_skeleton_builder_basic() {
     let skel = NamedTempFile::new().unwrap();
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .debug(true)
         .build_and_generate(skel.path())
         .unwrap();
 
@@ -770,7 +769,6 @@ fn test_skeleton_builder_clang_opts() {
     // Should fail b/c `PURPOSE` not defined
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .debug(true)
         .clang("clang")
         .build_and_generate(skel.path())
         .unwrap_err();
@@ -778,7 +776,6 @@ fn test_skeleton_builder_clang_opts() {
     // Should succeed b/c we defined the macro
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .debug(true)
         .clang("clang")
         .clang_args(["-DPURPOSE=you_pass_the_butter"])
         .build_and_generate(skel.path())
@@ -1084,7 +1081,6 @@ fn test_skeleton_builder_deterministic() {
     let skel1 = NamedTempFile::new().unwrap();
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .debug(true)
         .clang("clang")
         .build_and_generate(skel1.path())
         .unwrap();
@@ -1093,7 +1089,6 @@ fn test_skeleton_builder_deterministic() {
     let skel2 = NamedTempFile::new().unwrap();
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .debug(true)
         .clang("clang")
         .build_and_generate(skel2.path())
         .unwrap();

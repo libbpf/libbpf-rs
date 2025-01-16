@@ -1,6 +1,7 @@
 Unreleased
 ----------
-- Removed `SkeletonBuilder::skip_clang_version_check`
+- Removed `SkeletonBuilder::skip_clang_version_check` and
+  `SkeletonBuilder::debug`
 - Removed `--skip-clang-version-checks` option of `libbpf build`
   sub-command
 - Replaced `--debug` option of `libbpf` sub-command with `-v` /
