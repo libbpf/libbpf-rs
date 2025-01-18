@@ -101,6 +101,11 @@ impl<'obj> OpenMap<'obj> {
             Some(data)
         }
     }
+
+    /// Retrieve max_entries of the map.
+    pub fn max_entries(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__max_entries(self.ptr.as_ptr()) }
+    }
 }
 
 impl<'obj> OpenMapMut<'obj> {
@@ -435,6 +440,9 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 
     /// Retrieve the size of the map's values.
     fn value_size(&self) -> u32;
+
+    /// Retrieve max_entries of the map.
+    fn max_entries(&self) -> u32;
 
     /// Fetch extra map information
     #[inline]
@@ -932,6 +940,11 @@ where
     fn value_size(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__value_size(self.ptr.as_ptr()) }
     }
+
+    #[inline]
+    fn max_entries(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__max_entries(self.ptr.as_ptr()) }
+    }
 }
 
 impl AsRawLibbpf for Map<'_> {
@@ -965,6 +978,7 @@ pub struct MapHandle {
     ty: MapType,
     key_size: u32,
     value_size: u32,
+    max_entries: u32,
 }
 
 impl MapHandle {
@@ -1012,6 +1026,7 @@ impl MapHandle {
             ty: map_type,
             key_size,
             value_size,
+            max_entries,
         })
     }
 
@@ -1062,6 +1077,7 @@ impl MapHandle {
             ty: info.map_type(),
             key_size: info.info.key_size,
             value_size: info.info.value_size,
+            max_entries: info.info.max_entries,
         })
     }
 
@@ -1114,6 +1130,11 @@ impl MapCore for MapHandle {
     fn value_size(&self) -> u32 {
         self.value_size
     }
+
+    #[inline]
+    fn max_entries(&self) -> u32 {
+        self.max_entries
+    }
 }
 
 impl AsFd for MapHandle {
@@ -1139,6 +1160,7 @@ where
             ty: other.map_type(),
             key_size: other.key_size(),
             value_size: other.value_size(),
+            max_entries: other.max_entries(),
         })
     }
 }
@@ -1156,6 +1178,7 @@ impl TryFrom<&MapHandle> for MapHandle {
             ty: other.map_type(),
             key_size: other.key_size(),
             value_size: other.value_size(),
+            max_entries: other.max_entries(),
         })
     }
 }

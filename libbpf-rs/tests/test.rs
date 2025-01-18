@@ -1574,12 +1574,14 @@ fn test_object_map_handle_clone() {
     assert_eq!(map.map_type(), handle1.map_type());
     assert_eq!(map.key_size(), handle1.key_size());
     assert_eq!(map.value_size(), handle1.value_size());
+    assert_eq!(map.max_entries(), handle1.max_entries());
 
     let handle2 = MapHandle::try_from(&handle1).expect("failed to duplicate existing handle");
     assert_eq!(handle1.name(), handle2.name());
     assert_eq!(handle1.map_type(), handle2.map_type());
     assert_eq!(handle1.key_size(), handle2.key_size());
     assert_eq!(handle1.value_size(), handle2.value_size());
+    assert_eq!(handle1.max_entries(), handle2.max_entries());
 
     let info1 = map.info().expect("failed to get map info from map");
     let info2 = handle2.info().expect("failed to get map info from handle");
@@ -1997,10 +1999,10 @@ fn test_map_autocreate_disable() {
     open_obj.load().expect("failed to load object");
 }
 
-/// Check that we can resize a map.
+/// Check that we can resize a map value.
 #[tag(root)]
 #[test]
-fn test_map_resize() {
+fn test_map_resize_value() {
     bump_rlimit_mlock();
 
     let mut open_obj = open_test_object("map_auto_pin.bpf.o");
@@ -2017,6 +2019,41 @@ fn test_map_resize() {
         .expect("failed to set value size");
     let new_len = resizable.initial_value().unwrap().len();
     assert_eq!(new_len, len * 2);
+}
+
+/// Check that we can resize map max entries.
+#[tag(root)]
+#[test]
+fn test_object_map_max_entries() {
+    bump_rlimit_mlock();
+
+    let mut obj = open_test_object("runqslower.bpf.o");
+
+    // resize the map to have twice the number of entries
+    let mut start = obj
+        .maps_mut()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+    let initial_max_entries = start.max_entries();
+    let new_max_entries = initial_max_entries * 2;
+    start
+        .set_max_entries(new_max_entries)
+        .expect("failed to set max entries");
+    // check that it reflects on the open map
+    assert_eq!(start.max_entries(), new_max_entries);
+
+    // check that it reflects after loading the map
+    let obj = obj.load().expect("failed to load object");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+    assert_eq!(start.max_entries(), new_max_entries);
+
+    // check that it reflects after recreating the map handle from map id
+    let start = MapHandle::from_map_id(start.info().expect("failed to get map info").info.id)
+        .expect("failed to get map handle from id");
+    assert!(start.max_entries() == new_max_entries);
 }
 
 /// Check that we are able to attach using ksyscall
