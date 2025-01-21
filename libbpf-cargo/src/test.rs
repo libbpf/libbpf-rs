@@ -423,7 +423,7 @@ fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) {
         .arg(cargo_toml.into_os_string())
         .env("RUSTFLAGS", "-Dwarnings")
         .status()
-        .expect("failed to spawn cargo-build");
+        .expect("failed to run cargo");
     assert!(status.success());
 }
 
@@ -774,14 +774,12 @@ fn test_skeleton_builder_clang_opts() {
     // Should fail b/c `PURPOSE` not defined
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .clang("clang")
         .build_and_generate(skel.path())
         .unwrap_err();
 
     // Should succeed b/c we defined the macro
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .clang("clang")
         .clang_args(["-DPURPOSE=you_pass_the_butter"])
         .build_and_generate(skel.path())
         .unwrap();
@@ -1086,7 +1084,6 @@ fn test_skeleton_builder_deterministic() {
     let skel1 = NamedTempFile::new().unwrap();
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .clang("clang")
         .build_and_generate(skel1.path())
         .unwrap();
     let skel1 = read_to_string(skel1.path()).unwrap();
@@ -1094,7 +1091,6 @@ fn test_skeleton_builder_deterministic() {
     let skel2 = NamedTempFile::new().unwrap();
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .clang("clang")
         .build_and_generate(skel2.path())
         .unwrap();
     let skel2 = read_to_string(skel2.path()).unwrap();
