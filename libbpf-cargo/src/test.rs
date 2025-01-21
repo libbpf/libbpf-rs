@@ -21,6 +21,7 @@ use tempfile::TempDir;
 use test_log::test;
 
 use crate::build::build_project;
+use crate::build::BpfObjBuilder;
 use crate::gen::GenBtf;
 use crate::gen::GenStructOps;
 use crate::make::make;
@@ -122,17 +123,21 @@ fn get_libbpf_rs_path() -> PathBuf {
         .expect("failed to canonicalize libbpf-rs")
 }
 
-/// Add vmlinux header into `project`'s src/bpf dir
-fn add_vmlinux_header(project: &Path) {
+fn write_vmlinux_header(dir: &Path) {
     let mut vmlinux = OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
-        .open(project.join("src/bpf/vmlinux.h"))
+        .open(dir.join("vmlinux.h"))
         .expect("failed to open vmlinux.h");
     let () = vmlinux
         .write_all(vmlinux::VMLINUX)
         .expect("failed to write vmlinux.h");
+}
+
+/// Add vmlinux header into `project`'s src/bpf dir
+fn add_vmlinux_header(project: &Path) {
+    write_vmlinux_header(&project.join("src/bpf"))
 }
 
 #[test]
@@ -1174,30 +1179,28 @@ macro_rules! find_type_in_btf {
 /// returns struct Btf if able to compile
 /// fails calling test if unable to compile
 fn build_btf_mmap(prog_text: &str) -> Mmap {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
-
-    // Add prog dir
-    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
-
-    // Add a prog
-    let mut prog = OpenOptions::new()
+    let dir = tempdir().expect("failed to create tempdir");
+    let dir = dir.path();
+    let bpf_c = dir.join("prog.bpf.c");
+    let mut file = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(proj_dir.join("src/bpf/prog.bpf.c"))
+        .open(&bpf_c)
         .expect("failed to open prog.bpf.c");
 
-    write!(prog, "{prog_text}").expect("failed to write prog.bpf.c");
-
+    let () = file
+        .write_all(prog_text.as_bytes())
+        .expect("failed to write prog.bpf.c");
     // Lay down the necessary header files
-    add_vmlinux_header(&proj_dir);
+    let () = write_vmlinux_header(dir);
 
-    // Build the .bpf.o
-    build_project(Some(&cargo_toml), None, Vec::new()).expect("failed to compile");
+    let bpf_o = dir.join("prog.bpf.o");
+    let _output = BpfObjBuilder::default().build(&bpf_c, &bpf_o).unwrap();
 
     let obj = OpenOptions::new()
         .read(true)
-        .open(proj_dir.as_path().join("target/bpf/prog.bpf.o").as_path())
+        .open(bpf_o)
         .expect("failed to open object file");
     unsafe { Mmap::map(&obj) }.expect("Failed to mmap object file")
 }
