@@ -102,7 +102,7 @@ impl<'obj> OpenMap<'obj> {
         }
     }
 
-    /// Retrieve max_entries of the map.
+    /// Retrieve the maximum number of entries of the map.
     pub fn max_entries(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__max_entries(self.ptr.as_ptr()) }
     }

@@ -1999,10 +1999,10 @@ fn test_map_autocreate_disable() {
     open_obj.load().expect("failed to load object");
 }
 
-/// Check that we can resize a map value.
+/// Check that we can adjust a map's value size.
 #[tag(root)]
 #[test]
-fn test_map_resize_value() {
+fn test_map_adjust_value_size() {
     bump_rlimit_mlock();
 
     let mut open_obj = open_test_object("map_auto_pin.bpf.o");
@@ -2021,7 +2021,7 @@ fn test_map_resize_value() {
     assert_eq!(new_len, len * 2);
 }
 
-/// Check that we can resize map max entries.
+/// Check that we can adjust a map's maximum entries.
 #[tag(root)]
 #[test]
 fn test_object_map_max_entries() {
