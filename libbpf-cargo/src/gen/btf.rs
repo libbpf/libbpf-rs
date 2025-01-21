@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -368,9 +369,14 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
 
 #[derive(Debug, Default)]
 pub(crate) struct AnonTypes {
-    /// A mapping from type to number, allowing us to assign numbers to types
-    /// consistently.
+    /// A mapping from type to number, allowing us to assign numbers to
+    /// anonymous types consistently.
     types: RefCell<HashMap<TypeId, usize>>,
+    /// Mapping from type to name.
+    names: RefCell<HashMap<TypeId, String>>,
+    /// Mapping from type name to the number of times we have seen this
+    /// name already.
+    names_count: RefCell<HashMap<String, u8>>,
 }
 
 impl AnonTypes {
@@ -382,7 +388,23 @@ impl AnonTypes {
                 let anon_id = anon_table.entry(ty.type_id()).or_insert(len);
                 format!("{ANON_PREFIX}{anon_id}").into()
             }
-            Some(n) => n.to_string_lossy(),
+            Some(n) => match self.names.borrow_mut().entry(ty.type_id()) {
+                Entry::Occupied(entry) => Cow::Owned(entry.get().clone()),
+                Entry::Vacant(vacancy) => {
+                    let name = n.to_string_lossy();
+                    let mut names_count = self.names_count.borrow_mut();
+                    let cnt = names_count
+                        .entry(name.to_string())
+                        .and_modify(|cnt| *cnt += 1)
+                        .or_insert(1);
+                    if *cnt == 1 {
+                        vacancy.insert(name.to_string());
+                        name
+                    } else {
+                        Cow::Owned(vacancy.insert(format!("{name}_{cnt}")).clone())
+                    }
+                }
+            },
         }
     }
 }
@@ -819,8 +841,7 @@ impl<'s> GenBtf<'s> {
         writeln!(def, r#"#[repr(C{packed_repr})]"#)?;
         writeln!(
             def,
-            r#"pub {agg_type} {name} {{"#,
-            agg_type = aggregate_type,
+            r#"pub {aggregate_type} {name} {{"#,
             name = self.anon_types.type_name_or_anon(&t),
         )?;
 

@@ -1096,6 +1096,98 @@ fn test_skeleton_builder_deterministic() {
     assert_eq!(skel1, skel2);
 }
 
+/// Check that we generate a valid skeleton in the presence of duplicate
+/// structs in the BTF.
+#[test]
+fn test_skeleton_duplicate_struct() {
+    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+    let prog1 = proj_dir.join("src/bpf/prog1.bpf.c");
+    write(
+        &prog1,
+        r#"
+            #include "vmlinux.h"
+
+            struct foobar {
+                int bar;
+            } foo;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+    let prog2 = proj_dir.join("src/bpf/prog2.bpf.c");
+    write(
+        &prog2,
+        r#"
+            #include "vmlinux.h"
+
+            typedef int nonsensicaltypedeftoint;
+
+            struct foobar {
+                nonsensicaltypedeftoint bar;
+            } baz;
+        "#,
+    )
+    .expect("failed to write prog.bpf.c");
+
+    add_vmlinux_header(&proj_dir);
+
+    let bpf_o = proj_dir.join("prog.bpf.o");
+    let _output = BpfObjBuilder::default()
+        .build_many([&prog1, &prog2], &bpf_o)
+        .unwrap();
+
+    let skel = proj_dir.join("src/bpf/skel.rs");
+    let () = SkeletonBuilder::new().obj(&bpf_o).generate(&skel).unwrap();
+
+    let mut cargo = OpenOptions::new()
+        .append(true)
+        .open(&cargo_toml)
+        .expect("failed to open Cargo.toml");
+
+    // Make test project use our development libbpf-rs version
+    writeln!(
+        cargo,
+        r#"
+        libbpf-rs = {{ path = "{}" }}
+        "#,
+        get_libbpf_rs_path().as_path().display()
+    )
+    .expect("failed to write to Cargo.toml");
+
+    let mut source = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(proj_dir.join("src/main.rs"))
+        .expect("failed to open main.rs");
+
+    write!(
+        source,
+        r#"
+        #[path = "{skel_path}"]
+        mod skel;
+        use skel::*;
+
+        fn main() {{
+            let _foobar1 = types::foobar::default();
+            let _foobar2 = types::foobar_2::default();
+        }}
+        "#,
+        skel_path = skel.display(),
+    )
+    .expect("failed to write to main.rs");
+
+    let status = Command::new("cargo")
+        .arg("build")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(cargo_toml.into_os_string())
+        .env("RUSTFLAGS", "-Dwarnings")
+        .status()
+        .expect("failed to spawn cargo-build");
+    assert!(status.success());
+}
+
 // -- TEST RUST GENERATION OF BTF PROGRAMS --
 
 /// Searches the Btf struct for a BtfType

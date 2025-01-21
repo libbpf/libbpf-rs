@@ -7,6 +7,8 @@ Unreleased
 - Replaced `--debug` option of `libbpf` sub-command with `-v` /
   `--verbose`
   - Removed `--quiet` option of `libbpf make` sub-command
+- Fixed handling of multiple types of same name in BTF by enumerating
+  them in the generated skeleton
 
 
 0.25.0-beta.1
