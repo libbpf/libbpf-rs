@@ -20,13 +20,13 @@ pub type TcFlags = libbpf_sys::bpf_tc_flags;
 pub const BPF_TC_F_REPLACE: TcFlags = libbpf_sys::BPF_TC_F_REPLACE;
 
 // from kernel @ include/uapi/linux/pkt_sched.h
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub const TC_H_INGRESS: u32 = 0xFFFFFFF1;
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub const TC_H_CLSACT: u32 = TC_H_INGRESS;
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub const TC_H_MIN_INGRESS: u32 = 0xFFF2;
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub const TC_H_MIN_EGRESS: u32 = 0xFFF3;
 #[allow(missing_docs)]
 pub const TC_H_MAJ_MASK: u32 = 0xFFFF0000;

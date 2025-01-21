@@ -113,7 +113,7 @@ struct Command {
 unsafe impl Plain for capable::types::event {}
 
 fn print_banner(extra_fields: bool) {
-    #[allow(clippy::print_literal)]
+    #[expect(clippy::print_literal)]
     if extra_fields {
         println!(
             "{:9} {:6} {:6} {:6} {:16} {:4} {:20} {:6} {}",

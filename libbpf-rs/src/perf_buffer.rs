@@ -202,7 +202,7 @@ pub struct PerfBuffer<'b> {
 }
 
 // TODO: Document methods.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 impl PerfBuffer<'_> {
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr.as_ptr()) }
