@@ -56,8 +56,6 @@ pub struct OpenMapImpl<'obj, T = ()> {
     _phantom: PhantomData<&'obj T>,
 }
 
-// TODO: Document members.
-#[allow(missing_docs)]
 impl<'obj> OpenMap<'obj> {
     /// Create a new [`OpenMap`] from a ptr to a `libbpf_sys::bpf_map`.
     pub fn new(object: &'obj libbpf_sys::bpf_map) -> Self {
