@@ -290,7 +290,7 @@ impl<'obj> OpenProgramMut<'obj> {
         unsafe { libbpf_sys::bpf_program__set_autoattach(self.ptr.as_ptr(), autoattach) };
     }
 
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn set_attach_target(
         &mut self,
         attach_prog_fd: i32,
@@ -339,7 +339,7 @@ impl<T> AsRawLibbpf for OpenProgramImpl<'_, T> {
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
 // TODO: Document variants.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum ProgramType {
     Unspec = 0,
     SocketFilter = libbpf_sys::BPF_PROG_TYPE_SOCKET_FILTER,
@@ -454,7 +454,7 @@ impl From<u32> for ProgramType {
 #[repr(u32)]
 #[derive(Clone, Debug)]
 // TODO: Document variants.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum ProgramAttachType {
     CgroupInetIngress = libbpf_sys::BPF_CGROUP_INET_INGRESS,
     CgroupInetEgress = libbpf_sys::BPF_CGROUP_INET_EGRESS,
@@ -687,7 +687,7 @@ impl<'obj> Program<'obj> {
     }
 
     #[deprecated = "renamed to Program::fd_from_id"]
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     #[inline]
     pub fn get_fd_by_id(id: u32) -> Result<OwnedFd> {
         Self::fd_from_id(id)
@@ -705,7 +705,7 @@ impl<'obj> Program<'obj> {
 
     // TODO: Remove once 0.25 is cut.
     #[deprecated = "renamed to Program::id_from_fd"]
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     #[inline]
     pub fn get_id_by_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         Self::id_from_fd(fd)

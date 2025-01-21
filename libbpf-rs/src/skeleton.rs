@@ -42,7 +42,7 @@ struct ProgSkelConfig {
     link: Box<*mut bpf_link>,
 }
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Debug)]
 pub struct ObjectSkeletonConfigBuilder<'dat> {
     data: &'dat [u8],
@@ -77,7 +77,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         }
     }
 
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.name = Some(name.as_ref().to_string());
         self
@@ -180,7 +180,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         Some(layout)
     }
 
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn build(mut self) -> Result<ObjectSkeletonConfig<'dat>> {
         // Holds `CString`s alive so pointers to them stay valid
         let mut string_pool = Vec::new();
