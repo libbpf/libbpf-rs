@@ -365,7 +365,6 @@ fn test_object_map_delete_batch() {
 #[tag(root)]
 #[test]
 pub fn test_map_info() {
-    #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_ANY,
@@ -1531,7 +1530,6 @@ fn test_object_map_create_and_pin() {
 fn test_object_map_create_without_name() {
     bump_rlimit_mlock();
 
-    #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
