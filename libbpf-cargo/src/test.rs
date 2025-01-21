@@ -16,7 +16,6 @@ use libbpf_rs::btf::BtfType;
 use libbpf_rs::Btf;
 use memmap2::Mmap;
 use tempfile::tempdir;
-use tempfile::NamedTempFile;
 use tempfile::TempDir;
 use test_log::test;
 
@@ -663,10 +662,10 @@ fn test_skeleton_builder_basic() {
     add_vmlinux_header(&proj_dir);
 
     // Generate skeleton file
-    let skel = NamedTempFile::new().unwrap();
+    let skel = proj_dir.join("src/bpf/skel.rs");
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .build_and_generate(skel.path())
+        .build_and_generate(&skel)
         .unwrap();
 
     let mut cargo = OpenOptions::new()
@@ -729,7 +728,7 @@ fn test_skeleton_builder_basic() {
             let _key = types::unique_key::default();
         }}
         "#,
-        skel_path = skel.path().display(),
+        skel_path = skel.display(),
     )
     .expect("failed to write to main.rs");
 
@@ -769,19 +768,18 @@ fn test_skeleton_builder_clang_opts() {
     )
     .expect("failed to write prog.bpf.c");
 
-    let skel = NamedTempFile::new().unwrap();
-
+    let skel = proj_dir.join("src/bpf/skel.rs");
     // Should fail b/c `PURPOSE` not defined
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .build_and_generate(skel.path())
+        .build_and_generate(&skel)
         .unwrap_err();
 
     // Should succeed b/c we defined the macro
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
         .clang_args(["-DPURPOSE=you_pass_the_butter"])
-        .build_and_generate(skel.path())
+        .build_and_generate(&skel)
         .unwrap();
 }
 
@@ -1081,19 +1079,19 @@ fn test_skeleton_builder_deterministic() {
 
     add_vmlinux_header(&proj_dir);
 
-    let skel1 = NamedTempFile::new().unwrap();
+    let skel1 = proj_dir.join("src/bpf/skel1.rs");
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .build_and_generate(skel1.path())
+        .build_and_generate(&skel1)
         .unwrap();
-    let skel1 = read_to_string(skel1.path()).unwrap();
+    let skel1 = read_to_string(skel1).unwrap();
 
-    let skel2 = NamedTempFile::new().unwrap();
+    let skel2 = proj_dir.join("src/bpf/skel2.rs");
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
-        .build_and_generate(skel2.path())
+        .build_and_generate(&skel2)
         .unwrap();
-    let skel2 = read_to_string(skel2.path()).unwrap();
+    let skel2 = read_to_string(skel2).unwrap();
 
     assert_eq!(skel1, skel2);
 }
