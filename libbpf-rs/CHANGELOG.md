@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Added `max_entries` getter to various map types
 - Implemented `Sync` for `Link`
 
 
