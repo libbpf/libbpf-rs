@@ -199,7 +199,7 @@ impl BpfObjBuilder {
     /// Build a BPF object file.
     pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
         self.build_many([src], dst).map(|vec| {
-            // SANITY: We pass in a single file we `build_many` is
+            // SANITY: We pass in a single file and `build_many` is
             //         guaranteed to produce as many outputs as input
             //         files; so there must be one.
             vec.into_iter().next().unwrap()
