@@ -16,7 +16,6 @@ use std::io::Write;
 use std::mem::size_of;
 use std::os::raw::c_ulong;
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 use std::ptr;
@@ -205,7 +204,7 @@ pub(crate) enum OutputDest<'a> {
 ///
 /// If no `rustfmt` binary could be found the content is left untouched, as
 /// it's only meant as a cosmetic brush up, without change of semantics.
-fn try_rustfmt<'code>(s: &'code str, rustfmt_path: Option<&PathBuf>) -> Result<Cow<'code, [u8]>> {
+fn try_rustfmt<'code>(s: &'code str, rustfmt_path: Option<&Path>) -> Result<Cow<'code, [u8]>> {
     let result = if let Some(r) = rustfmt_path {
         Command::new(r)
     } else {
@@ -1191,7 +1190,7 @@ fn gen_skel(
     name: &str,
     obj: &Path,
     out: OutputDest<'_>,
-    rustfmt_path: Option<&PathBuf>,
+    rustfmt_path: Option<&Path>,
 ) -> Result<()> {
     ensure!(!name.is_empty(), "Object file has no name");
 
@@ -1217,7 +1216,7 @@ fn gen_skel(
 /// Generate mod.rs in src/bpf directory of each project.
 ///
 /// Each `UnprocessedObj` in `objs` must belong to same project.
-pub(crate) fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) -> Result<()> {
+pub(crate) fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&Path>) -> Result<()> {
     if objs.is_empty() {
         return Ok(());
     }
@@ -1261,7 +1260,7 @@ pub(crate) fn gen_mods(objs: &[UnprocessedObj], rustfmt_path: Option<&PathBuf>) 
 pub(crate) fn gen_single(
     obj_file: &Path,
     output: OutputDest<'_>,
-    rustfmt_path: Option<&PathBuf>,
+    rustfmt_path: Option<&Path>,
 ) -> Result<()> {
     let filename = match obj_file.file_name() {
         Some(n) => n,
@@ -1296,7 +1295,7 @@ pub(crate) fn gen_single(
     Ok(())
 }
 
-fn gen_project(manifest_path: Option<&PathBuf>, rustfmt_path: Option<&PathBuf>) -> Result<()> {
+fn gen_project(manifest_path: Option<&Path>, rustfmt_path: Option<&Path>) -> Result<()> {
     let (_target_dir, to_gen) = metadata::get(manifest_path)?;
     if !to_gen.is_empty() {
         debug!("Found bpf objs to gen skel:");
@@ -1347,9 +1346,9 @@ fn gen_project(manifest_path: Option<&PathBuf>, rustfmt_path: Option<&PathBuf>) 
 }
 
 pub fn gen(
-    manifest_path: Option<&PathBuf>,
-    rustfmt_path: Option<&PathBuf>,
-    object: Option<&PathBuf>,
+    manifest_path: Option<&Path>,
+    rustfmt_path: Option<&Path>,
+    object: Option<&Path>,
 ) -> Result<()> {
     if manifest_path.is_some() && object.is_some() {
         bail!("--manifest-path and --object cannot be used together");

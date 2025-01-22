@@ -132,7 +132,7 @@ fn get_package(package: &Package, workspace_target_dir: &Path) -> Result<Vec<Unp
 }
 
 /// Returns the `target_directory` and a list of objects to compile.
-pub(crate) fn get(manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
+pub(crate) fn get(manifest_path: Option<&Path>) -> Result<(PathBuf, Vec<UnprocessedObj>)> {
     let mut cmd = MetadataCommand::new();
 
     if let Some(path) = manifest_path {
@@ -144,12 +144,12 @@ pub(crate) fn get(manifest_path: Option<&PathBuf>) -> Result<(PathBuf, Vec<Unpro
         bail!("Failed to find targets")
     }
 
-    let target_directory = metadata.target_directory.clone().into_std_path_buf();
+    let target_directory = &metadata.target_directory.as_std_path();
     let mut v: Vec<UnprocessedObj> = Vec::new();
     for id in &metadata.workspace_members {
         for package in &metadata.packages {
             if id == &package.id {
-                let vv = &mut get_package(package, &target_directory)
+                let vv = &mut get_package(package, target_directory)
                     .with_context(|| format!("Failed to process package={}", package.name))?;
                 let () = v.append(vv);
             }
