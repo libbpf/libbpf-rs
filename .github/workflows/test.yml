@@ -245,3 +245,21 @@ jobs:
         run: sudo apt-get install --yes --no-install-recommends libelf-dev
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo doc --locked --no-deps
+
+  required-checks:
+    needs: [
+      build-aarch64,
+      build-armhf,
+      build-capable,
+      build-features,
+      build-minimum,
+      cargo-doc,
+      clippy,
+      run-tcp-ca,
+      rustfmt,
+      test,
+    ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo '${{ toJSON(needs) }}' | jq -e 'to_entries | all(.value.result == "success")'
