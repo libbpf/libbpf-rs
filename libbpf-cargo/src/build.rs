@@ -289,7 +289,7 @@ fn format_command(command: &Command) -> String {
     concat_command(prog, args).to_string_lossy().to_string()
 }
 
-fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
+fn extract_clang_or_default(clang: Option<&Path>) -> PathBuf {
     match clang {
         Some(c) => c.into(),
         // Searches $PATH
@@ -298,8 +298,8 @@ fn extract_clang_or_default(clang: Option<&PathBuf>) -> PathBuf {
 }
 
 pub fn build_project(
-    manifest_path: Option<&PathBuf>,
-    clang: Option<&PathBuf>,
+    manifest_path: Option<&Path>,
+    clang: Option<&Path>,
     clang_args: Vec<OsString>,
 ) -> Result<()> {
     let (_target_dir, to_compile) = metadata::get(manifest_path)?;

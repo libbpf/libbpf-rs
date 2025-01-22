@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 
 use anyhow::bail;
@@ -13,11 +13,11 @@ use crate::build;
 use crate::gen;
 
 pub fn make(
-    manifest_path: Option<&PathBuf>,
-    clang: Option<&PathBuf>,
+    manifest_path: Option<&Path>,
+    clang: Option<&Path>,
     clang_args: Vec<OsString>,
     cargo_build_args: Vec<String>,
-    rustfmt_path: Option<&PathBuf>,
+    rustfmt_path: Option<&Path>,
 ) -> Result<()> {
     debug!("Compiling BPF objects");
     build::build_project(manifest_path, clang, clang_args)

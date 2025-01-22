@@ -126,15 +126,15 @@ fn main() -> Result<()> {
                         clang_path,
                         clang_args,
                     },
-            } => build::build_project(manifest_path.as_ref(), clang_path.as_ref(), clang_args),
+            } => build::build_project(manifest_path.as_deref(), clang_path.as_deref(), clang_args),
             Command::Gen {
                 manifest_path,
                 rustfmt_path,
                 object,
             } => gen::gen(
-                manifest_path.as_ref(),
-                rustfmt_path.as_ref(),
-                object.as_ref(),
+                manifest_path.as_deref(),
+                rustfmt_path.as_deref(),
+                object.as_deref(),
             ),
             Command::Make {
                 manifest_path,
@@ -146,11 +146,11 @@ fn main() -> Result<()> {
                 cargo_build_args,
                 rustfmt_path,
             } => make::make(
-                manifest_path.as_ref(),
-                clang_path.as_ref(),
+                manifest_path.as_deref(),
+                clang_path.as_deref(),
                 clang_args,
                 cargo_build_args,
-                rustfmt_path.as_ref(),
+                rustfmt_path.as_deref(),
             ),
         },
     }
