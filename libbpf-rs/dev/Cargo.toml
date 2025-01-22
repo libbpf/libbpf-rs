@@ -20,5 +20,14 @@ dont-generate-test-files = []
 
 [build-dependencies]
 libbpf-sys = { version = "1.4.1", default-features = false, optional = true }
-tempfile = { version = "3.3", optional = true }
+tempfile = { version = "3.15", optional = true }
 vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+
+[dev-dependencies]
+# A set of unused dependencies that we require to force correct minimum versions
+# of transitive dependencies, for cases where our dependencies have incorrect
+# dependency specifications themselves.
+# error: unknown serde variant attribute `untagged`
+_serde_unused = { package = "serde", version = "1.0.200" }
+# error[E0277]: the trait bound `serde_json::Value: Hash` is not satisfied
+_serde_json_unused = { package = "serde_json", version = "1.0.137" }
