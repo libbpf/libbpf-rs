@@ -55,8 +55,6 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
-pub use build::CompilationOutput;
-
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
@@ -185,17 +183,17 @@ impl SkeletonBuilder {
     }
 
     /// Build BPF programs and generate the skeleton at path `output`
-    pub fn build_and_generate<P: AsRef<Path>>(&mut self, output: P) -> Result<CompilationOutput> {
-        let comp_output = self.build()?;
+    pub fn build_and_generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
+        self.build()?;
         self.generate(output)?;
 
-        Ok(comp_output)
+        Ok(())
     }
 
     /// Build BPF programs without generating a skeleton.
     ///
     /// [`SkeletonBuilder::source`] must be set for this to succeed.
-    pub fn build(&mut self) -> Result<CompilationOutput> {
+    pub fn build(&mut self) -> Result<()> {
         let source = self
             .source
             .as_ref()
