@@ -205,7 +205,7 @@ struct TypeDeclOpts {
 
 fn type_declaration_impl(
     ty: BtfType<'_>,
-    anon_types: &AnonTypes,
+    type_map: &TypeMap,
     opts: &TypeDeclOpts,
 ) -> Result<String> {
     let ty = ty.skip_mods_and_typedefs();
@@ -244,30 +244,30 @@ fn type_declaration_impl(
             format!("f{width}")
         }
         BtfKind::Ptr(t) => {
-            let pointee_ty = type_declaration_impl(t.referenced_type(), anon_types, opts)?;
+            let pointee_ty = type_declaration_impl(t.referenced_type(), type_map, opts)?;
 
             format!("*mut {pointee_ty}")
         }
         BtfKind::Array(t) => {
-            let val_ty = type_declaration_impl(t.contained_type(), anon_types, opts)?;
+            let val_ty = type_declaration_impl(t.contained_type(), type_map, opts)?;
 
             format!("[{}; {}]", val_ty, t.capacity())
         }
         BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
-            anon_types.type_name_or_anon(&ty).into_owned(),
+            type_map.type_name_or_anon(&ty).into_owned(),
         BtfKind::Func | BtfKind::FuncProto => opts.func_type.to_string(),
         BtfKind::Fwd => "std::ffi::c_void".to_string(),
-        BtfKind::Var(t) => type_declaration_impl(t.referenced_type(), anon_types, opts)?,
+        BtfKind::Var(t) => type_declaration_impl(t.referenced_type(), type_map, opts)?,
         _ => bail!("Invalid type: {ty:?}"),
     });
     Ok(s)
 }
 
-fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
+fn type_declaration(ty: BtfType<'_>, type_map: &TypeMap) -> Result<String> {
     let opts = TypeDeclOpts {
         func_type: "std::ffi::c_void",
     };
-    type_declaration_impl(ty, anon_types, &opts)
+    type_declaration_impl(ty, type_map, &opts)
 }
 
 /// Returns an expression that evaluates to the Default value
@@ -278,26 +278,26 @@ fn type_declaration(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
 /// Rule of thumb is `ty` must be a type a variable can have.
 ///
 /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
-fn type_default(ty: BtfType<'_>, anon_types: &AnonTypes) -> Result<String> {
+fn type_default(ty: BtfType<'_>, type_map: &TypeMap) -> Result<String> {
     let ty = ty.skip_mods_and_typedefs();
 
     Ok(btf_type_match!(match ty {
-        BtfKind::Int => format!("{}::default()", type_declaration(ty, anon_types)?),
-        BtfKind::Float => format!("{}::default()", type_declaration(ty, anon_types)?),
+        BtfKind::Int => format!("{}::default()", type_declaration(ty, type_map)?),
+        BtfKind::Float => format!("{}::default()", type_declaration(ty, type_map)?),
         BtfKind::Ptr => "std::ptr::null_mut()".to_string(),
         BtfKind::Array(t) => {
             format!(
                 "[{}; {}]",
-                type_default(t.contained_type(), anon_types)
+                type_default(t.contained_type(), type_map)
                     .map_err(|err| anyhow!("in {ty:?}: {err}"))?,
                 t.capacity()
             )
         }
         BtfKind::Struct | BtfKind::Union | BtfKind::Enum | BtfKind::Enum64 =>
-            format!("{}::default()", anon_types.type_name_or_anon(&ty)),
+            format!("{}::default()", type_map.type_name_or_anon(&ty)),
         BtfKind::Var(t) => format!(
             "{}::default()",
-            type_declaration(t.referenced_type(), anon_types)?
+            type_declaration(t.referenced_type(), type_map)?
         ),
         _ => bail!("Invalid type: {ty:?}"),
     }))
@@ -368,7 +368,7 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct AnonTypes {
+pub(crate) struct TypeMap {
     /// A mapping from type to number, allowing us to assign numbers to
     /// anonymous types consistently.
     types: RefCell<HashMap<TypeId, usize>>,
@@ -379,7 +379,7 @@ pub(crate) struct AnonTypes {
     names_count: RefCell<HashMap<String, u8>>,
 }
 
-impl AnonTypes {
+impl TypeMap {
     pub fn type_name_or_anon<'s>(&self, ty: &BtfType<'s>) -> Cow<'s, str> {
         match ty.name() {
             None => {
@@ -561,7 +561,7 @@ impl StructOps {{
 
 pub(crate) struct GenBtf<'s> {
     btf: Btf<'s>,
-    anon_types: AnonTypes,
+    type_map: TypeMap,
 }
 
 impl Debug for GenBtf<'_> {
@@ -576,7 +576,7 @@ impl<'s> From<Btf<'s>> for GenBtf<'s> {
     fn from(btf: Btf<'s>) -> GenBtf<'s> {
         Self {
             btf,
-            anon_types: Default::default(),
+            type_map: Default::default(),
         }
     }
 }
@@ -595,7 +595,7 @@ impl<'s> GenBtf<'s> {
     ///
     /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
     pub fn type_declaration(&self, ty: BtfType<'s>) -> Result<String> {
-        type_declaration(ty, &self.anon_types)
+        type_declaration(ty, &self.type_map)
     }
 
     /// Returns an expression that evaluates to the Default value
@@ -607,7 +607,7 @@ impl<'s> GenBtf<'s> {
     ///
     /// Type qualifiers are discarded (eg `const`, `volatile`, etc).
     fn type_default(&self, ty: BtfType<'s>) -> Result<String> {
-        type_default(ty, &self.anon_types)
+        type_default(ty, &self.type_map)
     }
 
     /// Returns rust type definition of `ty` in string format, including dependent types.
@@ -735,7 +735,7 @@ impl<'s> GenBtf<'s> {
                 // We just name them the same as their anonymous type. As there
                 // can only be one member of this very type, there can't be a
                 // conflict.
-                self.anon_types.type_name_or_anon(&field_ty)
+                self.type_map.type_name_or_anon(&field_ty)
             };
 
             // Add padding as necessary
@@ -802,7 +802,7 @@ impl<'s> GenBtf<'s> {
             // Set `offset` to end of current var
             offset = (member_offset / 8) as usize + size_of_type(field_ty, &self.btf)?;
 
-            let field_ty_str = type_declaration_impl(field_ty, &self.anon_types, opts)?;
+            let field_ty_str = type_declaration_impl(field_ty, &self.type_map, opts)?;
             let field_ty_str = if is_unsafe(field_ty) {
                 Cow::Owned(format!("std::mem::MaybeUninit<{field_ty_str}>"))
             } else {
@@ -842,7 +842,7 @@ impl<'s> GenBtf<'s> {
         writeln!(
             def,
             r#"pub {aggregate_type} {name} {{"#,
-            name = self.anon_types.type_name_or_anon(&t),
+            name = self.type_map.type_name_or_anon(&t),
         )?;
 
         for field in agg_content {
@@ -855,7 +855,7 @@ impl<'s> GenBtf<'s> {
             writeln!(
                 def,
                 r#"impl Default for {} {{"#,
-                self.anon_types.type_name_or_anon(&t),
+                self.type_map.type_name_or_anon(&t),
             )?;
             writeln!(def, r#"    fn default() -> Self {{"#)?;
             writeln!(def, r#"        Self {{"#,)?;
@@ -870,7 +870,7 @@ impl<'s> GenBtf<'s> {
             writeln!(
                 def,
                 r#"impl std::fmt::Debug for {} {{"#,
-                self.anon_types.type_name_or_anon(&t),
+                self.type_map.type_name_or_anon(&t),
             )?;
             writeln!(
                 def,
@@ -884,7 +884,7 @@ impl<'s> GenBtf<'s> {
             writeln!(
                 def,
                 r#"impl Default for {} {{"#,
-                self.anon_types.type_name_or_anon(&t),
+                self.type_map.type_name_or_anon(&t),
             )?;
             writeln!(def, r#"    fn default() -> Self {{"#)?;
             writeln!(def, r#"        Self {{"#,)?;
@@ -906,7 +906,7 @@ impl<'s> GenBtf<'s> {
             _ => bail!("Invalid enum size: {}", t.size()),
         };
 
-        let enum_name = self.anon_types.type_name_or_anon(&t);
+        let enum_name = self.type_map.type_name_or_anon(&t);
         let signed = if t.is_signed() { "i" } else { "u" };
         let mut first_field = None;
 
