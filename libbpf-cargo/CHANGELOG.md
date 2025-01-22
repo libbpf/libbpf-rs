@@ -9,6 +9,7 @@ Unreleased
   - Removed `--quiet` option of `libbpf make` sub-command
 - Fixed handling of multiple types of same name in BTF by enumerating
   them in the generated skeleton
+- Bumped minimum Rust version to `1.78`
 
 
 0.25.0-beta.1
