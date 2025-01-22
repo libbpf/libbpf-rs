@@ -14,6 +14,7 @@ use anyhow::Context;
 use anyhow::Result;
 use tempfile::tempdir;
 use tracing::debug;
+use tracing::info;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
@@ -74,6 +75,8 @@ impl BpfObjBuilder {
             .arg("-o")
             .arg(dst);
 
+        debug!("Running: `{}`", format_command(&cmd));
+
         let output = cmd
             .output()
             .with_context(|| format!("failed to execute `{}`", compiler.display()))?;
@@ -90,6 +93,20 @@ impl BpfObjBuilder {
                     format!("failed to compile {} from {}", dst.display(), src.display())
                 });
             return err;
+        }
+
+        if !output.stdout.is_empty() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                info!(target: "compiler-stdout", "{line}");
+            }
+        }
+
+        if !output.stderr.is_empty() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            for line in stderr.lines() {
+                info!(target: "compiler-stderr", "{line}");
+            }
         }
         Ok(())
     }
