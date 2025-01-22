@@ -56,7 +56,7 @@ pub fn c_char_slice_to_cstr(s: &[c_char]) -> Option<&CStr> {
 
 /// Round up a number to the next multiple of `r`
 pub fn roundup(num: usize, r: usize) -> usize {
-    ((num + (r - 1)) / r) * r
+    num.div_ceil(r) * r
 }
 
 /// Get the number of CPUs in the system, e.g., to interact with per-cpu maps.
@@ -194,16 +194,10 @@ mod tests {
         assert_eq!(c_char_slice_to_cstr(&slice), None);
 
         let slice = [0];
-        assert_eq!(
-            c_char_slice_to_cstr(&slice).unwrap(),
-            CStr::from_bytes_with_nul(b"\0").unwrap()
-        );
+        assert_eq!(c_char_slice_to_cstr(&slice).unwrap(), c"");
 
         let slice = ['a' as _, 'b' as _, 'c' as _, 0 as _];
-        assert_eq!(
-            c_char_slice_to_cstr(&slice).unwrap(),
-            CStr::from_bytes_with_nul(b"abc\0").unwrap()
-        );
+        assert_eq!(c_char_slice_to_cstr(&slice).unwrap(), c"abc");
 
         // Missing terminating NUL byte.
         let slice = ['a' as _, 'b' as _, 'c' as _];
