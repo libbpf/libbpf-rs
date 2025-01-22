@@ -18,19 +18,6 @@ use tracing::debug;
 use crate::metadata;
 use crate::metadata::UnprocessedObj;
 
-/// Contains information about a successful compilation.
-#[derive(Debug)]
-pub struct CompilationOutput {
-    stderr: Vec<u8>,
-}
-
-impl CompilationOutput {
-    /// Read the stderr from the compilation
-    pub fn stderr(&self) -> &[u8] {
-        &self.stderr
-    }
-}
-
 
 /// A helper for compiling BPF C code into a loadable BPF object file.
 // TODO: Before exposing this functionality publicly, consider whether
@@ -72,7 +59,7 @@ impl BpfObjBuilder {
         dst: &Path,
         compiler: &Path,
         compiler_args: &[OsString],
-    ) -> Result<CompilationOutput> {
+    ) -> Result<()> {
         debug!("Building {}", src.display());
 
         let mut cmd = Command::new(compiler.as_os_str());
@@ -104,10 +91,7 @@ impl BpfObjBuilder {
                 });
             return err;
         }
-
-        Ok(CompilationOutput {
-            stderr: output.stderr,
-        })
+        Ok(())
     }
 
     fn with_compiler_args<F, R>(&self, f: F) -> Result<R>
@@ -155,7 +139,7 @@ impl BpfObjBuilder {
     }
 
     /// Build a BPF object file from a set of input files.
-    pub fn build_many<S, P>(&mut self, srcs: S, dst: &Path) -> Result<Vec<CompilationOutput>>
+    pub fn build_many<S, P>(&mut self, srcs: S, dst: &Path) -> Result<()>
     where
         S: IntoIterator<Item = P>,
         P: AsRef<Path>,
@@ -164,26 +148,24 @@ impl BpfObjBuilder {
         let mut linker = libbpf_rs::Linker::new(dst)
             .context("failed to instantiate libbpf object file linker")?;
 
-        let output = self.with_compiler_args(|compiler_args| {
-            srcs.into_iter()
-                .map(|src| {
-                    let src = src.as_ref();
-                    let tmp_dst = obj_dir.path().join(src.file_name().with_context(|| {
-                        format!(
-                            "input path `{}` does not have a proper file name",
-                            src.display()
-                        )
-                    })?);
+        let () = self.with_compiler_args(|compiler_args| {
+            srcs.into_iter().try_for_each(|src| {
+                let src = src.as_ref();
+                let tmp_dst = obj_dir.path().join(src.file_name().with_context(|| {
+                    format!(
+                        "input path `{}` does not have a proper file name",
+                        src.display()
+                    )
+                })?);
 
-                    let output = Self::compile_single(src, &tmp_dst, &self.compiler, compiler_args)
-                        .with_context(|| format!("failed to compile `{}`", src.display()))?;
+                let () = Self::compile_single(src, &tmp_dst, &self.compiler, compiler_args)
+                    .with_context(|| format!("failed to compile `{}`", src.display()))?;
 
-                    linker
-                        .add_file(tmp_dst)
-                        .context("failed to add object file to BPF linker")?;
-                    Ok(output)
-                })
-                .collect::<Result<_, _>>()
+                linker
+                    .add_file(tmp_dst)
+                    .context("failed to add object file to BPF linker")?;
+                Ok(())
+            })
         })?;
 
         // The resulting object file may contain DWARF information
@@ -194,17 +176,12 @@ impl BpfObjBuilder {
         // information.
         linker.link().context("failed to link object file")?;
 
-        Ok(output)
+        Ok(())
     }
 
     /// Build a BPF object file.
-    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<CompilationOutput> {
-        self.build_many([src], dst).map(|vec| {
-            // SANITY: We pass in a single file and `build_many` is
-            //         guaranteed to produce as many outputs as input
-            //         files; so there must be one.
-            vec.into_iter().next().unwrap()
-        })
+    pub fn build(&mut self, src: &Path, dst: &Path) -> Result<()> {
+        self.build_many([src], dst)
     }
 }
 
@@ -319,36 +296,33 @@ pub fn build_project(
     check_progs(&to_compile)?;
 
     let clang = extract_clang_or_default(clang);
-    let _output = to_compile
-        .iter()
-        .map(|obj| {
-            let stem = obj.path.file_stem().with_context(|| {
+    let () = to_compile.iter().try_for_each(|obj| {
+        let stem = obj.path.file_stem().with_context(|| {
+            format!(
+                "Could not calculate destination name for obj={}",
+                obj.path.display()
+            )
+        })?;
+
+        let mut dest_name = stem.to_os_string();
+        dest_name.push(".o");
+
+        let mut dest_path = obj.out.to_path_buf();
+        dest_path.push(&dest_name);
+        fs::create_dir_all(&obj.out)?;
+
+        BpfObjBuilder::default()
+            .compiler(&clang)
+            .compiler_args(&clang_args)
+            .build(&obj.path, &dest_path)
+            .with_context(|| {
                 format!(
-                    "Could not calculate destination name for obj={}",
-                    obj.path.display()
+                    "failed to compile `{}` into `{}`",
+                    obj.path.display(),
+                    dest_path.display()
                 )
-            })?;
-
-            let mut dest_name = stem.to_os_string();
-            dest_name.push(".o");
-
-            let mut dest_path = obj.out.to_path_buf();
-            dest_path.push(&dest_name);
-            fs::create_dir_all(&obj.out)?;
-
-            BpfObjBuilder::default()
-                .compiler(&clang)
-                .compiler_args(&clang_args)
-                .build(&obj.path, &dest_path)
-                .with_context(|| {
-                    format!(
-                        "failed to compile `{}` into `{}`",
-                        obj.path.display(),
-                        dest_path.display()
-                    )
-                })
-        })
-        .collect::<Result<Vec<CompilationOutput>, _>>()?;
+            })
+    })?;
 
     Ok(())
 }
