@@ -125,7 +125,7 @@ pub struct Tag(pub [u8; 8]);
 /// Information about a BPF program
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct ProgramInfo {
     pub name: CString,
     pub ty: ProgramType,
@@ -439,7 +439,7 @@ impl Iterator for ProgInfoIter {
 /// Information about a BPF map
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct MapInfo {
     pub name: CString,
     pub ty: MapType,
@@ -588,21 +588,21 @@ impl Iterator for BtfInfoIter {
 
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct RawTracepointLinkInfo {
     pub name: String,
 }
 
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct TracingLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct CgroupLinkInfo {
     pub cgroup_id: u64,
     pub attach_type: ProgramAttachType,
@@ -610,7 +610,7 @@ pub struct CgroupLinkInfo {
 
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct NetNsLinkInfo {
     pub ino: u32,
     pub attach_type: ProgramAttachType,
@@ -618,7 +618,7 @@ pub struct NetNsLinkInfo {
 
 #[derive(Debug, Clone)]
 // TODO: Document variants.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum LinkTypeInfo {
     RawTracepoint(RawTracepointLinkInfo),
     Tracing(TracingLinkInfo),
@@ -631,7 +631,7 @@ pub enum LinkTypeInfo {
 /// Information about a BPF link
 #[derive(Debug, Clone)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub struct LinkInfo {
     pub info: LinkTypeInfo,
     pub id: u32,
