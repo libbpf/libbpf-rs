@@ -261,5 +261,7 @@ jobs:
     ]
     if: always()
     runs-on: ubuntu-latest
+    env:
+      NEEDS_CONTEXT: ${{ toJSON(needs) }}
     steps:
-      - run: echo '${{ toJSON(needs) }}' | jq -e 'to_entries | all(.value.result == "success")'
+      - run: echo "$NEEDS_CONTEXT" | jq -e 'to_entries | all(.value.result == "success")'
