@@ -3,7 +3,6 @@
 use std::mem::MaybeUninit;
 use std::os::unix::io::AsFd as _;
 
-use anyhow::bail;
 use anyhow::Context as _;
 use anyhow::Result;
 
@@ -54,22 +53,8 @@ struct Command {
     iface: String,
 }
 
-fn bump_memlock_rlimit() -> Result<()> {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        bail!("Failed to increase rlimit");
-    }
-
-    Ok(())
-}
 fn main() -> Result<()> {
     let opts = Command::parse();
-
-    bump_memlock_rlimit()?;
 
     let builder = TcSkelBuilder::default();
     let mut open_object = MaybeUninit::uninit();
