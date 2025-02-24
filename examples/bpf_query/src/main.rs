@@ -39,7 +39,7 @@ fn prog(args: ProgArgs) {
             {
                 use iced_x86::Formatter;
 
-                let mut d = iced_x86::Decoder::new(32, &prog.jited_prog_insns, 0);
+                let mut d = iced_x86::Decoder::new(64, &prog.jited_prog_insns, 0);
                 let mut f = iced_x86::GasFormatter::new();
                 while d.can_decode() {
                     let ip = d.ip();
