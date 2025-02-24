@@ -8,7 +8,6 @@ use std::mem::MaybeUninit;
 use std::str;
 use std::str::FromStr;
 
-use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use libbpf_rs::skel::OpenSkel;
@@ -110,19 +109,6 @@ struct Command {
 
 unsafe impl Plain for capable::types::event {}
 
-fn bump_memlock_rlimit() -> Result<()> {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        bail!("Failed to increase rlimit");
-    }
-
-    Ok(())
-}
-
 fn print_banner(extra_fields: bool) {
     #[allow(clippy::print_literal)]
     if extra_fields {
@@ -186,8 +172,6 @@ fn main() -> Result<()> {
     if opts.debug {
         skel_builder.obj_builder.debug(true);
     }
-
-    bump_memlock_rlimit()?;
 
     let mut open_object = MaybeUninit::uninit();
     let open_skel = skel_builder.open(&mut open_object)?;

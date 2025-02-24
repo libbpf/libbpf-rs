@@ -4,7 +4,6 @@ use std::mem::MaybeUninit;
 use std::str;
 use std::time::Duration;
 
-use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use libbpf_rs::skel::OpenSkel;
@@ -43,19 +42,6 @@ struct Command {
 
 unsafe impl Plain for runqslower::types::event {}
 
-fn bump_memlock_rlimit() -> Result<()> {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        bail!("Failed to increase rlimit");
-    }
-
-    Ok(())
-}
-
 fn handle_event(_cpu: i32, data: &[u8]) {
     let mut event = runqslower::types::event::default();
     plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
@@ -91,7 +77,6 @@ fn main() -> Result<()> {
         skel_builder.obj_builder.debug(true);
     }
 
-    bump_memlock_rlimit()?;
     let mut open_object = MaybeUninit::uninit();
     let open_skel = skel_builder.open(&mut open_object)?;
 

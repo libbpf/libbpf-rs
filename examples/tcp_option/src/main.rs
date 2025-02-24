@@ -17,7 +17,6 @@ use libc::c_void;
 use libc::socklen_t;
 use std::mem::size_of_val;
 
-use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use std::fs::OpenOptions;
@@ -54,19 +53,6 @@ struct Command {
     verbose: bool,
 }
 
-fn bump_memlock_rlimit() -> Result<()> {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        bail!("Failed to increase rlimit");
-    }
-
-    Ok(())
-}
-
 fn open_fd() -> Result<i32> {
     unsafe {
         match socket(
@@ -82,7 +68,6 @@ fn open_fd() -> Result<i32> {
 
 fn main() -> Result<()> {
     let opts = Command::parse();
-    bump_memlock_rlimit()?;
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
