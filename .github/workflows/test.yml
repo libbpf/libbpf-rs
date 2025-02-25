@@ -64,25 +64,28 @@ jobs:
     - name: Run root tests
       run: cd libbpf-rs && cargo test --profile=${{ matrix.profile }} --locked --verbose -- ':root:'
 
-  run-tcp-ca:
-    name: Run tcp_ca example
+  run-examples:
+    name: Run chosen examples
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install --yes --no-install-recommends libelf-dev
+        run: |
+          sudo apt-get install --yes --no-install-recommends libelf-dev linux-headers-$(uname -r)
+          sudo ln -s /usr/include/asm-generic /usr/include/asm
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - name: Run tcp_ca
+      - name: Run examples
         #env:
         #  CFLAGS: '-fsanitize=leak'
         #  CXXFLAGS: '-fsanitize=leak'
         #  RUSTFLAGS: '-Zsanitizer=leak'
         run: |
-          cargo build --package tcp_ca
+          cargo build --package tcp_ca --package ringbuf_multi
           sudo target/debug/tcp_ca
+          sudo target/debug/ringbuf_multi
 
   build-features:
     name: Build [${{ matrix.args }}]
@@ -123,7 +126,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install --yes --no-install-recommends libelf-dev
+        run: |
+          sudo apt-get install --yes --no-install-recommends libelf-dev linux-headers-$(uname -r)
+          sudo ln -s /usr/include/asm-generic /usr/include/asm
       - name: Install Nightly Rust
         uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly -Z minimal-versions update
@@ -213,7 +218,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install --yes --no-install-recommends libelf-dev
+        run: |
+          sudo apt-get install --yes --no-install-recommends libelf-dev linux-headers-$(uname -r)
+          sudo ln -s /usr/include/asm-generic /usr/include/asm
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -242,7 +249,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: sudo apt-get install --yes --no-install-recommends libelf-dev
+        run: |
+          sudo apt-get install --yes --no-install-recommends libelf-dev linux-headers-$(uname -r)
+          sudo ln -s /usr/include/asm-generic /usr/include/asm
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo doc --locked --no-deps
 
@@ -255,7 +264,7 @@ jobs:
       build-minimum,
       cargo-doc,
       clippy,
-      run-tcp-ca,
+      run-examples,
       rustfmt,
       test,
     ]
