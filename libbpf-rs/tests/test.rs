@@ -50,7 +50,6 @@ use scopeguard::defer;
 use tempfile::NamedTempFile;
 use test_tag::tag;
 
-use crate::common::bump_rlimit_mlock;
 use crate::common::get_map;
 use crate::common::get_map_mut;
 use crate::common::get_prog_mut;
@@ -62,8 +61,6 @@ use crate::common::with_ringbuffer;
 #[tag(root)]
 #[test]
 fn test_object_build_and_load() {
-    bump_rlimit_mlock();
-
     get_test_object("runqslower.bpf.o");
 }
 
@@ -127,8 +124,6 @@ fn test_object_name() {
 #[tag(root)]
 #[test]
 fn test_object_maps() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let _map = get_map_mut(&mut obj, "start");
     let _map = get_map_mut(&mut obj, "events");
@@ -138,8 +133,6 @@ fn test_object_maps() {
 #[tag(root)]
 #[test]
 fn test_object_maps_iter() {
-    bump_rlimit_mlock();
-
     let obj = get_test_object("runqslower.bpf.o");
     for map in obj.maps() {
         eprintln!("{:?}", map.name());
@@ -151,8 +144,6 @@ fn test_object_maps_iter() {
 #[tag(root)]
 #[test]
 fn test_object_map_key_value_size() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -167,8 +158,6 @@ fn test_object_map_key_value_size() {
 #[tag(root)]
 #[test]
 fn test_object_map_update_batch() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -256,8 +245,6 @@ fn test_object_map_update_batch() {
 #[tag(root)]
 #[test]
 fn test_object_map_lookup_batch() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     let data = HashMap::from([
@@ -318,8 +305,6 @@ fn test_object_map_lookup_batch() {
 #[tag(root)]
 #[test]
 fn test_object_map_delete_batch() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -402,8 +387,6 @@ pub fn test_map_info() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_lookup() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let res = map
@@ -421,8 +404,6 @@ fn test_object_percpu_lookup() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_invalid_lookup_fn() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
 
@@ -432,8 +413,6 @@ fn test_object_percpu_invalid_lookup_fn() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_update() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
@@ -457,8 +436,6 @@ fn test_object_percpu_update() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_invalid_update_fn() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
@@ -471,8 +448,6 @@ fn test_object_percpu_invalid_update_fn() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_lookup_update() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
@@ -500,8 +475,6 @@ fn test_object_percpu_lookup_update() {
 #[tag(root)]
 #[test]
 fn test_object_map_empty_lookup() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -515,8 +488,6 @@ fn test_object_map_empty_lookup() {
 #[tag(root)]
 #[test]
 fn test_object_map_queue_crud() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let queue = get_map_mut(&mut obj, "queue");
 
@@ -563,8 +534,6 @@ fn test_object_map_queue_crud() {
 #[tag(root)]
 #[test]
 fn test_object_map_bloom_filter_crud() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let bloom_filter = get_map_mut(&mut obj, "bloom_filter");
 
@@ -614,8 +583,6 @@ fn test_object_map_bloom_filter_crud() {
 #[tag(root)]
 #[test]
 fn test_object_map_stack_crud() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let stack = get_map_mut(&mut obj, "stack");
 
@@ -661,8 +628,6 @@ fn test_object_map_stack_crud() {
 #[tag(root)]
 #[test]
 fn test_object_map_mutation() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     start
@@ -686,8 +651,6 @@ fn test_object_map_mutation() {
 #[tag(root)]
 #[test]
 fn test_object_map_lookup_flags() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     start
@@ -701,8 +664,6 @@ fn test_object_map_lookup_flags() {
 #[tag(root)]
 #[test]
 fn test_object_map_key_iter() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -733,8 +694,6 @@ fn test_object_map_key_iter() {
 #[tag(root)]
 #[test]
 fn test_object_map_key_iter_empty() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     let mut count = 0;
@@ -747,8 +706,6 @@ fn test_object_map_key_iter_empty() {
 #[tag(root)]
 #[test]
 fn test_object_map_pin() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut map = get_map_mut(&mut obj, "start");
     let path = "/sys/fs/bpf/mymap_test_object_map_pin";
@@ -767,8 +724,6 @@ fn test_object_map_pin() {
 #[tag(root)]
 #[test]
 fn test_object_loading_pinned_map_from_path() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut map = get_map_mut(&mut obj, "start");
     let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
@@ -788,8 +743,6 @@ fn test_object_loading_pinned_map_from_path() {
 #[tag(root)]
 #[test]
 fn test_program_loading_fd_from_pinned_path() {
-    bump_rlimit_mlock();
-
     let path = "/sys/fs/bpf/myprog_test_pin_to_load_from_path";
     let prog_name = "handle__sched_switch";
 
@@ -811,8 +764,6 @@ fn test_program_loading_fd_from_pinned_path() {
 #[tag(root)]
 #[test]
 fn test_program_loading_fd_from_pinned_path_with_wrong_pin_type() {
-    bump_rlimit_mlock();
-
     let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
     let map_name = "events";
 
@@ -829,8 +780,6 @@ fn test_program_loading_fd_from_pinned_path_with_wrong_pin_type() {
 #[tag(root)]
 #[test]
 fn test_object_loading_loaded_map_from_id() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let map = get_map_mut(&mut obj, "start");
     let id = map.info().expect("to get info from map 'start'").info.id;
@@ -847,8 +796,6 @@ fn test_object_loading_loaded_map_from_id() {
 #[tag(root)]
 #[test]
 fn test_object_programs() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let _prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let _prog = get_prog_mut(&mut obj, "handle__sched_wakeup_new");
@@ -859,8 +806,6 @@ fn test_object_programs() {
 #[tag(root)]
 #[test]
 fn test_object_programs_iter_mut() {
-    bump_rlimit_mlock();
-
     let obj = get_test_object("runqslower.bpf.o");
     assert!(obj.progs().count() == 3);
 }
@@ -868,8 +813,6 @@ fn test_object_programs_iter_mut() {
 #[tag(root)]
 #[test]
 fn test_object_program_pin() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let path = "/sys/fs/bpf/myprog";
@@ -895,8 +838,6 @@ fn test_object_program_pin() {
 #[tag(root)]
 #[test]
 fn test_object_link_pin() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let mut link = prog.attach().expect("failed to attach prog");
@@ -924,8 +865,6 @@ fn test_object_link_pin() {
 #[tag(root)]
 #[test]
 fn test_object_reuse_pined_map() {
-    bump_rlimit_mlock();
-
     let path = "/sys/fs/bpf/mymap_test_object_reuse_pined_map";
     let key = vec![1, 2, 3, 4];
     let val = vec![1, 2, 3, 4, 5, 6, 7, 8];
@@ -975,8 +914,6 @@ fn test_object_reuse_pined_map() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_raw() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1050,8 +987,6 @@ fn test_object_ringbuf_raw() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_err_callback() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1112,8 +1047,6 @@ fn test_object_ringbuf_err_callback() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1191,8 +1124,6 @@ fn test_object_ringbuf() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_closure() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1261,8 +1192,6 @@ fn test_object_ringbuf_closure() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_with_closed_map() {
-    bump_rlimit_mlock();
-
     fn test(poll_fn: impl FnOnce(&libbpf_rs::RingBuffer)) {
         let mut value = 0i32;
 
@@ -1315,8 +1244,6 @@ fn test_object_user_ringbuf() {
 
     unsafe impl Plain for MyStruct {}
 
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1356,8 +1283,6 @@ fn test_object_user_ringbuf() {
 #[tag(root)]
 #[test]
 fn test_object_user_ringbuf_reservation_too_big() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1373,8 +1298,6 @@ fn test_object_user_ringbuf_reservation_too_big() {
 #[tag(root)]
 #[test]
 fn test_object_user_ringbuf_not_enough_space() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1394,8 +1317,6 @@ fn test_object_user_ringbuf_not_enough_space() {
 #[tag(root)]
 #[test]
 fn test_object_task_iter() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("taskiter.bpf.o");
     let prog = get_prog_mut(&mut obj, "dump_pid");
     let link = prog.attach().expect("failed to attach prog");
@@ -1430,8 +1351,6 @@ fn test_object_task_iter() {
 #[tag(root)]
 #[test]
 fn test_object_map_iter() {
-    bump_rlimit_mlock();
-
     // Create a map for iteration test.
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
@@ -1482,8 +1401,6 @@ fn test_object_map_iter() {
 #[tag(root)]
 #[test]
 fn test_object_map_create_and_pin() {
-    bump_rlimit_mlock();
-
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
@@ -1528,8 +1445,6 @@ fn test_object_map_create_and_pin() {
 #[tag(root)]
 #[test]
 fn test_object_map_create_without_name() {
-    bump_rlimit_mlock();
-
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
@@ -1565,8 +1480,6 @@ fn test_object_map_create_without_name() {
 #[tag(root)]
 #[test]
 fn test_object_map_handle_clone() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let map = get_map_mut(&mut obj, "events");
     let handle1 = MapHandle::try_from(&map).expect("failed to create handle from Map");
@@ -1594,8 +1507,6 @@ fn test_object_map_handle_clone() {
 #[tag(root)]
 #[test]
 fn test_object_usdt() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__usdt");
 
@@ -1622,8 +1533,6 @@ fn test_object_usdt() {
 #[tag(root)]
 #[test]
 fn test_object_usdt_cookie() {
-    bump_rlimit_mlock();
-
     let cookie_val = 1337u16;
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__usdt_with_cookie");
@@ -1655,8 +1564,6 @@ fn test_object_usdt_cookie() {
 #[tag(root)]
 #[test]
 fn test_map_probes() {
-    bump_rlimit_mlock();
-
     let supported = MapType::Array
         .is_supported()
         .expect("failed to query if Array map is supported");
@@ -1668,8 +1575,6 @@ fn test_map_probes() {
 #[tag(root)]
 #[test]
 fn test_program_probes() {
-    bump_rlimit_mlock();
-
     let supported = ProgramType::SocketFilter
         .is_supported()
         .expect("failed to query if SocketFilter program is supported");
@@ -1681,8 +1586,6 @@ fn test_program_probes() {
 #[tag(root)]
 #[test]
 fn test_program_helper_probes() {
-    bump_rlimit_mlock();
-
     let supported = ProgramType::SocketFilter
         .is_helper_supported(libbpf_sys::BPF_FUNC_map_lookup_elem)
         .expect("failed to query if helper supported");
@@ -1699,8 +1602,6 @@ fn test_program_helper_probes() {
 #[tag(root)]
 #[test]
 fn test_object_open_program_insns() {
-    bump_rlimit_mlock();
-
     let open_obj = open_test_object("usdt.bpf.o");
     let prog = open_obj
         .progs()
@@ -1714,8 +1615,6 @@ fn test_object_open_program_insns() {
 #[tag(root)]
 #[test]
 fn test_object_program_insns() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__usdt");
     let insns = prog.insns();
@@ -1726,8 +1625,6 @@ fn test_object_program_insns() {
 #[tag(root)]
 #[test]
 fn test_object_tracepoint() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint");
     let _link = prog
@@ -1748,8 +1645,6 @@ fn test_object_tracepoint() {
 #[tag(root)]
 #[test]
 fn test_object_tracepoint_with_opts() {
-    bump_rlimit_mlock();
-
     let cookie_val = 42u16;
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint_with_cookie");
@@ -1782,8 +1677,6 @@ extern "C" fn uprobe_target() -> usize {
 #[tag(root)]
 #[test]
 fn test_object_uprobe_with_opts() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("uprobe.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__uprobe");
 
@@ -1812,8 +1705,6 @@ fn test_object_uprobe_with_opts() {
 #[tag(root)]
 #[test]
 fn test_object_uprobe_with_cookie() {
-    bump_rlimit_mlock();
-
     let cookie_val = 5u16;
     let mut obj = get_test_object("uprobe.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__uprobe_with_cookie");
@@ -1891,8 +1782,6 @@ fn test_object_perf_buffer_raw() {
     use memmem::Searcher;
     use memmem::TwoWaySearcher;
 
-    bump_rlimit_mlock();
-
     let cookie_val = 42u16;
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint_with_cookie_pb");
@@ -1928,8 +1817,6 @@ fn test_object_perf_buffer_raw() {
 #[tag(root)]
 #[test]
 fn test_map_pinned_status() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("map_auto_pin.bpf.o");
     let map = get_map_mut(&mut obj, "auto_pin_map");
     let is_pinned = map.is_pinned();
@@ -1945,8 +1832,6 @@ fn test_map_pinned_status() {
 #[tag(root)]
 #[test]
 fn test_map_pinned_status_with_pin_root_path() {
-    bump_rlimit_mlock();
-
     let obj_path = get_test_object_path("map_auto_pin.bpf.o");
     let mut obj = ObjectBuilder::default()
         .debug(true)
@@ -1972,8 +1857,6 @@ fn test_map_pinned_status_with_pin_root_path() {
 #[tag(root)]
 #[test]
 fn test_program_get_fd_and_id() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let prog_fd = prog.as_fd();
@@ -1985,8 +1868,6 @@ fn test_program_get_fd_and_id() {
 #[tag(root)]
 #[test]
 fn test_map_autocreate_disable() {
-    bump_rlimit_mlock();
-
     let mut open_obj = open_test_object("map_auto_pin.bpf.o");
     let mut auto_pin_map = open_obj
         .maps_mut()
@@ -2003,8 +1884,6 @@ fn test_map_autocreate_disable() {
 #[tag(root)]
 #[test]
 fn test_map_adjust_value_size() {
-    bump_rlimit_mlock();
-
     let mut open_obj = open_test_object("map_auto_pin.bpf.o");
     let mut resizable = open_obj
         .maps_mut()
@@ -2025,8 +1904,6 @@ fn test_map_adjust_value_size() {
 #[tag(root)]
 #[test]
 fn test_object_map_max_entries() {
-    bump_rlimit_mlock();
-
     let mut obj = open_test_object("runqslower.bpf.o");
 
     // resize the map to have twice the number of entries
@@ -2060,8 +1937,6 @@ fn test_object_map_max_entries() {
 #[tag(root)]
 #[test]
 fn test_attach_ksyscall() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ksyscall.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__ksyscall");
     let _link = prog
@@ -2085,8 +1960,6 @@ fn test_attach_ksyscall() {
 #[tag(root)]
 #[test]
 fn test_run_prog_success() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("run_prog.bpf.o");
     let prog = get_prog_mut(&mut obj, "test_1");
 
@@ -2112,8 +1985,6 @@ fn test_run_prog_success() {
 #[tag(root)]
 #[test]
 fn test_run_prog_fail() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("run_prog.bpf.o");
     let prog = get_prog_mut(&mut obj, "test_2");
 

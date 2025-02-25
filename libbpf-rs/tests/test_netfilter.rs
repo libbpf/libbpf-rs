@@ -16,7 +16,6 @@ use libbpf_rs::NFPROTO_IPV6;
 use libbpf_rs::NF_INET_POST_ROUTING;
 use libbpf_rs::NF_INET_PRE_ROUTING;
 
-use crate::common::bump_rlimit_mlock;
 use crate::common::get_map_mut;
 use crate::common::get_prog_mut;
 use crate::common::get_test_object;
@@ -67,7 +66,6 @@ fn test_attach_and_detach(obj: &mut Object, protocol_family: i32, hooknum: i32, 
 #[tag(root)]
 #[test]
 fn test_netfilter() {
-    bump_rlimit_mlock();
     let mut obj = get_test_object("netfilter.bpf.o");
 
     // We don't test all hooks here, because support for some may be

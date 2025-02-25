@@ -10,7 +10,6 @@ use test_tag::tag;
 use libbpf_rs::Xdp;
 use libbpf_rs::XdpFlags;
 
-use crate::common::bump_rlimit_mlock;
 use crate::common::get_prog_mut;
 use crate::common::get_test_object;
 
@@ -21,8 +20,6 @@ const LO_IFINDEX: i32 = 1;
 #[tag(root)]
 #[test]
 fn test_xdp() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("xdp.bpf.o");
     let prog = get_prog_mut(&mut obj, "xdp_filter");
     let fd = prog.as_fd();
