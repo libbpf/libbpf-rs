@@ -6,6 +6,7 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 license.workspace = true
+documentation = "https://docs.rs/libbpf-cargo"
 description = "Cargo plugin to build bpf programs"
 readme = "README.md"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>", "Daniel Müller <deso@posteo.net>"]
