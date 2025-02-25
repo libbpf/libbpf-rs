@@ -100,7 +100,7 @@ fn main() -> Result<()> {
         .unwrap()
         .into_raw_fd();
 
-    let _kprobe = skel
+    let _link = skel
         .progs
         .sockops_write_tcp_options
         .attach_cgroup(cgroup_fd)
