@@ -1,4 +1,3 @@
-use std::io;
 use std::path::PathBuf;
 
 use libbpf_rs::Map;
@@ -26,21 +25,6 @@ pub fn open_test_object(filename: &str) -> OpenObject {
         .open_file(obj_path)
         .expect("failed to open object");
     obj
-}
-
-pub fn bump_rlimit_mlock() {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) };
-    assert_eq!(
-        ret,
-        0,
-        "Setting RLIMIT_MEMLOCK failed with errno: {}",
-        io::Error::last_os_error()
-    );
 }
 
 pub fn get_test_object(filename: &str) -> Object {

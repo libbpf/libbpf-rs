@@ -18,7 +18,6 @@ use libbpf_rs::TC_H_MIN_EGRESS;
 use libbpf_rs::TC_H_MIN_INGRESS;
 use libbpf_rs::TC_INGRESS;
 
-use crate::common::bump_rlimit_mlock;
 use crate::common::get_prog_mut;
 use crate::common::get_test_object;
 
@@ -47,8 +46,6 @@ fn clear_clsact(fd: BorrowedFd) -> Result<()> {
 #[test]
 #[serial]
 fn test_tc_basic_cycle() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -91,8 +88,6 @@ fn test_tc_basic_cycle() {
 #[test]
 #[serial]
 fn test_tc_attach_no_qdisc() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -118,8 +113,6 @@ fn test_tc_attach_no_qdisc() {
 #[test]
 #[serial]
 fn test_tc_attach_basic() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -149,8 +142,6 @@ fn test_tc_attach_basic() {
 #[test]
 #[serial]
 fn test_tc_attach_repeat() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -191,7 +182,6 @@ fn test_tc_attach_repeat() {
 #[test]
 #[serial]
 fn test_tc_attach_custom() {
-    bump_rlimit_mlock();
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -246,7 +236,6 @@ fn test_tc_attach_custom() {
 #[test]
 #[serial]
 fn test_tc_detach_basic() {
-    bump_rlimit_mlock();
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -294,8 +283,6 @@ fn test_tc_detach_basic() {
 #[test]
 #[serial]
 fn test_tc_query() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
@@ -368,8 +355,6 @@ fn test_tc_query() {
 #[test]
 #[serial]
 fn test_tc_double_create() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tc-unit.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle_tc");
     let fd = prog.as_fd();
