@@ -4,6 +4,7 @@
 
 use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::ffi::OsStr;
 use std::marker::PhantomData;
 use std::mem;
@@ -52,7 +53,7 @@ pub struct UprobeOpts {
     /// `func_name` and use `func_offset` argument to specify offset within the
     /// function. Shared library functions must specify the shared library
     /// binary_path.
-    pub func_name: String,
+    pub func_name: Option<String>,
     #[doc(hidden)]
     pub _non_exhaustive: (),
 }
@@ -817,13 +818,20 @@ impl<'obj> ProgramMut<'obj> {
             _non_exhaustive,
         } = opts;
 
-        let func_name = util::str_to_cstring(&func_name)?;
+        let func_name: Option<CString> = if let Some(func_name) = func_name {
+            Some(util::str_to_cstring(&func_name)?)
+        } else {
+            None
+        };
+        let ptr = func_name
+            .as_ref()
+            .map_or(ptr::null(), |func_name| func_name.as_ptr());
         let opts = libbpf_sys::bpf_uprobe_opts {
             sz: size_of::<libbpf_sys::bpf_uprobe_opts>() as _,
             ref_ctr_offset: ref_ctr_offset as libbpf_sys::size_t,
             bpf_cookie: cookie,
             retprobe,
-            func_name: func_name.as_ptr(),
+            func_name: ptr,
             ..Default::default()
         };
 
