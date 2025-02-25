@@ -1,0 +1,15 @@
+[package]
+name = "ringbuf_multi"
+version = "0.1.0"
+edition.workspace = true
+authors = ["Daniel Müller <deso@posteo.net>"]
+license = "LGPL-2.1-only OR BSD-2-Clause"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
+vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+
+[dependencies]
+libbpf-rs = { path = "../../libbpf-rs" }
+libc = "0.2"
+plain = "0.2"

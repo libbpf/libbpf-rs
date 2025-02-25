@@ -13,11 +13,12 @@ members = [
   "libbpf-rs/dev",
   "examples/bpf_query",
   "examples/capable",
+  "examples/netfilter_blocklist",
+  "examples/ringbuf_multi",
   "examples/runqslower",
   "examples/tc_port_whitelist",
   "examples/tcp_ca",
   "examples/tcp_option",
   "examples/tproxy",
-  "examples/netfilter_blocklist",
 ]
 resolver = "2"
