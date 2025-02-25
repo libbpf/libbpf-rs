@@ -842,7 +842,7 @@ gen_collection_concrete_type! {
         value: {
             let hi: u64 = member.val_hi32.into();
             let lo: u64 = member.val_lo32.into();
-            let val = hi << 32 | lo;
+            let val = (hi << 32) | lo;
             if signed {
                 i64::from_ne_bytes(val.to_ne_bytes()).into()
             } else {
