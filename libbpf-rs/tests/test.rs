@@ -1684,7 +1684,7 @@ fn test_object_uprobe_with_opts() {
     let path = current_exe().expect("failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
-        func_name: "uprobe_target".to_string(),
+        func_name: Some("uprobe_target".into()),
         ..Default::default()
     };
     let _link = prog
@@ -1713,7 +1713,7 @@ fn test_object_uprobe_with_cookie() {
     let path = current_exe().expect("failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
-        func_name: "uprobe_target".to_string(),
+        func_name: Some("uprobe_target".into()),
         cookie: cookie_val.into(),
         ..Default::default()
     };
