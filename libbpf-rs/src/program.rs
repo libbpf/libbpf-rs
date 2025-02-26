@@ -53,6 +53,10 @@ pub struct UprobeOpts {
     /// `func_name` and use `func_offset` argument to specify offset within the
     /// function. Shared library functions must specify the shared library
     /// binary_path.
+    ///
+    /// If `func_name` is `None`, `func_offset` will be treated as the
+    /// absolute offset of the symbol to attach to, rather than a
+    /// relative one.
     pub func_name: Option<String>,
     #[doc(hidden)]
     pub _non_exhaustive: (),
