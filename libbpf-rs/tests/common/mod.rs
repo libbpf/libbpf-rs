@@ -1,5 +1,10 @@
+use std::error::Error;
+use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
+use goblin::elf::sym;
+use goblin::elf::Elf;
 use libbpf_rs::Map;
 use libbpf_rs::MapCore;
 use libbpf_rs::MapMut;
@@ -84,4 +89,43 @@ where
     }
 
     value
+}
+
+pub fn get_symbol_offset(binary_path: &Path, symbol_name: &str) -> Result<usize, Box<dyn Error>> {
+    let buffer = fs::read(binary_path)?;
+    let elf = Elf::parse(&buffer)?;
+
+    // Check dynamic symbols
+    for sym in elf.dynsyms.iter() {
+        if sym.st_type() != sym::STT_FUNC {
+            continue;
+        }
+        if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
+            if name == symbol_name {
+                let sec = &elf.section_headers[sym.st_shndx];
+                let offset = sym.st_value - sec.sh_addr + sec.sh_offset;
+                return Ok(offset as usize);
+            }
+        }
+    }
+
+    // Check regular symbols
+    for sym in elf.syms.iter() {
+        if sym.st_type() != sym::STT_FUNC {
+            continue;
+        }
+        if let Some(name) = elf.strtab.get_at(sym.st_name) {
+            if name == symbol_name {
+                let sec = &elf.section_headers[sym.st_shndx];
+                let offset = sym.st_value - sec.sh_addr + sec.sh_offset;
+                return Ok(offset as usize);
+            }
+        }
+    }
+
+    Err(format!(
+        "Symbol `{}` not found in binary {:?}",
+        symbol_name, binary_path
+    )
+    .into())
 }

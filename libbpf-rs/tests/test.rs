@@ -53,6 +53,7 @@ use test_tag::tag;
 use crate::common::get_map;
 use crate::common::get_map_mut;
 use crate::common::get_prog_mut;
+use crate::common::get_symbol_offset;
 use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
@@ -1689,6 +1690,28 @@ fn test_object_uprobe_with_opts() {
     };
     let _link = prog
         .attach_uprobe_with_opts(pid, path, func_offset, opts)
+        .expect("failed to attach prog");
+
+    let map = get_map_mut(&mut obj, "ringbuf");
+    let action = || {
+        let _ = uprobe_target();
+    };
+    let result = with_ringbuffer(&map, action);
+
+    assert_eq!(result, 1);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_with_func_offset() {
+    let mut obj = get_test_object("uprobe.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe");
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+    let func_offset = get_symbol_offset(&path, "uprobe_target").unwrap();
+    let _link = prog
+        .attach_uprobe_with_opts(pid, path, func_offset, Default::default())
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
