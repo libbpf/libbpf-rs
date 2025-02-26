@@ -67,7 +67,8 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     /// manager. The callback should take one argument, a slice of raw bytes,
     /// and return an i32.
     ///
-    /// Non-zero return values in the callback will stop ring buffer consumption early.
+    /// Negative return values in the callback will stop ring buffer consumption early and
+    /// propagate the error code to the polling caller.
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
