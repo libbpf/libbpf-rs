@@ -348,6 +348,7 @@ version = "0.25.0-beta.1"
 dependencies = [
  "bitflags 2.8.0",
  "cc",
+ "goblin",
  "libbpf-rs",
  "libbpf-rs-dev",
  "libbpf-sys",
