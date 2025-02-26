@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Added `max_entries` getter to various map types
+- Adjusted `UprobeOpts::func_name` to be an `Option`
 - Implemented `Sync` for `Link`
 
 
