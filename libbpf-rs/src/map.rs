@@ -178,15 +178,19 @@ impl<'obj> OpenMapMut<'obj> {
         util::parse_ret(ret)
     }
 
-    // TODO: Document member.
-    #[allow(missing_docs)]
+    /// Set the NUMA node for this map.
+    ///
+    /// This can be used to ensure that the map is allocated on a particular
+    /// NUMA node, which can be useful for performance-critical applications.
     pub fn set_numa_node(&mut self, numa_node: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr.as_ptr(), numa_node) };
         util::parse_ret(ret)
     }
 
-    // TODO: Document member.
-    #[allow(missing_docs)]
+    /// Set the inner map FD.
+    ///
+    /// This is used for nested maps, where the value type of the outer map is a pointer to the
+    /// inner map.
     pub fn set_inner_map_fd(&mut self, inner_map_fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner_map_fd.as_raw_fd())
@@ -194,8 +198,14 @@ impl<'obj> OpenMapMut<'obj> {
         util::parse_ret(ret)
     }
 
-    // TODO: Document member.
-    #[allow(missing_docs)]
+    /// Set the `map_extra` field for this map.
+    ///
+    /// Allows users to pass additional data to the
+    /// kernel when loading the map. The kernel will store this value in the
+    /// `bpf_map_info` struct associated with the map.
+    ///
+    /// This can be used to pass data to the kernel that is not otherwise
+    /// representable via the existing `bpf_map_def` fields.
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr.as_ptr(), map_extra) };
         util::parse_ret(ret)
@@ -1203,40 +1213,145 @@ bitflags! {
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub enum MapType {
+    /// An unspecified map type.
     Unspec = libbpf_sys::BPF_MAP_TYPE_UNSPEC,
+    /// A general purpose Hash map storage type.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_hash.html) for more details.
     Hash = libbpf_sys::BPF_MAP_TYPE_HASH,
+    /// An Array map storage type.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_array.html) for more details.
     Array = libbpf_sys::BPF_MAP_TYPE_ARRAY,
+    /// A program array map which holds only the file descriptors to other eBPF programs. Used for
+    /// tail-calls.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PROG_ARRAY/) for more details.
     ProgArray = libbpf_sys::BPF_MAP_TYPE_PROG_ARRAY,
+    /// An array map which holds only the file descriptors to perf events.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERF_EVENT_ARRAY/) for more details.
     PerfEventArray = libbpf_sys::BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+    /// A Hash map with per CPU storage.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_hash.html#per-cpu-hashes) for more details.
     PercpuHash = libbpf_sys::BPF_MAP_TYPE_PERCPU_HASH,
+    /// An Array map with per CPU storage.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_array.html) for more details.
     PercpuArray = libbpf_sys::BPF_MAP_TYPE_PERCPU_ARRAY,
+    #[allow(missing_docs)]
     StackTrace = libbpf_sys::BPF_MAP_TYPE_STACK_TRACE,
+    #[allow(missing_docs)]
     CgroupArray = libbpf_sys::BPF_MAP_TYPE_CGROUP_ARRAY,
+    /// A Hash map with least recently used (LRU) eviction policy.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_hash.html#bpf-map-type-lru-hash-and-variants) for more details.
     LruHash = libbpf_sys::BPF_MAP_TYPE_LRU_HASH,
+    /// A Hash map with least recently used (LRU) eviction policy with per CPU storage.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_hash.html#per-cpu-hashes) for more details.
     LruPercpuHash = libbpf_sys::BPF_MAP_TYPE_LRU_PERCPU_HASH,
+    /// A Longest Prefix Match (LPM) algorithm based map.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_lpm_trie.html) for more details.
     LpmTrie = libbpf_sys::BPF_MAP_TYPE_LPM_TRIE,
+    /// A map in map storage.
+    /// One level of nesting is supported, where an outer map contains instances of a single type
+    /// of inner map.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_of_maps.html) for more details.
     ArrayOfMaps = libbpf_sys::BPF_MAP_TYPE_ARRAY_OF_MAPS,
+    /// A map in map storage.
+    /// One level of nesting is supported, where an outer map contains instances of a single type
+    /// of inner map.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_of_maps.html) for more details.
     HashOfMaps = libbpf_sys::BPF_MAP_TYPE_HASH_OF_MAPS,
+    /// An array map that uses the key as the index to lookup a reference to a net device.
+    /// Primarily used for XDP BPF Helper.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_devmap.html) for more details.
     Devmap = libbpf_sys::BPF_MAP_TYPE_DEVMAP,
+    /// An array map holds references to a socket descriptor.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_sockmap.html) for more details.
     Sockmap = libbpf_sys::BPF_MAP_TYPE_SOCKMAP,
+    /// A map that redirects raw XDP frames to another CPU.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_cpumap.html) for more details.
     Cpumap = libbpf_sys::BPF_MAP_TYPE_CPUMAP,
+    /// A map that redirects raw XDP frames to AF_XDP sockets (XSKs), a new type of address family
+    /// in the kernel that allows redirection of frames from a driver to user space without
+    /// having to traverse the full network stack.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_xskmap.html) for more details.
     Xskmap = libbpf_sys::BPF_MAP_TYPE_XSKMAP,
+    /// A Hash map that holds references to sockets via their socket descriptor.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_sockmap.html) for more details.
     Sockhash = libbpf_sys::BPF_MAP_TYPE_SOCKHASH,
+    /// Deprecated. Use `CGrpStorage` instead.
+    ///
+    /// A Local storage for cgroups.
+    /// Only available with `CONFIG_CGROUP_BPF` and to programs that attach to cgroups.
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_cgroup_storage.html) for more details.
     CgroupStorage = libbpf_sys::BPF_MAP_TYPE_CGROUP_STORAGE,
+    /// A Local storage for cgroups. Only available with `CONFIG_CGROUPS`.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_cgrp_storage.html) for more details.
+    /// See also [Difference between cgrp_storage and cgroup_storage](https://docs.kernel.org/bpf/map_cgrp_storage.html#difference-between-bpf-map-type-cgrp-storage-and-bpf-map-type-cgroup-storage)
+    CGrpStorage = libbpf_sys::BPF_MAP_TYPE_CGRP_STORAGE,
+    /// A map that holds references to sockets with `SO_REUSEPORT` option set.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_REUSEPORT_SOCKARRAY/) for more details.
     ReuseportSockarray = libbpf_sys::BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
+    /// A per-CPU variant of [`BPF_MAP_TYPE_CGROUP_STORAGE`][`MapType::CgroupStorage`].
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE) for more details.
     PercpuCgroupStorage = libbpf_sys::BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
+    /// A FIFO storage.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_queue_stack.html) for more details.
     Queue = libbpf_sys::BPF_MAP_TYPE_QUEUE,
+    /// A LIFO storage.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_queue_stack.html) for more details.
     Stack = libbpf_sys::BPF_MAP_TYPE_STACK,
+    /// A socket-local storage.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_sk_storage.html) for more details.
     SkStorage = libbpf_sys::BPF_MAP_TYPE_SK_STORAGE,
+    /// A Hash map that uses the key as the index to lookup a reference to a net device.
+    /// Primarily used for XDP BPF Helper.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_devmap.html) for more details.
     DevmapHash = libbpf_sys::BPF_MAP_TYPE_DEVMAP_HASH,
+    /// A specialized map that act as implementations of "struct ops" structures defined in the
+    /// kernel.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_STRUCT_OPS/) for more details.
     StructOps = libbpf_sys::BPF_MAP_TYPE_STRUCT_OPS,
+    /// A ring buffer map to efficiently send large amount of data.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_RINGBUF/) for more details.
     RingBuf = libbpf_sys::BPF_MAP_TYPE_RINGBUF,
+    /// A storage map that holds data keyed on inodes.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_INODE_STORAGE/) for more details.
     InodeStorage = libbpf_sys::BPF_MAP_TYPE_INODE_STORAGE,
+    /// A storage map that holds data keyed on tasks.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_TASK_STORAGE/) for more details.
     TaskStorage = libbpf_sys::BPF_MAP_TYPE_TASK_STORAGE,
+    /// Bloom filters are a space-efficient probabilistic data structure used to quickly test
+    /// whether an element exists in a set. In a bloom filter, false positives are possible
+    /// whereas false negatives are not.
+    ///
+    /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_bloom_filter.html) for more details.
     BloomFilter = libbpf_sys::BPF_MAP_TYPE_BLOOM_FILTER,
+    #[allow(missing_docs)]
     UserRingBuf = libbpf_sys::BPF_MAP_TYPE_USER_RINGBUF,
     /// We choose to specify our own "unknown" type here b/c it's really up to the kernel
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
