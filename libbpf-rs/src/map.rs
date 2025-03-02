@@ -179,14 +179,14 @@ impl<'obj> OpenMapMut<'obj> {
     }
 
     // TODO: Document member.
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn set_numa_node(&mut self, numa_node: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr.as_ptr(), numa_node) };
         util::parse_ret(ret)
     }
 
     // TODO: Document member.
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn set_inner_map_fd(&mut self, inner_map_fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner_map_fd.as_raw_fd())
@@ -195,7 +195,7 @@ impl<'obj> OpenMapMut<'obj> {
     }
 
     // TODO: Document member.
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr.as_ptr(), map_extra) };
         util::parse_ret(ret)
@@ -377,7 +377,7 @@ fn lookup_batch_raw<M>(
 where
     M: MapCore + ?Sized,
 {
-    #[allow(clippy::needless_update)]
+    #[expect(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_batch_opts {
         sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
         elem_flags: elem_flags.bits(),
@@ -586,7 +586,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
             )));
         };
 
-        #[allow(clippy::needless_update)]
+        #[expect(clippy::needless_update)]
         let opts = libbpf_sys::bpf_map_batch_opts {
             sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
             elem_flags: elem_flags.bits(),
@@ -702,7 +702,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
             )));
         }
 
-        #[allow(clippy::needless_update)]
+        #[expect(clippy::needless_update)]
         let opts = libbpf_sys::bpf_map_batch_opts {
             sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
             elem_flags: elem_flags.bits(),
@@ -1204,7 +1204,7 @@ bitflags! {
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 // TODO: Document members.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum MapType {
     Unspec = libbpf_sys::BPF_MAP_TYPE_UNSPEC,
     Hash = libbpf_sys::BPF_MAP_TYPE_HASH,

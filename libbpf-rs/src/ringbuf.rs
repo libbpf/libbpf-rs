@@ -160,7 +160,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 #[derive(Debug)]
 pub struct RingBuffer<'cb> {
     ptr: NonNull<libbpf_sys::ring_buffer>,
-    #[allow(clippy::vec_box)]
+    #[expect(clippy::vec_box)]
     _cbs: Vec<Box<RingBufferCallback<'cb>>>,
 }
 
