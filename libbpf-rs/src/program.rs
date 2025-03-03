@@ -241,8 +241,8 @@ impl<'obj> OpenProgramMut<'obj> {
 
     /// Set whether a bpf program should be automatically attached by default
     /// when the bpf object is loaded.
-    pub fn set_autoattach(&mut self, autoload: bool) {
-        unsafe { libbpf_sys::bpf_program__set_autoattach(self.ptr.as_ptr(), autoload) };
+    pub fn set_autoattach(&mut self, autoattach: bool) {
+        unsafe { libbpf_sys::bpf_program__set_autoattach(self.ptr.as_ptr(), autoattach) };
     }
 
     #[allow(missing_docs)]
