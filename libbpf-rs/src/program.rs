@@ -251,24 +251,14 @@ impl<'obj> OpenProgramMut<'obj> {
         attach_prog_fd: i32,
         attach_func_name: Option<String>,
     ) -> Result<()> {
-        let ret = if let Some(name) = attach_func_name {
-            // NB: we must hold onto a CString otherwise our pointer dangles
-            let name_c = util::str_to_cstring(&name)?;
-            unsafe {
-                libbpf_sys::bpf_program__set_attach_target(
-                    self.ptr.as_ptr(),
-                    attach_prog_fd,
-                    name_c.as_ptr(),
-                )
-            }
+        let name_c = if let Some(name) = attach_func_name {
+            Some(util::str_to_cstring(&name)?)
         } else {
-            unsafe {
-                libbpf_sys::bpf_program__set_attach_target(
-                    self.ptr.as_ptr(),
-                    attach_prog_fd,
-                    ptr::null(),
-                )
-            }
+            None
+        };
+        let name_ptr = name_c.as_ref().map_or(ptr::null(), |name| name.as_ptr());
+        let ret = unsafe {
+            libbpf_sys::bpf_program__set_attach_target(self.ptr.as_ptr(), attach_prog_fd, name_ptr)
         };
         util::parse_ret(ret)
     }
@@ -904,24 +894,15 @@ impl<'obj> ProgramMut<'obj> {
         let tp_name = util::str_to_cstring(tp_name)?;
         let tp_name_ptr = tp_name.as_ptr();
 
-        let ptr = if let Some(tp_opts) = tp_opts {
-            let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
-            unsafe {
-                libbpf_sys::bpf_program__attach_tracepoint_opts(
-                    self.ptr.as_ptr(),
-                    tp_category_ptr,
-                    tp_name_ptr,
-                    &tp_opts as *const _,
-                )
-            }
-        } else {
-            unsafe {
-                libbpf_sys::bpf_program__attach_tracepoint(
-                    self.ptr.as_ptr(),
-                    tp_category_ptr,
-                    tp_name_ptr,
-                )
-            }
+        let tp_opts = tp_opts.map(libbpf_sys::bpf_tracepoint_opts::from);
+        let opts = tp_opts.as_ref().map_or(ptr::null(), |opts| opts);
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_tracepoint_opts(
+                self.ptr.as_ptr(),
+                tp_category_ptr,
+                tp_name_ptr,
+                opts as *const _,
+            )
         };
 
         let ptr = validate_bpf_ret(ptr).context("failed to attach tracepoint")?;
