@@ -113,6 +113,32 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
     }
 }
 
+/// Options to optionally be provided when attaching to a raw tracepoint.
+#[derive(Clone, Debug, Default)]
+pub struct RawTracepointOpts {
+    /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
+    pub cookie: u64,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl From<RawTracepointOpts> for libbpf_sys::bpf_raw_tracepoint_opts {
+    fn from(opts: RawTracepointOpts) -> Self {
+        let RawTracepointOpts {
+            cookie,
+            _non_exhaustive,
+        } = opts;
+
+        #[allow(clippy::needless_update)]
+        libbpf_sys::bpf_raw_tracepoint_opts {
+            sz: size_of::<Self>() as _,
+            cookie,
+            // bpf_raw_tracepoint_opts might have padding fields on some platform
+            ..Default::default()
+        }
+    }
+}
+
 /// Options to optionally be provided when attaching to multiple kprobes.
 #[derive(Clone, Debug, Default)]
 pub struct KprobeMultiOpts {
@@ -1046,6 +1072,30 @@ impl<'obj> ProgramMut<'obj> {
         let tp_name_ptr = tp_name.as_ptr();
         let ptr = unsafe {
             libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr.as_ptr(), tp_name_ptr)
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach raw tracepoint")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to a [raw kernel
+    /// tracepoint](https://lwn.net/Articles/748352/), providing additional
+    /// options.
+    pub fn attach_raw_tracepoint_with_opts<T: AsRef<str>>(
+        &self,
+        tp_name: T,
+        tp_opts: RawTracepointOpts,
+    ) -> Result<Link> {
+        let tp_name = util::str_to_cstring(tp_name.as_ref())?;
+        let tp_name_ptr = tp_name.as_ptr();
+        let mut tp_opts = libbpf_sys::bpf_raw_tracepoint_opts::from(tp_opts);
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_raw_tracepoint_opts(
+                self.ptr.as_ptr(),
+                tp_name_ptr,
+                &mut tp_opts as *mut _,
+            )
         };
         let ptr = validate_bpf_ret(ptr).context("failed to attach raw tracepoint")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.

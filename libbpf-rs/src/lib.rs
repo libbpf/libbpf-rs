@@ -152,6 +152,7 @@ pub use crate::program::ProgramAttachType;
 pub use crate::program::ProgramImpl;
 pub use crate::program::ProgramMut;
 pub use crate::program::ProgramType;
+pub use crate::program::RawTracepointOpts;
 pub use crate::program::TracepointOpts;
 pub use crate::program::UprobeOpts;
 pub use crate::program::UsdtOpts;
