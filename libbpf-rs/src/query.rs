@@ -616,6 +616,84 @@ pub struct NetNsLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
+/// Information about a BPF netfilter link
+#[derive(Debug, Clone)]
+pub struct NetfilterLinkInfo {
+    /// Protocol family of the netfilter hook
+    pub protocol_family: u32,
+    /// Netfilter hook number
+    pub hooknum: u32,
+    /// Priority of the netfilter link
+    pub priority: i32,
+    /// Flags used for the netfilter link
+    pub flags: u32,
+}
+
+/// Information about a XDP link
+#[derive(Debug, Clone)]
+pub struct XdpLinkInfo {
+    /// Interface index to which the XDP link is attached
+    pub ifindex: u32,
+}
+
+/// Information about a BPF sockmap link
+#[derive(Debug, Clone)]
+pub struct SockMapLinkInfo {
+    /// The ID of the BPF sockmap
+    pub map_id: u32,
+    /// The type of program attached to the sockmap
+    pub attach_type: ProgramAttachType,
+}
+
+/// Information about a BPF netkit link
+#[derive(Debug, Clone)]
+pub struct NetkitLinkInfo {
+    /// Interface index to which the netkit link is attached
+    pub ifindex: u32,
+    /// Type of program attached to the netkit link
+    pub attach_type: ProgramAttachType,
+}
+
+/// Information about a BPF tc link
+#[derive(Debug, Clone)]
+pub struct TcxLinkInfo {
+    /// Interface index to which the tc link is attached
+    pub ifindex: u32,
+    /// Type of program attached to the tc link
+    pub attach_type: ProgramAttachType,
+}
+
+/// Information about a BPF struct_ops link
+#[derive(Debug, Clone)]
+pub struct StructOpsLinkInfo {
+    /// The ID of the BPF map to which the struct_ops link is attached
+    pub map_id: u32,
+}
+
+/// Information about a multi-kprobe link.
+#[derive(Debug, Clone)]
+pub struct KprobeMultiLinkInfo {
+    /// Count of kprobe targets
+    pub count: u32,
+    /// Flags for the link
+    pub flags: u32,
+    /// Missed probes count
+    pub missed: u64,
+}
+
+/// Information about a multi-uprobe link.
+#[derive(Debug, Clone)]
+pub struct UprobeMultiLinkInfo {
+    /// Size of the path
+    pub path_size: u32,
+    /// Count of uprobe targets
+    pub count: u32,
+    /// Flags for the link
+    pub flags: u32,
+    /// PID to which the uprobe is attached
+    pub pid: u32,
+}
+
 #[derive(Debug, Clone)]
 // TODO: Document variants.
 #[allow(missing_docs)]
@@ -625,6 +703,13 @@ pub enum LinkTypeInfo {
     Cgroup(CgroupLinkInfo),
     Iter,
     NetNs(NetNsLinkInfo),
+    Xdp(XdpLinkInfo),
+    StructOps(StructOpsLinkInfo),
+    Netfilter(NetfilterLinkInfo),
+    KprobeMulti(KprobeMultiLinkInfo),
+    UprobeMulti(UprobeMultiLinkInfo),
+    Tcx(TcxLinkInfo),
+    Netkit(NetkitLinkInfo),
     Unknown,
 }
 
@@ -684,6 +769,43 @@ impl LinkInfo {
                     s.__bindgen_anon_1.netns.attach_type
                 }),
             }),
+            libbpf_sys::BPF_LINK_TYPE_NETFILTER => LinkTypeInfo::Netfilter(NetfilterLinkInfo {
+                protocol_family: unsafe { s.__bindgen_anon_1.netfilter.pf },
+                hooknum: unsafe { s.__bindgen_anon_1.netfilter.hooknum },
+                priority: unsafe { s.__bindgen_anon_1.netfilter.priority },
+                flags: unsafe { s.__bindgen_anon_1.netfilter.flags },
+            }),
+            libbpf_sys::BPF_LINK_TYPE_XDP => LinkTypeInfo::Xdp(XdpLinkInfo {
+                ifindex: unsafe { s.__bindgen_anon_1.xdp.ifindex },
+            }),
+            libbpf_sys::BPF_LINK_TYPE_NETKIT => LinkTypeInfo::Netkit(NetkitLinkInfo {
+                ifindex: unsafe { s.__bindgen_anon_1.netkit.ifindex },
+                attach_type: ProgramAttachType::from(unsafe {
+                    s.__bindgen_anon_1.netkit.attach_type
+                }),
+            }),
+            libbpf_sys::BPF_LINK_TYPE_TCX => LinkTypeInfo::Tcx(TcxLinkInfo {
+                ifindex: unsafe { s.__bindgen_anon_1.tcx.ifindex },
+                attach_type: ProgramAttachType::from(unsafe { s.__bindgen_anon_1.tcx.attach_type }),
+            }),
+            libbpf_sys::BPF_LINK_TYPE_STRUCT_OPS => LinkTypeInfo::StructOps(StructOpsLinkInfo {
+                map_id: unsafe { s.__bindgen_anon_1.struct_ops.map_id },
+            }),
+            libbpf_sys::BPF_LINK_TYPE_KPROBE_MULTI => {
+                LinkTypeInfo::KprobeMulti(KprobeMultiLinkInfo {
+                    count: unsafe { s.__bindgen_anon_1.kprobe_multi.count },
+                    flags: unsafe { s.__bindgen_anon_1.kprobe_multi.flags },
+                    missed: unsafe { s.__bindgen_anon_1.kprobe_multi.missed },
+                })
+            }
+            libbpf_sys::BPF_LINK_TYPE_UPROBE_MULTI => {
+                LinkTypeInfo::UprobeMulti(UprobeMultiLinkInfo {
+                    path_size: unsafe { s.__bindgen_anon_1.uprobe_multi.path_size },
+                    count: unsafe { s.__bindgen_anon_1.uprobe_multi.count },
+                    flags: unsafe { s.__bindgen_anon_1.uprobe_multi.flags },
+                    pid: unsafe { s.__bindgen_anon_1.uprobe_multi.pid },
+                })
+            }
             _ => LinkTypeInfo::Unknown,
         };
 
