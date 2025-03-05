@@ -122,36 +122,59 @@ impl From<&libbpf_sys::bpf_line_info> for LineInfo {
 #[repr(C)]
 pub struct Tag(pub [u8; 8]);
 
-/// Information about a BPF program
+/// Information about a BPF program. Maps to `struct bpf_prog_info` in kernel uapi.
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct ProgramInfo {
+    /// A user-defined name for the BPF program (null-terminated string).
     pub name: CString,
+    /// The type of the program.
     pub ty: ProgramType,
+    /// An 8-byte hash (`BPF_TAG_SIZE`) computed from the program’s
+    /// contents; used to detect changes in the program code.
     pub tag: Tag,
+    /// A unique identifier for the program instance.
     pub id: u32,
+    /// JIT-compiled instructions.
     pub jited_prog_insns: Vec<u8>,
+    /// Translated BPF instructions in an intermediate representation.
     pub xlated_prog_insns: Vec<u8>,
-    /// Duration since system boot
+    /// Time (since system boot) at which the program was loaded.
     pub load_time: Duration,
+    /// UID of the user who loaded the program.
     pub created_by_uid: u32,
+    /// Array of map IDs associated with this program.
     pub map_ids: Vec<u32>,
+    /// Network interface index if the program is attached to a specific device.
     pub ifindex: u32,
+    /// Whether the program is gpl compatible.
     pub gpl_compatible: bool,
+    /// Device ID of the network namespace that the program is associated with.
     pub netns_dev: u64,
+    /// Inode number of the network namespace associated with the program.
     pub netns_ino: u64,
+    /// Number of kernel symbols in the JITed code (if available).
     pub jited_ksyms: Vec<*const c_void>,
+    /// Number of function length records available for the JITed code.
     pub jited_func_lens: Vec<u32>,
+    /// Identifier of the associated BTF (BPF Type Format) data.
     pub btf_id: u32,
+    /// Size (in bytes) of each record in the function info array.
     pub func_info_rec_size: u32,
+    /// Array of function info records for this program.
     pub func_info: Vec<libbpf_sys::bpf_func_info>,
+    /// Array of line info records mapping BPF instructions to source code lines.
     pub line_info: Vec<LineInfo>,
+    /// Line info records for the JIT-compiled code.
     pub jited_line_info: Vec<*const c_void>,
+    /// Size (in bytes) of each line info record.
     pub line_info_rec_size: u32,
+    /// Size (in bytes) of each record in the JITed line info array.
     pub jited_line_info_rec_size: u32,
+    /// Array of program tags.
     pub prog_tags: Vec<Tag>,
+    /// Total accumulated run time (in nanoseconds) for the program’s execution.
     pub run_time_ns: u64,
+    /// Total number of times the program has been executed.
     pub run_cnt: u64,
     /// Skipped BPF executions due to recursion or concurrent execution prevention.
     pub recursion_misses: u64,
@@ -436,24 +459,38 @@ impl Iterator for ProgInfoIter {
     }
 }
 
-/// Information about a BPF map
+/// Information about a BPF map. Maps to `struct bpf_map_info` in kernel uapi.
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct MapInfo {
+    /// A user-defined name for the BPF Map (null-terminated string).
     pub name: CString,
+    /// The BPF map type
     pub ty: MapType,
+    /// A unique identifier for this map instance
     pub id: u32,
+    /// Size (in bytes) of the keys stored in the map.
     pub key_size: u32,
+    /// Size (in bytes) of the values stored in the map.
     pub value_size: u32,
+    /// Maximum number of entries that the map can hold.
     pub max_entries: u32,
+    /// Map flags indicating specific properties. (e.g., `BPF_F_NO_PREALLOC`)
     pub map_flags: u32,
+    /// Network interface index if the map is associated with a specific device. Otherwise, this
+    /// may be zero
     pub ifindex: u32,
+    /// BTF (BPF Type Format) type ID for the value type as defined in the vmlinux BTF data.
     pub btf_vmlinux_value_type_id: u32,
+    /// Device identifier of the network namespace.
     pub netns_dev: u64,
+    /// Inode number of the network namespace.
     pub netns_ino: u64,
+    /// BTF ID referencing the BTF data for this map. This helps to verify the correctness of the
+    /// map's data structure as per BTF metadata.
     pub btf_id: u32,
+    /// BTF type ID for the key type.
     pub btf_key_type_id: u32,
+    /// BTF type ID for the value type.
     pub btf_value_type_id: u32,
 }
 
@@ -586,33 +623,35 @@ impl Iterator for BtfInfoIter {
     }
 }
 
+/// Information about a raw tracepoint.
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct RawTracepointLinkInfo {
+    /// The name of the raw tracepoint
     pub name: String,
 }
 
+/// Information about a tracing link
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct TracingLinkInfo {
+    /// Attach type of the tracing link
     pub attach_type: ProgramAttachType,
 }
 
+/// Information about a cgroup link
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct CgroupLinkInfo {
+    /// Identifier of the target cgroup.
     pub cgroup_id: u64,
+    /// Attachment type for cgroup-based programs.
     pub attach_type: ProgramAttachType,
 }
 
+/// Information about a network namespace link
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct NetNsLinkInfo {
+    /// Inode number of the network namespace.
     pub ino: u32,
+    /// Attachment type for network namespace programs.
     pub attach_type: ProgramAttachType,
 }
 
@@ -694,32 +733,56 @@ pub struct UprobeMultiLinkInfo {
     pub pid: u32,
 }
 
+/// Information about BPF link types. Maps to the anonymous union in `struct bpf_link_info` in
+/// kernel uapi.
 #[derive(Debug, Clone)]
-// TODO: Document variants.
-#[allow(missing_docs)]
 pub enum LinkTypeInfo {
+    /// Link type for raw tracepoints.
+    ///
+    /// Contains information about the BPF program directly to a raw tracepoint
     RawTracepoint(RawTracepointLinkInfo),
+    /// Tracing link type.
     Tracing(TracingLinkInfo),
+    /// Link type for cgroup programs.
+    ///
+    /// Contains information about the cgroups and its attachment type.
     Cgroup(CgroupLinkInfo),
+    /// Iterator link type.
     Iter,
+    /// Network namespace link type.
     NetNs(NetNsLinkInfo),
+    /// Link type for XDP programs.
+    ///
+    /// Contains information about the XDP link, such as the interface index
+    /// to which the XDP link is attached.
     Xdp(XdpLinkInfo),
+    /// Link type for struct_ops programs.
+    ///
+    /// Contains information about the BPF map to which the struct_ops link is
+    /// attached.
     StructOps(StructOpsLinkInfo),
+    /// Link type for netfilter programs.
     Netfilter(NetfilterLinkInfo),
+    /// Link type for kprobe-multi links.
     KprobeMulti(KprobeMultiLinkInfo),
+    /// Link type for multi-uprobe links.
     UprobeMulti(UprobeMultiLinkInfo),
+    /// Link type for TC programs.
     Tcx(TcxLinkInfo),
+    /// Link type for netkit programs.
     Netkit(NetkitLinkInfo),
+    /// Unknown link type.
     Unknown,
 }
 
-/// Information about a BPF link
+/// Information about a BPF link. Maps to `struct bpf_link_info` in kernel uapi.
 #[derive(Debug, Clone)]
-// TODO: Document members.
-#[allow(missing_docs)]
 pub struct LinkInfo {
+    /// Information about the BPF link type.
     pub info: LinkTypeInfo,
+    /// Unique identifier of the BPF link.
     pub id: u32,
+    /// ID of the BPF program attached via this link.
     pub prog_id: u32,
 }
 
