@@ -84,6 +84,13 @@ fn link() {
             query::LinkTypeInfo::Iter => "iter",
             query::LinkTypeInfo::NetNs(_) => "netns",
             query::LinkTypeInfo::Unknown => "unknown",
+            query::LinkTypeInfo::Netfilter(_) => "netfilter",
+            query::LinkTypeInfo::Xdp(_) => "xdp",
+            query::LinkTypeInfo::Netkit(_) => "netkit",
+            query::LinkTypeInfo::Tcx(_) => "tcx",
+            query::LinkTypeInfo::StructOps(_) => "structops",
+            query::LinkTypeInfo::KprobeMulti(_) => "kprobemulti",
+            query::LinkTypeInfo::UprobeMulti(_) => "uprobemulti",
         };
 
         println!(
