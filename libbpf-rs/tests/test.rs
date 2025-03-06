@@ -40,6 +40,7 @@ use libbpf_rs::ObjectBuilder;
 use libbpf_rs::Program;
 use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
+use libbpf_rs::RawTracepointOpts;
 use libbpf_rs::TracepointOpts;
 use libbpf_rs::UprobeOpts;
 use libbpf_rs::UsdtOpts;
@@ -1656,6 +1657,67 @@ fn test_object_tracepoint_with_opts() {
     };
     let _link = prog
         .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .expect("failed to attach prog");
+
+    let map = get_map_mut(&mut obj, "ringbuf");
+    let action = || {
+        let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(&map, action);
+
+    assert_eq!(result, cookie_val.into());
+}
+
+/// Check that we can attach a BPF program to a kernel raw tracepoint.
+#[tag(root)]
+#[test]
+fn test_object_raw_tracepoint() {
+    let mut open_obj = open_test_object("tracepoint.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__tracepoint")
+        .expect("failed to find `handle__tracepoint` program")
+        .set_prog_type(libbpf_rs::ProgramType::RawTracepoint);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__tracepoint");
+    let _link = prog
+        .attach_raw_tracepoint("sys_enter")
+        .expect("failed to attach prog");
+
+    let map = get_map_mut(&mut obj, "ringbuf");
+    let action = || {
+        let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(&map, action);
+
+    assert_eq!(result, 1);
+}
+
+/// Check that we can attach a BPF program to a kernel raw tracepoint, providing
+/// additional options.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with bpf_get_attach_cookie for raw tracepoints"]
+fn test_object_raw_tracepoint_with_opts() {
+    let cookie_val = 42u16;
+
+    let mut open_obj = open_test_object("tracepoint.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__tracepoint_with_cookie")
+        .expect("failed to find `handle__tracepoint` program")
+        .set_prog_type(libbpf_rs::ProgramType::RawTracepoint);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__tracepoint_with_cookie");
+
+    let opts = RawTracepointOpts {
+        cookie: cookie_val.into(),
+        ..Default::default()
+    };
+    let _link = prog
+        .attach_raw_tracepoint_with_opts("sys_enter", opts)
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
