@@ -3,6 +3,8 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use goblin::elf::program_header::PF_X;
+use goblin::elf::program_header::PT_LOAD;
 use goblin::elf::sym;
 use goblin::elf::Elf;
 use libbpf_rs::Map;
@@ -102,9 +104,9 @@ pub fn get_symbol_offset(binary_path: &Path, symbol_name: &str) -> Result<usize,
         }
         if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
             if name == symbol_name {
-                let sec = &elf.section_headers[sym.st_shndx];
-                let offset = sym.st_value - sec.sh_addr + sec.sh_offset;
-                return Ok(offset as usize);
+                if let Some(offset) = check_symbol_offset(&elf, &sym) {
+                    return Ok(offset);
+                }
             }
         }
     }
@@ -116,9 +118,9 @@ pub fn get_symbol_offset(binary_path: &Path, symbol_name: &str) -> Result<usize,
         }
         if let Some(name) = elf.strtab.get_at(sym.st_name) {
             if name == symbol_name {
-                let sec = &elf.section_headers[sym.st_shndx];
-                let offset = sym.st_value - sec.sh_addr + sec.sh_offset;
-                return Ok(offset as usize);
+                if let Some(offset) = check_symbol_offset(&elf, &sym) {
+                    return Ok(offset);
+                }
             }
         }
     }
@@ -128,4 +130,20 @@ pub fn get_symbol_offset(binary_path: &Path, symbol_name: &str) -> Result<usize,
         symbol_name, binary_path
     )
     .into())
+}
+
+fn check_symbol_offset(elf: &Elf, sym: &sym::Sym) -> Option<usize> {
+    for phdr in elf.program_headers.iter() {
+        if phdr.p_type != PT_LOAD {
+            continue;
+        }
+        if phdr.p_flags & PF_X == 0 {
+            continue;
+        }
+        if (phdr.p_vaddr..phdr.p_vaddr + phdr.p_memsz).contains(&sym.st_value) {
+            let offset = sym.st_value - phdr.p_vaddr + phdr.p_offset;
+            return Some(offset as usize);
+        }
+    }
+    None
 }
