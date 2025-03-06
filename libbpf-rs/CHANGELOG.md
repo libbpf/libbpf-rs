@@ -1,5 +1,10 @@
 Unreleased
 ----------
+- Added kprobe multi support for attaching programs, with and without providing
+  additional options
+- Allow to provide additional options when attaching programs to raw
+  tracepoints
+- Allow to provide additional options when attaching programs to kprobes
 - Added `max_entries` getter to various map types
 - Added `OpenProgramMut::set_autoattach`
 - Adjusted `UprobeOpts::func_name` to be an `Option`
