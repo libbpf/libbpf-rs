@@ -29,6 +29,8 @@ use std::time::Duration;
 use libbpf_rs::num_possible_cpus;
 use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
+use libbpf_rs::KprobeMultiOpts;
+use libbpf_rs::KprobeOpts;
 use libbpf_rs::Linker;
 use libbpf_rs::MapCore;
 use libbpf_rs::MapFlags;
@@ -1621,6 +1623,78 @@ fn test_object_program_insns() {
     let prog = get_prog_mut(&mut obj, "handle__usdt");
     let insns = prog.insns();
     assert!(!insns.is_empty());
+}
+
+/// Check that we can attach a BPF program to a kernel kprobe.
+#[tag(root)]
+#[test]
+fn test_object_kprobe() {
+    let mut obj = get_test_object("kprobe.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+    let _link = prog
+        .attach_kprobe(false, "bpf_fentry_test1")
+        .expect("failed to attach prog");
+}
+
+/// Check that we can attach a BPF program to a kernel kprobe, providing
+/// additional options.
+#[tag(root)]
+#[test]
+fn test_object_kprobe_with_opts() {
+    let mut obj = get_test_object("kprobe.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+    let opts = KprobeOpts::default();
+    let _link = prog
+        .attach_kprobe_with_opts(false, "bpf_fentry_test1", opts)
+        .expect("failed to attach prog");
+}
+
+/// Check that we can attach a BPF program to multiple kernel kprobes using
+/// kprobe_multi.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with kprobe multi support"]
+fn test_object_kprobe_multi() {
+    let mut open_obj = open_test_object("kprobe.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__kprobe")
+        .expect("failed to find `handle__kprobe` program")
+        .set_attach_type(libbpf_rs::ProgramAttachType::KprobeMulti);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+    let _link = prog
+        .attach_kprobe_multi(vec!["bpf_fentry_test1", "bpf_fentry_test2"], false)
+        .expect("failed to attach prog");
+}
+
+/// Check that we can attach a BPF program to multiple kernel kprobes using
+/// kprobe_multi, providing additional options.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with kprobe multi support"]
+fn test_object_kprobe_multi_with_opts() {
+    let mut open_obj = open_test_object("kprobe.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__kprobe")
+        .expect("failed to find `handle__kprobe` program")
+        .set_attach_type(libbpf_rs::ProgramAttachType::KprobeMulti);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+
+    let opts = KprobeMultiOpts {
+        symbols: vec![
+            "bpf_fentry_test1".to_string(),
+            "bpf_fentry_test2".to_string(),
+        ],
+        ..Default::default()
+    };
+    let _link = prog
+        .attach_kprobe_multi_with_opts(opts)
+        .expect("failed to attach prog");
 }
 
 /// Check that we can attach a BPF program to a kernel tracepoint.
