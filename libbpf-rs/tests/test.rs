@@ -43,6 +43,7 @@ use libbpf_rs::Program;
 use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
 use libbpf_rs::RawTracepointOpts;
+use libbpf_rs::TracepointCategory;
 use libbpf_rs::TracepointOpts;
 use libbpf_rs::UprobeOpts;
 use libbpf_rs::UsdtOpts;
@@ -1203,7 +1204,7 @@ fn test_object_ringbuf_with_closed_map() {
             let mut obj = get_test_object("tracepoint.bpf.o");
             let prog = get_prog_mut(&mut obj, "handle__tracepoint");
             let _link = prog
-                .attach_tracepoint("syscalls", "sys_enter_getpid")
+                .attach_tracepoint(TracepointCategory::Syscalls, "sys_enter_getpid")
                 .expect("failed to attach prog");
 
             let map = get_map_mut(&mut obj, "ringbuf");
@@ -1704,7 +1705,7 @@ fn test_object_tracepoint() {
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint");
     let _link = prog
-        .attach_tracepoint("syscalls", "sys_enter_getpid")
+        .attach_tracepoint(TracepointCategory::Syscalls, "sys_enter_getpid")
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
@@ -1730,7 +1731,7 @@ fn test_object_tracepoint_with_opts() {
         ..TracepointOpts::default()
     };
     let _link = prog
-        .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .attach_tracepoint_with_opts(TracepointCategory::Syscalls, "sys_enter_getpid", opts)
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
@@ -1950,7 +1951,7 @@ fn test_object_perf_buffer_raw() {
         ..TracepointOpts::default()
     };
     let _link = prog
-        .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .attach_tracepoint_with_opts(TracepointCategory::Syscalls, "sys_enter_getpid", opts)
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "pb");

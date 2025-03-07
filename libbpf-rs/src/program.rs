@@ -36,6 +36,7 @@ use crate::Link;
 use crate::Mut;
 use crate::RawTracepointOpts;
 use crate::Result;
+use crate::TracepointCategory;
 use crate::TracepointOpts;
 
 /// Options to optionally be provided when attaching to a uprobe.
@@ -1051,7 +1052,7 @@ impl<'obj> ProgramMut<'obj> {
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
     pub fn attach_tracepoint(
         &self,
-        tp_category: impl AsRef<str>,
+        tp_category: TracepointCategory,
         tp_name: impl AsRef<str>,
     ) -> Result<Link> {
         self.attach_tracepoint_impl(tp_category.as_ref(), tp_name.as_ref(), None)
@@ -1062,7 +1063,7 @@ impl<'obj> ProgramMut<'obj> {
     /// providing additional options.
     pub fn attach_tracepoint_with_opts(
         &self,
-        tp_category: impl AsRef<str>,
+        tp_category: TracepointCategory,
         tp_name: impl AsRef<str>,
         tp_opts: TracepointOpts,
     ) -> Result<Link> {
