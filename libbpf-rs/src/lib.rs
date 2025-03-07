@@ -169,6 +169,7 @@ pub use crate::tc::TC_H_MIN_EGRESS;
 pub use crate::tc::TC_H_MIN_INGRESS;
 pub use crate::tc::TC_INGRESS;
 pub use crate::tracepoint::RawTracepointOpts;
+pub use crate::tracepoint::TracepointCategory;
 pub use crate::tracepoint::TracepointOpts;
 pub use crate::user_ringbuf::UserRingBuffer;
 pub use crate::user_ringbuf::UserRingBufferSample;
