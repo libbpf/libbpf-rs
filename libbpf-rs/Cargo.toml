@@ -36,12 +36,12 @@ dont-generate-test-files = []
 
 [dependencies]
 bitflags = "2.0"
-libbpf-sys = { version = "1.4.1", default-features = false }
+libbpf-sys = { version = "1.5.0", default-features = false }
 libc = "0.2"
 vsprintf = "2.0"
 
 [build-dependencies]
-libbpf-sys = { version = "1.4.1", default-features = false, optional = true }
+libbpf-sys = { version = "1.5.0", default-features = false, optional = true }
 tempfile = { version = "3.3", optional = true }
 
 [dev-dependencies]
