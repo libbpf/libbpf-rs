@@ -2,6 +2,7 @@
 #include <bpf/bpf_helpers.h>
 
 SEC("xdp")
-int xdp_filter(struct xdp_md *ctx) {
-    return XDP_PASS;
+int xdp_filter(struct xdp_md *ctx)
+{
+	return XDP_PASS;
 }
