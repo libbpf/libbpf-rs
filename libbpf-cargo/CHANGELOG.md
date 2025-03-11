@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.25.0
+------
 - Adjusted all `<xxx>_data` BPF map skeleton members to be `Option`s
 - Adjusted numbering of generated Rust structs for anonymous C types to be
   less fragile in the presence of type additions
