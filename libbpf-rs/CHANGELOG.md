@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.25.0
+------
 - Added kprobe multi support for attaching programs, with and without providing
   additional options
 - Allow to provide additional options when attaching programs to raw
