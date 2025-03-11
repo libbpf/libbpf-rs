@@ -1,7 +1,8 @@
-Unreleased
-----------
+0.25.0
+------
 - Added kprobe multi support for attaching programs, with and without providing
   additional options
+- Added `Program::attach_perf_event_with_opts` for attaching to perf events
 - Introduced `TracepointCategory` enum for specifying tracepoint
   categories
 - Allow to provide additional options when attaching programs to raw
@@ -13,7 +14,6 @@ Unreleased
 - Adjusted `UprobeOpts::func_name` to be an `Option`
 - Implemented `Sync` for `Link`
 - Updated `libbpf-sys` dependency to `1.5.0`
-- Added `Program::attach_perf_event_with_opts` for attaching to perf events.
 
 
 0.25.0-beta.1

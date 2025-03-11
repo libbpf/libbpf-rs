@@ -33,7 +33,7 @@ default = ["libbpf-rs/default"]
 anyhow = "1.0.40"
 cargo_metadata = "0.19.1"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
-libbpf-rs = { version = "=0.25.0-beta.1", default-features = false, path = "../libbpf-rs" }
+libbpf-rs = { version = "0.25", default-features = false, path = "../libbpf-rs" }
 log = "0.4.14"
 memmap2 = "0.5"
 serde = { version = "1.0", features = ["derive"] }
