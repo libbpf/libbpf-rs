@@ -90,18 +90,18 @@ macro_rules! gen_info_impl {
     };
 }
 
-/// BTF Line information
+/// BTF Line information.
 #[derive(Clone, Debug)]
 pub struct LineInfo {
-    /// Offset of instruction in vector
+    /// Offset of instruction in vector.
     pub insn_off: u32,
-    /// File name offset
+    /// File name offset.
     pub file_name_off: u32,
-    /// Line offset in debug info
+    /// Line offset in debug info.
     pub line_off: u32,
-    /// Line number
+    /// Line number.
     pub line_num: u32,
-    /// Line column number
+    /// Line column number.
     pub line_col: u32,
 }
 
@@ -117,7 +117,7 @@ impl From<&libbpf_sys::bpf_line_info> for LineInfo {
     }
 }
 
-/// Bpf identifier tag
+/// Bpf identifier tag.
 #[derive(Debug, Clone, Default)]
 #[repr(C)]
 pub struct Tag(pub [u8; 8]);
@@ -129,7 +129,7 @@ pub struct ProgramInfo {
     pub name: CString,
     /// The type of the program.
     pub ty: ProgramType,
-    /// An 8-byte hash (`BPF_TAG_SIZE`) computed from the program’s
+    /// An 8-byte hash (`BPF_TAG_SIZE`) computed from the program's
     /// contents; used to detect changes in the program code.
     pub tag: Tag,
     /// A unique identifier for the program instance.
@@ -146,7 +146,7 @@ pub struct ProgramInfo {
     pub map_ids: Vec<u32>,
     /// Network interface index if the program is attached to a specific device.
     pub ifindex: u32,
-    /// Whether the program is gpl compatible.
+    /// Whether the program is GPL compatible.
     pub gpl_compatible: bool,
     /// Device ID of the network namespace that the program is associated with.
     pub netns_dev: u64,
@@ -172,7 +172,7 @@ pub struct ProgramInfo {
     pub jited_line_info_rec_size: u32,
     /// Array of program tags.
     pub prog_tags: Vec<Tag>,
-    /// Total accumulated run time (in nanoseconds) for the program’s execution.
+    /// Total accumulated run time (in nanoseconds) for the program's execution.
     pub run_time_ns: u64,
     /// Total number of times the program has been executed.
     pub run_cnt: u64,
@@ -180,38 +180,38 @@ pub struct ProgramInfo {
     pub recursion_misses: u64,
 }
 
-/// An iterator for the information of loaded bpf programs
+/// An iterator for the information of loaded bpf programs.
 #[derive(Default, Debug)]
 pub struct ProgInfoIter {
     cur_id: u32,
     opts: ProgInfoQueryOptions,
 }
 
-/// Options to query the program info currently loaded
+/// Options to query the program info currently loaded.
 #[derive(Clone, Default, Debug)]
 pub struct ProgInfoQueryOptions {
-    /// Include the vector of bpf instructions in the result
+    /// Include the vector of bpf instructions in the result.
     include_xlated_prog_insns: bool,
-    /// Include the vector of jited instructions in the result
+    /// Include the vector of jited instructions in the result.
     include_jited_prog_insns: bool,
-    /// Include the ids of maps associated with the program
+    /// Include the ids of maps associated with the program.
     include_map_ids: bool,
-    /// Include source line information corresponding to xlated code
+    /// Include source line information corresponding to xlated code.
     include_line_info: bool,
-    /// Include function type information corresponding to xlated code
+    /// Include function type information corresponding to xlated code.
     include_func_info: bool,
-    /// Include source line information corresponding to jited code
+    /// Include source line information corresponding to jited code.
     include_jited_line_info: bool,
-    /// Include function type information corresponding to jited code
+    /// Include function type information corresponding to jited code.
     include_jited_func_lens: bool,
-    /// Include program tags
+    /// Include program tags.
     include_prog_tags: bool,
-    /// Include the jited kernel symbols
+    /// Include the jited kernel symbols.
     include_jited_ksyms: bool,
 }
 
 impl ProgInfoIter {
-    /// Generate an iter from more specific query options
+    /// Generate an iter from more specific query options.
     pub fn with_query_opts(opts: ProgInfoQueryOptions) -> Self {
         Self {
             opts,
@@ -221,61 +221,61 @@ impl ProgInfoIter {
 }
 
 impl ProgInfoQueryOptions {
-    /// Include the vector of jited bpf instructions in the result
+    /// Include the vector of jited bpf instructions in the result.
     pub fn include_xlated_prog_insns(mut self, v: bool) -> Self {
         self.include_xlated_prog_insns = v;
         self
     }
 
-    /// Include the vector of jited instructions in the result
+    /// Include the vector of jited instructions in the result.
     pub fn include_jited_prog_insns(mut self, v: bool) -> Self {
         self.include_jited_prog_insns = v;
         self
     }
 
-    /// Include the ids of maps associated with the program
+    /// Include the ids of maps associated with the program.
     pub fn include_map_ids(mut self, v: bool) -> Self {
         self.include_map_ids = v;
         self
     }
 
-    /// Include source line information corresponding to xlated code
+    /// Include source line information corresponding to xlated code.
     pub fn include_line_info(mut self, v: bool) -> Self {
         self.include_line_info = v;
         self
     }
 
-    /// Include function type information corresponding to xlated code
+    /// Include function type information corresponding to xlated code.
     pub fn include_func_info(mut self, v: bool) -> Self {
         self.include_func_info = v;
         self
     }
 
-    /// Include source line information corresponding to jited code
+    /// Include source line information corresponding to jited code.
     pub fn include_jited_line_info(mut self, v: bool) -> Self {
         self.include_jited_line_info = v;
         self
     }
 
-    /// Include function type information corresponding to jited code
+    /// Include function type information corresponding to jited code.
     pub fn include_jited_func_lens(mut self, v: bool) -> Self {
         self.include_jited_func_lens = v;
         self
     }
 
-    /// Include program tags
+    /// Include program tags.
     pub fn include_prog_tags(mut self, v: bool) -> Self {
         self.include_prog_tags = v;
         self
     }
 
-    /// Include the jited kernel symbols
+    /// Include the jited kernel symbols.
     pub fn include_jited_ksyms(mut self, v: bool) -> Self {
         self.include_jited_ksyms = v;
         self
     }
 
-    /// Include everything there is in the query results
+    /// Include everything there is in the query results.
     pub fn include_all(self) -> Self {
         Self {
             include_xlated_prog_insns: true,
@@ -464,9 +464,9 @@ impl Iterator for ProgInfoIter {
 pub struct MapInfo {
     /// A user-defined name for the BPF Map (null-terminated string).
     pub name: CString,
-    /// The BPF map type
+    /// The BPF map type.
     pub ty: MapType,
-    /// A unique identifier for this map instance
+    /// A unique identifier for this map instance.
     pub id: u32,
     /// Size (in bytes) of the keys stored in the map.
     pub key_size: u32,
@@ -474,10 +474,10 @@ pub struct MapInfo {
     pub value_size: u32,
     /// Maximum number of entries that the map can hold.
     pub max_entries: u32,
-    /// Map flags indicating specific properties. (e.g., `BPF_F_NO_PREALLOC`)
+    /// Map flags indicating specific properties (e.g., `BPF_F_NO_PREALLOC`).
     pub map_flags: u32,
     /// Network interface index if the map is associated with a specific device. Otherwise, this
-    /// may be zero
+    /// may be zero.
     pub ifindex: u32,
     /// BTF (BPF Type Format) type ID for the value type as defined in the vmlinux BTF data.
     pub btf_vmlinux_value_type_id: u32,
@@ -528,14 +528,14 @@ gen_info_impl!(
     libbpf_sys::bpf_map_get_fd_by_id
 );
 
-/// Information about BPF type format
+/// Information about BPF type format.
 #[derive(Debug, Clone)]
 pub struct BtfInfo {
-    /// The name associated with this btf information in the kernel
+    /// The name associated with this btf information in the kernel.
     pub name: CString,
-    /// The raw btf bytes from the kernel
+    /// The raw btf bytes from the kernel.
     pub btf: Vec<u8>,
-    /// The btf id associated with this btf information in the kernel
+    /// The btf id associated with this btf information in the kernel.
     pub id: u32,
 }
 
@@ -626,14 +626,14 @@ impl Iterator for BtfInfoIter {
 /// Information about a raw tracepoint.
 #[derive(Debug, Clone)]
 pub struct RawTracepointLinkInfo {
-    /// The name of the raw tracepoint
+    /// The name of the raw tracepoint.
     pub name: String,
 }
 
 /// Information about a tracing link
 #[derive(Debug, Clone)]
 pub struct TracingLinkInfo {
-    /// Attach type of the tracing link
+    /// Attach type of the tracing link.
     pub attach_type: ProgramAttachType,
 }
 
@@ -646,7 +646,7 @@ pub struct CgroupLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
-/// Information about a network namespace link
+/// Information about a network namespace link.
 #[derive(Debug, Clone)]
 pub struct NetNsLinkInfo {
     /// Inode number of the network namespace.
@@ -655,81 +655,81 @@ pub struct NetNsLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
-/// Information about a BPF netfilter link
+/// Information about a BPF netfilter link.
 #[derive(Debug, Clone)]
 pub struct NetfilterLinkInfo {
-    /// Protocol family of the netfilter hook
+    /// Protocol family of the netfilter hook.
     pub protocol_family: u32,
-    /// Netfilter hook number
+    /// Netfilter hook number.
     pub hooknum: u32,
-    /// Priority of the netfilter link
+    /// Priority of the netfilter link.
     pub priority: i32,
-    /// Flags used for the netfilter link
+    /// Flags used for the netfilter link.
     pub flags: u32,
 }
 
-/// Information about a XDP link
+/// Information about a XDP link.
 #[derive(Debug, Clone)]
 pub struct XdpLinkInfo {
-    /// Interface index to which the XDP link is attached
+    /// Interface index to which the XDP link is attached.
     pub ifindex: u32,
 }
 
-/// Information about a BPF sockmap link
+/// Information about a BPF sockmap link.
 #[derive(Debug, Clone)]
 pub struct SockMapLinkInfo {
-    /// The ID of the BPF sockmap
+    /// The ID of the BPF sockmap.
     pub map_id: u32,
-    /// The type of program attached to the sockmap
+    /// The type of program attached to the sockmap.
     pub attach_type: ProgramAttachType,
 }
 
-/// Information about a BPF netkit link
+/// Information about a BPF netkit link.
 #[derive(Debug, Clone)]
 pub struct NetkitLinkInfo {
-    /// Interface index to which the netkit link is attached
+    /// Interface index to which the netkit link is attached.
     pub ifindex: u32,
-    /// Type of program attached to the netkit link
+    /// Type of program attached to the netkit link.
     pub attach_type: ProgramAttachType,
 }
 
-/// Information about a BPF tc link
+/// Information about a BPF tc link.
 #[derive(Debug, Clone)]
 pub struct TcxLinkInfo {
-    /// Interface index to which the tc link is attached
+    /// Interface index to which the tc link is attached.
     pub ifindex: u32,
-    /// Type of program attached to the tc link
+    /// Type of program attached to the tc link.
     pub attach_type: ProgramAttachType,
 }
 
-/// Information about a BPF struct_ops link
+/// Information about a BPF struct_ops link.
 #[derive(Debug, Clone)]
 pub struct StructOpsLinkInfo {
-    /// The ID of the BPF map to which the struct_ops link is attached
+    /// The ID of the BPF map to which the `struct_ops` link is attached.
     pub map_id: u32,
 }
 
 /// Information about a multi-kprobe link.
 #[derive(Debug, Clone)]
 pub struct KprobeMultiLinkInfo {
-    /// Count of kprobe targets
+    /// Count of kprobe targets.
     pub count: u32,
-    /// Flags for the link
+    /// Flags for the link.
     pub flags: u32,
-    /// Missed probes count
+    /// Missed probes count.
     pub missed: u64,
 }
 
 /// Information about a multi-uprobe link.
 #[derive(Debug, Clone)]
 pub struct UprobeMultiLinkInfo {
-    /// Size of the path
+    /// Size of the path.
     pub path_size: u32,
-    /// Count of uprobe targets
+    /// Count of uprobe targets.
     pub count: u32,
-    /// Flags for the link
+    /// Flags for the link.
     pub flags: u32,
-    /// PID to which the uprobe is attached
+    /// PID to which the uprobe is attached.
     pub pid: u32,
 }
 
@@ -739,7 +739,7 @@ pub struct UprobeMultiLinkInfo {
 pub enum LinkTypeInfo {
     /// Link type for raw tracepoints.
     ///
-    /// Contains information about the BPF program directly to a raw tracepoint
+    /// Contains information about the BPF program directly to a raw tracepoint.
     RawTracepoint(RawTracepointLinkInfo),
     /// Tracing link type.
     Tracing(TracingLinkInfo),
