@@ -12,7 +12,7 @@ Idiomatic Rust wrapper around [libbpf](https://github.com/libbpf/libbpf).
 To use in your project, add into your `Cargo.toml`:
 ```toml
 [dependencies]
-libbpf-rs = "=0.25.0-beta.1"
+libbpf-rs = "0.25"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-rs).
