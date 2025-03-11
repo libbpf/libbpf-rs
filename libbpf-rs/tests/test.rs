@@ -1665,7 +1665,7 @@ fn test_object_kprobe_multi() {
     let mut obj = open_obj.load().expect("failed to load object");
     let prog = get_prog_mut(&mut obj, "handle__kprobe");
     let _link = prog
-        .attach_kprobe_multi(vec!["bpf_fentry_test1", "bpf_fentry_test2"], false)
+        .attach_kprobe_multi(false, vec!["bpf_fentry_test1", "bpf_fentry_test2"])
         .expect("failed to attach prog");
 }
 

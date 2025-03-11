@@ -991,8 +991,8 @@ impl<'obj> ProgramMut<'obj> {
     /// at once.
     pub fn attach_kprobe_multi<T: AsRef<str>>(
         &self,
-        symbols: Vec<T>,
         retprobe: bool,
+        symbols: Vec<T>,
     ) -> Result<Link> {
         let cnt = Self::check_kprobe_multi_args(&symbols, &[])?;
 
