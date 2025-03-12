@@ -771,6 +771,10 @@ pub enum LinkTypeInfo {
     Tcx(TcxLinkInfo),
     /// Link type for netkit programs.
     Netkit(NetkitLinkInfo),
+    /// Link type for sockmap programs.
+    SockMap(SockMapLinkInfo),
+    /// Link type for perf-event programs.
+    PerfEvent,
     /// Unknown link type.
     Unknown,
 }
@@ -869,6 +873,13 @@ impl LinkInfo {
                     pid: unsafe { s.__bindgen_anon_1.uprobe_multi.pid },
                 })
             }
+            libbpf_sys::BPF_LINK_TYPE_SOCKMAP => LinkTypeInfo::SockMap(SockMapLinkInfo {
+                map_id: unsafe { s.__bindgen_anon_1.sockmap.map_id },
+                attach_type: ProgramAttachType::from(unsafe {
+                    s.__bindgen_anon_1.sockmap.attach_type
+                }),
+            }),
+            libbpf_sys::BPF_LINK_TYPE_PERF_EVENT => LinkTypeInfo::PerfEvent,
             _ => LinkTypeInfo::Unknown,
         };
 
