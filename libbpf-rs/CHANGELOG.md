@@ -7,7 +7,7 @@ Unreleased
 - Allow to provide additional options when attaching programs to kprobes
 - Added `max_entries` getter to various map types
 - Added `OpenProgramMut::set_autoattach`
-- Added additional `ProgramAttachType` variants
+- Added additional `ProgramAttachType` and `query::LinkTypeInfo` variants
 - Adjusted `UprobeOpts::func_name` to be an `Option`
 - Implemented `Sync` for `Link`
 - Updated `libbpf-sys` dependency to `1.5.0`
