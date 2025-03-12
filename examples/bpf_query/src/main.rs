@@ -91,6 +91,8 @@ fn link() {
             query::LinkTypeInfo::StructOps(_) => "structops",
             query::LinkTypeInfo::KprobeMulti(_) => "kprobemulti",
             query::LinkTypeInfo::UprobeMulti(_) => "uprobemulti",
+            query::LinkTypeInfo::SockMap(_) => "sockmap",
+            query::LinkTypeInfo::PerfEvent => "perf_event",
         };
 
         println!(
