@@ -2,6 +2,8 @@ Unreleased
 ----------
 - Added kprobe multi support for attaching programs, with and without providing
   additional options
+- Introduced `TracepointCategory` enum for specifying tracepoint
+  categories
 - Allow to provide additional options when attaching programs to raw
   tracepoints
 - Allow to provide additional options when attaching programs to kprobes
