@@ -129,6 +129,35 @@ pub struct KprobeMultiOpts {
     pub _non_exhaustive: (),
 }
 
+/// Options to optionally be provided when attaching to a perf event.
+#[derive(Clone, Debug, Default)]
+pub struct PerfEventOpts {
+    /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
+    pub cookie: u64,
+    /// Force use of the old style ioctl attachment instead of the newer BPF link method.
+    pub force_ioctl_attach: bool,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl From<PerfEventOpts> for libbpf_sys::bpf_perf_event_opts {
+    fn from(opts: PerfEventOpts) -> Self {
+        let PerfEventOpts {
+            cookie,
+            force_ioctl_attach,
+            _non_exhaustive,
+        } = opts;
+
+        #[allow(clippy::needless_update)]
+        libbpf_sys::bpf_perf_event_opts {
+            sz: size_of::<Self>() as _,
+            bpf_cookie: cookie,
+            force_ioctl_attach,
+            // bpf_perf_event_opts might have padding fields on some platform
+            ..Default::default()
+        }
+    }
+}
 
 /// An immutable parsed but not yet loaded BPF program.
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
@@ -812,6 +841,23 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
     pub fn attach_perf_event(&self, pfd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd) };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open),
+    /// providing additional options.
+    pub fn attach_perf_event_with_opts(&self, pfd: i32, opts: PerfEventOpts) -> Result<Link> {
+        let libbpf_opts = libbpf_sys::bpf_perf_event_opts::from(opts);
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_perf_event_opts(
+                self.ptr.as_ptr(),
+                pfd,
+                &libbpf_opts as *const _,
+            )
+        };
         let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
