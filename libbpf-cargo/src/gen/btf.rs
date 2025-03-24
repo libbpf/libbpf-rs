@@ -327,7 +327,7 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
     // minus keywords that are already reserved in C).
     let reserved = [
         "Self", "abstract", "as", "async", "await", "become", "box", "crate", "dyn", "enum",
-        "final", "fn", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut",
+        "final", "fn", "gen", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut",
         "override", "priv", "pub", "ref", "self", "super", "trait", "try", "type", "typeof",
         "unsafe", "unsized", "use", "virtual", "where", "yield",
     ];
