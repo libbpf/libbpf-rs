@@ -329,7 +329,7 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
         "Self", "abstract", "as", "async", "await", "become", "box", "crate", "dyn", "enum",
         "final", "fn", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut",
         "override", "priv", "pub", "ref", "self", "super", "trait", "try", "type", "typeof",
-        "unsafe", "unsized", "use", "virtual", "where", "yield",
+        "unsafe", "unsized", "use", "virtual", "where", "yield", "gen",
     ];
     debug_assert_eq!(
         reserved.as_slice(),
