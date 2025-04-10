@@ -213,7 +213,7 @@ fn type_declaration_impl(
     let s = btf_type_match!(match ty {
         BtfKind::Void => "std::ffi::c_void".to_string(),
         BtfKind::Int(t) => {
-            let width = match (t.bits + 7) / 8 {
+            let width = match t.bits.div_ceil(8) {
                 1 => "8",
                 2 => "16",
                 4 => "32",
@@ -307,7 +307,7 @@ fn size_of_type(ty: BtfType<'_>, btf: &Btf<'_>) -> Result<usize> {
     let ty = ty.skip_mods_and_typedefs();
 
     Ok(btf_type_match!(match ty {
-        BtfKind::Int(t) => ((t.bits + 7) / 8).into(),
+        BtfKind::Int(t) => t.bits.div_ceil(8).into(),
         BtfKind::Ptr => btf.ptr_size()?.get(),
         BtfKind::Array(t) => t.capacity() * size_of_type(t.contained_type(), btf)?,
         BtfKind::Struct(t) => t.size(),

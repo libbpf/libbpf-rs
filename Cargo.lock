@@ -114,7 +114,7 @@ dependencies = [
  "phf",
  "plain",
  "time",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -339,7 +339,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "test-log",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -373,7 +373,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -464,7 +464,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "plain",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=8f91e9fd5b488ff57074e589e3960940f3387830)",
 ]
 
 [[package]]
@@ -702,7 +702,7 @@ dependencies = [
  "libbpf-rs",
  "libc",
  "plain",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -716,7 +716,7 @@ dependencies = [
  "libc",
  "plain",
  "time",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -891,7 +891,7 @@ dependencies = [
  "libbpf-rs",
  "libc",
  "nix 0.28.0",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -902,7 +902,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -915,7 +915,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -1037,7 +1037,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "nix 0.28.0",
- "vmlinux",
+ "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
 ]
 
 [[package]]
@@ -1109,6 +1109,11 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 name = "vmlinux"
 version = "0.0.0"
 source = "git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94#83a228cf37fc65f2d14e4896a04922b5ee531a94"
+
+[[package]]
+name = "vmlinux"
+version = "0.0.0"
+source = "git+https://github.com/libbpf/vmlinux.h.git?rev=8f91e9fd5b488ff57074e589e3960940f3387830#8f91e9fd5b488ff57074e589e3960940f3387830"
 
 [[package]]
 name = "vsprintf"

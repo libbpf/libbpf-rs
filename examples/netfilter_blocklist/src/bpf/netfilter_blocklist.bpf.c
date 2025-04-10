@@ -5,12 +5,6 @@
 #define NF_DROP 0
 #define NF_ACCEPT 1
 
-int bpf_dynptr_from_skb(struct sk_buff *skb,
-    __u64 flags, struct bpf_dynptr *ptr__uninit) __ksym;
-void *bpf_dynptr_slice(const struct bpf_dynptr *ptr,
-    uint32_t offset, void *buffer, uint32_t buffer__sz) __ksym;
-
-
 struct lpm_key {
     __u32 prefixlen;
     __be32 addr;
