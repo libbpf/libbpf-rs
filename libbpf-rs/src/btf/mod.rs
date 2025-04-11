@@ -630,7 +630,7 @@ impl<'btf> BtfType<'btf> {
                 let int = types::Int::try_from(skipped).unwrap();
                 Ok(Ord::min(
                     ptr_size,
-                    NonZeroUsize::new(((int.bits + 7) / 8).into()).unwrap(),
+                    NonZeroUsize::new(int.bits.div_ceil(8).into()).unwrap(),
                 ))
             }
             BtfKind::Ptr => skipped.source.ptr_size(),
