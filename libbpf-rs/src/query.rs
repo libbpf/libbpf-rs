@@ -448,14 +448,8 @@ impl Iterator for ProgInfoIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let fd = self.next_valid_fd()?;
-
         let prog = ProgramInfo::load_from_fd(fd.as_fd(), &self.opts);
-
-        match prog {
-            Ok(p) => Some(p),
-            // TODO: We should consider bubbling up errors properly.
-            Err(_err) => None,
-        }
+        prog.ok()
     }
 }
 
@@ -612,14 +606,8 @@ impl Iterator for BtfInfoIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let fd = self.next_valid_fd()?;
-
         let info = BtfInfo::load_from_fd(fd.as_fd());
-
-        match info {
-            Ok(i) => Some(i),
-            // TODO: We should consider bubbling up errors properly.
-            Err(_err) => None,
-        }
+        info.ok()
     }
 }
 
