@@ -2151,3 +2151,50 @@ fn test_run_prog_fail() {
     let input = ProgramInput::default();
     let _err = prog.test_run(input).unwrap_err();
 }
+
+/// Check that we can run a program with test_run with `repeat` set.
+/// We set a counter in the program which we bump each time we run the
+/// program.
+/// We check that the counter is equal to the value of `repeat`.
+/// We also check that the duration is non-zero.
+#[tag(root)]
+#[test]
+fn test_run_prog_repeat_and_duration() {
+    let repeat = 100;
+    let payload: [u8; 16] = [
+        0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, // src mac
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, // dst mac
+        0x08, 0x00, // ethertype
+        0x00, 0x00, // payload
+    ];
+    let mut obj = get_test_object("run_prog.bpf.o");
+    let prog = get_prog_mut(&mut obj, "xdp_counter");
+
+    let input: ProgramInput<'_> = ProgramInput {
+        data_in: Some(&payload),
+        repeat,
+        ..Default::default()
+    };
+
+    let output = prog.test_run(input).unwrap();
+
+    let map = get_map(&obj, "test_counter_map");
+
+    let counter = map
+        .lookup(&0u32.to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup counter")
+        .expect("failed to retrieve value");
+
+    assert_eq!(output.return_value, libbpf_sys::XDP_PASS);
+    assert_eq!(
+        counter,
+        repeat.to_ne_bytes(),
+        "counter {} != repeat {repeat}",
+        u32::from_ne_bytes(counter.clone().try_into().unwrap())
+    );
+    assert_ne!(
+        output.duration,
+        Duration::ZERO,
+        "duration should be non-zero"
+    );
+}

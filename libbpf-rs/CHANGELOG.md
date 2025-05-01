@@ -14,6 +14,8 @@ Unreleased
 - Implemented `Sync` for `Link`
 - Updated `libbpf-sys` dependency to `1.5.0`
 - Added `Program::attach_perf_event_with_opts` for attaching to perf events.
+- Added `ProgramInput::repeat` field to run a test multiple times.
+- Added `ProgramOutput::duration` field which represent the average duration per repetition.
 
 
 0.25.0-beta.1

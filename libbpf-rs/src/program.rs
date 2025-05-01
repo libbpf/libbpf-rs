@@ -22,6 +22,7 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 use std::slice;
+use std::time::Duration;
 
 use libbpf_sys::bpf_func_id;
 
@@ -604,6 +605,9 @@ pub struct Input<'dat> {
     pub cpu: u32,
     /// The 'flags' value passed to the kernel.
     pub flags: u32,
+    /// How many times to repeat the test run. A value of 0 will result in 1 run.
+    // 0 being forced to 1 by the kernel: https://elixir.bootlin.com/linux/v6.2.11/source/net/bpf/test_run.c#L352
+    pub repeat: u32,
     /// The struct is non-exhaustive and open to extension.
     #[doc(hidden)]
     pub _non_exhaustive: (),
@@ -621,6 +625,8 @@ pub struct Output<'dat> {
     pub context: Option<&'dat mut [u8]>,
     /// Output data filled by the program.
     pub data: Option<&'dat mut [u8]>,
+    /// Average duration per repetition.
+    pub duration: Duration,
     /// The struct is non-exhaustive and open to extension.
     #[doc(hidden)]
     pub _non_exhaustive: (),
@@ -1373,6 +1379,7 @@ impl<'obj> ProgramMut<'obj> {
             mut data_out,
             cpu,
             flags,
+            repeat,
             _non_exhaustive: (),
         } = input;
 
@@ -1399,6 +1406,9 @@ impl<'obj> ProgramMut<'obj> {
         opts.data_size_out = data_out.map(|data| data.len() as _).unwrap_or(0);
         opts.cpu = cpu;
         opts.flags = flags;
+        // safe to cast back to an i32. While the API uses an `int`: https://elixir.bootlin.com/linux/v6.2.11/source/tools/lib/bpf/bpf.h#L446
+        // the kernel user api uses __u32: https://elixir.bootlin.com/linux/v6.2.11/source/include/uapi/linux/bpf.h#L1430
+        opts.repeat = repeat as i32;
 
         let rc = unsafe { libbpf_sys::bpf_prog_test_run_opts(self.as_fd().as_raw_fd(), &mut opts) };
         let () = util::parse_ret(rc)?;
@@ -1406,6 +1416,7 @@ impl<'obj> ProgramMut<'obj> {
             return_value: opts.retval,
             context: unsafe { slice_from_array(opts.ctx_out.cast(), opts.ctx_size_out as _) },
             data: unsafe { slice_from_array(opts.data_out.cast(), opts.data_size_out as _) },
+            duration: Duration::from_nanos(opts.duration.into()),
             _non_exhaustive: (),
         };
         Ok(output)
