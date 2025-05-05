@@ -578,30 +578,28 @@ fn test_skeleton_datasec() {
         fn main() {
             let builder = ProgSkelBuilder::default();
             let mut open_object = MaybeUninit::uninit();
-            let open_skel = builder
+            let mut open_skel = builder
                 .open(&mut open_object)
                 .expect("failed to open skel");
-
             // Check that we set rodata vars before load
-            open_skel.maps.rodata_data.myconst = std::ptr::null_mut();
+            open_skel.maps.rodata_data.as_deref_mut().unwrap().myconst = std::ptr::null_mut();
 
             // We can always set bss vars
-            open_skel.maps.bss_data.myglobal = 42;
+            open_skel.maps.bss_data.as_deref_mut().unwrap().myglobal = 42;
+            open_skel.maps.data_custom_data.as_deref_mut().unwrap().mycustomdata = 1337;
+            open_skel.maps.bss_custom_data.as_deref_mut().unwrap().mycustombss = 12;
+            assert_eq!(open_skel.maps.rodata_custom_1_data.as_deref_mut().unwrap().mycustomrodata, 43);
 
-            open_skel.maps.data_custom_data.mycustomdata = 1337;
-            open_skel.maps.bss_custom_data.mycustombss = 12;
-            assert_eq!(open_skel.maps.rodata_custom_1_data.mycustomrodata, 43);
-
-            let skel = open_skel.load().expect("failed to load skel");
+            let mut skel = open_skel.load().expect("failed to load skel");
 
             // We can always set bss vars
-            skel.maps.bss_data.myglobal = 24;
-            skel.maps.data_custom_data.mycustomdata += 1;
-            skel.maps.bss_custom_data.mycustombss += 1;
-            assert_eq!(skel.maps.rodata_custom_1_data.mycustomrodata, 43);
+            skel.maps.bss_data.as_deref_mut().unwrap().myglobal = 24;
+            skel.maps.data_custom_data.as_deref_mut().unwrap().mycustomdata += 1;
+            skel.maps.bss_custom_data.as_deref_mut().unwrap().mycustombss += 1;
+            assert_eq!(skel.maps.rodata_custom_1_data.as_deref().unwrap().mycustomrodata, 43);
 
             // Read only for rodata after load
-            let _rodata: &types::rodata = skel.maps.rodata_data;
+            let _rodata: &types::rodata = skel.maps.rodata_data.as_deref().unwrap();
         }
     "#
     .to_string();
@@ -819,12 +817,13 @@ fn test_skeleton_builder_arrays_ptrs() {
             let open_skel = builder
                 .open(&mut open_object)
                 .expect("failed to open skel");
+            let rodata = open_skel.maps.rodata_data.as_deref().unwrap();
 
             // That everything exists and compiled okay
-            let _ = open_skel.maps.rodata_data.my_array[0].x;
-            let _ = open_skel.maps.rodata_data.my_array[0].y[1].b;
-            let _ = open_skel.maps.rodata_data.my_array[0].z[0].a;
-            let _ = open_skel.maps.rodata_data.my_ptr;
+            let _ = rodata.my_array[0].x;
+            let _ = rodata.my_array[0].y[1].b;
+            let _ = rodata.my_array[0].z[0].a;
+            let _ = rodata.my_ptr;
         }
     "#
     .to_string();

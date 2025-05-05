@@ -164,19 +164,24 @@ fn test(name_to_register: Option<&OsStr>, name_to_use: &OsStr, verbose: bool) ->
     // NB: At this point `/proc/sys/net/ipv4/tcp_available_congestion_control`
     //     would list the registered congestion algorithm.
 
-    assert_eq!(skel.maps.bss_data.ca_cnt, 0);
-    assert!(!skel.maps.bss_data.cong_control);
+    let bss = skel
+        .maps
+        .bss_data
+        .as_deref_mut()
+        .expect("`bss` is not memory mapped");
+    assert_eq!(bss.ca_cnt, 0);
+    assert!(!bss.cong_control);
 
     // Use our registered TCP congestion algorithm while sending a bunch of data
     // over the loopback device.
     let () = send_recv(name_to_use)?;
     println!("Done.");
 
-    let saved_ca_cnt = skel.maps.bss_data.ca_cnt;
+    let saved_ca_cnt = bss.ca_cnt;
     assert_ne!(saved_ca_cnt, 0);
     // With `ca_update_cong_control2` active, we should have seen the
     // `cong_control` value changed as well.
-    assert!(skel.maps.bss_data.cong_control);
+    assert!(bss.cong_control);
     Ok(())
 }
 

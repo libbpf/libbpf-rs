@@ -88,12 +88,17 @@ fn main() -> Result<()> {
         builder.obj_builder.debug(true);
     }
     let mut open_object = MaybeUninit::uninit();
-    let open = builder.open(&mut open_object)?;
+    let mut open_skel = builder.open(&mut open_object)?;
+    let rodata = open_skel
+        .maps
+        .rodata_data
+        .as_deref_mut()
+        .expect("`rodata` is not memory mapped");
 
-    open.maps.rodata_data.targ_ip = u32::from_be_bytes(ip.octets()).to_be();
-    open.maps.rodata_data.data_such_as_trace_id = opts.trace_id;
+    rodata.targ_ip = u32::from_be_bytes(ip.octets()).to_be();
+    rodata.data_such_as_trace_id = opts.trace_id;
 
-    let skel = open.load()?;
+    let skel = open_skel.load()?;
 
     let cgroup_fd = OpenOptions::new()
         .read(true)
