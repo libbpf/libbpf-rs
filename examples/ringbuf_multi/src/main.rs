@@ -45,10 +45,15 @@ fn main() -> Result<()> {
     let mut open_object = MaybeUninit::uninit();
     let open_skel = skel_builder.open(&mut open_object)?;
     let mut skel = open_skel.load()?;
+    let bss = skel
+        .maps
+        .bss_data
+        .as_deref_mut()
+        .expect("`bss` is not memory mapped");
 
     // Only trigger BPF program for current process.
     let pid = unsafe { libc::getpid() };
-    skel.maps.bss_data.pid = pid;
+    bss.pid = pid;
 
     let mut builder = libbpf_rs::RingBufferBuilder::new();
     builder
@@ -60,19 +65,24 @@ fn main() -> Result<()> {
     let ringbuf = builder.build().unwrap();
 
     let () = skel.attach()?;
+    let bss = skel
+        .maps
+        .bss_data
+        .as_deref_mut()
+        .expect("`bss` is not memory mapped");
 
     // trigger few samples, some will be skipped
-    skel.maps.bss_data.target_ring = 0;
-    skel.maps.bss_data.value = 333;
+    bss.target_ring = 0;
+    bss.value = 333;
     let _pgid = unsafe { libc::getpgid(pid) };
 
     // skipped, no ringbuf in slot 1
-    skel.maps.bss_data.target_ring = 1;
-    skel.maps.bss_data.value = 555;
+    bss.target_ring = 1;
+    bss.value = 555;
     let _pgid = unsafe { libc::getpgid(pid) };
 
-    skel.maps.bss_data.target_ring = 2;
-    skel.maps.bss_data.value = 777;
+    bss.target_ring = 2;
+    bss.value = 777;
     let _pgid = unsafe { libc::getpgid(pid) };
 
     // poll for samples, should get 2 ringbufs back

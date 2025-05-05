@@ -78,12 +78,17 @@ fn main() -> Result<()> {
     }
 
     let mut open_object = MaybeUninit::uninit();
-    let open_skel = skel_builder.open(&mut open_object)?;
+    let mut open_skel = skel_builder.open(&mut open_object)?;
+    let rodata = open_skel
+        .maps
+        .rodata_data
+        .as_deref_mut()
+        .expect("`rodata` is not memory mapped");
 
     // Write arguments into prog
-    open_skel.maps.rodata_data.min_us = opts.latency;
-    open_skel.maps.rodata_data.targ_pid = opts.pid;
-    open_skel.maps.rodata_data.targ_tgid = opts.tid;
+    rodata.min_us = opts.latency;
+    rodata.targ_pid = opts.pid;
+    rodata.targ_tgid = opts.tid;
 
     // Begin tracing
     let mut skel = open_skel.load()?;

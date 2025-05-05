@@ -405,7 +405,7 @@ fn gen_skel_map_defs(
             write!(
                 skel,
                 "\
-                    pub {name}_data: &'obj{ref_mut} types::{name},
+                    pub {name}_data: Option<&'obj{ref_mut} types::{name}>,
                 ",
                 name = map.name,
             )?;
@@ -499,7 +499,6 @@ fn gen_skel_map_defs(
                                     .expect(\"BPF map `{name}` does not have mmap pointer\")
                                     .cast::<types::{name}>()
                                     .as_{ref_conv}()
-                                    .expect(\"BPF map `{name}` mmap pointer is NULL\")
                             }},
                 ",
                 name = map.name,

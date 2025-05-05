@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Adjusted all `<xxx>_data` BPF map skeleton members to be `Option`s
 - Removed `SkeletonBuilder::skip_clang_version_check` and
   `SkeletonBuilder::debug`
 - Removed `--skip-clang-version-checks` option of `libbpf build`

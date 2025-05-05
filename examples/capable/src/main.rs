@@ -174,16 +174,16 @@ fn main() -> Result<()> {
     }
 
     let mut open_object = MaybeUninit::uninit();
-    let open_skel = skel_builder.open(&mut open_object)?;
-    //Pass configuration to BPF
-    open_skel.maps.rodata_data.tool_config.tgid = opts.pid; //tgid in kernel is pid in userland
-    open_skel
+    let mut open_skel = skel_builder.open(&mut open_object)?;
+    let rodata = open_skel
         .maps
         .rodata_data
-        .tool_config
-        .verbose
-        .write(opts.verbose);
-    open_skel.maps.rodata_data.tool_config.unique_type = opts.unique_type;
+        .as_deref_mut()
+        .expect("`rodata` is not memory mapped");
+    //Pass configuration to BPF
+    rodata.tool_config.tgid = opts.pid; //tgid in kernel is pid in userland
+    rodata.tool_config.verbose.write(opts.verbose);
+    rodata.tool_config.unique_type = opts.unique_type;
 
     let mut skel = open_skel.load()?;
     skel.attach()?;
