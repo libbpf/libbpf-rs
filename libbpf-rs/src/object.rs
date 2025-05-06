@@ -140,7 +140,7 @@ impl ObjectBuilder {
         Ok(self)
     }
 
-    /// Set the pin_root_path for maps that are pinned by name.
+    /// Set the `pin_root_path` for maps that are pinned by name.
     ///
     /// By default, this is NULL which bpf translates to /sys/fs/bpf
     pub fn pin_root_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {

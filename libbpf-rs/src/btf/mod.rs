@@ -2,9 +2,9 @@
 //!
 //! To find a specific type you can use one of 3 methods
 //!
-//! - [Btf::type_by_name]
-//! - [Btf::type_by_id]
-//! - [Btf::type_by_kind]
+//! - [`Btf::type_by_name`]
+//! - [`Btf::type_by_id`]
+//! - [`Btf::type_by_kind`]
 //!
 //! All of these are generic over `K`, which is any type that can be created from a [`BtfType`],
 //! for all of these methods, not finding any type by the passed parameter or finding a type of
@@ -76,17 +76,17 @@ pub enum BtfKind {
     Restrict,
     /// [Func](types::Func)
     Func,
-    /// [FuncProto](types::FuncProto)
+    /// [`FuncProto`](types::FuncProto)
     FuncProto,
     /// [Var](types::Var)
     Var,
-    /// [DataSec](types::DataSec)
+    /// [`DataSec`](types::DataSec)
     DataSec,
     /// [Float](types::Float)
     Float,
-    /// [DeclTag](types::DeclTag)
+    /// [`DeclTag`](types::DeclTag)
     DeclTag,
-    /// [TypeTag](types::TypeTag)
+    /// [`TypeTag`](types::TypeTag)
     TypeTag,
     /// [Enum64](types::Enum64)
     Enum64,
@@ -312,7 +312,7 @@ impl<'btf> Btf<'btf> {
         self.len() == 0
     }
 
-    /// The number of [BtfType]s in this object.
+    /// The number of [`BtfType`]s in this object.
     pub fn len(&self) -> usize {
         unsafe {
             // SAFETY: the btf pointer is valid.
@@ -351,7 +351,7 @@ impl<'btf> Btf<'btf> {
         }
     }
 
-    /// Find a type by it's [TypeId].
+    /// Find a type by its [`TypeId`].
     pub fn type_by_id<'s, K>(&'s self, type_id: TypeId) -> Option<K>
     where
         K: TryFrom<BtfType<'s>>,
@@ -457,13 +457,6 @@ pub struct BtfType<'btf> {
     type_id: TypeId,
     name: Option<&'btf OsStr>,
     source: &'btf Btf<'btf>,
-    ///  the __bindgen_anon_1 field is a union defined as
-    ///  ```no_run
-    ///  union btf_type__bindgen_ty_1 {
-    ///      size_: u32,
-    ///      type_: u32,
-    ///  }
-    ///  ```
     ty: &'btf libbpf_sys::btf_type,
 }
 
@@ -606,7 +599,7 @@ impl<'btf> BtfType<'btf> {
     /// Given a type, follows the refering type ids until it finds a type that isn't a modifier or
     /// a [`BtfKind::Typedef`].
     ///
-    /// See [is_mod](Self::is_mod).
+    /// See [`is_mod`](Self::is_mod).
     pub fn skip_mods_and_typedefs(&self) -> Self {
         let mut ty = *self;
         loop {
@@ -621,7 +614,7 @@ impl<'btf> BtfType<'btf> {
     /// Returns the alignment of this type, if this type points to some modifier or typedef, those
     /// will be skipped until the underlying type (with an alignment) is found.
     ///
-    /// See [skip_mods_and_typedefs](Self::skip_mods_and_typedefs).
+    /// See [`skip_mods_and_typedefs`](Self::skip_mods_and_typedefs).
     pub fn alignment(&self) -> Result<NonZeroUsize> {
         let skipped = self.skip_mods_and_typedefs();
         match skipped.kind() {
@@ -695,7 +688,7 @@ impl<'btf> BtfType<'btf> {
 ///
 /// # Safety
 ///
-/// It's only safe to implement this for types where the underlying btf_type has a .size set.
+/// It's only safe to implement this for types where the underlying `btf_type` has a .size set.
 ///
 /// See the [docs](https://www.kernel.org/doc/html/latest/bpf/btf.html) for a reference of which
 /// [`BtfKind`] can implement this trait.
@@ -711,7 +704,7 @@ pub unsafe trait HasSize<'btf>: Deref<Target = BtfType<'btf>> + sealed::Sealed {
 ///
 /// # Safety
 ///
-/// It's only safe to implement this for types where the underlying btf_type has a .type set.
+/// It's only safe to implement this for types where the underlying `btf_type` has a .type set.
 ///
 /// See the [docs](https://www.kernel.org/doc/html/latest/bpf/btf.html) for a reference of which
 /// [`BtfKind`] can implement this trait.

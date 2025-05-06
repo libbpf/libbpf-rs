@@ -13,19 +13,19 @@ bitflags! {
         /// No flags.
         const NONE              = 0;
         /// See [`libbpf_sys::XDP_FLAGS_UPDATE_IF_NOEXIST`].
-        const UPDATE_IF_NOEXIST = libbpf_sys::XDP_FLAGS_UPDATE_IF_NOEXIST as _;
+        const UPDATE_IF_NOEXIST = libbpf_sys::XDP_FLAGS_UPDATE_IF_NOEXIST;
         /// See [`libbpf_sys::XDP_FLAGS_SKB_MODE`].
-        const SKB_MODE          = libbpf_sys::XDP_FLAGS_SKB_MODE as _;
+        const SKB_MODE          = libbpf_sys::XDP_FLAGS_SKB_MODE;
         /// See [`libbpf_sys::XDP_FLAGS_DRV_MODE`].
-        const DRV_MODE          = libbpf_sys::XDP_FLAGS_DRV_MODE as _;
+        const DRV_MODE          = libbpf_sys::XDP_FLAGS_DRV_MODE;
         /// See [`libbpf_sys::XDP_FLAGS_HW_MODE`].
-        const HW_MODE           = libbpf_sys::XDP_FLAGS_HW_MODE as _;
+        const HW_MODE           = libbpf_sys::XDP_FLAGS_HW_MODE;
         /// See [`libbpf_sys::XDP_FLAGS_REPLACE`].
-        const REPLACE           = libbpf_sys::XDP_FLAGS_REPLACE as _;
+        const REPLACE           = libbpf_sys::XDP_FLAGS_REPLACE;
         /// See [`libbpf_sys::XDP_FLAGS_MODES`].
-        const MODES             = libbpf_sys::XDP_FLAGS_MODES as _;
+        const MODES             = libbpf_sys::XDP_FLAGS_MODES;
         /// See [`libbpf_sys::XDP_FLAGS_MASK`].
-        const MASK              = libbpf_sys::XDP_FLAGS_MASK as _;
+        const MASK              = libbpf_sys::XDP_FLAGS_MASK;
     }
 
 }
@@ -85,7 +85,7 @@ impl<'fd> Xdp<'fd> {
         util::parse_ret(err).map(|()| opts)
     }
 
-    /// Query to inspect the program identifier (prog_id)
+    /// Query to inspect the program identifier (`prog_id`)
     pub fn query_id(&self, ifindex: i32, flags: XdpFlags) -> Result<u32> {
         let mut prog_id = 0;
         let err =
@@ -93,7 +93,7 @@ impl<'fd> Xdp<'fd> {
         util::parse_ret(err).map(|()| prog_id)
     }
 
-    /// Replace an existing xdp program (identified by old_prog_fd) with this xdp program
+    /// Replace an existing xdp program (identified by `old_prog_fd`) with this xdp program
     pub fn replace(&self, ifindex: i32, old_prog_fd: BorrowedFd<'_>) -> Result<()> {
         let mut opts = self.attach_opts;
         opts.old_prog_fd = old_prog_fd.as_raw_fd();

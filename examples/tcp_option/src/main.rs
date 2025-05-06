@@ -1,3 +1,5 @@
+//! Example illustrating how to modify TCP headers.
+
 use std::mem::MaybeUninit;
 use std::net::Ipv4Addr;
 use std::os::fd::AsFd;
@@ -35,7 +37,7 @@ mod tcp_option {
         "/src/bpf/tcp_option.skel.rs"
     ));
 }
-use tcp_option::*;
+use tcp_option::TcpOptionSkelBuilder;
 
 const SOL_SOCKET: c_int = 1;
 const SO_ATTACH_BPF: c_int = 50;
@@ -70,7 +72,7 @@ fn main() -> Result<()> {
     let opts = Command::parse();
 
     let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
+    let r = Arc::clone(&running);
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
     })?;
@@ -110,7 +112,7 @@ fn main() -> Result<()> {
     let prog_fd = skel.progs.socket_handler.as_fd();
     match unsafe {
         libc::setsockopt(
-            target_socket_fd as c_int,
+            target_socket_fd,
             SOL_SOCKET,
             SO_ATTACH_BPF,
             &prog_fd as *const _ as *const c_void,

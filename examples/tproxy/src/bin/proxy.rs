@@ -1,3 +1,5 @@
+//! A fake proxy.
+
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::os::unix::io::AsRawFd as _;

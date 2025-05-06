@@ -16,3 +16,6 @@ libc = "0.2"
 plain = "0.2"
 time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
 clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
+
+[lints]
+workspace = true

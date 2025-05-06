@@ -1,4 +1,4 @@
-#![allow(clippy::let_unit_value)]
+//! An example showing how to block ports using TC.
 
 use std::mem::MaybeUninit;
 use std::os::unix::io::AsFd as _;
@@ -24,7 +24,7 @@ use nix::net::if_::if_nametoindex;
 mod tc {
     include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bpf/tc.skel.rs"));
 }
-use tc::*;
+use tc::TcSkelBuilder;
 
 #[derive(Debug, Parser)]
 struct Command {

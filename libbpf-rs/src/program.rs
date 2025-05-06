@@ -55,8 +55,7 @@ pub struct UprobeOpts {
     /// To specify function entry, `func_name` should be set while `func_offset`
     /// argument to should be 0. To trace an offset within a function, specify
     /// `func_name` and use `func_offset` argument to specify offset within the
-    /// function. Shared library functions must specify the shared library
-    /// binary_path.
+    /// function. Shared library functions must specify the shared library path.
     ///
     /// If `func_name` is `None`, `func_offset` will be treated as the
     /// absolute offset of the symbol to attach to, rather than a
@@ -393,7 +392,7 @@ impl ProgramType {
     }
 
     /// Detects if host kernel supports the use of a given BPF helper from this BPF program type.
-    /// * `helper_id` - BPF helper ID (enum bpf_func_id) to check support for
+    /// * `helper_id` - BPF helper ID (enum `bpf_func_id`) to check support for
     ///
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
@@ -751,8 +750,7 @@ impl<'obj> Program<'obj> {
         match fd_type {
             BpfObjectType::Program => Ok(fd),
             other => Err(Error::with_invalid_data(format!(
-                "retrieved BPF fd is not a program fd: {:#?}",
-                other
+                "retrieved BPF fd is not a program fd: {other:#?}"
             ))),
         }
     }

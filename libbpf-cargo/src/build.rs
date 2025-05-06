@@ -62,8 +62,9 @@ impl BpfObjBuilder {
     }
 
     /// We're essentially going to run:
-    ///
-    ///   clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
+    /// ```text
+    /// clang -g -O2 -target bpf -c -D__TARGET_ARCH_$(ARCH) runqslower.bpf.c -o runqslower.bpf.o
+    /// ```
     ///
     /// for each prog.
     fn compile_single(
@@ -297,6 +298,8 @@ fn extract_clang_or_default(clang: Option<&Path>) -> PathBuf {
     }
 }
 
+/// Build the project, assuming necessary skeleton files have already
+/// been generated.
 pub fn build_project(
     manifest_path: Option<&Path>,
     clang: Option<&Path>,

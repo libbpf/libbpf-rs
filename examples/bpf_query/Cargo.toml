@@ -12,3 +12,6 @@ clap = { version = "4.0.32", default-features = false, features = ["std", "deriv
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 iced-x86 = "1.20.0"
+
+[lints]
+workspace = true

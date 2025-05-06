@@ -3,6 +3,9 @@
 // Author Devasia Thomas <https://www.linkedin.com/in/devasiathomas/>
 //
 // Based on capable(8) by Brendan Gregg
+
+//! Example showing basic functionality of capable(8).
+
 use core::time::Duration;
 use std::mem::MaybeUninit;
 use std::str;
@@ -27,7 +30,7 @@ mod capable {
 }
 
 use capable::types::uniqueness;
-use capable::*;
+use capable::CapableSkelBuilder;
 
 static CAPS: phf::Map<i32, &'static str> = phf_map! {
     0i32 => "CAP_CHOWN",

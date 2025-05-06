@@ -1,3 +1,5 @@
+//! Build script for the `tcp_option` example.
+
 use std::env;
 use std::ffi::OsStr;
 use std::path::PathBuf;

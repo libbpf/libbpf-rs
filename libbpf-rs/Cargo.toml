@@ -62,3 +62,6 @@ test-tag = "0.1"
 # dependency specifications themselves.
 _cc_unused = { package = "cc", version = "1.0.3" }
 _pkg-config_unused = { package = "pkg-config", version = "0.3.3" }
+
+[lints]
+workspace = true

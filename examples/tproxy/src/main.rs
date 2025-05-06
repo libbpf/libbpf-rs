@@ -1,3 +1,5 @@
+//! Example implementing the classic iptables TPROXY target.
+
 use std::mem::MaybeUninit;
 use std::net::Ipv4Addr;
 use std::os::unix::io::AsFd as _;
@@ -23,7 +25,7 @@ mod tproxy {
     ));
 }
 
-use tproxy::*;
+use tproxy::TproxySkelBuilder;
 
 /// Transparent proxy driver
 ///
@@ -53,7 +55,7 @@ fn main() -> Result<()> {
 
     // Install Ctrl-C handler
     let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
+    let r = Arc::clone(&running);
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
     })?;

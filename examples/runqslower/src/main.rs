@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
+//! An example illustrating how to trace run queue latency using BPF.
+
 use std::mem::MaybeUninit;
 use std::str;
 use std::time::Duration;
@@ -21,6 +23,7 @@ mod runqslower {
     ));
 }
 
+#[allow(clippy::wildcard_imports)]
 use runqslower::*;
 
 /// Trace high run queue latency

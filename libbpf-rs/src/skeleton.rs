@@ -314,7 +314,7 @@ impl Drop for ObjectSkeletonConfig<'_> {
             }
         }
 
-        let _ = unsafe { Box::from_raw(self.inner.obj) };
+        let () = drop(unsafe { Box::from_raw(self.inner.obj) });
     }
 }
 

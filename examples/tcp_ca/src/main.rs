@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
-#![allow(clippy::let_unit_value)]
+//! An example illustrating `struct_opt` usage to change TCP congestion
+//! algorithms.
 
 use std::ffi::c_int;
 use std::ffi::c_void;
@@ -80,7 +81,7 @@ fn set_tcp_ca(fd: BorrowedFd<'_>, tcp_ca: &OsStr) -> Result<()> {
         IPPROTO_TCP,
         TCP_CONGESTION,
         bytes.as_ptr().cast(),
-        bytes.len() as _,
+        bytes.len(),
     )
     .with_context(|| {
         format!(

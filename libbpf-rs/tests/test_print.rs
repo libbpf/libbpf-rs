@@ -1,7 +1,7 @@
-//! This test is in its own file because the underlying libbpf_set_print function used by
-//! set_print() and ObjectBuilder::debug() sets global state. The default is to run multiple tests
-//! in different threads, so this test will always race with the others unless its isolated to a
-//! different process.
+//! This test is in its own file because the underlying `libbpf_set_print` function used by
+//! `set_print()` and `ObjectBuilder::debug()` sets global state. The default is to run multiple
+//! tests in different threads, so this test will always race with the others unless its isolated to
+//! a different process.
 //!
 //! For the same reason, all tests here must run serially.
 

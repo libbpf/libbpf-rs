@@ -40,7 +40,7 @@ pub const TC_H_MIN_MASK: u32 = 0x0000FFFF;
 /// more independently from other [`Program`][crate::Program]s.
 ///
 /// This struct exposes operations to create, attach, query and destroy
-/// a bpf_tc_hook using the TC subsystem.
+/// a `bpf_tc_hook` using the TC subsystem.
 ///
 /// Documentation about the libbpf TC interface can be found
 /// [here](https://lwn.net/ml/bpf/20210512103451.989420-3-memxor@gmail.com/).
@@ -165,7 +165,7 @@ impl TcHook {
         self.opts.priority
     }
 
-    /// Query a hook to inspect the program identifier (prog_id)
+    /// Query a hook to inspect the program identifier (`prog_id`)
     pub fn query(&mut self) -> Result<u32> {
         let mut opts = self.opts;
         opts.prog_id = 0;
@@ -180,14 +180,14 @@ impl TcHook {
         }
     }
 
-    /// Attach a filter to the TcHook so that the program starts processing
+    /// Attach a filter to the `TcHook` so that the program starts processing
     ///
     /// Once the hook is processing, changing the values will have no effect unless the hook is
     /// [`Self::attach()`]'d again (`replace=true` being required)
     ///
-    /// Users can create a second hook by changing the handle, the priority or the attach_point and
+    /// Users can create a second hook by changing the handle, the priority or the attach point and
     /// calling the [`Self::attach()`] method again.  Beware doing this.  It might be better to
-    /// Copy the TcHook and change the values on the copied hook for easier [`Self::detach()`]
+    /// Copy the `TcHook` and change the values on the copied hook for easier [`Self::detach()`]
     ///
     /// NOTE: Once a [`TcHook`] is attached, it, and the maps it uses, will outlive the userspace
     /// application that spawned them Make sure to detach if this is not desired
@@ -220,14 +220,14 @@ impl TcHook {
 
     /// Destroy attached filters
     ///
-    /// If called on a hook with an attach_point of `TC_EGRESS`, will detach all egress hooks
+    /// If called on a hook with an `attach_point` of `TC_EGRESS`, will detach all egress hooks
     ///
-    /// If called on a hook with an attach_point of `TC_INGRESS`, will detach all ingress hooks
+    /// If called on a hook with an `attach_point` of `TC_INGRESS`, will detach all ingress hooks
     ///
-    /// If called on a hook with an attach_point of `TC_EGRESS|TC_INGRESS`, will destroy the clsact
-    /// tc qdisc and detach all hooks
+    /// If called on a hook with an `attach_point` of `TC_EGRESS|TC_INGRESS`, will destroy the
+    /// clsact tc qdisc and detach all hooks
     ///
-    /// Will error with EOPNOTSUPP if attach_point is `TC_CUSTOM`
+    /// Will error with `EOPNOTSUPP` if `attach_point` is `TC_CUSTOM`
     ///
     /// It is good practice to query before destroying as the tc qdisc may be used by multiple
     /// programs

@@ -31,3 +31,6 @@ vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc
 _serde_unused = { package = "serde", version = "1.0.200" }
 # error[E0277]: the trait bound `serde_json::Value: Hash` is not satisfied
 _serde_json_unused = { package = "serde_json", version = "1.0.137" }
+
+[lints]
+workspace = true

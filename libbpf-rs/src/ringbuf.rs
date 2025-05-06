@@ -167,7 +167,7 @@ pub struct RingBuffer<'cb> {
 impl RingBuffer<'_> {
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
-    /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
+    /// or `timeout` is reached. If `timeout` is `Duration::MAX`, this will block
     /// indefinitely until an event occurs.
     ///
     /// Return the amount of events consumed, or a negative value in case of error.
@@ -182,7 +182,7 @@ impl RingBuffer<'_> {
 
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
-    /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
+    /// or `timeout` is reached. If `timeout` is `Duration::MAX`, this will block
     /// indefinitely until an event occurs.
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret = self.poll_raw(timeout);
