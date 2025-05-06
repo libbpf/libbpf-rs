@@ -1,3 +1,5 @@
+//! Tests for the XDP functionality.
+
 #[allow(dead_code)]
 mod common;
 

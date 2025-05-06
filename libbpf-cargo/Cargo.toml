@@ -45,3 +45,6 @@ clap = { version = "4.0.32", features = ["derive"] }
 goblin = "0.9"
 test-log = { version = "0.2.16", default-features = false, features = ["log"] }
 vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+
+[lints]
+workspace = true

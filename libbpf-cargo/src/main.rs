@@ -1,5 +1,4 @@
-#![allow(clippy::let_unit_value)]
-#![warn(clippy::absolute_paths)]
+//! The `libbpf-cargo` `cargo` sub-command.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -12,8 +11,8 @@ use clap::Parser;
 use clap::Subcommand;
 
 use libbpf_cargo::__private::build;
-use libbpf_cargo::__private::gen;
 use libbpf_cargo::__private::make;
+use libbpf_cargo::__private::r#gen;
 use log::Level;
 
 
@@ -131,7 +130,7 @@ fn main() -> Result<()> {
                 manifest_path,
                 rustfmt_path,
                 object,
-            } => gen::gen(
+            } => r#gen::generate(
                 manifest_path.as_deref(),
                 rustfmt_path.as_deref(),
                 object.as_deref(),

@@ -15,3 +15,6 @@ clap = { version = "4.0.32", features = ["derive"] }
 # works with that.
 the-original-libbpf-rs = { path = "../../libbpf-rs", package = "libbpf-rs" }
 libc = "0.2"
+
+[lints]
+workspace = true

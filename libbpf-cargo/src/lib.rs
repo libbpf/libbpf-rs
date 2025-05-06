@@ -55,16 +55,6 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
-#![allow(clippy::let_unit_value)]
-#![warn(
-    elided_lifetimes_in_paths,
-    missing_debug_implementations,
-    single_use_lifetimes,
-    clippy::absolute_paths,
-    clippy::wildcard_imports
-)]
-#![deny(unsafe_op_in_unsafe_fn)]
-
 pub use build::CompilationOutput;
 
 use std::ffi::OsStr;
@@ -80,7 +70,7 @@ use tempfile::tempdir;
 use tempfile::TempDir;
 
 mod build;
-mod gen;
+mod r#gen;
 mod make;
 mod metadata;
 
@@ -122,6 +112,7 @@ impl Default for SkeletonBuilder {
 }
 
 impl SkeletonBuilder {
+    /// Create a new [`SkeletonBuilder`].
     pub fn new() -> Self {
         SkeletonBuilder {
             source: None,
@@ -201,9 +192,9 @@ impl SkeletonBuilder {
         Ok(comp_output)
     }
 
-    // Build BPF programs without generating a skeleton.
-    //
-    // [`SkeletonBuilder::source`] must be set for this to succeed.
+    /// Build BPF programs without generating a skeleton.
+    ///
+    /// [`SkeletonBuilder::source`] must be set for this to succeed.
     pub fn build(&mut self) -> Result<CompilationOutput> {
         let source = self
             .source
@@ -244,15 +235,15 @@ impl SkeletonBuilder {
             .with_context(|| format!("failed to build `{}`", source.display()))
     }
 
-    // Generate a skeleton at path `output` without building BPF programs.
-    //
-    // [`SkeletonBuilder::obj`] must be set for this to succeed.
+    /// Generate a skeleton at path `output` without building BPF programs.
+    ///
+    /// [`SkeletonBuilder::obj`] must be set for this to succeed.
     pub fn generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
         let objfile = self.obj.as_ref().ok_or_else(|| anyhow!("No object file"))?;
 
-        gen::gen_single(
+        r#gen::gen_single(
             objfile,
-            gen::OutputDest::File(output.as_ref()),
+            r#gen::OutputDest::File(output.as_ref()),
             Some(&self.rustfmt),
         )
         .with_context(|| format!("failed to generate `{}`", objfile.display()))?;
@@ -270,8 +261,8 @@ pub mod __private {
     pub mod build {
         pub use crate::build::build_project;
     }
-    pub mod gen {
-        pub use crate::gen::gen;
+    pub mod r#gen {
+        pub use crate::r#gen::generate;
     }
     pub mod make {
         pub use crate::make::make;

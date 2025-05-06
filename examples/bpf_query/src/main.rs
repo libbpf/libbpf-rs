@@ -1,3 +1,5 @@
+//! Example illustrating how to query certain BPF information.
+
 use std::process::exit;
 
 use clap::Parser;
@@ -46,7 +48,7 @@ fn prog(args: ProgArgs) {
                     let insn = d.decode();
                     let mut f_insn = String::new();
                     f.format(&insn, &mut f_insn);
-                    println!("  {}: {}", ip, f_insn);
+                    println!("  {ip}: {f_insn}");
                 }
             }
 

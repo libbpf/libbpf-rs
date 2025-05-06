@@ -1,4 +1,4 @@
-#![allow(clippy::let_unit_value)]
+//! Build script for `libbpf-rs-dev`.
 
 use std::env;
 use std::env::consts::ARCH;

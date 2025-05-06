@@ -410,7 +410,7 @@ impl ProgramInfo {
             btf_id: item.btf_id,
             func_info_rec_size: item.func_info_rec_size,
             func_info,
-            line_info: line_info.iter().map(|li| li.into()).collect(),
+            line_info: line_info.iter().map(Into::into).collect(),
             jited_line_info,
             line_info_rec_size: item.line_info_rec_size,
             jited_line_info_rec_size: item.jited_line_info_rec_size,
@@ -690,7 +690,7 @@ pub struct TcxLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
-/// Information about a BPF struct_ops link.
+/// Information about a BPF `struct_ops` link.
 #[derive(Debug, Clone)]
 pub struct StructOpsLinkInfo {
     /// The ID of the BPF map to which the `struct_ops` link is attached.
@@ -744,9 +744,9 @@ pub enum LinkTypeInfo {
     /// Contains information about the XDP link, such as the interface index
     /// to which the XDP link is attached.
     Xdp(XdpLinkInfo),
-    /// Link type for struct_ops programs.
+    /// Link type for `struct_ops` programs.
     ///
-    /// Contains information about the BPF map to which the struct_ops link is
+    /// Contains information about the BPF map to which the `struct_ops` link is
     /// attached.
     StructOps(StructOpsLinkInfo),
     /// Link type for netfilter programs.

@@ -1,0 +1,16 @@
+# For general information about this file, check
+# https://doc.rust-lang.org/stable/clippy/configuration.html
+
+doc-valid-idents = [
+  "Host1X",
+  "HugeTLB",
+  "InfiniBand",
+  "JITed",
+  "NetFilter",
+  "QLogic",
+  "RxRPC",
+  "SMBus",
+  "SunRPC",
+  "Video4Linux2",
+  "..",
+]

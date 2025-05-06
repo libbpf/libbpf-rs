@@ -17,3 +17,6 @@ clap = { version = "4.0.32", default-features = false, features = ["std", "deriv
 ctrlc = "3.2"
 libbpf-rs = { path = "../../libbpf-rs" }
 plain = "0.2"
+
+[lints]
+workspace = true

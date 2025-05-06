@@ -876,7 +876,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
         #[allow(clippy::zero_repeat_side_effects)]
         #[warn(single_use_lifetimes)]
         mod imp {{
-        #[allow(unused_imports)]
+        #[allow(unused_imports, clippy::wildcard_imports)]
         use super::*;
         use libbpf_rs::libbpf_sys;
         use libbpf_rs::skel::OpenSkel;
@@ -1034,8 +1034,8 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
     // Generate struct_ops types before anything else, as they are slightly
     // modified compared to the dumb structure contained in BTF.
     if let Some(btf) = &btf {
-        let gen = GenStructOps::new(btf)?;
-        let () = gen.gen_struct_ops_def(&mut skel)?;
+        let ops = GenStructOps::new(btf)?;
+        let () = ops.gen_struct_ops_def(&mut skel)?;
         write!(
             skel,
             "\
@@ -1045,7 +1045,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
             "
         )?;
 
-        let () = gen.gen_dependent_types(&mut processed, &mut skel)?;
+        let () = ops.gen_dependent_types(&mut processed, &mut skel)?;
     } else {
         write!(
             skel,
@@ -1345,7 +1345,8 @@ fn gen_project(manifest_path: Option<&Path>, rustfmt_path: Option<&Path>) -> Res
     Ok(())
 }
 
-pub fn gen(
+/// Generate skeleton files for a project.
+pub fn generate(
     manifest_path: Option<&Path>,
     rustfmt_path: Option<&Path>,
     object: Option<&Path>,

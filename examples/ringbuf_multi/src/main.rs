@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
+//! Example illustrating `BPF_MAP_TYPE_ARRAY_OF_MAPS` usage.
+
 use core::time::Duration;
 use std::ffi::c_int;
 use std::mem::MaybeUninit;
@@ -18,6 +20,7 @@ mod ringbuf_multi {
     ));
 }
 
+#[allow(clippy::wildcard_imports)]
 use ringbuf_multi::*;
 
 unsafe impl Plain for types::sample {}

@@ -1,3 +1,5 @@
+//! Build script for the `ringbuf_multi` example.
+
 use std::env;
 use std::ffi::OsStr;
 use std::path::PathBuf;

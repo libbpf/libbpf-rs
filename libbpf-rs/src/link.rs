@@ -60,7 +60,7 @@ impl Link {
 
     /// Release "ownership" of underlying BPF resource (typically, a BPF program
     /// attached to some BPF hook, e.g., tracepoint, kprobe, etc). Disconnected
-    /// links, when destructed through bpf_link__destroy() call won't attempt to
+    /// links, when destructed through `bpf_link__destroy()` call won't attempt to
     /// detach/unregistered that BPF resource. This is useful in situations where,
     /// say, attached BPF program has to outlive userspace program that attached it
     /// in the system. Depending on type of BPF program, though, there might be

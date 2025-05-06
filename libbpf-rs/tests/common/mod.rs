@@ -125,11 +125,7 @@ pub fn get_symbol_offset(binary_path: &Path, symbol_name: &str) -> Result<usize,
         }
     }
 
-    Err(format!(
-        "Symbol `{}` not found in binary {:?}",
-        symbol_name, binary_path
-    )
-    .into())
+    Err(format!("Symbol `{symbol_name}` not found in binary {binary_path:?}").into())
 }
 
 fn check_symbol_offset(elf: &Elf, sym: &sym::Sym) -> Option<usize> {

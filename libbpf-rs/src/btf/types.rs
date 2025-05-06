@@ -351,7 +351,7 @@ pub enum IntEncoding {
     None,
     /// Signed.
     Signed,
-    /// It's a c_char.
+    /// It's a `c_char`.
     Char,
     /// It's a bool.
     Bool,
@@ -807,7 +807,7 @@ gen_concrete_type! {
 impl DeclTag<'_> {
     /// The component index is present only when the tag points to a struct/union member or a
     /// function argument.
-    /// And component_idx indicates which member or argument, this decl tag refers to.
+    /// And `component_idx` indicates which member or argument, this decl tag refers to.
     #[inline]
     pub fn component_index(&self) -> Option<u32> {
         self.ptr.component_idx.try_into().ok()
@@ -890,7 +890,7 @@ impl Enum64<'_> {
 ///     }
 /// ```
 ///
-/// NonBinding.
+/// Non-binding.
 ///
 /// ```compile_fail
 ///     BtfKind::Int => {

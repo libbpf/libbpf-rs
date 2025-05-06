@@ -272,7 +272,7 @@ impl<T> AsRawLibbpf for OpenMapImpl<'_, T> {
 
 pub(crate) fn map_fd(map: NonNull<libbpf_sys::bpf_map>) -> Option<RawFd> {
     let fd = unsafe { libbpf_sys::bpf_map__fd(map.as_ptr()) };
-    let fd = util::parse_ret_i32(fd).ok().map(|fd| fd as RawFd);
+    let fd = util::parse_ret_i32(fd).ok();
     fd
 }
 
@@ -451,7 +451,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Retrieve the size of the map's values.
     fn value_size(&self) -> u32;
 
-    /// Retrieve max_entries of the map.
+    /// Retrieve `max_entries` of the map.
     fn max_entries(&self) -> u32;
 
     /// Fetch extra map information
@@ -475,7 +475,8 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     ///
     /// If the map is one of the per-cpu data structures, the function [`Self::lookup_percpu()`]
     /// must be used.
-    /// If the map is of type bloom_filter the function [`Self::lookup_bloom_filter()`] must be used
+    /// If the map is of type `bloom_filter` the function [`Self::lookup_bloom_filter()`] must be
+    /// used
     fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         check_not_bloom_or_percpu(self)?;
         let out_size = self.value_size() as usize;
@@ -508,7 +509,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         Ok(lookup_batch_raw(self, count, elem_flags, flags, true))
     }
 
-    /// Returns if the given value is likely present in bloom_filter as `bool`.
+    /// Returns if the given value is likely present in `bloom_filter` as `bool`.
     ///
     /// `value` must have exactly [`Self::value_size()`] elements.
     fn lookup_bloom_filter(&self, value: &[u8]) -> Result<bool> {
@@ -836,7 +837,8 @@ impl<'obj> Map<'obj> {
         unsafe { libbpf_sys::bpf_map__is_pinned(self.ptr.as_ptr()) }
     }
 
-    /// Returns the pin_path if the map is pinned, otherwise, None is returned
+    /// Returns the `pin_path` if the map is pinned, otherwise, `None`
+    /// is returned.
     pub fn get_pin_path(&self) -> Option<&OsStr> {
         let path_ptr = unsafe { libbpf_sys::bpf_map__pin_path(self.ptr.as_ptr()) };
         if path_ptr.is_null() {
@@ -917,7 +919,7 @@ impl<T> AsFd for MapImpl<'_, T> {
         let fd = map_fd(self.ptr).unwrap();
         // SAFETY: `fd` is guaranteed to be valid for the lifetime of
         //         the created object.
-        let fd = unsafe { BorrowedFd::borrow_raw(fd as _) };
+        let fd = unsafe { BorrowedFd::borrow_raw(fd) };
         fd
     }
 }
@@ -1094,7 +1096,7 @@ impl MapHandle {
     /// Freeze the map as read-only from user space.
     ///
     /// Entries from a frozen map can no longer be updated or deleted with the
-    /// bpf() system call. This operation is not reversible, and the map remains
+    /// `bpf()` system call. This operation is not reversible, and the map remains
     /// immutable from user space until its destruction. However, read and write
     /// permissions for BPF programs to the map remain unchanged.
     pub fn freeze(&self) -> Result<()> {
@@ -1282,9 +1284,9 @@ pub enum MapType {
     ///
     /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_cpumap.html) for more details.
     Cpumap = libbpf_sys::BPF_MAP_TYPE_CPUMAP,
-    /// A map that redirects raw XDP frames to AF_XDP sockets (XSKs), a new type of address family
-    /// in the kernel that allows redirection of frames from a driver to user space without
-    /// having to traverse the full network stack.
+    /// A map that redirects raw XDP frames to `AF_XDP` sockets (XSKs), a new type of address
+    /// family in the kernel that allows redirection of frames from a driver to user space
+    /// without having to traverse the full network stack.
     ///
     /// Refer the kernel [documentation](https://docs.kernel.org/bpf/map_xskmap.html) for more details.
     Xskmap = libbpf_sys::BPF_MAP_TYPE_XSKMAP,
@@ -1474,7 +1476,7 @@ impl Iterator for MapKeyIter<'_> {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let prev = self.prev.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        let prev = self.prev.as_ref().map_or(ptr::null(), Vec::as_ptr);
 
         let ret = unsafe {
             libbpf_sys::bpf_map_get_next_key(
@@ -1533,10 +1535,7 @@ impl<'map> BatchedMapIter<'map> {
     }
 
     fn lookup_next_batch(&mut self) {
-        let prev = self
-            .prev
-            .as_mut()
-            .map_or(ptr::null_mut(), |p| p.as_mut_ptr());
+        let prev = self.prev.as_mut().map_or(ptr::null_mut(), Vec::as_mut_ptr);
         let mut count = self.count as u32;
 
         let ret = unsafe {

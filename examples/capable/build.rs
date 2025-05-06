@@ -1,3 +1,5 @@
+//! Build script for the `capable` example.
+
 use std::env;
 use std::ffi::OsStr;
 use std::path::PathBuf;

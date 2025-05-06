@@ -66,18 +66,6 @@
 //!
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
 
-#![allow(clippy::let_and_return, clippy::let_unit_value)]
-#![warn(
-    elided_lifetimes_in_paths,
-    missing_debug_implementations,
-    missing_docs,
-    single_use_lifetimes,
-    clippy::absolute_paths,
-    clippy::wildcard_imports,
-    rustdoc::broken_intra_doc_links
-)]
-#![deny(unsafe_op_in_unsafe_fn)]
-
 pub mod btf;
 mod error;
 mod iter;

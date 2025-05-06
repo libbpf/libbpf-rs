@@ -20,3 +20,6 @@ clap = { version = "4.0.32", default-features = false, features = ["std", "deriv
 
 [features]
 static = ["libbpf-rs/static"]
+
+[lints]
+workspace = true

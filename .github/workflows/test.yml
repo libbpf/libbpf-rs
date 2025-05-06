@@ -111,10 +111,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build libbpf-rs sample
         run: |
-          cargo init --bin libbpf-rs-test-project
-          cd libbpf-rs-test-project
+          cargo init --bin ../libbpf-rs-test-project
+          cd ../libbpf-rs-test-project
           cat >> Cargo.toml <<EOF
-          libbpf-rs = { path = "../libbpf-rs", ${{ matrix.args }} }
+          libbpf-rs = { path = "../libbpf-rs/libbpf-rs", ${{ matrix.args }} }
           EOF
           cat > src/main.rs <<EOF
           fn main() {
@@ -237,7 +237,7 @@ jobs:
           # We want the old resolver here as it has more suitable feature
           # unification logic for this invocation.
           sed -i 's@resolver = "2"@resolver = "1"@' Cargo.toml
-          cargo clippy --locked --no-deps --all-targets --tests --features=dont-generate-test-files -- -D warnings -D clippy::absolute_paths
+          cargo clippy --locked --no-deps --all-targets --tests --features=dont-generate-test-files -- -D warnings
 
   rustfmt:
     name: Check code formatting

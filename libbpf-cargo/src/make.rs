@@ -10,8 +10,10 @@ use log::log_enabled;
 use log::Level::Info;
 
 use crate::build;
-use crate::gen;
+use crate::r#gen;
 
+
+/// Build the project, end-to-end.
 pub fn make(
     manifest_path: Option<&Path>,
     clang: Option<&Path>,
@@ -24,7 +26,7 @@ pub fn make(
         .context("Failed to compile BPF objects")?;
 
     debug!("Generating skeletons");
-    gen::gen(manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;
+    r#gen::generate(manifest_path, None, rustfmt_path).context("Failed to generate skeletons")?;
 
     let mut cmd = Command::new("cargo");
     cmd.arg("build");

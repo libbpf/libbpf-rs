@@ -787,10 +787,7 @@ impl<'s> GenBtf<'s> {
                         def = format!("std::mem::MaybeUninit::new({def})")
                     }
 
-                    impl_default.push(format!(
-                        r#"            {field_name}: {field_ty_str}"#,
-                        field_ty_str = def
-                    ));
+                    impl_default.push(format!(r#"            {field_name}: {def}"#));
                 }
                 Err(e) => {
                     if gen_impl_default || !t.is_struct {

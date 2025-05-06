@@ -39,7 +39,7 @@ pub type PrintCallback = fn(PrintLevel, String);
 /// previous callback had been set, with the intention of restoring it, everything will behave as
 /// expected.
 fn default_callback(_lvl: PrintLevel, msg: String) {
-    let _ = io::stderr().write(msg.as_bytes());
+    let _count = io::stderr().write(msg.as_bytes());
 }
 
 // While we can't say that set_print is thread-safe, because we shouldn't assume that of

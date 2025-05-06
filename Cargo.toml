@@ -22,3 +22,34 @@ members = [
   "examples/tproxy",
 ]
 resolver = "2"
+
+[workspace.lints.rust]
+deprecated-safe = "warn"
+future-incompatible = "warn"
+keyword-idents = "warn"
+let-underscore = "warn"
+missing-debug-implementations = "warn"
+missing-docs = "warn"
+trivial-numeric-casts = "warn"
+unexpected_cfgs = {level = "warn", check-cfg = ['cfg(has_procmap_query_ioctl)', 'cfg(has_large_test_files)']}
+unsafe-op-in-unsafe-fn = "warn"
+unused = "warn"
+
+[workspace.lints.clippy]
+collapsible-else-if = "allow"
+collapsible-if = "allow"
+fn-to-numeric-cast = "allow"
+let-and-return = "allow"
+let-unit-value = "allow"
+module-inception = "allow"
+type-complexity = "allow"
+absolute-paths = "warn"
+clone-on-ref-ptr = "warn"
+dbg-macro = "warn"
+doc-markdown = "warn"
+join-absolute-paths = "warn"
+large-enum-variant = "warn"
+redundant-closure-for-method-calls = "warn"
+unchecked-duration-subtraction = "warn"
+uninlined-format-args = "warn"
+wildcard-imports = "warn"

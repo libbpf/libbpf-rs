@@ -1,5 +1,4 @@
-#![allow(clippy::let_unit_value)]
-#![warn(clippy::absolute_paths)]
+//! End-to-end tests for `libbpf-rs`.
 
 mod common;
 
@@ -777,7 +776,7 @@ fn test_program_loading_fd_from_pinned_path_with_wrong_pin_type() {
     map.pin(path).expect("pinning map failed");
 
     // Must fail, as the pinned path points to a map, not program.
-    let _ = Program::fd_from_pinned_path(path).expect_err("program fd obtained from pinned map");
+    let _err = Program::fd_from_pinned_path(path).expect_err("program fd obtained from pinned map");
 
     map.unpin(path).expect("unpinning program failed");
 }
@@ -832,7 +831,7 @@ fn test_object_program_pin() {
 
     // Backup cleanup method in case test errors
     defer! {
-        let _ = fs::remove_file(path);
+        let _unused = fs::remove_file(path);
     }
 
     // Unpin should be successful
@@ -859,7 +858,7 @@ fn test_object_link_pin() {
 
     // Backup cleanup method in case test errors
     defer! {
-        let _ = fs::remove_file(path);
+        let _unused = fs::remove_file(path);
     }
 
     // Unpin should be successful
@@ -888,7 +887,7 @@ fn test_object_reuse_pined_map() {
 
     // Backup cleanup method in case test errors somewhere
     defer! {
-        let _ = fs::remove_file(path);
+        let _unused = fs::remove_file(path);
     }
 
     // Reuse the pinned map
@@ -1308,7 +1307,7 @@ fn test_object_user_ringbuf_not_enough_space() {
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = get_map_mut(&mut obj, "user_ringbuf");
     let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
-    let _ = user_ringbuf
+    let _sample = user_ringbuf
         .reserve(1024 * 3)
         .expect("failed to reserve space");
     let err = user_ringbuf.reserve(1024 * 3).unwrap_err();
@@ -1985,7 +1984,7 @@ fn test_map_pinned_status() {
     let get_path = map.get_pin_path().expect("get map pin path failed");
     assert_eq!(expected_path, get_path.to_str().unwrap());
     // cleanup
-    let _ = fs::remove_file(expected_path);
+    let _unused = fs::remove_file(expected_path);
 }
 
 /// Change the root_pin_path and see if it works.
@@ -2009,8 +2008,8 @@ fn test_map_pinned_status_with_pin_root_path() {
     let get_path = map.get_pin_path().expect("get map pin path failed");
     assert_eq!(expected_path, get_path.to_str().unwrap());
     // cleanup
-    let _ = fs::remove_file(expected_path);
-    let _ = fs::remove_dir("/sys/fs/bpf/test_namespace");
+    let _unused = fs::remove_file(expected_path);
+    let _unused = fs::remove_dir("/sys/fs/bpf/test_namespace");
 }
 
 /// Check that we can get program fd by id and vice versa.

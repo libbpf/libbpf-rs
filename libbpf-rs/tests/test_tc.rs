@@ -1,3 +1,5 @@
+//! Tests for the TC functionality.
+
 #[allow(dead_code)]
 mod common;
 

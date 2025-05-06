@@ -1,3 +1,5 @@
+//! Tests for the NetFilter functionality.
+
 #[allow(dead_code)]
 mod common;
 
@@ -34,8 +36,7 @@ fn test_attach_and_detach(obj: &mut Object, protocol_family: i32, hooknum: i32, 
         .attach_netfilter_with_opts(netfilter_opt)
         .unwrap_or_else(|err| {
             panic!(
-                "Failed to attach netfilter protocol {}, hook: {}: {err}",
-                protocol_family, hook_desc
+                "Failed to attach netfilter protocol {protocol_family}, hook: {hook_desc}: {err}"
             )
         });
 
@@ -53,7 +54,7 @@ fn test_attach_and_detach(obj: &mut Object, protocol_family: i32, hooknum: i32, 
     let result = match hooknum {
         NF_INET_PRE_ROUTING | NF_INET_POST_ROUTING => {
             let action = || {
-                let _ = TcpStream::connect(trigger_addr);
+                let _stream = TcpStream::connect(trigger_addr);
             };
             with_ringbuffer(&map, action)
         }

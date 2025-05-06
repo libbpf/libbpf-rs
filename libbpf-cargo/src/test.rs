@@ -21,9 +21,9 @@ use test_log::test;
 
 use crate::build::build_project;
 use crate::build::BpfObjBuilder;
-use crate::gen::GenBtf;
-use crate::gen::GenStructOps;
 use crate::make::make;
+use crate::r#gen::GenBtf;
+use crate::r#gen::GenStructOps;
 use crate::SkeletonBuilder;
 
 /// Creates a temporary directory and initializes a default cargo project inside.
@@ -1190,10 +1190,11 @@ fn test_skeleton_duplicate_struct() {
 
 // -- TEST RUST GENERATION OF BTF PROGRAMS --
 
-/// Searches the Btf struct for a BtfType
+/// Searches the Btf struct for a `BtfType`
 /// returns type identifier <u32> if found
 /// fails calling test if not found, or if duplicates exist
 ///
+/// ```
 /// usage: -- search for basic struct/union/enum with exact match to name
 ///        find_type_in_btf!(<Btf to search in>,
 ///                          <BtfType to search for>,
@@ -1213,6 +1214,7 @@ fn test_skeleton_duplicate_struct() {
 ///                          <&str search name>);
 ///        eg
 ///        let let my_type = find_type_in_btf!(btf, Var, "name");
+/// ```
 macro_rules! find_type_in_btf {
     // match for a named BtfType::Var inside all vars in a Datasec
     ($btf:ident, Var, $name:literal) => {{
@@ -1318,10 +1320,10 @@ fn assert_output(actual_output: &str, expected_output: &str) {
     assert!(eo == ao);
 }
 
-/// Tests the type_definition output of a type_id against a given expected output
+/// Tests the `type_definition` output of a `type_id` against a given expected output
 /// Will trim leading and trailing whitespace from both expected output and from
-/// the generated type_definition
-/// fails calling text if type_definition does not match expected_output
+/// the generated `type_definition`
+/// fails calling text if `type_definition` does not match `expected_output`
 #[track_caller]
 fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: &str) {
     let actual_output = btf
@@ -3094,9 +3096,9 @@ impl Default for bpf_dummy_ops {
     let btf = btf_from_mmap(&mmap);
     let mut processed = HashSet::new();
     let mut def = String::new();
-    let gen = GenStructOps::new(&btf).unwrap();
-    let () = gen.gen_struct_ops_def(&mut def).unwrap();
-    let () = gen.gen_dependent_types(&mut processed, &mut def).unwrap();
+    let ops = GenStructOps::new(&btf).unwrap();
+    let () = ops.gen_struct_ops_def(&mut def).unwrap();
+    let () = ops.gen_dependent_types(&mut processed, &mut def).unwrap();
 
     assert_output(&def, expected_output);
 }
