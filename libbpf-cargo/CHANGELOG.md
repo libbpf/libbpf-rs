@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.25.0
+------
 - Adjusted all `<xxx>_data` BPF map skeleton members to be `Option`s
 - Removed `SkeletonBuilder::skip_clang_version_check` and
   `SkeletonBuilder::debug`

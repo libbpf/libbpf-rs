@@ -856,11 +856,7 @@ impl<'obj> ProgramMut<'obj> {
     pub fn attach_perf_event_with_opts(&self, pfd: i32, opts: PerfEventOpts) -> Result<Link> {
         let libbpf_opts = libbpf_sys::bpf_perf_event_opts::from(opts);
         let ptr = unsafe {
-            libbpf_sys::bpf_program__attach_perf_event_opts(
-                self.ptr.as_ptr(),
-                pfd,
-                &libbpf_opts as *const _,
-            )
+            libbpf_sys::bpf_program__attach_perf_event_opts(self.ptr.as_ptr(), pfd, &libbpf_opts)
         };
         let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
