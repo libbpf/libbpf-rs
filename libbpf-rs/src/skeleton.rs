@@ -46,7 +46,7 @@ struct ProgSkelConfig {
 #[derive(Debug)]
 pub struct ObjectSkeletonConfigBuilder<'dat> {
     data: &'dat [u8],
-    p: Box<*mut bpf_object>,
+    obj: Box<*mut bpf_object>,
     name: Option<String>,
     maps: Vec<MapSkelConfig>,
     progs: Vec<ProgSkelConfig>,
@@ -70,7 +70,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     pub fn new(object_data: &'dat [u8]) -> Self {
         Self {
             data: object_data,
-            p: Box::new(ptr::null_mut()),
+            obj: Box::new(ptr::null_mut()),
             name: None,
             maps: Vec::new(),
             progs: Vec::new(),
@@ -199,7 +199,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         s.data_sz = self.data.len() as c_ulong;
 
         // Give s ownership over the box
-        s.obj = Box::into_raw(self.p);
+        s.obj = Box::into_raw(self.obj);
 
         let maps_layout = Self::build_maps(&mut self.maps, &mut s, &mut string_pool);
         let progs_layout = Self::build_progs(&mut self.progs, &mut s, &mut string_pool);
