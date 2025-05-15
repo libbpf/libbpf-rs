@@ -38,7 +38,7 @@ struct MapSkelConfig {
 #[derive(Debug)]
 struct ProgSkelConfig {
     name: String,
-    p: Box<*mut bpf_program>,
+    prog: Box<*mut bpf_program>,
     link: Box<*mut bpf_link>,
 }
 
@@ -106,7 +106,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.progs.push(ProgSkelConfig {
             name: name.as_ref().to_string(),
-            p: Box::new(ptr::null_mut()),
+            prog: Box::new(ptr::null_mut()),
             link: Box::new(ptr::null_mut()),
         });
 
@@ -172,7 +172,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
                 // See above for `expect()` rationale
                 (*current_prog).name = str_to_cstring_and_pool(&prog.name, string_pool)
                     .expect("Invalid unicode in prog name");
-                (*current_prog).prog = &mut *prog.p;
+                (*current_prog).prog = &mut *prog.prog;
                 (*current_prog).link = &mut *prog.link;
             }
         }
