@@ -31,7 +31,7 @@ use crate::Result;
 #[derive(Debug)]
 struct MapSkelConfig {
     name: String,
-    p: Box<*mut bpf_map>,
+    map: Box<*mut bpf_map>,
     mmaped: Option<Box<*mut c_void>>,
 }
 
@@ -95,7 +95,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
 
         self.maps.push(MapSkelConfig {
             name: name.as_ref().to_string(),
-            p: Box::new(ptr::null_mut()),
+            map: Box::new(ptr::null_mut()),
             mmaped: m,
         });
 
@@ -137,7 +137,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
                 // leak. Extremely unlikely to have invalid unicode anyways.
                 (*current_map).name = str_to_cstring_and_pool(&map.name, string_pool)
                     .expect("Invalid unicode in map name");
-                (*current_map).map = &mut *map.p;
+                (*current_map).map = &mut *map.map;
                 (*current_map).mmaped = if let Some(ref mut mmaped) = map.mmaped {
                     &mut **mmaped
                 } else {
