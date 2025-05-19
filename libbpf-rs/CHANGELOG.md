@@ -18,6 +18,7 @@ Unreleased
 - Added `ProgramInput::repeat` field to run a test multiple times
 - Added `ProgramOutput::duration` field which represent the average
   duration per repetition
+- Added `RingBuffer::consume_raw_n` method to consume up to N items
 
 
 0.25.0-beta.1
