@@ -5,7 +5,6 @@ use std::env::consts::ARCH;
 use std::ffi::OsStr;
 use std::fs::read_dir;
 use std::io::Error;
-use std::io::ErrorKind;
 use std::io::Result;
 use std::ops::Deref as _;
 use std::path::Path;
@@ -53,13 +52,10 @@ where
             String::new()
         };
 
-        Err(Error::new(
-            ErrorKind::Other,
-            format!(
-                "`{}` reported non-zero exit-status{code}{stderr}",
-                format_command(command, args)
-            ),
-        ))
+        Err(Error::other(format!(
+            "`{}` reported non-zero exit-status{code}{stderr}",
+            format_command(command, args)
+        )))
     } else {
         Ok(())
     }
@@ -80,13 +76,10 @@ where
         .args(args.clone())
         .output()
         .map_err(|err| {
-            Error::new(
-                ErrorKind::Other,
-                format!(
-                    "failed to run `{}`: {err}",
-                    format_command(command.as_ref(), args.clone())
-                ),
-            )
+            Error::other(format!(
+                "failed to run `{}`: {err}",
+                format_command(command.as_ref(), args.clone())
+            ))
         })?;
 
     let () = evaluate(&output, command, args)?;
@@ -114,7 +107,7 @@ fn adjust_mtime(path: &Path) -> Result<()> {
     // don't rely on it for anything essential.
     let output = Path::new(&out_dir)
         .parent()
-        .ok_or_else(|| Error::new(ErrorKind::Other, "OUT_DIR has no parent"))?
+        .ok_or_else(|| Error::other("OUT_DIR has no parent"))?
         .join("output");
 
     if !output.exists() {
