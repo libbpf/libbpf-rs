@@ -333,6 +333,7 @@ dependencies = [
  "env_logger",
  "goblin",
  "libbpf-rs",
+ "libbpf-sys",
  "log",
  "memmap2",
  "serde",
