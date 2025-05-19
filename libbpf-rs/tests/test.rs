@@ -986,6 +986,23 @@ fn test_object_ringbuf_raw() {
     // Consume from a (potentially) empty ring buffer using poll()
     let ret = mgr.poll_raw(Duration::from_millis(100));
     assert!(ret >= 0);
+
+    // Call getpid multiple times, to refill the ring buffer.
+    for _ in 1..=10 {
+        unsafe { libc::getpid() };
+    }
+
+    // Consume exactly one item
+    let ret = mgr.consume_raw_n(1);
+    assert!(ret == 1);
+
+    // Consume two items
+    let ret = mgr.consume_raw_n(2);
+    assert!(ret == 2);
+
+    // Consume all the remaining items, but no more than 10
+    let ret = mgr.consume_raw_n(10);
+    assert!((7..=10).contains(&ret));
 }
 
 #[tag(root)]
