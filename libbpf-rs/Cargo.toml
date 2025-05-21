@@ -48,7 +48,6 @@ tempfile = { version = "3.3", optional = true }
 goblin = "0.9.3"
 libbpf-rs = {path = ".", features = ["generate-test-files"]}
 libbpf-rs-dev = {path = "dev", features = ["generate-test-files"]}
-log = "0.4.4"
 memmem = "0.1.1"
 plain = "0.2.3"
 probe = "0.3"
