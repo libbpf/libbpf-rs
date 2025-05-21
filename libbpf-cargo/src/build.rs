@@ -12,8 +12,8 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use log::debug;
 use tempfile::tempdir;
+use tracing::debug;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;

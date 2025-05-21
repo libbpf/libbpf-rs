@@ -7,9 +7,9 @@ use anyhow::Context as _;
 use anyhow::Result;
 use cargo_metadata::MetadataCommand;
 use cargo_metadata::Package;
-use log::debug;
 use serde::Deserialize;
 use serde_json::value::Value;
+use tracing::debug;
 
 #[derive(Default, Deserialize)]
 struct LibbpfPackageMetadata {
