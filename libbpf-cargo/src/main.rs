@@ -10,10 +10,14 @@ use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 
+use tracing::subscriber::set_global_default as set_global_subscriber;
+use tracing::Level;
+use tracing_subscriber::fmt::time::ChronoLocal;
+use tracing_subscriber::FmtSubscriber;
+
 use libbpf_cargo::__private::build;
 use libbpf_cargo::__private::make;
 use libbpf_cargo::__private::r#gen;
-use log::Level;
 
 
 #[doc(hidden)]
@@ -105,16 +109,19 @@ fn main() -> Result<()> {
     let Opt { wrapper, verbosity } = opts;
 
     let level = match verbosity {
-        0 => Level::Warn,
-        1 => Level::Info,
-        2 => Level::Debug,
-        _ => Level::Trace,
+        0 => Level::WARN,
+        1 => Level::INFO,
+        2 => Level::DEBUG,
+        _ => Level::TRACE,
     };
 
-    let () = env_logger::builder()
-        .parse_env(env_logger::Env::default().default_filter_or(level.as_str()))
-        .try_init()
-        .context("failed to initialize logging infrastructure")?;
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(level)
+        .with_timer(ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.3f%:z".to_string()))
+        .finish();
+
+    let () =
+        set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
 
     match wrapper {
         Wrapper::Libbpf(cmd) => match cmd {

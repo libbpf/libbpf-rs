@@ -5,9 +5,9 @@ use std::process::Command;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use log::debug;
-use log::log_enabled;
-use log::Level::Info;
+use tracing::debug;
+use tracing::event_enabled;
+use tracing::Level;
 
 use crate::build;
 use crate::r#gen;
@@ -30,7 +30,7 @@ pub fn make(
 
     let mut cmd = Command::new("cargo");
     cmd.arg("build");
-    if !log_enabled!(Info) {
+    if !event_enabled!(Level::INFO) {
         cmd.arg("--quiet");
     }
     for arg in cargo_build_args {

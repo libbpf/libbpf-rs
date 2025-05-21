@@ -37,9 +37,9 @@ use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::Program;
 
-use log::debug;
-use log::info;
 use memmap2::Mmap;
+use tracing::debug;
+use tracing::info;
 
 use crate::metadata;
 use crate::metadata::UnprocessedObj;

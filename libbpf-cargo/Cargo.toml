@@ -32,21 +32,21 @@ default = ["libbpf-rs/default"]
 [dependencies]
 anyhow = "1.0.40"
 cargo_metadata = "0.19.1"
-env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
+clap = { version = "4.0.32", features = ["derive"] }
 libbpf-rs = { version = "=0.25.0-beta.1", default-features = false, path = "../libbpf-rs" }
-log = "0.4.14"
 memmap2 = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tempfile = "3.3"
-clap = { version = "4.0.32", features = ["derive"] }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "chrono", "fmt"] }
 # `libbpf` is unable to provide necessary backwards compatibility
 # guarantees so we have to explicitly opt-in to newer versions...
 libbpf-sys_restricted = { package = "libbpf-sys", version = ">=1.5.0, <=1.5.1", default-features = false }
 
 [dev-dependencies]
 goblin = "0.9"
-test-log = { version = "0.2.16", default-features = false, features = ["log"] }
+test-log = { version = "0.2.16", default-features = false, features = ["trace"] }
 vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
 
 [lints]
