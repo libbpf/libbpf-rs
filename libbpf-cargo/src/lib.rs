@@ -71,6 +71,7 @@ mod build;
 mod r#gen;
 mod make;
 mod metadata;
+pub mod util;
 
 #[cfg(test)]
 mod test;
@@ -80,7 +81,7 @@ use build::BpfObjBuilder;
 
 /// `SkeletonBuilder` builds and generates a single skeleton.
 ///
-/// This interface is meant to be used in build scripts.
+/// This type is typically used from within a build scripts.
 ///
 /// # Examples
 ///
@@ -183,6 +184,12 @@ impl SkeletonBuilder {
     }
 
     /// Build BPF programs and generate the skeleton at path `output`
+    ///
+    /// # Notes
+    /// When used from a build script, you may be interested in
+    /// surfacing compiler warnings as part of the build. Please refer
+    /// to [`util::CargoWarningFormatter`] and its documentation for how
+    /// to go about that.
     pub fn build_and_generate<P: AsRef<Path>>(&mut self, output: P) -> Result<()> {
         self.build()?;
         self.generate(output)?;
@@ -193,6 +200,12 @@ impl SkeletonBuilder {
     /// Build BPF programs without generating a skeleton.
     ///
     /// [`SkeletonBuilder::source`] must be set for this to succeed.
+    ///
+    /// # Notes
+    /// When used from a build script, you may be interested in
+    /// surfacing compiler warnings as part of the build. Please refer
+    /// to [`util::CargoWarningFormatter`] and its documentation for how
+    /// to go about that.
     pub fn build(&mut self) -> Result<()> {
         let source = self
             .source
