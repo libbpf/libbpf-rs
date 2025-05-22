@@ -8,6 +8,8 @@ Unreleased
 - Replaced `--debug` option of `libbpf` sub-command with `-v` /
   `--verbose`
   - Removed `--quiet` option of `libbpf make` sub-command
+- Replaced `CompilationOutput` type with `tracing` based solution using
+  newly added `util::CargoWarningFormatter`
 - Fixed handling of multiple types of same name in BTF by enumerating
   them in the generated skeleton
 - Bumped minimum Rust version to `1.78`

@@ -71,6 +71,7 @@ mod build;
 mod r#gen;
 mod make;
 mod metadata;
+pub mod util;
 
 #[cfg(test)]
 mod test;
