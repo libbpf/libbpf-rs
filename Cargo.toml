@@ -13,6 +13,7 @@ members = [
   "libbpf-rs/dev",
   "examples/bpf_query",
   "examples/capable",
+  "examples/compiler_warnings",
   "examples/netfilter_blocklist",
   "examples/ringbuf_multi",
   "examples/runqslower",
