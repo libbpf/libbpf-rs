@@ -2793,6 +2793,134 @@ impl Default for __anon_Foo_1 {
 }
 
 #[test]
+fn test_btf_dump_anon_member_tree() {
+    let prog_text = r#"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+struct Foo {
+    union {
+        struct {
+            char *name;
+            void *tp;
+        };
+        struct Bar {
+            union {
+                struct {
+                    char *name;
+                    void *trp;
+                };
+                struct Baz {
+                    char *name;
+                    void *trp;
+                } baz;
+            };
+        } bar;
+    };
+};
+
+struct Foo foo = {0};
+"#;
+
+    let expected_output = r#"
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Foo {
+    pub __anon_Foo_1: __anon_Foo_1,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union __anon_Foo_1 {
+    pub __anon_Foo_2: __anon_Foo_2,
+    pub bar: Bar,
+}
+impl std::fmt::Debug for __anon_Foo_1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(???)")
+    }
+}
+impl Default for __anon_Foo_1 {
+    fn default() -> Self {
+        Self {
+            __anon_Foo_2: __anon_Foo_2::default(),
+        }
+    }
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct __anon_Foo_2 {
+    pub name: *mut i8,
+    pub tp: *mut std::ffi::c_void,
+}
+impl Default for __anon_Foo_2 {
+    fn default() -> Self {
+        Self {
+            name: std::ptr::null_mut(),
+            tp: std::ptr::null_mut(),
+        }
+    }
+}
+#[derive(Debug, Default, Copy, Clone)]
+#[repr(C)]
+pub struct Bar {
+    pub __anon_Bar_1: __anon_Bar_1,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union __anon_Bar_1 {
+    pub __anon_Bar_2: __anon_Bar_2,
+    pub baz: Baz,
+}
+impl std::fmt::Debug for __anon_Bar_1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(???)")
+    }
+}
+impl Default for __anon_Bar_1 {
+    fn default() -> Self {
+        Self {
+            __anon_Bar_2: __anon_Bar_2::default(),
+        }
+    }
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct __anon_Bar_2 {
+    pub name: *mut i8,
+    pub trp: *mut std::ffi::c_void,
+}
+impl Default for __anon_Bar_2 {
+    fn default() -> Self {
+        Self {
+            name: std::ptr::null_mut(),
+            trp: std::ptr::null_mut(),
+        }
+    }
+}
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct Baz {
+    pub name: *mut i8,
+    pub trp: *mut std::ffi::c_void,
+}
+impl Default for Baz {
+    fn default() -> Self {
+        Self {
+            name: std::ptr::null_mut(),
+            trp: std::ptr::null_mut(),
+        }
+    }
+}
+"#;
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
+
+    assert_definition(&btf, &struct_foo, expected_output);
+}
+
+#[test]
 fn test_btf_dump_definition_anon_enum() {
     let prog_text = r#"
 #include "vmlinux.h"
