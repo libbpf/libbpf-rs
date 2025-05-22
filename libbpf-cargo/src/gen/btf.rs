@@ -10,6 +10,7 @@ use std::fmt::Write;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
 use std::ops::Deref;
+use std::rc::Rc;
 
 use anyhow::anyhow;
 use anyhow::bail;
@@ -367,6 +368,13 @@ fn escape_reserved_keyword(identifier: Cow<'_, str>) -> Cow<'_, str> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BtfDependency {
+    pub name: Option<String>,
+    pub dep_id: i32,
+    pub child_counter: Rc<RefCell<i32>>,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct TypeMap {
     /// A mapping from type to number, allowing us to assign numbers to
@@ -377,15 +385,70 @@ pub(crate) struct TypeMap {
     /// Mapping from type name to the number of times we have seen this
     /// name already.
     names_count: RefCell<HashMap<String, u8>>,
+
+    dependencies: RefCell<HashMap<TypeId, BtfDependency>>,
 }
 
 impl TypeMap {
+    pub fn derive_parent<'s>(&self, ty: &BtfType<'s>, parent: &BtfType<'s>) {
+        let mut deps = self.dependencies.borrow_mut();
+        if deps.get(&ty.type_id()).is_some() {
+            return;
+        }
+
+        let parent_dep = deps.get(&parent.type_id());
+        if let Some(pdep) = parent_dep {
+            let mut dep = pdep.clone();
+
+            if let Some(n) = parent.name() {
+                dep.name = Some(n.to_string_lossy().to_string());
+            }
+            if ty.name().is_some() {
+                dep.child_counter = Rc::new(RefCell::new(0));
+            }
+
+            let parent_counter = Rc::<RefCell<i32>>::clone(&pdep.child_counter);
+            *parent_counter.borrow_mut() += 1;
+            dep.dep_id = *parent_counter.borrow();
+
+            deps.insert(ty.type_id(), dep);
+        } else {
+            let mut dep = BtfDependency {
+                name: None,
+                dep_id: 0,
+                child_counter: Rc::new(RefCell::new(1)),
+            };
+            deps.insert(parent.type_id(), dep.clone());
+
+            if let Some(n) = parent.name() {
+                dep.name = Some(n.to_string_lossy().to_string());
+            }
+            if ty.name().is_some() {
+                dep.child_counter = Rc::new(RefCell::new(0));
+            }
+            dep.dep_id = 1;
+            deps.insert(ty.type_id(), dep);
+        }
+    }
+
+    pub fn lookup_parent<'s>(&self, ty: &BtfType<'s>) -> Option<BtfDependency> {
+        self.dependencies.borrow().get(&ty.type_id()).cloned()
+    }
+
     pub fn type_name_or_anon<'s>(&self, ty: &BtfType<'s>) -> Cow<'s, str> {
         match ty.name() {
             None => {
                 let mut anon_table = self.types.borrow_mut();
                 let len = anon_table.len() + 1; // use 1 index anon ids for backwards compat
                 let anon_id = anon_table.entry(ty.type_id()).or_insert(len);
+
+                if let Some(parent) = self.lookup_parent(ty) {
+                    if let Some(name) = parent.name {
+                        if !name.is_empty() {
+                            return format!("{ANON_PREFIX}{}_{}", name, parent.dep_id).into();
+                        }
+                    }
+                }
                 format!("{ANON_PREFIX}{anon_id}").into()
             }
             Some(n) => match self.names.borrow_mut().entry(ty.type_id()) {
@@ -726,6 +789,7 @@ impl<'s> GenBtf<'s> {
             }
 
             if let Some(next_ty_id) = next_type(field_ty)? {
+                self.type_map.derive_parent(&next_ty_id, &t);
                 dependent_types.push(next_ty_id);
             }
             let field_name = if let Some(name) = member.name {
