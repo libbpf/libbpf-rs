@@ -1,20 +1,20 @@
-Unreleased
-----------
+0.25.0
+------
 - Added kprobe multi support for attaching programs, with and without
   providing additional options
-- Introduced `TracepointCategory` enum for specifying tracepoint
-  categories
+- Added `Program::attach_perf_event_with_opts` for attaching to perf
+  events with additional options
 - Allow to provide additional options when attaching programs to raw
   tracepoints
 - Allow to provide additional options when attaching programs to kprobes
+- Introduced `TracepointCategory` enum for specifying tracepoint
+  categories
 - Added `max_entries` getter to various map types
 - Added `OpenProgramMut::set_autoattach`
 - Added additional `ProgramAttachType` and `query::LinkTypeInfo` variants
 - Adjusted `UprobeOpts::func_name` to be an `Option`
 - Implemented `Sync` for `Link`
 - Updated `libbpf-sys` dependency to `1.5.0`
-- Added `Program::attach_perf_event_with_opts` for attaching to perf
-  events
 - Added `ProgramInput::repeat` field to run a test multiple times
 - Added `ProgramOutput::duration` field which represent the average
   duration per repetition
