@@ -1,0 +1,20 @@
+[package]
+name = "task_longrun"
+version = "0.1.0"
+edition.workspace = true
+authors = ["Jiawei Zhao <Phoenix500526@163.com>"]
+license = "LGPL-2.1-only OR BSD-2-Clause"
+
+[build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo" }
+vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+
+[dependencies]
+anyhow = "1.0"
+libbpf-rs = { path = "../../libbpf-rs" }
+plain = "0.2"
+clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
+blazesym = "0.2.0-rc.3"
+
+[lints]
+workspace = true
