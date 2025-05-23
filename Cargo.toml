@@ -22,6 +22,7 @@ members = [
   "examples/tcp_ca",
   "examples/tcp_option",
   "examples/tproxy",
+  "examples/task_longrun",
 ]
 resolver = "2"
 
