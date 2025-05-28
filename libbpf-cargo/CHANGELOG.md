@@ -1,6 +1,8 @@
 Unreleased
 ----------
 - Adjusted all `<xxx>_data` BPF map skeleton members to be `Option`s
+- Adjusted numbering of generated Rust structs for anonymous C types to be
+  less fragile in the presence of type additions
 - Removed `SkeletonBuilder::skip_clang_version_check` and
   `SkeletonBuilder::debug`
 - Removed `--skip-clang-version-checks` option of `libbpf build`
