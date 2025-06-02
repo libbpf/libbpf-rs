@@ -17,3 +17,4 @@ jobs:
           days-before-pr-close: 5
           stale-pr-message: 'This pull request is considered stale because it has been open 30 days with no activity. Remove stale label or comment or it will be closed in 5 days.'
           close-pr-message: 'Closing pull request as it is stale.'
+          exempt-pr-labels: blocked
