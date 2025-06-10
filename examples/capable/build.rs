@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use libbpf_cargo::SkeletonBuilder;
 
 const SRC: &str = "src/bpf/capable.bpf.c";
+const HEADER: &str = "src/bpf/capable.h";
 
 fn main() {
     let out = PathBuf::from(
@@ -28,4 +29,5 @@ fn main() {
         .build_and_generate(&out)
         .unwrap();
     println!("cargo:rerun-if-changed={SRC}");
+    println!("cargo:rerun-if-changed={HEADER}");
 }
