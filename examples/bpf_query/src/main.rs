@@ -101,6 +101,13 @@ fn link() {
             "id={:4} prog_id={:4} type={}",
             link.id, link.prog_id, link_type_str
         );
+
+        if let query::LinkTypeInfo::Tracing(ref tracing) = link.info {
+            println!(
+                "    attach_type={:?} target_obj_id={} target_btf_id={}",
+                tracing.attach_type, tracing.target_obj_id, tracing.target_btf_id
+            );
+        }
     }
 }
 

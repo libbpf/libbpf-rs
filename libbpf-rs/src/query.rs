@@ -623,7 +623,7 @@ pub struct RawTracepointLinkInfo {
 pub struct TracingLinkInfo {
     /// Attach type of the tracing link.
     pub attach_type: ProgramAttachType,
-    /// Target object ID (prog_id for PROG_EXT, otherwise btf object id).
+    /// Target object ID (`prog_id` for `PROG_EXT`, otherwise btf object id).
     pub target_obj_id: u32,
     /// BTF type id inside the target object.
     pub target_btf_id: u32,
