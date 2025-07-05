@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Added `target_obj_id` and `target_btf_id` fields to `TracingLinkInfo`
+  to expose BTF information directly from kernel queries
+
+
 0.25.0
 ------
 - Added kprobe multi support for attaching programs, with and without

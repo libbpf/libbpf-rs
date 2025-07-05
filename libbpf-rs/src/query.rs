@@ -623,6 +623,10 @@ pub struct RawTracepointLinkInfo {
 pub struct TracingLinkInfo {
     /// Attach type of the tracing link.
     pub attach_type: ProgramAttachType,
+    /// Target object ID (prog_id for PROG_EXT, otherwise btf object id).
+    pub target_obj_id: u32,
+    /// BTF type id inside the target object.
+    pub target_btf_id: u32,
 }
 
 /// Information about a cgroup link
@@ -810,6 +814,8 @@ impl LinkInfo {
                 attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.tracing.attach_type
                 }),
+                target_obj_id: unsafe { s.__bindgen_anon_1.tracing.target_obj_id },
+                target_btf_id: unsafe { s.__bindgen_anon_1.tracing.target_btf_id },
             }),
             libbpf_sys::BPF_LINK_TYPE_CGROUP => LinkTypeInfo::Cgroup(CgroupLinkInfo {
                 cgroup_id: unsafe { s.__bindgen_anon_1.cgroup.cgroup_id },
