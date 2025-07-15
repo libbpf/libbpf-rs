@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use goblin::Object;
+use indoc::indoc;
 use libbpf_rs::btf::types;
 use libbpf_rs::btf::BtfType;
 use libbpf_rs::Btf;
@@ -218,10 +219,11 @@ fn test_unknown_metadata_section() {
         .append(true)
         .open(&cargo_toml)
         .expect("failed to open Cargo.toml");
-    let deb_metadata = r#"[package.metadata.deb]
-    prog_dir = "some value that should be ignored"
-    some_other_val = true
-    "#;
+    let deb_metadata = indoc! {r#"
+        [package.metadata.deb]
+        prog_dir = "some value that should be ignored"
+        some_other_val = true
+    "#};
     cargo_toml_file
         .write_all(deb_metadata.as_bytes())
         .expect("write to Cargo.toml failed");
@@ -398,9 +400,9 @@ fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) {
     // Make test project use our development libbpf-rs version
     writeln!(
         cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
+        indoc! {r#"
+            libbpf-rs = {{ path = "{}" }}
+        "#},
         get_libbpf_rs_path().as_path().display()
     )
     .expect("failed to write to Cargo.toml");
@@ -439,7 +441,7 @@ fn run_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
 #[test]
 fn test_skeleton_empty_source() {
     let bpf_c = String::new();
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -456,14 +458,14 @@ fn test_skeleton_empty_source() {
                 .load()
                 .expect("failed to load skel");
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
 fn test_skeleton_basic() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -479,9 +481,9 @@ fn test_skeleton_basic() {
         {
                 return 0;
         }
-    "#
+    "#}
     .to_string();
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -513,7 +515,7 @@ fn test_skeleton_basic() {
             // Check that Option<Link> field is generated
             let _mylink = skel.links.this_is_my_prog.unwrap();
         }
-    "#
+    "#}
     .to_string();
 
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
@@ -521,7 +523,7 @@ fn test_skeleton_basic() {
 
 #[test]
 fn test_skeleton_generate_datasec_static() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -531,10 +533,10 @@ fn test_skeleton_generate_datasec_static() {
                 bpf_printk("this should not cause an error");
                 return 0;
         }
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
@@ -542,14 +544,14 @@ fn test_skeleton_generate_datasec_static() {
         fn main() {
             let _builder = ProgSkelBuilder::default();
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
 fn test_skeleton_datasec() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -564,10 +566,10 @@ fn test_skeleton_datasec() {
         {
                 return 0;
         }
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -601,7 +603,7 @@ fn test_skeleton_datasec() {
             // Read only for rodata after load
             let _rodata: &types::rodata = skel.maps.rodata_data.as_deref().unwrap();
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
@@ -623,36 +625,36 @@ fn test_skeleton_builder_basic() {
 
     write!(
         prog,
-        r#"
-        #include "vmlinux.h"
-        #include <bpf/bpf_helpers.h>
+        indoc! {r#"
+            #include "vmlinux.h"
+            #include <bpf/bpf_helpers.h>
 
-        struct unique_key {{
-            int cap;
-            u32 tgid;
-            u64 cgroupid;
-        }};
+            struct unique_key {{
+                int cap;
+                u32 tgid;
+                u64 cgroupid;
+            }};
 
-        struct {{
-                __uint(type, BPF_MAP_TYPE_HASH);
-                __uint(max_entries, 1024);
-                __type(key, struct unique_key);
-                __type(value, u64);
-        }} mymap SEC(".maps");
+            struct {{
+                    __uint(type, BPF_MAP_TYPE_HASH);
+                    __uint(max_entries, 1024);
+                    __type(key, struct unique_key);
+                    __type(value, u64);
+            }} mymap SEC(".maps");
 
-        struct {{
-                __uint(type, BPF_MAP_TYPE_HASH);
-                __uint(max_entries, 1024);
-                __uint(key_size, 8);
-                __type(value, u64);
-        }} mymap2 SEC(".maps");
+            struct {{
+                    __uint(type, BPF_MAP_TYPE_HASH);
+                    __uint(max_entries, 1024);
+                    __uint(key_size, 8);
+                    __type(value, u64);
+            }} mymap2 SEC(".maps");
 
-        SEC("kprobe/foo")
-        int this_is_my_prog(u64 *ctx)
-        {{
-                return 0;
-        }}
-        "#,
+            SEC("kprobe/foo")
+            int this_is_my_prog(u64 *ctx)
+            {{
+                    return 0;
+            }}
+        "#}
     )
     .expect("failed to write prog.bpf.c");
 
@@ -674,9 +676,9 @@ fn test_skeleton_builder_basic() {
     // Make test project use our development libbpf-rs version
     writeln!(
         cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
+        indoc! {r#"
+            libbpf-rs = {{ path = "{}" }}
+        "#},
         get_libbpf_rs_path().as_path().display()
     )
     .expect("failed to write to Cargo.toml");
@@ -758,11 +760,11 @@ fn test_skeleton_builder_clang_opts() {
 
     write!(
         prog,
-        r#"
-        #ifndef PURPOSE
-        #error "what is my purpose?"
-        #endif
-        "#,
+        indoc! {r#"
+            #ifndef PURPOSE
+            #error "what is my purpose?"
+            #endif
+        "#},
     )
     .expect("failed to write prog.bpf.c");
 
@@ -783,7 +785,7 @@ fn test_skeleton_builder_clang_opts() {
 
 #[test]
 fn test_skeleton_builder_arrays_ptrs() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -801,10 +803,10 @@ fn test_skeleton_builder_arrays_ptrs() {
 
         const volatile struct mystruct my_array[1] = { {0} };
         struct mystruct * const my_ptr = NULL;
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -825,7 +827,7 @@ fn test_skeleton_builder_arrays_ptrs() {
             let _ = rodata.my_array[0].z[0].a;
             let _ = rodata.my_ptr;
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
@@ -834,7 +836,7 @@ fn test_skeleton_builder_arrays_ptrs() {
 /// variants with the same value.
 #[test]
 fn test_skeleton_enum_with_same_value_variants() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -845,10 +847,10 @@ fn test_skeleton_enum_with_same_value_variants() {
         };
 
         enum Foo foo;
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
@@ -860,14 +862,14 @@ fn test_skeleton_enum_with_same_value_variants() {
             assert_eq!(zero1, zero2);
             assert_ne!(types::Foo::Zero, types::Foo::One);
         }
-    "#
+    "#}
     .to_string();
     let () = run_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
 fn test_skeleton_generate_struct_with_pointer() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -876,10 +878,10 @@ fn test_skeleton_generate_struct_with_pointer() {
         };
 
         struct list l;
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -893,7 +895,7 @@ fn test_skeleton_generate_struct_with_pointer() {
                 .open(&mut open_object)
                 .expect("failed to open skel");
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
@@ -901,7 +903,7 @@ fn test_skeleton_generate_struct_with_pointer() {
 /// Check that we generate valid Rust code for an array of pointers.
 #[test]
 fn test_skeleton_generate_struct_with_pointer_array() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -912,10 +914,10 @@ fn test_skeleton_generate_struct_with_pointer_array() {
         };
 
         struct vmacache c;
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use std::mem::MaybeUninit;
@@ -929,7 +931,7 @@ fn test_skeleton_generate_struct_with_pointer_array() {
                 .open(&mut open_object)
                 .expect("failed to open skel");
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
@@ -937,7 +939,7 @@ fn test_skeleton_generate_struct_with_pointer_array() {
 /// Generate a skeleton that includes multiple "anon" type definitions.
 #[test]
 fn test_skeleton_builder_multiple_anon() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -975,10 +977,10 @@ fn test_skeleton_builder_multiple_anon() {
         {
                 return 0;
         }
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         mod bpf;
         use std::mem::MaybeUninit;
         use bpf::*;
@@ -995,7 +997,7 @@ fn test_skeleton_builder_multiple_anon() {
             let _skel = open_skel.load().expect("failed to load skel");
             let _key = types::unique_key::default();
         }
-    "#
+    "#}
     .to_string();
 
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
@@ -1004,7 +1006,7 @@ fn test_skeleton_builder_multiple_anon() {
 /// Test that we generate a valid skeleton when multiple kfuncs are being used.
 #[test]
 fn test_skeleton_multipl_kfuncs() {
-    let bpf_c = r#"
+    let bpf_c = indoc! {r#"
         #include "vmlinux.h"
         #include <bpf/bpf_helpers.h>
 
@@ -1031,10 +1033,10 @@ fn test_skeleton_multipl_kfuncs() {
             eth = bpf_dynptr_slice(&ptr, 0, ethb, sizeof(ethb));
             (void)eth;
         }
-    "#
+    "#}
     .to_string();
 
-    let rust = r#"
+    let rust = indoc! {r#"
         #![warn(elided_lifetimes_in_paths)]
         mod bpf;
         use bpf::*;
@@ -1042,7 +1044,7 @@ fn test_skeleton_multipl_kfuncs() {
         fn main() {
             let _builder = ProgSkelBuilder::default();
         }
-    "#
+    "#}
     .to_string();
     let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
@@ -1147,9 +1149,9 @@ fn test_skeleton_duplicate_struct() {
     // Make test project use our development libbpf-rs version
     writeln!(
         cargo,
-        r#"
-        libbpf-rs = {{ path = "{}" }}
-        "#,
+        indoc! {r#"
+            libbpf-rs = {{ path = "{}" }}
+        "#},
         get_libbpf_rs_path().as_path().display()
     )
     .expect("failed to write to Cargo.toml");
@@ -1333,37 +1335,37 @@ fn assert_definition(btf: &GenBtf<'_>, btf_item: &BtfType<'_>, expected_output: 
 
 #[test]
 fn test_btf_dump_reserved_keyword_escaping() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    u64 type;
-    void* mod;
-    void* self;
-};
+        struct Foo {
+            u64 type;
+            void* mod;
+            void* self;
+        };
 
-struct Foo foo = {{0}};
-"#;
+        struct Foo foo = {{0}};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub r#type: u64,
-    pub r#mod: *mut std::ffi::c_void,
-    pub slf: *mut std::ffi::c_void,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            r#type: u64::default(),
-            r#mod: std::ptr::null_mut(),
-            slf: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub r#type: u64,
+            pub r#mod: *mut std::ffi::c_void,
+            pub slf: *mut std::ffi::c_void,
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    r#type: u64::default(),
+                    r#mod: std::ptr::null_mut(),
+                    slf: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1374,39 +1376,39 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_basic() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-int myglobal = 1;
+        int myglobal = 1;
 
-struct Foo {
-    int x;
-    char y[10];
-    void *z;
-};
+        struct Foo {
+            int x;
+            char y[10];
+            void *z;
+        };
 
-struct Foo foo = {{0}};
-"#;
+        struct Foo foo = {{0}};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub y: [i8; 10],
-    pub z: *mut std::ffi::c_void,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            y: [i8::default(); 10],
-            z: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: [i8; 10],
+            pub z: *mut std::ffi::c_void,
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    y: [i8::default(); 10],
+                    z: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1431,12 +1433,12 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_fwd() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct sometypethatdoesnotexist *m;
-"#;
+        struct sometypethatdoesnotexist *m;
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1452,25 +1454,25 @@ struct sometypethatdoesnotexist *m;
 
 #[test]
 fn test_btf_dump_align() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-} __attribute__((aligned(16)));
+        struct Foo {
+            int x;
+        } __attribute__((aligned(16)));
 
-struct Foo foo = {1};
-"#;
+        struct Foo foo = {1};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub __pad_4: [u8; 12],
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub __pad_4: [u8; 12],
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1481,33 +1483,33 @@ pub struct Foo {
 
 #[test]
 fn test_btf_dump_insane_align() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-} __attribute__((aligned(64)));
+        struct Foo {
+            int x;
+        } __attribute__((aligned(64)));
 
-struct Foo foo = {1};
-"#;
+        struct Foo foo = {1};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub __pad_4: [u8; 60],
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            __pad_4: [u8::default(); 60],
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub __pad_4: [u8; 60],
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    __pad_4: [u8::default(); 60],
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1518,39 +1520,39 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_basic_long_array() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-int myglobal = 1;
+        int myglobal = 1;
 
-struct Foo {
-    int x;
-    char y[33];
-    void *z;
-};
+        struct Foo {
+            int x;
+            char y[33];
+            void *z;
+        };
 
-struct Foo foo = {{0}};
-"#;
+        struct Foo foo = {{0}};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub y: [i8; 33],
-    pub z: *mut std::ffi::c_void,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            y: [i8::default(); 33],
-            z: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: [i8; 33],
+            pub z: *mut std::ffi::c_void,
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    y: [i8::default(); 33],
+                    z: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1576,62 +1578,62 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_struct_definition() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Bar {
-    u16 x;
-};
+        struct Bar {
+            u16 x;
+        };
 
-struct Foo {
-    int *ip;
-    int **ipp;
-    struct Bar bar;
-    struct Bar *pb;
-    volatile u64 v;
-    const volatile s64 cv;
-    char * restrict r;
-};
+        struct Foo {
+            int *ip;
+            int **ipp;
+            struct Bar bar;
+            struct Bar *pb;
+            volatile u64 v;
+            const volatile s64 cv;
+            char * restrict r;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub ip: *mut i32,
-    pub ipp: *mut *mut i32,
-    pub bar: Bar,
-    pub __pad_18: [u8; 6],
-    pub pb: *mut Bar,
-    pub v: u64,
-    pub cv: i64,
-    pub r: *mut i8,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            ip: std::ptr::null_mut(),
-            ipp: std::ptr::null_mut(),
-            bar: Bar::default(),
-            __pad_18: [u8::default(); 6],
-            pb: std::ptr::null_mut(),
-            v: u64::default(),
-            cv: i64::default(),
-            r: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub ip: *mut i32,
+            pub ipp: *mut *mut i32,
+            pub bar: Bar,
+            pub __pad_18: [u8; 6],
+            pub pb: *mut Bar,
+            pub v: u64,
+            pub cv: i64,
+            pub r: *mut i8,
         }
-    }
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub x: u16,
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    ip: std::ptr::null_mut(),
+                    ipp: std::ptr::null_mut(),
+                    bar: Bar::default(),
+                    __pad_18: [u8::default(); 6],
+                    pb: std::ptr::null_mut(),
+                    v: u64::default(),
+                    cv: i64::default(),
+                    r: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub x: u16,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1644,34 +1646,34 @@ pub struct Bar {
 
 #[test]
 fn test_btf_dump_struct_definition_func_proto() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct with_func_proto {
-    struct with_func_proto *next;
-    void (*func)(struct with_func_proto *);
-};
+        struct with_func_proto {
+            struct with_func_proto *next;
+            void (*func)(struct with_func_proto *);
+        };
 
-struct with_func_proto w;
-"#;
+        struct with_func_proto w;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct with_func_proto {
-    pub next: *mut with_func_proto,
-    pub func: *mut std::ffi::c_void,
-}
-impl Default for with_func_proto {
-    fn default() -> Self {
-        Self {
-            next: std::ptr::null_mut(),
-            func: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct with_func_proto {
+            pub next: *mut with_func_proto,
+            pub func: *mut std::ffi::c_void,
         }
-    }
-}
-"#;
+        impl Default for with_func_proto {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    func: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1684,72 +1686,72 @@ impl Default for with_func_proto {
 
 #[test]
 fn test_btf_dump_struct_definition_long_array() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Bar {
-    u16 x;
-    u16 y[33];
-};
+        struct Bar {
+            u16 x;
+            u16 y[33];
+        };
 
-struct Foo {
-    int *ip;
-    int **ipp;
-    struct Bar bar;
-    struct Bar *pb;
-    volatile u64 v;
-    const volatile s64 cv;
-    char * restrict r;
-};
+        struct Foo {
+            int *ip;
+            int **ipp;
+            struct Bar bar;
+            struct Bar *pb;
+            volatile u64 v;
+            const volatile s64 cv;
+            char * restrict r;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
     // Note how there's 6 bytes of padding. It's not necessary on 64 bit archs but
     // we've assumed 32 bit arch during padding generation.
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub ip: *mut i32,
-    pub ipp: *mut *mut i32,
-    pub bar: Bar,
-    pub __pad_84: [u8; 4],
-    pub pb: *mut Bar,
-    pub v: u64,
-    pub cv: i64,
-    pub r: *mut i8,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            ip: std::ptr::null_mut(),
-            ipp: std::ptr::null_mut(),
-            bar: Bar::default(),
-            __pad_84: [u8::default(); 4],
-            pb: std::ptr::null_mut(),
-            v: u64::default(),
-            cv: i64::default(),
-            r: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub ip: *mut i32,
+            pub ipp: *mut *mut i32,
+            pub bar: Bar,
+            pub __pad_84: [u8; 4],
+            pub pb: *mut Bar,
+            pub v: u64,
+            pub cv: i64,
+            pub r: *mut i8,
         }
-    }
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub x: u16,
-    pub y: [u16; 33],
-}
-impl Default for Bar {
-    fn default() -> Self {
-        Self {
-            x: u16::default(),
-            y: [u16::default(); 33],
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    ip: std::ptr::null_mut(),
+                    ipp: std::ptr::null_mut(),
+                    bar: Bar::default(),
+                    __pad_84: [u8::default(); 4],
+                    pb: std::ptr::null_mut(),
+                    v: u64::default(),
+                    cv: i64::default(),
+                    r: std::ptr::null_mut(),
+                }
+            }
         }
-    }
-}
-"#;
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub x: u16,
+            pub y: [u16; 33],
+        }
+        impl Default for Bar {
+            fn default() -> Self {
+                Self {
+                    x: u16::default(),
+                    y: [u16::default(); 33],
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1762,28 +1764,28 @@ impl Default for Bar {
 
 #[test]
 fn test_btf_dump_definition_packed_struct() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    char y;
-    __s32 z[2];
-} __attribute__((packed));
+        struct Foo {
+            int x;
+            char y;
+            __s32 z[2];
+        } __attribute__((packed));
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C, packed)]
-pub struct Foo {
-    pub x: i32,
-    pub y: i8,
-    pub z: [i32; 2],
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C, packed)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: i8,
+            pub z: [i32; 2],
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1796,37 +1798,37 @@ pub struct Foo {
 
 #[test]
 fn test_btf_dump_definition_packed_struct_long_array() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    char y;
-    __s32 z[33];
-} __attribute__((packed));
+        struct Foo {
+            int x;
+            char y;
+            __s32 z[33];
+        } __attribute__((packed));
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C, packed)]
-pub struct Foo {
-    pub x: i32,
-    pub y: i8,
-    pub z: [i32; 33],
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            y: i8::default(),
-            z: [i32::default(); 33],
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C, packed)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: i8,
+            pub z: [i32; 33],
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    y: i8::default(),
+                    z: [i32::default(); 33],
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1839,25 +1841,25 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_bitfield_1() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    unsigned short x: 2;
-    unsigned short y: 3;
-};
+        struct Foo {
+            unsigned short x: 2;
+            unsigned short y: 3;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub __pad_0: [u8; 2],
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub __pad_0: [u8; 2],
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1868,46 +1870,46 @@ pub struct Foo {
 
 #[test]
 fn test_btf_dump_definition_bitfield_2() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    const char *name;
-    void *kset;
-    unsigned int state_initialized: 1;
-    unsigned int state_in_sysfs: 1;
-    unsigned int state_add_uevent_sent: 1;
-    unsigned int state_remove_uevent_sent: 1;
-    unsigned int uevent_suppress: 1;
-    bool flag;
-};
+        struct Foo {
+            const char *name;
+            void *kset;
+            unsigned int state_initialized: 1;
+            unsigned int state_in_sysfs: 1;
+            unsigned int state_add_uevent_sent: 1;
+            unsigned int state_remove_uevent_sent: 1;
+            unsigned int uevent_suppress: 1;
+            bool flag;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub name: *mut i8,
-    pub kset: *mut std::ffi::c_void,
-    pub __pad_16: [u8; 1],
-    pub flag: std::mem::MaybeUninit<bool>,
-    pub __pad_18: [u8; 6],
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            name: std::ptr::null_mut(),
-            kset: std::ptr::null_mut(),
-            __pad_16: [u8::default(); 1],
-            flag: std::mem::MaybeUninit::new(bool::default()),
-            __pad_18: [u8::default(); 6],
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub name: *mut i8,
+            pub kset: *mut std::ffi::c_void,
+            pub __pad_16: [u8; 1],
+            pub flag: std::mem::MaybeUninit<bool>,
+            pub __pad_18: [u8; 6],
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    kset: std::ptr::null_mut(),
+                    __pad_16: [u8::default(); 1],
+                    flag: std::mem::MaybeUninit::new(bool::default()),
+                    __pad_18: [u8::default(); 6],
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1918,45 +1920,45 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_enum() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-enum Foo {
-    Zero = 0,
-    One,
-    Seven = 7,
-    ZeroDup = Zero,
-    Infinite = 0xffffffff,
-};
+        enum Foo {
+            Zero = 0,
+            One,
+            Seven = 7,
+            ZeroDup = Zero,
+            Infinite = 0xffffffff,
+        };
 
-struct Bar {
-    enum Foo foo;
-};
-struct Bar bar;
-"#;
+        struct Bar {
+            enum Foo foo;
+        };
+        struct Bar bar;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub foo: Foo,
-}
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct Foo(pub u32);
-#[allow(non_upper_case_globals)]
-impl Foo {
-    pub const Zero: Foo = Foo(0);
-    pub const One: Foo = Foo(1);
-    pub const Seven: Foo = Foo(7);
-    pub const ZeroDup: Foo = Foo(0);
-    pub const Infinite: Foo = Foo(4294967295);
-}
-impl Default for Foo {
-    fn default() -> Self { Foo::Zero }
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub foo: Foo,
+        }
+        #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+        #[repr(transparent)]
+        pub struct Foo(pub u32);
+        #[allow(non_upper_case_globals)]
+        impl Foo {
+            pub const Zero: Foo = Foo(0);
+            pub const One: Foo = Foo(1);
+            pub const Seven: Foo = Foo(7);
+            pub const ZeroDup: Foo = Foo(0);
+            pub const Infinite: Foo = Foo(4294967295);
+        }
+        impl Default for Foo {
+            fn default() -> Self { Foo::Zero }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -1968,39 +1970,39 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_enum_signed() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-enum Foo {
-    Zero = 0,
-    Infinite = -1,
-};
+        enum Foo {
+            Zero = 0,
+            Infinite = -1,
+        };
 
-struct Bar {
-    enum Foo foo;
-};
-struct Bar bar;
-"#;
+        struct Bar {
+            enum Foo foo;
+        };
+        struct Bar bar;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub foo: Foo,
-}
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct Foo(pub i32);
-#[allow(non_upper_case_globals)]
-impl Foo {
-    pub const Zero: Foo = Foo(0);
-    pub const Infinite: Foo = Foo(-1);
-}
-impl Default for Foo {
-    fn default() -> Self { Foo::Zero }
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub foo: Foo,
+        }
+        #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+        #[repr(transparent)]
+        pub struct Foo(pub i32);
+        #[allow(non_upper_case_globals)]
+        impl Foo {
+            pub const Zero: Foo = Foo(0);
+            pub const Infinite: Foo = Foo(-1);
+        }
+        impl Default for Foo {
+            fn default() -> Self { Foo::Zero }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2012,39 +2014,39 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_enum64() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-enum Foo {
-    Zero = 0,
-    Infinite = 0xffffffffffffffff,
-};
+        enum Foo {
+            Zero = 0,
+            Infinite = 0xffffffffffffffff,
+        };
 
-struct Bar {
-    enum Foo foo;
-};
-struct Bar bar;
-"#;
+        struct Bar {
+            enum Foo foo;
+        };
+        struct Bar bar;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub foo: Foo,
-}
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct Foo(pub u64);
-#[allow(non_upper_case_globals)]
-impl Foo {
-    pub const Zero: Foo = Foo(0);
-    pub const Infinite: Foo = Foo(18446744073709551615);
-}
-impl Default for Foo {
-    fn default() -> Self { Foo::Zero }
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub foo: Foo,
+        }
+        #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+        #[repr(transparent)]
+        pub struct Foo(pub u64);
+        #[allow(non_upper_case_globals)]
+        impl Foo {
+            pub const Zero: Foo = Foo(0);
+            pub const Infinite: Foo = Foo(18446744073709551615);
+        }
+        impl Default for Foo {
+            fn default() -> Self { Foo::Zero }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2056,39 +2058,39 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_enum64_signed() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-enum Foo {
-    Zero = 0,
-    Whatevs = -922337854775808,
-};
+        enum Foo {
+            Zero = 0,
+            Whatevs = -922337854775808,
+        };
 
-struct Bar {
-    enum Foo foo;
-};
-struct Bar bar;
-"#;
+        struct Bar {
+            enum Foo foo;
+        };
+        struct Bar bar;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub foo: Foo,
-}
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct Foo(pub i64);
-#[allow(non_upper_case_globals)]
-impl Foo {
-    pub const Zero: Foo = Foo(0);
-    pub const Whatevs: Foo = Foo(-922337854775808);
-}
-impl Default for Foo {
-    fn default() -> Self { Foo::Zero }
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub foo: Foo,
+        }
+        #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+        #[repr(transparent)]
+        pub struct Foo(pub i64);
+        #[allow(non_upper_case_globals)]
+        impl Foo {
+            pub const Zero: Foo = Foo(0);
+            pub const Whatevs: Foo = Foo(-922337854775808);
+        }
+        impl Default for Foo {
+            fn default() -> Self { Foo::Zero }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2100,40 +2102,40 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_union() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-union Foo {
-    int x;
-    __u32 y;
-    char z[128];
-};
+        union Foo {
+            int x;
+            __u32 y;
+            char z[128];
+        };
 
-union Foo foo;
-"#;
+        union Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union Foo {
-    pub x: i32,
-    pub y: u32,
-    pub z: [i8; 128],
-}
-impl std::fmt::Debug for Foo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
+    let expected_output = indoc! {r#"
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union Foo {
+            pub x: i32,
+            pub y: u32,
+            pub z: [i8; 128],
         }
-    }
-}
-"#;
+        impl std::fmt::Debug for Foo {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2146,35 +2148,35 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_shared_dependent_types() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Bar {
-    u16 x;
-};
+        struct Bar {
+            u16 x;
+        };
 
-struct Foo {
-    struct Bar bar;
-    struct Bar bartwo;
-};
+        struct Foo {
+            struct Bar bar;
+            struct Bar bartwo;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub bar: Bar,
-    pub bartwo: Bar,
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub x: u16,
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub bar: Bar,
+            pub bartwo: Bar,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub x: u16,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2187,52 +2189,52 @@ pub struct Bar {
 
 #[test]
 fn test_btf_dump_definition_datasec() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    char y[10];
-    void *z;
-};
+        struct Foo {
+            int x;
+            char y[10];
+            void *z;
+        };
 
-struct Foo foo = {0};
+        struct Foo foo = {0};
 
-const int myconstglobal = 0;
-"#;
+        const int myconstglobal = 0;
+    "#};
 
-    let bss_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct bss {
-    pub foo: Foo,
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub y: [i8; 10],
-    pub z: *mut std::ffi::c_void,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            y: [i8::default(); 10],
-            z: std::ptr::null_mut(),
+    let bss_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bss {
+            pub foo: Foo,
         }
-    }
-}
-"#;
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: [i8; 10],
+            pub z: *mut std::ffi::c_void,
+        }
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    y: [i8::default(); 10],
+                    z: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
-    let rodata_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct rodata {
-    pub myconstglobal: i32,
-}
-"#;
+    let rodata_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rodata {
+            pub myconstglobal: i32,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2247,38 +2249,38 @@ pub struct rodata {
 
 #[test]
 fn test_btf_dump_definition_datasec_custom() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-int bss_array[1] SEC(".bss.custom");
-int data_array[1] SEC(".data.custom");
-const int rodata_array[1] SEC(".rodata.custom.1");
-"#;
+        int bss_array[1] SEC(".bss.custom");
+        int data_array[1] SEC(".data.custom");
+        const int rodata_array[1] SEC(".rodata.custom.1");
+    "#};
 
-    let bss_custom_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct bss_custom {
-    pub bss_array: [i32; 1],
-}
-"#;
+    let bss_custom_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bss_custom {
+            pub bss_array: [i32; 1],
+        }
+    "#};
 
-    let data_custom_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct data_custom {
-    pub data_array: [i32; 1],
-}
-"#;
+    let data_custom_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct data_custom {
+            pub data_array: [i32; 1],
+        }
+    "#};
 
-    let rodata_custom_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct rodata_custom_1 {
-    pub rodata_array: [i32; 1],
-}
-"#;
+    let rodata_custom_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rodata_custom_1 {
+            pub rodata_array: [i32; 1],
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2293,52 +2295,52 @@ pub struct rodata_custom_1 {
 
 #[test]
 fn test_btf_dump_definition_datasec_long_array() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    char y[33];
-    void *z;
-};
+        struct Foo {
+            int x;
+            char y[33];
+            void *z;
+        };
 
-struct Foo foo = {0};
+        struct Foo foo = {0};
 
-const int myconstglobal = 0;
-"#;
+        const int myconstglobal = 0;
+    "#};
 
-    let bss_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct bss {
-    pub foo: Foo,
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub y: [i8; 33],
-    pub z: *mut std::ffi::c_void,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            y: [i8::default(); 33],
-            z: std::ptr::null_mut(),
+    let bss_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bss {
+            pub foo: Foo,
         }
-    }
-}
-"#;
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: [i8; 33],
+            pub z: *mut std::ffi::c_void,
+        }
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    y: [i8::default(); 33],
+                    z: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
-    let rodata_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct rodata {
-    pub myconstglobal: i32,
-}
-"#;
+    let rodata_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rodata {
+            pub myconstglobal: i32,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2353,60 +2355,60 @@ pub struct rodata {
 
 #[test]
 fn test_btf_dump_definition_datasec_multiple() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    char y[10];
-    void *z;
-};
+        struct Foo {
+            int x;
+            char y[10];
+            void *z;
+        };
 
-struct Foo foo = {0};
-struct Foo foo2 = {0};
-struct Foo foo3 = {0};
+        struct Foo foo = {0};
+        struct Foo foo2 = {0};
+        struct Foo foo3 = {0};
 
-const int ci = 0;
-const int ci2 = 0;
-const int ci3 = 0;
-"#;
+        const int ci = 0;
+        const int ci2 = 0;
+        const int ci3 = 0;
+    "#};
 
-    let bss_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct bss {
-    pub foo: Foo,
-    pub foo2: Foo,
-    pub foo3: Foo,
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub y: [i8; 10],
-    pub z: *mut std::ffi::c_void,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            x: i32::default(),
-            y: [i8::default(); 10],
-            z: std::ptr::null_mut(),
+    let bss_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bss {
+            pub foo: Foo,
+            pub foo2: Foo,
+            pub foo3: Foo,
         }
-    }
-}
-"#;
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub y: [i8; 10],
+            pub z: *mut std::ffi::c_void,
+        }
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    x: i32::default(),
+                    y: [i8::default(); 10],
+                    z: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
-    let rodata_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct rodata {
-    pub ci: i32,
-    pub ci2: i32,
-    pub ci3: i32,
-}
-"#;
+    let rodata_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rodata {
+            pub ci: i32,
+            pub ci2: i32,
+            pub ci3: i32,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2421,7 +2423,7 @@ pub struct rodata {
 
 #[test]
 fn test_btf_dump_definition_datasec_multiple_long_array() {
-    let prog_text = r#"
+    let prog_text = indoc! {r#"
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
@@ -2438,9 +2440,9 @@ struct Foo foo3 = {0};
 const int ci = 0;
 const int ci2 = 0;
 const int ci3 = 0;
-"#;
+"#};
 
-    let bss_output = r#"
+    let bss_output = indoc! {r#"
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bss {
@@ -2464,17 +2466,17 @@ impl Default for Foo {
         }
     }
 }
-"#;
+"#};
 
-    let rodata_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct rodata {
-    pub ci: i32,
-    pub ci2: i32,
-    pub ci3: i32,
-}
-"#;
+    let rodata_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rodata {
+            pub ci: i32,
+            pub ci2: i32,
+            pub ci3: i32,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2489,74 +2491,74 @@ pub struct rodata {
 
 #[test]
 fn test_btf_dump_definition_struct_inner_anon_union() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    union {
-        u8 y[10];
-        u16 z[16];
-    } bar;
-    union {
-        u32 w;
-        u64 *u;
-    } baz;
-    int w;
-};
+        struct Foo {
+            int x;
+            union {
+                u8 y[10];
+                u16 z[16];
+            } bar;
+            union {
+                u32 w;
+                u64 *u;
+            } baz;
+            int w;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub bar: __anon_Foo_1,
-    pub __pad_36: [u8; 4],
-    pub baz: __anon_Foo_2,
-    pub w: i32,
-    pub __pad_52: [u8; 4],
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Foo_1 {
-    pub y: [u8; 10],
-    pub z: [u16; 16],
-}
-impl std::fmt::Debug for __anon_Foo_1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Foo_1 {
-    fn default() -> Self {
-        Self {
-            y: [u8::default(); 10],
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub bar: __anon_Foo_1,
+            pub __pad_36: [u8; 4],
+            pub baz: __anon_Foo_2,
+            pub w: i32,
+            pub __pad_52: [u8; 4],
         }
-    }
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Foo_2 {
-    pub w: u32,
-    pub u: *mut u64,
-}
-impl std::fmt::Debug for __anon_Foo_2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Foo_2 {
-    fn default() -> Self {
-        Self {
-            w: u32::default(),
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Foo_1 {
+            pub y: [u8; 10],
+            pub z: [u16; 16],
         }
-    }
-}
-"#;
+        impl std::fmt::Debug for __anon_Foo_1 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_Foo_1 {
+            fn default() -> Self {
+                Self {
+                    y: [u8::default(); 10],
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Foo_2 {
+            pub w: u32,
+            pub u: *mut u64,
+        }
+        impl std::fmt::Debug for __anon_Foo_2 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_Foo_2 {
+            fn default() -> Self {
+                Self {
+                    w: u32::default(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2569,59 +2571,59 @@ impl Default for __anon_Foo_2 {
 
 #[test]
 fn test_btf_dump_definition_struct_inner_anon_struct() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    struct {
-        u8 y[10];
-        u16 z[16];
-    } bar;
-    struct {
-        u32 w;
-        u64 *u;
-    } baz;
-    int w;
-};
+        struct Foo {
+            int x;
+            struct {
+                u8 y[10];
+                u16 z[16];
+            } bar;
+            struct {
+                u32 w;
+                u64 *u;
+            } baz;
+            int w;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub bar: __anon_Foo_1,
-    pub baz: __anon_Foo_2,
-    pub w: i32,
-    pub __pad_68: [u8; 4],
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_Foo_1 {
-    pub y: [u8; 10],
-    pub z: [u16; 16],
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_Foo_2 {
-    pub w: u32,
-    pub __pad_4: [u8; 4],
-    pub u: *mut u64,
-}
-impl Default for __anon_Foo_2 {
-    fn default() -> Self {
-        Self {
-            w: u32::default(),
-            __pad_4: [u8::default(); 4],
-            u: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub bar: __anon_Foo_1,
+            pub baz: __anon_Foo_2,
+            pub w: i32,
+            pub __pad_68: [u8; 4],
         }
-    }
-}
-"#;
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_Foo_1 {
+            pub y: [u8; 10],
+            pub z: [u16; 16],
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_Foo_2 {
+            pub w: u32,
+            pub __pad_4: [u8; 4],
+            pub u: *mut u64,
+        }
+        impl Default for __anon_Foo_2 {
+            fn default() -> Self {
+                Self {
+                    w: u32::default(),
+                    __pad_4: [u8::default(); 4],
+                    u: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2634,105 +2636,105 @@ impl Default for __anon_Foo_2 {
 
 #[test]
 fn test_btf_dump_definition_struct_inner_anon_struct_and_union() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    int x;
-    struct {
-        u8 y[10];
-        u16 z[16];
-    } bar;
-    union {
-        char *a;
-        int b;
-    } zerg;
-    struct {
-        u32 w;
-        u64 *u;
-    } baz;
-    int w;
-    union {
-        u8 c;
-        u64 d[5];
-    } flarg;
-};
+        struct Foo {
+            int x;
+            struct {
+                u8 y[10];
+                u16 z[16];
+            } bar;
+            union {
+                char *a;
+                int b;
+            } zerg;
+            struct {
+                u32 w;
+                u64 *u;
+            } baz;
+            int w;
+            union {
+                u8 c;
+                u64 d[5];
+            } flarg;
+        };
 
-struct Foo foo;
-"#;
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub x: i32,
-    pub bar: __anon_Foo_1,
-    pub zerg: __anon_Foo_2,
-    pub baz: __anon_Foo_3,
-    pub w: i32,
-    pub __pad_76: [u8; 4],
-    pub flarg: __anon_Foo_4,
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_Foo_1 {
-    pub y: [u8; 10],
-    pub z: [u16; 16],
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Foo_2 {
-    pub a: *mut i8,
-    pub b: i32,
-}
-impl std::fmt::Debug for __anon_Foo_2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Foo_2 {
-    fn default() -> Self {
-        Self {
-            a: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: i32,
+            pub bar: __anon_Foo_1,
+            pub zerg: __anon_Foo_2,
+            pub baz: __anon_Foo_3,
+            pub w: i32,
+            pub __pad_76: [u8; 4],
+            pub flarg: __anon_Foo_4,
         }
-    }
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_Foo_3 {
-    pub w: u32,
-    pub __pad_4: [u8; 4],
-    pub u: *mut u64,
-}
-impl Default for __anon_Foo_3 {
-    fn default() -> Self {
-        Self {
-            w: u32::default(),
-            __pad_4: [u8::default(); 4],
-            u: std::ptr::null_mut(),
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_Foo_1 {
+            pub y: [u8; 10],
+            pub z: [u16; 16],
         }
-    }
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Foo_4 {
-    pub c: u8,
-    pub d: [u64; 5],
-}
-impl std::fmt::Debug for __anon_Foo_4 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Foo_4 {
-    fn default() -> Self {
-        Self {
-            c: u8::default(),
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Foo_2 {
+            pub a: *mut i8,
+            pub b: i32,
         }
-    }
-}
-"#;
+        impl std::fmt::Debug for __anon_Foo_2 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_Foo_2 {
+            fn default() -> Self {
+                Self {
+                    a: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_Foo_3 {
+            pub w: u32,
+            pub __pad_4: [u8; 4],
+            pub u: *mut u64,
+        }
+        impl Default for __anon_Foo_3 {
+            fn default() -> Self {
+                Self {
+                    w: u32::default(),
+                    __pad_4: [u8::default(); 4],
+                    u: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Foo_4 {
+            pub c: u8,
+            pub d: [u64; 5],
+        }
+        impl std::fmt::Debug for __anon_Foo_4 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_Foo_4 {
+            fn default() -> Self {
+                Self {
+                    c: u8::default(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2745,45 +2747,45 @@ impl Default for __anon_Foo_4 {
 
 #[test]
 fn test_btf_dump_anon_union_member() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    union {
-        char *name;
-        void *tp;
-    };
-};
+        struct Foo {
+            union {
+                char *name;
+                void *tp;
+            };
+        };
 
-struct Foo foo = {{0}};
-"#;
+        struct Foo foo = {{0}};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub __anon_Foo_1: __anon_Foo_1,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Foo_1 {
-    pub name: *mut i8,
-    pub tp: *mut std::ffi::c_void,
-}
-impl std::fmt::Debug for __anon_Foo_1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Foo_1 {
-    fn default() -> Self {
-        Self {
-            name: std::ptr::null_mut(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub __anon_Foo_1: __anon_Foo_1,
         }
-    }
-}
-"#;
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Foo_1 {
+            pub name: *mut i8,
+            pub tp: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_Foo_1 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_Foo_1 {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2794,124 +2796,124 @@ impl Default for __anon_Foo_1 {
 
 #[test]
 fn test_btf_dump_anon_member_tree() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    union {
-        struct {
-            char *name;
-            void *tp;
-        };
-        struct Bar {
+        struct Foo {
             union {
                 struct {
                     char *name;
-                    void *trp;
+                    void *tp;
                 };
-                struct Baz {
-                    char *name;
-                    void *trp;
-                } baz;
+                struct Bar {
+                    union {
+                        struct {
+                            char *name;
+                            void *trp;
+                        };
+                        struct Baz {
+                            char *name;
+                            void *trp;
+                        } baz;
+                    };
+                } bar;
             };
-        } bar;
-    };
-};
+        };
 
-struct Foo foo = {0};
-"#;
+        struct Foo foo = {0};
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub __anon_Foo_1: __anon_Foo_1,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Foo_1 {
-    pub __anon_Foo_2: __anon_Foo_2,
-    pub bar: Bar,
-}
-impl std::fmt::Debug for __anon_Foo_1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Foo_1 {
-    fn default() -> Self {
-        Self {
-            __anon_Foo_2: __anon_Foo_2::default(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub __anon_Foo_1: __anon_Foo_1,
         }
-    }
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_Foo_2 {
-    pub name: *mut i8,
-    pub tp: *mut std::ffi::c_void,
-}
-impl Default for __anon_Foo_2 {
-    fn default() -> Self {
-        Self {
-            name: std::ptr::null_mut(),
-            tp: std::ptr::null_mut(),
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Foo_1 {
+            pub __anon_Foo_2: __anon_Foo_2,
+            pub bar: Bar,
         }
-    }
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Bar {
-    pub __anon_Bar_1: __anon_Bar_1,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_Bar_1 {
-    pub __anon_Bar_2: __anon_Bar_2,
-    pub baz: Baz,
-}
-impl std::fmt::Debug for __anon_Bar_1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_Bar_1 {
-    fn default() -> Self {
-        Self {
-            __anon_Bar_2: __anon_Bar_2::default(),
+        impl std::fmt::Debug for __anon_Foo_1 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
         }
-    }
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_Bar_2 {
-    pub name: *mut i8,
-    pub trp: *mut std::ffi::c_void,
-}
-impl Default for __anon_Bar_2 {
-    fn default() -> Self {
-        Self {
-            name: std::ptr::null_mut(),
-            trp: std::ptr::null_mut(),
+        impl Default for __anon_Foo_1 {
+            fn default() -> Self {
+                Self {
+                    __anon_Foo_2: __anon_Foo_2::default(),
+                }
+            }
         }
-    }
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Baz {
-    pub name: *mut i8,
-    pub trp: *mut std::ffi::c_void,
-}
-impl Default for Baz {
-    fn default() -> Self {
-        Self {
-            name: std::ptr::null_mut(),
-            trp: std::ptr::null_mut(),
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_Foo_2 {
+            pub name: *mut i8,
+            pub tp: *mut std::ffi::c_void,
         }
-    }
-}
-"#;
+        impl Default for __anon_Foo_2 {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    tp: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub __anon_Bar_1: __anon_Bar_1,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_Bar_1 {
+            pub __anon_Bar_2: __anon_Bar_2,
+            pub baz: Baz,
+        }
+        impl std::fmt::Debug for __anon_Bar_1 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_Bar_1 {
+            fn default() -> Self {
+                Self {
+                    __anon_Bar_2: __anon_Bar_2::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_Bar_2 {
+            pub name: *mut i8,
+            pub trp: *mut std::ffi::c_void,
+        }
+        impl Default for __anon_Bar_2 {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    trp: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Baz {
+            pub name: *mut i8,
+            pub trp: *mut std::ffi::c_void,
+        }
+        impl Default for Baz {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    trp: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2922,36 +2924,36 @@ impl Default for Baz {
 
 #[test]
 fn test_btf_dump_definition_anon_enum() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-typedef enum {
-    FOO = 1,
-} test_t;
-struct Foo {
-    test_t test;
-};
-struct Foo foo;
-"#;
+        typedef enum {
+            FOO = 1,
+        } test_t;
+        struct Foo {
+            test_t test;
+        };
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub test: __anon_Foo_1,
-}
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct __anon_Foo_1(pub u32);
-#[allow(non_upper_case_globals)]
-impl __anon_Foo_1 {
-    pub const FOO: __anon_Foo_1 = __anon_Foo_1(1);
-}
-impl Default for __anon_Foo_1 {
-    fn default() -> Self { __anon_Foo_1::FOO }
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub test: __anon_Foo_1,
+        }
+        #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+        #[repr(transparent)]
+        pub struct __anon_Foo_1(pub u32);
+        #[allow(non_upper_case_globals)]
+        impl __anon_Foo_1 {
+            pub const FOO: __anon_Foo_1 = __anon_Foo_1(1);
+        }
+        impl Default for __anon_Foo_1 {
+            fn default() -> Self { __anon_Foo_1::FOO }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -2964,42 +2966,42 @@ impl Default for __anon_Foo_1 {
 
 #[test]
 fn test_btf_dump_definition_int_encodings() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-struct Foo {
-    s32 a;
-    u16 b;
-    s16 c;
-    bool d;
-    char e;
-};
-struct Foo foo;
-"#;
+        struct Foo {
+            s32 a;
+            u16 b;
+            s16 c;
+            bool d;
+            char e;
+        };
+        struct Foo foo;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct Foo {
-    pub a: i32,
-    pub b: u16,
-    pub c: i16,
-    pub d: std::mem::MaybeUninit<bool>,
-    pub e: i8,
-}
-impl Default for Foo {
-    fn default() -> Self {
-        Self {
-            a: i32::default(),
-            b: u16::default(),
-            c: i16::default(),
-            d: std::mem::MaybeUninit::new(bool::default()),
-            e: i8::default(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub a: i32,
+            pub b: u16,
+            pub c: i16,
+            pub d: std::mem::MaybeUninit<bool>,
+            pub e: i8,
         }
-    }
-}
-"#;
+        impl Default for Foo {
+            fn default() -> Self {
+                Self {
+                    a: i32::default(),
+                    b: u16::default(),
+                    c: i16::default(),
+                    d: std::mem::MaybeUninit::new(bool::default()),
+                    e: i8::default(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -3012,97 +3014,97 @@ impl Default for Foo {
 
 #[test]
 fn test_btf_dump_definition_unnamed_union() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
 
-// re-typed 'struct bpf_sock_tuple tup' from vmlinux as of kernel 5.15
-// with a little bit added for additional complexity testing
-struct bpf_sock_tuple_5_15 {
-    union {
-        struct {
-            __be32 saddr;
-            __be32 daddr;
-            __be16 sport;
-            __be16 dport;
-        } ipv4;
-        struct {
-            __be32 saddr[4];
-            __be32 daddr[4];
-            __be16 sport;
-            __be16 dport;
-        } ipv6;
-    };
+        // re-typed 'struct bpf_sock_tuple tup' from vmlinux as of kernel 5.15
+        // with a little bit added for additional complexity testing
+        struct bpf_sock_tuple_5_15 {
+            union {
+                struct {
+                    __be32 saddr;
+                    __be32 daddr;
+                    __be16 sport;
+                    __be16 dport;
+                } ipv4;
+                struct {
+                    __be32 saddr[4];
+                    __be32 daddr[4];
+                    __be16 sport;
+                    __be16 dport;
+                } ipv6;
+            };
+        
+            union {
+                int a;
+                char *b;
+            };
+        };
+        struct bpf_sock_tuple_5_15 tup;
+    "#};
 
-    union {
-        int a;
-        char *b;
-    };
-};
-struct bpf_sock_tuple_5_15 tup;
-"#;
-
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct bpf_sock_tuple_5_15 {
-    pub __anon_bpf_sock_tuple_5_15_1: __anon_bpf_sock_tuple_5_15_1,
-    pub __pad_36: [u8; 4],
-    pub __anon_bpf_sock_tuple_5_15_2: __anon_bpf_sock_tuple_5_15_2,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_bpf_sock_tuple_5_15_1 {
-    pub ipv4: __anon_bpf_sock_tuple_5_15_3,
-    pub ipv6: __anon_bpf_sock_tuple_5_15_4,
-}
-impl std::fmt::Debug for __anon_bpf_sock_tuple_5_15_1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_bpf_sock_tuple_5_15_1 {
-    fn default() -> Self {
-        Self {
-            ipv4: __anon_bpf_sock_tuple_5_15_3::default(),
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct bpf_sock_tuple_5_15 {
+            pub __anon_bpf_sock_tuple_5_15_1: __anon_bpf_sock_tuple_5_15_1,
+            pub __pad_36: [u8; 4],
+            pub __anon_bpf_sock_tuple_5_15_2: __anon_bpf_sock_tuple_5_15_2,
         }
-    }
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union __anon_bpf_sock_tuple_5_15_2 {
-    pub a: i32,
-    pub b: *mut i8,
-}
-impl std::fmt::Debug for __anon_bpf_sock_tuple_5_15_2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(???)")
-    }
-}
-impl Default for __anon_bpf_sock_tuple_5_15_2 {
-    fn default() -> Self {
-        Self {
-            a: i32::default(),
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_bpf_sock_tuple_5_15_1 {
+            pub ipv4: __anon_bpf_sock_tuple_5_15_3,
+            pub ipv6: __anon_bpf_sock_tuple_5_15_4,
         }
-    }
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_bpf_sock_tuple_5_15_3 {
-    pub saddr: u32,
-    pub daddr: u32,
-    pub sport: u16,
-    pub dport: u16,
-}
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct __anon_bpf_sock_tuple_5_15_4 {
-    pub saddr: [u32; 4],
-    pub daddr: [u32; 4],
-    pub sport: u16,
-    pub dport: u16,
-}
-"#;
+        impl std::fmt::Debug for __anon_bpf_sock_tuple_5_15_1 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_bpf_sock_tuple_5_15_1 {
+            fn default() -> Self {
+                Self {
+                    ipv4: __anon_bpf_sock_tuple_5_15_3::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_bpf_sock_tuple_5_15_2 {
+            pub a: i32,
+            pub b: *mut i8,
+        }
+        impl std::fmt::Debug for __anon_bpf_sock_tuple_5_15_2 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_bpf_sock_tuple_5_15_2 {
+            fn default() -> Self {
+                Self {
+                    a: i32::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_bpf_sock_tuple_5_15_3 {
+            pub saddr: u32,
+            pub daddr: u32,
+            pub sport: u16,
+            pub dport: u16,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_bpf_sock_tuple_5_15_4 {
+            pub saddr: [u32; 4],
+            pub daddr: [u32; 4],
+            pub sport: u16,
+            pub dport: u16,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -3115,23 +3117,23 @@ pub struct __anon_bpf_sock_tuple_5_15_4 {
 
 #[test]
 fn test_btf_dump_definition_empty_union() {
-    let prog_text = r#"
-#include "vmlinux.h"
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
 
-struct struct_with_empty_union {
-    int member;
-    union {};
-};
-struct struct_with_empty_union s;
-"#;
+        struct struct_with_empty_union {
+            int member;
+            union {};
+        };
+        struct struct_with_empty_union s;
+    "#};
 
-    let expected_output = r#"
-#[derive(Debug, Default, Copy, Clone)]
-#[repr(C)]
-pub struct struct_with_empty_union {
-    pub member: i32,
-}
-"#;
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct struct_with_empty_union {
+            pub member: i32,
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -3145,79 +3147,79 @@ pub struct struct_with_empty_union {
 
 #[test]
 fn test_btf_dump_definition_struct_ops_mixed() {
-    let prog_text = r#"
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_tracing.h>
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+        #include <bpf/bpf_tracing.h>
 
-SEC("struct_ops/test_1")
-int BPF_PROG(test_1, struct bpf_dummy_ops_state *state)
-{
-    return 0;
-}
-
-SEC(".struct_ops")
-struct bpf_dummy_ops dummy_1 = {
-    .test_1 = (void *)test_1,
-};
-
-SEC(".struct_ops.link")
-struct bpf_dummy_ops dummy_2 = {
-    .test_1 = (void *)test_1,
-};
-"#;
-
-    let expected_output = r#"
-#[derive(Debug, Clone)]
-#[repr(C)]
-pub struct StructOps {
-    pub dummy_1: *mut types::bpf_dummy_ops,
-    pub dummy_2: *mut types::bpf_dummy_ops,
-}
-
-impl StructOps {
-
-    pub fn dummy_1(&self) -> &types::bpf_dummy_ops {
-        // SAFETY: The library ensures that the member is pointing to
-        //         valid data.
-        unsafe { self.dummy_1.as_ref() }.unwrap()
-    }
-
-    pub fn dummy_1_mut(&mut self) -> &mut types::bpf_dummy_ops {
-        // SAFETY: The library ensures that the member is pointing to
-        //         valid data.
-        unsafe { self.dummy_1.as_mut() }.unwrap()
-    }
-
-    pub fn dummy_2(&self) -> &types::bpf_dummy_ops {
-        // SAFETY: The library ensures that the member is pointing to
-        //         valid data.
-        unsafe { self.dummy_2.as_ref() }.unwrap()
-    }
-
-    pub fn dummy_2_mut(&mut self) -> &mut types::bpf_dummy_ops {
-        // SAFETY: The library ensures that the member is pointing to
-        //         valid data.
-        unsafe { self.dummy_2.as_mut() }.unwrap()
-    }
-}
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub struct bpf_dummy_ops {
-    pub test_1: *mut libbpf_rs::libbpf_sys::bpf_program,
-    pub test_2: *mut libbpf_rs::libbpf_sys::bpf_program,
-    pub test_sleepable: *mut libbpf_rs::libbpf_sys::bpf_program,
-}
-impl Default for bpf_dummy_ops {
-    fn default() -> Self {
-        Self {
-            test_1: std::ptr::null_mut(),
-            test_2: std::ptr::null_mut(),
-            test_sleepable: std::ptr::null_mut(),
+        SEC("struct_ops/test_1")
+        int BPF_PROG(test_1, struct bpf_dummy_ops_state *state)
+        {
+            return 0;
         }
-    }
-}
-"#;
+
+        SEC(".struct_ops")
+        struct bpf_dummy_ops dummy_1 = {
+            .test_1 = (void *)test_1,
+        };
+
+        SEC(".struct_ops.link")
+        struct bpf_dummy_ops dummy_2 = {
+            .test_1 = (void *)test_1,
+        };
+    "#};
+
+    let expected_output = indoc! {r#"
+        #[derive(Debug, Clone)]
+        #[repr(C)]
+        pub struct StructOps {
+            pub dummy_1: *mut types::bpf_dummy_ops,
+            pub dummy_2: *mut types::bpf_dummy_ops,
+        }
+
+        impl StructOps {
+
+            pub fn dummy_1(&self) -> &types::bpf_dummy_ops {
+                // SAFETY: The library ensures that the member is pointing to
+                //         valid data.
+                unsafe { self.dummy_1.as_ref() }.unwrap()
+            }
+
+            pub fn dummy_1_mut(&mut self) -> &mut types::bpf_dummy_ops {
+                // SAFETY: The library ensures that the member is pointing to
+                //         valid data.
+                unsafe { self.dummy_1.as_mut() }.unwrap()
+            }
+
+            pub fn dummy_2(&self) -> &types::bpf_dummy_ops {
+                // SAFETY: The library ensures that the member is pointing to
+                //         valid data.
+                unsafe { self.dummy_2.as_ref() }.unwrap()
+            }
+
+            pub fn dummy_2_mut(&mut self) -> &mut types::bpf_dummy_ops {
+                // SAFETY: The library ensures that the member is pointing to
+                //         valid data.
+                unsafe { self.dummy_2.as_mut() }.unwrap()
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bpf_dummy_ops {
+            pub test_1: *mut libbpf_rs::libbpf_sys::bpf_program,
+            pub test_2: *mut libbpf_rs::libbpf_sys::bpf_program,
+            pub test_sleepable: *mut libbpf_rs::libbpf_sys::bpf_program,
+        }
+        impl Default for bpf_dummy_ops {
+            fn default() -> Self {
+                Self {
+                    test_1: std::ptr::null_mut(),
+                    test_2: std::ptr::null_mut(),
+                    test_sleepable: std::ptr::null_mut(),
+                }
+            }
+        }
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
@@ -3232,10 +3234,10 @@ impl Default for bpf_dummy_ops {
 
 #[test]
 fn test_btf_dump_float() {
-    let prog_text = r#"
-float f = 2.16;
-double d = 12.15;
-"#;
+    let prog_text = indoc! {r#"
+        float f = 2.16;
+        double d = 12.15;
+    "#};
 
     let mmap = build_btf_mmap(prog_text);
     let btf = btf_from_mmap(&mmap);
