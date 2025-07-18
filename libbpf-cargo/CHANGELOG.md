@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Bumped minimum Rust version to `1.82`
+
+
 0.25.0
 ------
 - Adjusted all `<xxx>_data` BPF map skeleton members to be `Option`s

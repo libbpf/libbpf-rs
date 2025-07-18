@@ -2,6 +2,7 @@ Unreleased
 ----------
 - Added `target_obj_id` and `target_btf_id` fields to `TracingLinkInfo`
   to expose BTF information directly from kernel queries
+- Bumped minimum Rust version to `1.82`
 
 
 0.25.0
