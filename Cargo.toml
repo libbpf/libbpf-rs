@@ -1,7 +1,7 @@
 [workspace.package]
 version = "0.25.0"
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.82"
 license = "LGPL-2.1-only OR BSD-2-Clause"
 repository = "https://github.com/libbpf/libbpf-rs"
 homepage = "https://github.com/libbpf/libbpf-rs"
