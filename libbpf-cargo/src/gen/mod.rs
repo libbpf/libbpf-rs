@@ -338,7 +338,7 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
         "\
         fn build_skel_config() -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>>
         {{
-            let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(DATA);
+            let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(&DATA);
             builder
                 .name(\"{name}\")
         ",
@@ -1155,7 +1155,9 @@ pub struct StructOps {{}}
 
     // Coerce to &[u8] just to be safe, as we'll be using debug formatting
     let bytes: &[u8] = &mmap;
-    writeln!(skel, "const DATA: &[u8] = &{bytes:?};")?;
+
+    writeln!(skel, "#[unsafe(link_section = \".bpf.objs\")]")?;
+    writeln!(skel, "static DATA: [u8; {}] = {bytes:?};", bytes.len())?;
     writeln!(skel, "}}")?;
 
     Ok(skel)
