@@ -17,6 +17,7 @@ use libbpf_rs::btf::BtfType;
 use libbpf_rs::Btf;
 use memmap2::Mmap;
 use tempfile::tempdir;
+use tempfile::NamedTempFile;
 use tempfile::TempDir;
 use test_log::test;
 
@@ -371,8 +372,8 @@ fn test_make_workspace() {
         .exists());
 }
 
-fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) {
-    let (_dir, proj_dir, cargo_toml) = setup_temp_project();
+fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) -> (TempDir, PathBuf) {
+    let (dir, proj_dir, cargo_toml) = setup_temp_project();
 
     // Add prog dir
     create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
@@ -426,16 +427,18 @@ fn build_rust_project_from_bpf_c_impl(bpf_c: &str, rust: &str, run: bool) {
         .status()
         .expect("failed to run cargo");
     assert!(status.success());
+
+    (dir, proj_dir.join("target/debug/proj"))
 }
 
-fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
+fn build_rust_project_from_bpf_c(bpf_c: &str, rust: &str) -> (TempDir, PathBuf) {
     let run = false;
     build_rust_project_from_bpf_c_impl(bpf_c, rust, run)
 }
 
 fn run_rust_project_from_bpf_c(bpf_c: &str, rust: &str) {
     let run = true;
-    build_rust_project_from_bpf_c_impl(bpf_c, rust, run)
+    build_rust_project_from_bpf_c_impl(bpf_c, rust, run);
 }
 
 #[test]
@@ -460,7 +463,7 @@ fn test_skeleton_empty_source() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
@@ -518,7 +521,74 @@ fn test_skeleton_basic() {
     "#}
     .to_string();
 
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
+}
+
+/// Validate that `.bpf.objs` section contents are as expected.
+#[test]
+fn test_skeleton_generate_bpf_objs_section() {
+    let bpf_c = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {
+            return 0;
+        }
+    "#}
+    .to_string();
+    let rust = indoc! {r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use std::mem::MaybeUninit;
+        use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
+
+        fn main() {
+            let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
+            let open_skel = builder
+                .open(&mut open_object)
+                .expect("failed to open skel");
+            let _skel = open_skel.load().expect("failed to load skel");
+        }
+    "#}
+    .to_string();
+
+    let (_dir, bin) = build_rust_project_from_bpf_c(&bpf_c, &rust);
+
+    let buffer = read(&bin)
+        .unwrap_or_else(|_| panic!("failed to read binary file at path={}", &bin.display()));
+
+    let elf = goblin::elf::Elf::parse(&buffer).unwrap();
+
+    let (section_idx, _) = elf
+        .section_headers
+        .iter()
+        .enumerate()
+        .find(|(_i, sh)| &elf.shdr_strtab[sh.sh_name] == ".bpf.objs")
+        .unwrap();
+
+    let syms: Vec<_> = elf
+        .syms
+        .iter()
+        .filter(|sym| sym.st_shndx == section_idx && sym.st_size > 0)
+        .collect();
+
+    assert_eq!(syms.len(), 1, "expected one symbol in .bpf.objs");
+    let sym = syms.first().unwrap();
+
+    let mut bpf_o = NamedTempFile::new().unwrap();
+    let sym_start = sym.st_value as usize;
+    let sym_end = sym_start + (sym.st_size as usize);
+    bpf_o
+        .as_file_mut()
+        .write_all(&buffer[sym_start..sym_end])
+        .unwrap();
+
+    validate_bpf_o(bpf_o.path());
 }
 
 #[test]
@@ -546,7 +616,7 @@ fn test_skeleton_generate_datasec_static() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
@@ -605,7 +675,7 @@ fn test_skeleton_datasec() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
@@ -829,7 +899,7 @@ fn test_skeleton_builder_arrays_ptrs() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Check that we can correctly work with C enums that contain multiple
@@ -864,7 +934,7 @@ fn test_skeleton_enum_with_same_value_variants() {
         }
     "#}
     .to_string();
-    let () = run_rust_project_from_bpf_c(&bpf_c, &rust);
+    run_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 #[test]
@@ -897,7 +967,7 @@ fn test_skeleton_generate_struct_with_pointer() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Check that we generate valid Rust code for an array of pointers.
@@ -933,7 +1003,7 @@ fn test_skeleton_generate_struct_with_pointer_array() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Generate a skeleton that includes multiple "anon" type definitions.
@@ -1000,7 +1070,7 @@ fn test_skeleton_builder_multiple_anon() {
     "#}
     .to_string();
 
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Test that we generate a valid skeleton when multiple kfuncs are being used.
@@ -1046,7 +1116,7 @@ fn test_skeleton_multipl_kfuncs() {
         }
     "#}
     .to_string();
-    let () = build_rust_project_from_bpf_c(&bpf_c, &rust);
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
 /// Check that skeleton creation is deterministic, i.e., that no temporary paths

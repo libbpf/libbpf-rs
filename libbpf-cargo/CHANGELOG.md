@@ -1,5 +1,7 @@
 Unreleased
 ----------
+- Moved BPF object content in generated skeletons into `.bpf.objs` section
+  allowing easy extraction from the final binary
 - Bumped minimum Rust version to `1.82`
 
 
