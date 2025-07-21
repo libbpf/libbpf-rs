@@ -473,10 +473,10 @@ fn test_skeleton_basic() {
         #include <bpf/bpf_helpers.h>
 
         struct {
-                __uint(type, BPF_MAP_TYPE_HASH);
-                __uint(max_entries, 1024);
-                __type(key, u32);
-                __type(value, u64);
+            __uint(type, BPF_MAP_TYPE_HASH);
+            __uint(max_entries, 1024);
+            __type(key, u32);
+            __type(value, u64);
         } mymap SEC(".maps");
 
         SEC("kprobe/foo")
@@ -706,23 +706,23 @@ fn test_skeleton_builder_basic() {
             }};
 
             struct {{
-                    __uint(type, BPF_MAP_TYPE_HASH);
-                    __uint(max_entries, 1024);
-                    __type(key, struct unique_key);
-                    __type(value, u64);
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __type(key, struct unique_key);
+                __type(value, u64);
             }} mymap SEC(".maps");
 
             struct {{
-                    __uint(type, BPF_MAP_TYPE_HASH);
-                    __uint(max_entries, 1024);
-                    __uint(key_size, 8);
-                    __type(value, u64);
+                __uint(type, BPF_MAP_TYPE_HASH);
+                __uint(max_entries, 1024);
+                __uint(key_size, 8);
+                __type(value, u64);
             }} mymap2 SEC(".maps");
 
             SEC("kprobe/foo")
             int this_is_my_prog(u64 *ctx)
             {{
-                    return 0;
+                return 0;
             }}
         "#}
     )
@@ -1021,10 +1021,10 @@ fn test_skeleton_builder_multiple_anon() {
         };
 
         struct {
-                __uint(type, BPF_MAP_TYPE_HASH);
-                __uint(max_entries, 1024);
-                __type(key, struct unique_key);
-                __type(value, u64);
+            __uint(type, BPF_MAP_TYPE_HASH);
+            __uint(max_entries, 1024);
+            __type(key, struct unique_key);
+            __type(value, u64);
         } mymap SEC(".maps");
 
         struct Foo {
