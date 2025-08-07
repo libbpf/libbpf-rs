@@ -323,7 +323,7 @@ impl Display for Linkage {
 
 // Void
 gen_fieldless_concrete_type! {
-    /// The representation of the c_void type.
+    /// The representation of the [`c_void`][std::ffi::c_void] type.
     Void
 }
 
@@ -728,7 +728,7 @@ gen_collection_concrete_type! {
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-func-proto)
     btf_param as FuncProto with ReferencesType;
 
-    /// A parameter of a [FuncProto].
+    /// A parameter of a [`FuncProto`].
     struct FuncProtoParam<'btf> {
         /// The parameter's name
         pub name: Option<&'btf OsStr>,

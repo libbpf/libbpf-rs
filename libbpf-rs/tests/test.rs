@@ -1497,7 +1497,7 @@ fn test_object_map_create_without_name() {
     assert_eq!(val, res);
 }
 
-/// Test whether we can obtain multiple `MapHandle`s from a `Map
+/// Test whether we can obtain multiple `MapHandle`s from a `Map`.
 #[tag(root)]
 #[test]
 fn test_object_map_handle_clone() {
@@ -1667,7 +1667,7 @@ fn test_object_kprobe_with_opts() {
 }
 
 /// Check that we can attach a BPF program to multiple kernel kprobes using
-/// kprobe_multi.
+/// `kprobe_multi`.
 #[tag(root)]
 #[test]
 #[ignore = "requires kernel with kprobe multi support"]
@@ -1687,7 +1687,7 @@ fn test_object_kprobe_multi() {
 }
 
 /// Check that we can attach a BPF program to multiple kernel kprobes using
-/// kprobe_multi, providing additional options.
+/// `kprobe_multi`, providing additional options.
 #[tag(root)]
 #[test]
 #[ignore = "requires kernel with kprobe multi support"]
@@ -2004,7 +2004,7 @@ fn test_map_pinned_status() {
     let _unused = fs::remove_file(expected_path);
 }
 
-/// Change the root_pin_path and see if it works.
+/// Change the `root_pin_path` and see if it works.
 #[tag(root)]
 #[test]
 fn test_map_pinned_status_with_pin_root_path() {
@@ -2168,7 +2168,8 @@ fn test_run_prog_fail() {
     let _err = prog.test_run(input).unwrap_err();
 }
 
-/// Check that we can run a program with test_run with `repeat` set.
+/// Check that we can run a program with `test_run` with `repeat` set.
+///
 /// We set a counter in the program which we bump each time we run the
 /// program.
 /// We check that the counter is equal to the value of `repeat`.
