@@ -42,7 +42,7 @@ tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "chrono", "fmt"] }
 # `libbpf` is unable to provide necessary backwards compatibility
 # guarantees so we have to explicitly opt-in to newer versions...
-libbpf-sys_restricted = { package = "libbpf-sys", version = ">=1.5.0, <=1.5.1", default-features = false }
+libbpf-sys_restricted = { package = "libbpf-sys", version = ">=1.5.0, <=1.5.2", default-features = false }
 
 [dev-dependencies]
 goblin = "0.9"
