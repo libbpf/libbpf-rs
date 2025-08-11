@@ -10,7 +10,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - id: version
       shell: bash
       run: |
@@ -31,7 +31,7 @@ jobs:
     needs: [test, version]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - name: Dry-run package creation
       # Can't verify libbpf-cargo for it may depend on yet-to-be-published libbpf-rs.
