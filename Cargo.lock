@@ -462,7 +462,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libbpf-cargo"
-version = "0.26.0-beta.0"
+version = "0.26.0-beta.1"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.26.0-beta.0"
+version = "0.26.0-beta.1"
 dependencies = [
  "bitflags 2.9.1",
  "cc",
