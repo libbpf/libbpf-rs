@@ -1,8 +1,3 @@
-0.26.0-beta.1
--------------
-- Allowlisted `libbpf-sys` `1.6.1`
-
-
 0.26.0-beta.0
 -------------
 - Added `target_obj_id` and `target_btf_id` fields to `TracingLinkInfo`

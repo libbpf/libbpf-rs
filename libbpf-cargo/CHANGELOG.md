@@ -1,3 +1,8 @@
+0.26.0-beta.1
+-------------
+- Allowlisted `libbpf-sys` `1.6.1`
+
+
 0.26.0-beta.0
 -------------
 - Moved BPF object content in generated skeletons into `.bpf.objs` section
