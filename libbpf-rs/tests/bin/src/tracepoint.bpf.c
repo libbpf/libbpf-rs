@@ -46,8 +46,8 @@ int handle__tracepoint_with_cookie(void *ctx)
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 } pb SEC(".maps");
 
 SEC("tracepoint/syscalls/sys_enter_getpid")

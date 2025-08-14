@@ -28,16 +28,15 @@ struct unique_key {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
+	__type(key, u32);
+	__type(value, u32);
 } events
 SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 10240);
-	__type(key,
-	struct unique_key);
+	__type(key, struct unique_key);
 	__type(value, u64);
 } seen
 SEC(".maps");
@@ -97,8 +96,8 @@ static __always_inline int record_cap(void *ctx, const struct cred *cred,
 	return 0;
 }
 
+/* bpflint: disable=unstable-attach-point */
 SEC("kprobe/cap_capable")
-
 int BPF_KPROBE(kprobe__cap_capable, const struct cred *cred,
                struct user_namespace *targ_ns, int cap, int cap_opt) {
 	return record_cap(ctx, cred, targ_ns, cap, cap_opt);
