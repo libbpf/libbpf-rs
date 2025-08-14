@@ -8,8 +8,8 @@
 #define ETH_P_IPV6  0x86DD
 
 //#include <linux/pkt_cls.h>
-#define TC_ACT_UNSPEC	(-1)
-#define TC_ACT_SHOT		2
+#define TC_ACT_UNSPEC    (-1)
+#define TC_ACT_SHOT        2
 
 u8 rc_allow = TC_ACT_UNSPEC;
 u8 rc_disallow = TC_ACT_SHOT;
@@ -100,7 +100,7 @@ int handle_tc(struct __sk_buff *skb)
 
     if (proto == IPPROTO_TCP)  {
         struct tcphdr *tcph = (struct tcphdr *)trans_data;
-        
+
         if ((void*)(trans_data + sizeof(*tcph)) > data_end) {
             return TC_ACT_SHOT;
         }
@@ -130,7 +130,7 @@ int handle_tc(struct __sk_buff *skb)
         bpf_printk("b  egress on -- src %d dst %d",
             bpf_ntohs(src), bpf_ntohs(dst));
     }
-        
+
     return rc;
 found_unknown:
     rc = TC_ACT_UNSPEC;

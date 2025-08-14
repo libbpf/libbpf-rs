@@ -7,7 +7,7 @@
 SEC("kprobe/bpf_fentry_test1")
 int handle__kprobe(void *ctx)
 {
-	return 0;
+    return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

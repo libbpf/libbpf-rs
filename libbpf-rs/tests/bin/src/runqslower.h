@@ -7,9 +7,9 @@
 #define TASK_COMM_LEN 16
 
 struct event {
-	u8 task[TASK_COMM_LEN];
-	__u64 delta_us;
-	pid_t pid;
+    u8 task[TASK_COMM_LEN];
+    __u64 delta_us;
+    pid_t pid;
 };
 
 #endif /* __RUNQSLOWER_H */
