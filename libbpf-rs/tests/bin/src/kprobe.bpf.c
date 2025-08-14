@@ -3,6 +3,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
+/* bpflint: disable=unstable-attach-point */
 SEC("kprobe/bpf_fentry_test1")
 int handle__kprobe(void *ctx)
 {

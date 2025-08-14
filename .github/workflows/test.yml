@@ -239,6 +239,17 @@ jobs:
           sed -i 's@resolver = "2"@resolver = "1"@' Cargo.toml
           cargo clippy --locked --no-deps --all-targets --tests --features=dont-generate-test-files -- -D warnings
 
+  lint-bpf-c:
+    name: Lint .bpf.c files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: find . -iname '*.bpf.c' > bpf.c.files
+      - name: Linter action test
+        uses: d-e-s-o/lint-bpf@v0.1.1
+        with:
+          args: '@bpf.c.files'
+
   rustfmt:
     name: Check code formatting
     runs-on: ubuntu-latest

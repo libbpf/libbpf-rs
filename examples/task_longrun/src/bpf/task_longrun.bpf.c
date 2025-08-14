@@ -8,7 +8,8 @@ struct event _event = {0};
 
 struct {
     __uint(type, BPF_MAP_TYPE_STACK_TRACE);
-    __uint(key_size, sizeof(u32));
+    __type(key, u32);
+    /* bpflint: disable=untyped-map-member */
     __uint(value_size, PERF_MAX_STACK_DEPTH * sizeof(u64));
     __uint(max_entries, __NR_STACKS__);
 } stacks SEC(".maps");
@@ -22,8 +23,8 @@ struct {
 
 struct {
     __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-    __uint(key_size, sizeof(u32));
-    __uint(value_size, sizeof(u32));
+    __type(key, u32);
+    __type(value, u32);
 } events SEC(".maps");
 
 SEC("tp_btf/sched_switch")
@@ -62,6 +63,7 @@ int handle__sched_switch(u64 *ctx)
 }
 
 
+/* bpflint: disable=unstable-attach-point */
 SEC("kprobe/scheduler_tick")
 void handle__sched_tick(struct pt_regs *ctx)
 {
@@ -73,7 +75,7 @@ void handle__sched_tick(struct pt_regs *ctx)
                 return;
         if (!t->bt_at || now - t->bt_at < backtrace_interval_ns)
                 return;
-        
+
         idx = t->bt_sample_cnt++ % __NR_BTS__;
         t->bt[idx] = bpf_get_stackid(ctx, &stacks, BPF_F_REUSE_STACKID);
         t->bt_at = now;
