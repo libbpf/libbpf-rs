@@ -7,5 +7,5 @@
 SEC("tc")
 int handle_tc(struct __sk_buff *skb)
 {
-	return TC_ACT_UNSPEC;
+    return TC_ACT_UNSPEC;
 }
