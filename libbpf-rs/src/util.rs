@@ -40,18 +40,9 @@ pub fn c_ptr_to_string(p: *const c_char) -> Result<String> {
 
 /// Convert a `[c_char]` into a `CStr`.
 pub fn c_char_slice_to_cstr(s: &[c_char]) -> Option<&CStr> {
-    // TODO: Switch to using `CStr::from_bytes_until_nul` once we require
-    //       Rust 1.69.0.
-    let nul_idx = s
-        .iter()
-        .enumerate()
-        .find_map(|(idx, b)| (*b == 0).then_some(idx))?;
-    let cstr =
-        // SAFETY: `c_char` and `u8` are both just one byte plain old data
-        //         types.
-        CStr::from_bytes_with_nul(unsafe { transmute::<&[c_char], &[u8]>(&s[0..=nul_idx]) })
-            .unwrap();
-    Some(cstr)
+    // SAFETY: `c_char` and `u8` are both just one byte plain old data
+    //         types.
+    CStr::from_bytes_until_nul(unsafe { transmute::<&[c_char], &[u8]>(s) }).ok()
 }
 
 /// Round up a number to the next multiple of `r`
