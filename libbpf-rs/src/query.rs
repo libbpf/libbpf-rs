@@ -11,6 +11,7 @@
 //! ```
 
 use std::ffi::c_void;
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::io;
 use std::mem::size_of_val;
@@ -726,6 +727,43 @@ pub struct UprobeMultiLinkInfo {
     pub pid: u32,
 }
 
+/// Information about a perf event link.
+#[derive(Debug, Clone)]
+pub struct PerfEventLinkInfo {
+    /// The specific type of perf event with decoded information.
+    pub event_type: PerfEventType,
+}
+
+/// Specific types of perf events with decoded information.
+#[derive(Debug, Clone)]
+pub enum PerfEventType {
+    /// A tracepoint event.
+    Tracepoint {
+        /// The tracepoint name.
+        name: Option<CString>,
+        /// Attach cookie value for this link.
+        cookie: u64,
+    },
+    /// A kprobe event (includes both kprobe and kretprobe).
+    Kprobe {
+        /// The function being probed.
+        func_name: Option<CString>,
+        /// Whether this is a return probe (kretprobe).
+        is_retprobe: bool,
+        /// Address of the probe.
+        addr: u64,
+        /// Offset from the function.
+        offset: u32,
+        /// Number of missed events.
+        missed: u64,
+        /// Cookie value for the kprobe.
+        cookie: u64,
+    },
+    /// TODO: Add support for `BPF_PERF_EVENT_EVENT`, `BPF_PERF_EVENT_UPROBE`
+    /// `BPF_PERF_EVENT_URETPROBE`
+    Unknown(u32),
+}
+
 /// Information about BPF link types. Maps to the anonymous union in `struct bpf_link_info` in
 /// kernel uapi.
 #[derive(Debug, Clone)]
@@ -767,7 +805,10 @@ pub enum LinkTypeInfo {
     /// Link type for sockmap programs.
     SockMap(SockMapLinkInfo),
     /// Link type for perf-event programs.
-    PerfEvent,
+    ///
+    /// Contains information about the perf event configuration including type and config
+    /// which can be used to identify tracepoints, kprobes, uprobes, etc.
+    PerfEvent(PerfEventLinkInfo),
     /// Unknown link type.
     Unknown,
 }
@@ -874,7 +915,116 @@ impl LinkInfo {
                     s.__bindgen_anon_1.sockmap.attach_type
                 }),
             }),
-            libbpf_sys::BPF_LINK_TYPE_PERF_EVENT => LinkTypeInfo::PerfEvent,
+            libbpf_sys::BPF_LINK_TYPE_PERF_EVENT => {
+                // Get the BPF perf event type (BPF_PERF_EVENT_*) from the link info.
+                let bpf_perf_event_type = unsafe { s.__bindgen_anon_1.perf_event.type_ };
+
+                // Handle two-phase call for perf event string data if needed (this mimics the
+                // behavior of bpftool).
+                let mut buf = [0u8; 256];
+                let need_second_call = match bpf_perf_event_type {
+                    libbpf_sys::BPF_PERF_EVENT_TRACEPOINT => {
+                        s.__bindgen_anon_1
+                            .perf_event
+                            .__bindgen_anon_1
+                            .tracepoint
+                            .tp_name = buf.as_mut_ptr() as u64;
+                        s.__bindgen_anon_1
+                            .perf_event
+                            .__bindgen_anon_1
+                            .tracepoint
+                            .name_len = buf.len() as u32;
+                        true
+                    }
+                    libbpf_sys::BPF_PERF_EVENT_KPROBE | libbpf_sys::BPF_PERF_EVENT_KRETPROBE => {
+                        s.__bindgen_anon_1
+                            .perf_event
+                            .__bindgen_anon_1
+                            .kprobe
+                            .func_name = buf.as_mut_ptr() as u64;
+                        s.__bindgen_anon_1
+                            .perf_event
+                            .__bindgen_anon_1
+                            .kprobe
+                            .name_len = buf.len() as u32;
+                        true
+                    }
+                    _ => false,
+                };
+
+                if need_second_call {
+                    let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
+                    let mut len = size_of_val(&s) as u32;
+                    let ret = unsafe {
+                        libbpf_sys::bpf_obj_get_info_by_fd(
+                            fd.as_raw_fd(),
+                            item_ptr as *mut c_void,
+                            &mut len,
+                        )
+                    };
+                    if ret != 0 {
+                        return None;
+                    }
+                }
+
+                let event_type = match bpf_perf_event_type {
+                    libbpf_sys::BPF_PERF_EVENT_TRACEPOINT => {
+                        let tp_name = unsafe {
+                            s.__bindgen_anon_1
+                                .perf_event
+                                .__bindgen_anon_1
+                                .tracepoint
+                                .tp_name
+                        };
+                        let cookie = unsafe {
+                            s.__bindgen_anon_1
+                                .perf_event
+                                .__bindgen_anon_1
+                                .tracepoint
+                                .cookie
+                        };
+                        let name = (tp_name != 0).then(|| unsafe {
+                            CStr::from_ptr(tp_name as *const c_char).to_owned()
+                        });
+
+                        PerfEventType::Tracepoint { name, cookie }
+                    }
+                    libbpf_sys::BPF_PERF_EVENT_KPROBE | libbpf_sys::BPF_PERF_EVENT_KRETPROBE => {
+                        let func_name = unsafe {
+                            s.__bindgen_anon_1
+                                .perf_event
+                                .__bindgen_anon_1
+                                .kprobe
+                                .func_name
+                        };
+                        let addr =
+                            unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.kprobe.addr };
+                        let offset =
+                            unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.kprobe.offset };
+                        let missed =
+                            unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.kprobe.missed };
+                        let cookie =
+                            unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.kprobe.cookie };
+                        let func_name = (func_name != 0).then(|| unsafe {
+                            CStr::from_ptr(func_name as *const c_char).to_owned()
+                        });
+
+                        let is_retprobe =
+                            bpf_perf_event_type == libbpf_sys::BPF_PERF_EVENT_KRETPROBE;
+                        PerfEventType::Kprobe {
+                            func_name,
+                            is_retprobe,
+                            addr,
+                            offset,
+                            missed,
+                            cookie,
+                        }
+                    }
+                    ty => PerfEventType::Unknown(ty),
+                };
+
+                LinkTypeInfo::PerfEvent(PerfEventLinkInfo { event_type })
+            }
             _ => LinkTypeInfo::Unknown,
         };
 
