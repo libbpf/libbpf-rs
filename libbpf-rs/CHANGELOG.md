@@ -5,6 +5,8 @@ Unreleased
   `PerfEventLinkInfo` object
 - Added `Linker::add_buf` method for adding in-memory ELF files to
   the set of objects to link
+- Added `Program::attach_iter_with_opts` for attaching to iterators with
+  additional options
 
 
 0.26.0-beta.0
