@@ -159,6 +159,106 @@ impl From<PerfEventOpts> for libbpf_sys::bpf_perf_event_opts {
     }
 }
 
+
+/// Options used when iterating over a map.
+#[derive(Clone, Debug)]
+pub struct MapIterOpts<'fd> {
+    /// The file descriptor of the map.
+    pub fd: BorrowedFd<'fd>,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl<'fd> MapIterOpts<'fd> {
+    /// Create a [`MapIterOpts`] object using the given file descriptor.
+    pub fn from_fd(fd: BorrowedFd<'fd>) -> Self {
+        Self {
+            fd,
+            _non_exhaustive: (),
+        }
+    }
+}
+
+
+/// Iteration order for cgroups.
+#[non_exhaustive]
+#[repr(u32)]
+#[derive(Clone, Debug, Default)]
+pub enum CgroupIterOrder {
+    /// Use the default iteration order.
+    #[default]
+    Default = libbpf_sys::BPF_CGROUP_ITER_ORDER_UNSPEC,
+    /// Process only a single object.
+    SelfOnly = libbpf_sys::BPF_CGROUP_ITER_SELF_ONLY,
+    /// Walk descendants in pre-order.
+    DescendantsPre = libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_PRE,
+    /// Walk descendants in post-order.
+    DescendantsPost = libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_POST,
+    /// Walk ancestors upward.
+    AncestorsUp = libbpf_sys::BPF_CGROUP_ITER_ANCESTORS_UP,
+}
+
+/// Options used when iterating over a cgroup.
+#[derive(Clone, Debug)]
+pub struct CgroupIterOpts<'fd> {
+    /// The file descriptor of the cgroup.
+    pub fd: BorrowedFd<'fd>,
+    /// The iteration order to use on the cgroup.
+    pub order: CgroupIterOrder,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl<'fd> CgroupIterOpts<'fd> {
+    /// Create a [`CgroupIterOpts`] object using the given file descriptor.
+    pub fn from_fd(fd: BorrowedFd<'fd>) -> Self {
+        Self {
+            fd,
+            order: CgroupIterOrder::default(),
+            _non_exhaustive: (),
+        }
+    }
+}
+
+
+/// Options to optionally be provided when attaching to an iterator.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum IterOpts<'fd> {
+    /// Iterate over a map.
+    Map(MapIterOpts<'fd>),
+    /// Iterate over a group.
+    Cgroup(CgroupIterOpts<'fd>),
+}
+
+impl From<IterOpts<'_>> for libbpf_sys::bpf_iter_link_info {
+    fn from(opts: IterOpts) -> Self {
+        let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
+        match opts {
+            IterOpts::Map(map_opts) => {
+                let MapIterOpts {
+                    fd,
+                    _non_exhaustive: (),
+                } = map_opts;
+
+                linkinfo.map.map_fd = fd.as_raw_fd() as _;
+            }
+            IterOpts::Cgroup(cgroup_opts) => {
+                let CgroupIterOpts {
+                    fd,
+                    order,
+                    _non_exhaustive: (),
+                } = cgroup_opts;
+
+                linkinfo.cgroup.cgroup_fd = fd.as_raw_fd() as _;
+                linkinfo.cgroup.order = order as libbpf_sys::bpf_cgroup_iter_order;
+            }
+        };
+        linkinfo
+    }
+}
+
+
 /// An immutable parsed but not yet loaded BPF program.
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF program.
@@ -1323,10 +1423,22 @@ impl<'obj> ProgramMut<'obj> {
     /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
     pub fn attach_iter(&self, map_fd: BorrowedFd<'_>) -> Result<Link> {
-        let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
-        linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
+        let map_opts = MapIterOpts {
+            fd: map_fd,
+            _non_exhaustive: (),
+        };
+        self.attach_iter_with_opts(IterOpts::Map(map_opts))
+    }
+
+    /// Attach this program to a
+    /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html),
+    /// providing additional options.
+    ///
+    /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
+    pub fn attach_iter_with_opts(&self, opts: IterOpts<'_>) -> Result<Link> {
+        let mut linkinfo = libbpf_sys::bpf_iter_link_info::from(opts);
         let attach_opt = libbpf_sys::bpf_iter_attach_opts {
-            link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
+            link_info: &raw mut linkinfo,
             link_info_len: size_of::<libbpf_sys::bpf_iter_link_info>() as _,
             sz: size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
             ..Default::default()
