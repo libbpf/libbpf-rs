@@ -992,7 +992,7 @@ impl<'s> GenBtf<'s> {
 
             writeln!(
                 def,
-                r#"    pub const {name}: {enum_name} = {enum_name}({value});"#,
+                r#"    pub const {name}: Self = Self({value});"#,
                 name = value.name.unwrap().to_string_lossy(),
                 value = value.value,
             )?;
@@ -1004,7 +1004,7 @@ impl<'s> GenBtf<'s> {
             writeln!(def, r#"impl Default for {enum_name} {{"#)?;
             writeln!(
                 def,
-                r#"    fn default() -> Self {{ {enum_name}::{name} }}"#,
+                r#"    fn default() -> Self {{ Self::{name} }}"#,
                 name = first_field.name.unwrap().to_string_lossy()
             )?;
             writeln!(def, r#"}}"#)?;

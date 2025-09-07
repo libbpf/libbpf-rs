@@ -2019,14 +2019,14 @@ fn test_btf_dump_definition_enum() {
         pub struct Foo(pub u32);
         #[allow(non_upper_case_globals)]
         impl Foo {
-            pub const Zero: Foo = Foo(0);
-            pub const One: Foo = Foo(1);
-            pub const Seven: Foo = Foo(7);
-            pub const ZeroDup: Foo = Foo(0);
-            pub const Infinite: Foo = Foo(4294967295);
+            pub const Zero: Self = Self(0);
+            pub const One: Self = Self(1);
+            pub const Seven: Self = Self(7);
+            pub const ZeroDup: Self = Self(0);
+            pub const Infinite: Self = Self(4294967295);
         }
         impl Default for Foo {
-            fn default() -> Self { Foo::Zero }
+            fn default() -> Self { Self::Zero }
         }
     "#};
 
@@ -2066,11 +2066,11 @@ fn test_btf_dump_definition_enum_signed() {
         pub struct Foo(pub i32);
         #[allow(non_upper_case_globals)]
         impl Foo {
-            pub const Zero: Foo = Foo(0);
-            pub const Infinite: Foo = Foo(-1);
+            pub const Zero: Self = Self(0);
+            pub const Infinite: Self = Self(-1);
         }
         impl Default for Foo {
-            fn default() -> Self { Foo::Zero }
+            fn default() -> Self { Self::Zero }
         }
     "#};
 
@@ -2110,11 +2110,11 @@ fn test_btf_dump_definition_enum64() {
         pub struct Foo(pub u64);
         #[allow(non_upper_case_globals)]
         impl Foo {
-            pub const Zero: Foo = Foo(0);
-            pub const Infinite: Foo = Foo(18446744073709551615);
+            pub const Zero: Self = Self(0);
+            pub const Infinite: Self = Self(18446744073709551615);
         }
         impl Default for Foo {
-            fn default() -> Self { Foo::Zero }
+            fn default() -> Self { Self::Zero }
         }
     "#};
 
@@ -2154,11 +2154,11 @@ fn test_btf_dump_definition_enum64_signed() {
         pub struct Foo(pub i64);
         #[allow(non_upper_case_globals)]
         impl Foo {
-            pub const Zero: Foo = Foo(0);
-            pub const Whatevs: Foo = Foo(-922337854775808);
+            pub const Zero: Self = Self(0);
+            pub const Whatevs: Self = Self(-922337854775808);
         }
         impl Default for Foo {
-            fn default() -> Self { Foo::Zero }
+            fn default() -> Self { Self::Zero }
         }
     "#};
 
@@ -3018,10 +3018,10 @@ fn test_btf_dump_definition_anon_enum() {
         pub struct __anon_Foo_1(pub u32);
         #[allow(non_upper_case_globals)]
         impl __anon_Foo_1 {
-            pub const FOO: __anon_Foo_1 = __anon_Foo_1(1);
+            pub const FOO: Self = Self(1);
         }
         impl Default for __anon_Foo_1 {
-            fn default() -> Self { __anon_Foo_1::FOO }
+            fn default() -> Self { Self::FOO }
         }
     "#};
 
