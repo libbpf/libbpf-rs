@@ -158,6 +158,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libelf-dev
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
       # `-lzstd` is necessary because Ubuntu's system libelf.a is built
       # with zstd support.
@@ -231,7 +233,7 @@ jobs:
           sudo ln -s /usr/include/asm-generic /usr/include/asm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: |
           # We want the old resolver here as it has more suitable feature
@@ -273,6 +275,8 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libelf-dev linux-headers-$(uname -r)
           sudo ln -s /usr/include/asm-generic /usr/include/asm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - run: cargo doc --locked --no-deps
 
   required-checks:
