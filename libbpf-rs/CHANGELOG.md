@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Added `Program::attach_iter_with_opts` for attaching to iterators with
+  additional options
+
+
 0.26.0-beta.0
 -------------
 - Added `target_obj_id` and `target_btf_id` fields to `TracingLinkInfo`
