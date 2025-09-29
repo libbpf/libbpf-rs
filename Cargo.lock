@@ -106,9 +106,9 @@ checksum = "2261d10cca569e4643e526d8dc2e62e433cc8aba21ab764233731f8d369bf394"
 
 [[package]]
 name = "blazesym"
-version = "0.2.0-rc.5"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95824d1dd4f20b4a4dfa63b72954e81914a718357231468180b30314e85057fa"
+checksum = "597ac0ef9a629d8776c8ea53db124e71763a17699c5050f207c095ac34306480"
 dependencies = [
  "cpp_demangle",
  "gimli",
