@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::env::current_exe;
 use std::ffi::c_int;
 use std::ffi::c_void;
+use std::ffi::CString;
 use std::ffi::OsStr;
 use std::fs;
 use std::hint;
@@ -26,6 +27,8 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use libbpf_rs::num_possible_cpus;
+use libbpf_rs::query::LinkTypeInfo;
+use libbpf_rs::query::PerfEventType;
 use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::KprobeMultiOpts;
@@ -1931,6 +1934,115 @@ fn test_object_link_files() {
 
     test(vec![obj_path1.clone()]);
     test(vec![obj_path1, obj_path2]);
+}
+
+/// Test that `perf_event` link info is properly parsed for tracepoint.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_tracepoint() {
+    // Attach a tracepoint
+    let mut tp_obj = get_test_object("tracepoint.bpf.o");
+    let tp_prog = get_prog_mut(&mut tp_obj, "handle__tracepoint");
+    let tp_link = tp_prog
+        .attach_tracepoint(TracepointCategory::Syscalls, "sys_enter_getpid")
+        .expect("failed to attach tracepoint");
+
+    // Test tracepoint link info
+    let tp_info = tp_link.info().expect("failed to get tracepoint link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = &tp_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for tracepoint, got: {:?}",
+            tp_info.info
+        );
+    };
+    let PerfEventType::Tracepoint { name, .. } = &perf_info.event_type else {
+        panic!(
+            "Expected PerfEventType::Tracepoint, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    let tp_name = name.as_ref().expect("tracepoint should have a name");
+    assert!(*tp_name == CString::new("sys_enter_getpid").unwrap());
+}
+
+/// Test that `perf_event` link info is properly parsed for kprobe.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_kprobe() {
+    // Attach a kprobe
+    let mut kprobe_obj = get_test_object("kprobe.bpf.o");
+    let kprobe_prog = get_prog_mut(&mut kprobe_obj, "handle__kprobe");
+    let kprobe_link = kprobe_prog
+        .attach_kprobe(false, "bpf_fentry_test1")
+        .expect("failed to attach kprobe");
+
+    // Test kprobe link info
+    let kprobe_info = kprobe_link.info().expect("failed to get kprobe link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = &kprobe_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for kprobe, got: {:?}",
+            kprobe_info.info
+        );
+    };
+    let PerfEventType::Kprobe {
+        func_name,
+        is_retprobe,
+        ..
+    } = &perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::Kprobe, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    assert!(!is_retprobe, "Expected kprobe (not retprobe)");
+    let name = func_name
+        .as_ref()
+        .expect("kprobe should have a function name");
+    assert_eq!(*name, CString::new("bpf_fentry_test1").unwrap());
+}
+
+/// Test that `perf_event` link info is properly parsed for kretprobe.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_kretprobe() {
+    // Attach a kretprobe
+    let mut kretprobe_obj = get_test_object("kprobe.bpf.o");
+    let kretprobe_prog = get_prog_mut(&mut kretprobe_obj, "handle__kprobe");
+    let kretprobe_link = kretprobe_prog
+        .attach_kprobe(true, "bpf_fentry_test1")
+        .expect("failed to attach kretprobe");
+
+    // Test kretprobe link info
+    let kretprobe_info = kretprobe_link
+        .info()
+        .expect("failed to get kretprobe link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = &kretprobe_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for kretprobe, got: {:?}",
+            kretprobe_info.info
+        );
+    };
+
+    let PerfEventType::Kprobe {
+        func_name,
+        is_retprobe,
+        ..
+    } = &perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::Kprobe, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    assert!(*is_retprobe, "Expected kretprobe");
+    let name = func_name
+        .as_ref()
+        .expect("kretprobe should have a function name");
+    assert_eq!(*name, CString::new("bpf_fentry_test1").unwrap());
 }
 
 /// Get access to the underlying per-cpu ring buffer data.
