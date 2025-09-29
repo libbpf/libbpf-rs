@@ -94,7 +94,7 @@ fn link() {
             query::LinkTypeInfo::KprobeMulti(_) => "kprobemulti",
             query::LinkTypeInfo::UprobeMulti(_) => "uprobemulti",
             query::LinkTypeInfo::SockMap(_) => "sockmap",
-            query::LinkTypeInfo::PerfEvent => "perf_event",
+            query::LinkTypeInfo::PerfEvent(_) => "perf_event",
         };
 
         println!(
@@ -107,6 +107,52 @@ fn link() {
                 "    attach_type={:?} target_obj_id={} target_btf_id={}",
                 tracing.attach_type, tracing.target_obj_id, tracing.target_btf_id
             );
+        } else if let query::LinkTypeInfo::PerfEvent(ref perf_event) = link.info {
+            match &perf_event.event_type {
+                query::PerfEventType::Tracepoint { name, cookie } => {
+                    let Some(name) = name else {
+                        continue;
+                    };
+
+                    print!("    tracepoint {}", name.to_string_lossy());
+                    if *cookie != 0 {
+                        print!("  cookie={cookie}");
+                    }
+                    println!();
+                }
+                query::PerfEventType::Kprobe {
+                    func_name,
+                    is_retprobe,
+                    addr,
+                    offset,
+                    missed,
+                    cookie,
+                } => {
+                    let probe_type = if *is_retprobe { "kretprobe" } else { "kprobe" };
+                    let func_name = func_name.as_ref().map(|s| s.to_string_lossy());
+
+                    print!("    {probe_type}");
+                    if *addr != 0 {
+                        print!(" addr={addr:#x}");
+                    }
+                    if let Some(func_name) = func_name {
+                        print!(" func={func_name}");
+                    }
+                    if *offset != 0 {
+                        print!(" offset={offset:#x}");
+                    }
+                    if *missed != 0 {
+                        print!(" missed={missed}");
+                    }
+                    if *cookie != 0 {
+                        print!(" cookie={cookie}");
+                    }
+                    println!();
+                }
+                query::PerfEventType::Unknown(ty) => {
+                    println!("    unknown perf event type: {ty}");
+                }
+            }
         }
     }
 }

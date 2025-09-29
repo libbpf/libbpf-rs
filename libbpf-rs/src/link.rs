@@ -5,6 +5,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
+use crate::query::LinkInfo;
 use crate::util;
 use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
@@ -107,6 +108,11 @@ impl Link {
     pub fn detach(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr.as_ptr()) };
         util::parse_ret(ret)
+    }
+
+    /// Get information about this link.
+    pub fn info(&self) -> Result<LinkInfo> {
+        LinkInfo::from_fd(self.as_fd())
     }
 }
 
