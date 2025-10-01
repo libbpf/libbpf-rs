@@ -1,3 +1,10 @@
+Unreleased
+----------
+- Added `Link::info` method for retrieving `LinkInfo`
+- Extended `LinkTypeInfo::PerfEvent` variant to contain newly added
+  `PerfEventLinkInfo` object
+
+
 0.26.0-beta.0
 -------------
 - Added `target_obj_id` and `target_btf_id` fields to `TracingLinkInfo`

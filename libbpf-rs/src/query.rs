@@ -760,9 +760,9 @@ pub enum PerfEventType {
         /// Cookie value for the kprobe.
         cookie: u64,
     },
+    /// An unknown or unsupported perf event type.
     // TODO: Add support for `BPF_PERF_EVENT_EVENT`, `BPF_PERF_EVENT_UPROBE`
     // `BPF_PERF_EVENT_URETPROBE`
-    /// An unknown or unsupported perf event type.
     Unknown(u32),
 }
 
