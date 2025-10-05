@@ -107,15 +107,15 @@ fn link() {
                 "    attach_type={:?} target_obj_id={} target_btf_id={}",
                 tracing.attach_type, tracing.target_obj_id, tracing.target_btf_id
             );
-        } else if let query::LinkTypeInfo::PerfEvent(ref perf_event) = link.info {
-            match &perf_event.event_type {
+        } else if let query::LinkTypeInfo::PerfEvent(perf_event) = link.info {
+            match perf_event.event_type {
                 query::PerfEventType::Tracepoint { name, cookie } => {
                     let Some(name) = name else {
                         continue;
                     };
 
                     print!("    tracepoint {}", name.to_string_lossy());
-                    if *cookie != 0 {
+                    if cookie != 0 {
                         print!("  cookie={cookie}");
                     }
                     println!();
@@ -128,26 +128,50 @@ fn link() {
                     missed,
                     cookie,
                 } => {
-                    let probe_type = if *is_retprobe { "kretprobe" } else { "kprobe" };
+                    let probe_type = if is_retprobe { "kretprobe" } else { "kprobe" };
                     let func_name = func_name.as_ref().map(|s| s.to_string_lossy());
 
                     print!("    {probe_type}");
-                    if *addr != 0 {
+                    if addr != 0 {
                         print!(" addr={addr:#x}");
                     }
                     if let Some(func_name) = func_name {
                         print!(" func={func_name}");
                     }
-                    if *offset != 0 {
+                    if offset != 0 {
                         print!(" offset={offset:#x}");
                     }
-                    if *missed != 0 {
+                    if missed != 0 {
                         print!(" missed={missed}");
                     }
-                    if *cookie != 0 {
+                    if cookie != 0 {
                         print!(" cookie={cookie}");
                     }
                     println!();
+                }
+                query::PerfEventType::Uprobe {
+                    file_name,
+                    is_retprobe,
+                    offset,
+                    cookie,
+                    ref_ctr_offset,
+                } => {
+                    let probe_type = if is_retprobe { "uretprobe" } else { "uprobe" };
+                    let file_name = file_name.as_ref().map(|s| s.to_string_lossy());
+
+                    print!("    {probe_type}");
+                    if let Some(file_name) = file_name {
+                        print!(" file={file_name}");
+                    }
+                    if offset != 0 {
+                        print!(" offset={offset:#x}");
+                    }
+                    if cookie != 0 {
+                        print!(" cookie={cookie}");
+                    }
+                    if ref_ctr_offset != 0 {
+                        print!(" ref_ctr_offset={ref_ctr_offset}");
+                    }
                 }
                 query::PerfEventType::Unknown(ty) => {
                     println!("    unknown perf event type: {ty}");

@@ -36,7 +36,7 @@ dont-generate-test-files = []
 
 [dependencies]
 bitflags = "2.0"
-libbpf-sys = { version = "1.5.0", default-features = false }
+libbpf-sys = { version = "1.6.0", default-features = false }
 libc = "0.2"
 vsprintf = "2.0"
 
