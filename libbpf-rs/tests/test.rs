@@ -2045,6 +2045,98 @@ fn test_perf_event_link_info_kretprobe() {
     assert_eq!(*name, CString::new("bpf_fentry_test1").unwrap());
 }
 
+/// Attaches uprobe with given params and returns the link info.
+fn attach_uprobe_get_info(
+    prog: &libbpf_rs::ProgramMut,
+    path: &PathBuf,
+    offset: usize,
+    opts: &UprobeOpts,
+) -> (Option<CString>, bool, u32, u64, u64) {
+    // SAFETY: `getpid` is always safe to call.
+    let pid = unsafe { libc::getpid() };
+    let link = prog
+        .attach_uprobe_with_opts(pid, path, offset, opts.clone())
+        .expect("failed to attach uprobe");
+
+    let link_info = link.info().expect("failed to get uprobe link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for uprobe, got: {:?}",
+            link_info.info
+        );
+    };
+    let PerfEventType::Uprobe {
+        file_name,
+        is_retprobe,
+        offset,
+        cookie,
+        ref_ctr_offset,
+    } = perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::Uprobe, got: {:?}",
+            perf_info.event_type
+        );
+    };
+    (file_name, is_retprobe, offset, cookie, ref_ctr_offset)
+}
+
+/// Test that `perf_event` link info is properly parsed for uprobe and uretprobe.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_uprobe_uretprobe() {
+    // Load uprobe program.
+    let mut obj = get_test_object("uprobe.bpf.o");
+    let prog: libbpf_rs::ProgramMut = get_prog_mut(&mut obj, "handle__uprobe");
+
+    let path = current_exe().expect("failed to find executable name");
+    let path_cstr = CString::new(path.to_str().unwrap()).ok();
+    let func_name = "uprobe_target";
+    let func_offset = get_symbol_offset(&path, func_name).unwrap();
+
+    // Attach uprobe with only function name.
+    let uprobe_opts = UprobeOpts {
+        ref_ctr_offset: 0,
+        cookie: 5,
+        func_name: Some(func_name.into()),
+        retprobe: false,
+        ..Default::default()
+    };
+    let (up_file, up_is_retprobe, up_offset, up_cookie, up_ref_ctr_offset) =
+        attach_uprobe_get_info(&prog, &path, 0, &uprobe_opts);
+
+    // Test uprobe link info.
+    assert_eq!(up_file, path_cstr);
+    assert_eq!(
+        up_is_retprobe, uprobe_opts.retprobe,
+        "Expected uprobe (not retprobe)"
+    );
+    assert_eq!(up_offset, func_offset as u32);
+    assert_eq!(up_cookie, uprobe_opts.cookie);
+    assert_eq!(up_ref_ctr_offset, uprobe_opts.ref_ctr_offset as u64);
+
+    // Attach uretprobe with only function offset.
+    let uretprobe_opts = UprobeOpts {
+        ref_ctr_offset: 0,
+        cookie: 13,
+        func_name: None,
+        retprobe: true,
+        ..Default::default()
+    };
+    let (uretp_file, uretp_is_retprobe, uretp_offset, uretp_cookie, uretp_ref_ctr_offset) =
+        attach_uprobe_get_info(&prog, &path, func_offset, &uretprobe_opts);
+
+    // Test uretprobe link info.
+    assert_eq!(uretp_file, path_cstr);
+    assert_eq!(
+        uretp_is_retprobe, uretprobe_opts.retprobe,
+        "Expected uretprobe (not uprobe)"
+    );
+    assert_eq!(uretp_offset, func_offset as u32);
+    assert_eq!(uretp_cookie, uretprobe_opts.cookie);
+    assert_eq!(uretp_ref_ctr_offset, uretprobe_opts.ref_ctr_offset as u64);
+}
+
 /// Get access to the underlying per-cpu ring buffer data.
 fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
     let perf_buff_ptr = perf.as_libbpf_object();
