@@ -16,6 +16,10 @@ use std::io::Read;
 use std::mem::size_of;
 use std::mem::size_of_val;
 use std::os::unix::io::AsFd;
+use std::os::unix::io::AsRawFd as _;
+use std::os::unix::io::FromRawFd as _;
+use std::os::unix::io::OwnedFd;
+use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ptr;
@@ -41,6 +45,7 @@ use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
+use libbpf_rs::PerfEventOpts;
 use libbpf_rs::Program;
 use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
@@ -2135,6 +2140,77 @@ fn test_perf_event_link_info_uprobe_uretprobe() {
     assert_eq!(uretp_offset, func_offset as u32);
     assert_eq!(uretp_cookie, uretprobe_opts.cookie);
     assert_eq!(uretp_ref_ctr_offset, uretprobe_opts.ref_ctr_offset as u64);
+}
+
+/// Test that `perf_event` link info is properly parsed for perf event.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_event() {
+    // Load perf_event program.
+    let mut obj = get_test_object("perf_event.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__perf_event");
+
+    // The `type` and `config` params depends on what the host supports, so this will only test for
+    // `PERF_TYPE_SOFTWARE`.
+    let mut attr = libbpf_sys::perf_event_attr {
+        type_: libbpf_sys::PERF_TYPE_SOFTWARE,
+        size: size_of::<libbpf_sys::perf_event_attr>() as u32,
+        config: libbpf_sys::PERF_COUNT_SW_DUMMY as u64,
+        ..Default::default()
+    };
+    attr.set_disabled(1);
+
+    let pid = 0;
+    let cpu = -1;
+    let group_fd = -1;
+    let flags = 0;
+    // SAFETY: `perf_event_open` is a valid syscall with the proper args.
+    let pfd =
+        match unsafe { libc::syscall(libc::SYS_perf_event_open, &attr, pid, cpu, group_fd, flags) }
+        {
+            // SAFETY: A file descriptor coming from the `from_raw_fd` function is always suitable
+            // for ownership and can be cleaned up with close.
+            fd_raw @ 0.. => unsafe { OwnedFd::from_raw_fd(fd_raw as RawFd) },
+            _ => panic!(
+                "`perf_event_open` syscall failed: {:?}",
+                io::Error::last_os_error()
+            ),
+        };
+
+    const PERF_COOKIE: u64 = 5;
+    let opts = PerfEventOpts {
+        cookie: PERF_COOKIE,
+        ..Default::default()
+    };
+    let mut link = prog
+        .attach_perf_event_with_opts(pfd.as_raw_fd(), opts)
+        .expect("failed to attach perf_event");
+
+    // Retrieve and test perf event link info.
+    let link_info = link.info().expect("failed to get perf_event link info");
+    // Releases ownership of `pfd` to avoid "owned file descriptor already closed" error.
+    link.disconnect();
+    let LinkTypeInfo::PerfEvent(perf_info) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for perf_event, got: {:?}",
+            link_info.info
+        );
+    };
+    let PerfEventType::Event {
+        config,
+        event_type,
+        cookie,
+    } = perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::PerfEvent, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    assert_eq!(event_type, libbpf_sys::PERF_TYPE_SOFTWARE);
+    assert_eq!(config, libbpf_sys::PERF_COUNT_SW_DUMMY as u64);
+    assert_eq!(cookie, PERF_COOKIE);
 }
 
 /// Get access to the underlying per-cpu ring buffer data.

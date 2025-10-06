@@ -773,8 +773,16 @@ pub enum PerfEventType {
         /// Offset of kernel reference counted USDT semaphore.
         ref_ctr_offset: u64,
     },
+    /// A perf event.
+    Event {
+        /// The specific event of the perf event type.
+        config: u64,
+        /// The perf event type.
+        event_type: u32,
+        /// Cookie value for the perf event program.
+        cookie: u64,
+    },
     /// An unknown or unsupported perf event type.
-    // TODO: Add support for `BPF_PERF_EVENT_EVENT`
     Unknown(u32),
 }
 
@@ -1077,6 +1085,16 @@ impl LinkInfo {
                             offset: uprobe.offset,
                             cookie: uprobe.cookie,
                             ref_ctr_offset: uprobe.ref_ctr_offset,
+                        }
+                    }
+                    libbpf_sys::BPF_PERF_EVENT_EVENT => {
+                        // SAFETY: This field is valid to access in `bpf_link_info`.
+                        let event = unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.event };
+
+                        PerfEventType::Event {
+                            config: event.config,
+                            event_type: event.type_,
+                            cookie: event.cookie,
                         }
                     }
                     ty => PerfEventType::Unknown(ty),

@@ -173,6 +173,17 @@ fn link() {
                         print!(" ref_ctr_offset={ref_ctr_offset}");
                     }
                 }
+                query::PerfEventType::Event {
+                    config,
+                    event_type,
+                    cookie,
+                } => {
+                    print!("    event");
+                    print!(" type={event_type} config={config}");
+                    if cookie != 0 {
+                        print!(" cookie={cookie}");
+                    }
+                }
                 query::PerfEventType::Unknown(ty) => {
                     println!("    unknown perf event type: {ty}");
                 }
