@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Allowlisted `libbpf-sys` `1.6.2`
+
+
 0.26.0-beta.1
 -------------
 - Allowlisted `libbpf-sys` `1.6.1`
