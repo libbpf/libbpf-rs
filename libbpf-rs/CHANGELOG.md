@@ -3,6 +3,8 @@ Unreleased
 - Added `Link::info` method for retrieving `LinkInfo`
 - Extended `LinkTypeInfo::PerfEvent` variant to contain newly added
   `PerfEventLinkInfo` object
+- Added `Linker::add_buf` method for adding in-memory ELF files to
+  the set of objects to link
 
 
 0.26.0-beta.0
