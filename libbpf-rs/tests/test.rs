@@ -1914,16 +1914,24 @@ fn test_object_uprobe_with_cookie() {
     assert_eq!(result, cookie_val.into());
 }
 
-/// Check that we can link multiple object files.
+/// Check that we can link multiple object files and buffers.
 #[test]
-fn test_object_link_files() {
-    fn test(files: Vec<PathBuf>) {
+fn test_object_link_files_buffers() {
+    fn test(files: Vec<&PathBuf>, buffers_files: Vec<&PathBuf>) {
         let output_file = NamedTempFile::new().unwrap();
 
         let mut linker = Linker::new(output_file.path()).unwrap();
         let () = files
             .into_iter()
             .try_for_each(|file| linker.add_file(file))
+            .unwrap();
+        let buffers: Vec<Vec<u8>> = buffers_files
+            .into_iter()
+            .map(|path| fs::read(path).expect("failed to read object file"))
+            .collect();
+        let () = buffers
+            .iter()
+            .try_for_each(|buf| linker.add_buf(buf))
             .unwrap();
         let () = linker.link().unwrap();
 
@@ -1937,8 +1945,14 @@ fn test_object_link_files() {
     let obj_path1 = get_test_object_path("usdt.bpf.o");
     let obj_path2 = get_test_object_path("ringbuf.bpf.o");
 
-    test(vec![obj_path1.clone()]);
-    test(vec![obj_path1, obj_path2]);
+    // File only.
+    test(vec![&obj_path1], vec![]);
+    test(vec![&obj_path1, &obj_path2], vec![]);
+    // Buffers only.
+    test(vec![], vec![&obj_path1]);
+    test(vec![], vec![&obj_path1, &obj_path2]);
+    // Mixed.
+    test(vec![&obj_path1], vec![&obj_path2]);
 }
 
 /// Test that `perf_event` link info is properly parsed for tracepoint.

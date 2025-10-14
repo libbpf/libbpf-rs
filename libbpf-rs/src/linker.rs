@@ -52,6 +52,25 @@ impl Linker {
         }
     }
 
+    /// Add a buffer to the set of objects to link.
+    pub fn add_buf(&mut self, buf: &[u8]) -> Result<()> {
+        let opts = null_mut();
+        // SAFETY: `linker` and `buf` are valid pointers.
+        let err = unsafe {
+            libbpf_sys::bpf_linker__add_buf(
+                self.linker.as_ptr(),
+                buf.as_ptr() as *mut _,
+                buf.len() as _,
+                opts,
+            )
+        };
+        if err != 0 {
+            Err(Error::from_raw_os_error(err)).context("bpf_linker__add_buf failed")
+        } else {
+            Ok(())
+        }
+    }
+
     /// Link all BPF object files [added](Self::add_file) to this object into
     /// a single one.
     pub fn link(&self) -> Result<()> {
