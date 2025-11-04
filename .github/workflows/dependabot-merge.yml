@@ -1,0 +1,32 @@
+# Adapted from https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
+
+name: Dependabot auto-merge
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'libbpf/libbpf-rs'
+    steps:
+      - uses: actions/checkout@v5
+      - run: git fetch origin ${{ github.base_ref }} --depth=1
+      - name: Check if Cargo.lock was modified
+        id: check_cargo_lock
+        shell: bash
+        run: |
+          # For the time being, we only enable auto-merge for changes
+          # confined to Cargo.lock.
+          if [ "$(git diff --no-prefix --name-only origin/${{ github.base_ref }})" = "Cargo.lock" ]; then
+            echo "enable_auto_merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "enable_auto_merge=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Enable auto-merge
+        if: steps.check_cargo_lock.outputs.enable_auto_merge == 'true'
+        run: gh pr merge --auto --rebase "${{ github.event.pull_request.html_url }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
