@@ -72,6 +72,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
+    #[doc(alias = "ring_buffer__add")]
     pub fn add<NewF>(&mut self, map: &'slf dyn MapCore, callback: NewF) -> Result<&mut Self>
     where
         NewF: FnMut(&[u8]) -> i32 + 'cb,
@@ -85,6 +86,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     }
 
     /// Build a new [`RingBuffer`]. Must have added at least one ringbuf.
+    #[doc(alias = "ring_buffer__new")]
     pub fn build(self) -> Result<RingBuffer<'cb>> {
         let mut cbs = vec![];
         let mut rb_ptr: Option<NonNull<libbpf_sys::ring_buffer>> = None;
@@ -158,6 +160,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 /// between [`Program`][crate::Program]s and userspace. As of Linux 5.8, the
 /// `ringbuf` map is now preferred over the `perf buffer`.
 #[derive(Debug)]
+#[doc(alias = "ring_buffer")]
 pub struct RingBuffer<'cb> {
     ptr: NonNull<libbpf_sys::ring_buffer>,
     #[expect(clippy::vec_box)]
@@ -171,6 +174,7 @@ impl RingBuffer<'_> {
     /// indefinitely until an event occurs.
     ///
     /// Return the amount of events consumed, or a negative value in case of error.
+    #[doc(alias = "ring_buffer__poll")]
     pub fn poll_raw(&self, timeout: Duration) -> i32 {
         let mut timeout_ms = -1;
         if timeout != Duration::MAX {
@@ -184,6 +188,7 @@ impl RingBuffer<'_> {
     /// each one. Polls continually until we either run out of events to consume
     /// or `timeout` is reached. If `timeout` is `Duration::MAX`, this will block
     /// indefinitely until an event occurs.
+    #[doc(alias = "ring_buffer__poll")]
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret = self.poll_raw(timeout);
 
@@ -195,6 +200,7 @@ impl RingBuffer<'_> {
     /// to consume or one of the callbacks returns a non-zero integer.
     ///
     /// Return the amount of events consumed, or a negative value in case of error.
+    #[doc(alias = "ring_buffer__consume")]
     pub fn consume_raw(&self) -> i32 {
         unsafe { libbpf_sys::ring_buffer__consume(self.ptr.as_ptr()) }
     }
@@ -204,6 +210,7 @@ impl RingBuffer<'_> {
     /// no more events are available, or a callback returns a non-zero value.
     ///
     /// Return the amount of events consumed, or a negative value in case of error.
+    #[doc(alias = "ring_buffer__consume_n")]
     pub fn consume_raw_n(&self, len: usize) -> i32 {
         unsafe { libbpf_sys::ring_buffer__consume_n(self.ptr.as_ptr(), len as libbpf_sys::size_t) }
     }
@@ -211,6 +218,7 @@ impl RingBuffer<'_> {
     /// Greedily consume from all open ring buffers, calling the registered
     /// callback for each one. Consumes continually until we run out of events
     /// to consume or one of the callbacks returns a non-zero integer.
+    #[doc(alias = "ring_buffer__consume")]
     pub fn consume(&self) -> Result<()> {
         let ret = self.consume_raw();
 
@@ -218,6 +226,7 @@ impl RingBuffer<'_> {
     }
 
     /// Get an fd that can be used to sleep until data is available
+    #[doc(alias = "ring_buffer__epoll_fd")]
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::ring_buffer__epoll_fd(self.ptr.as_ptr()) }
     }
@@ -236,6 +245,7 @@ impl AsRawLibbpf for RingBuffer<'_> {
 unsafe impl Send for RingBuffer<'_> {}
 
 impl Drop for RingBuffer<'_> {
+    #[doc(alias = "ring_buffer__free")]
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::ring_buffer__free(self.ptr.as_ptr());

@@ -15,6 +15,7 @@ use crate::Result;
 /// Methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
+#[doc(alias = "bpf_iter_create")]
 pub struct Iter {
     fd: OwnedFd,
 }

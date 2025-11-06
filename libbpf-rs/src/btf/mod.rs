@@ -49,6 +49,7 @@ use self::types::Composite;
 /// The various btf types.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
+#[doc(alias = "btf_kind")]
 pub enum BtfKind {
     /// [Void](types::Void)
     Void = 0,
@@ -159,6 +160,7 @@ enum DropPolicy {
 /// was derived from an [`Object`](super::Object), which owns the data this structs points too. When
 /// instead the [`Btf::from_path`] method is used, the lifetime will be `'static` since it doesn't
 /// borrow from anything.
+#[doc(alias = "btf")]
 pub struct Btf<'source> {
     ptr: NonNull<libbpf_sys::btf>,
     drop_policy: DropPolicy,
@@ -167,6 +169,7 @@ pub struct Btf<'source> {
 
 impl Btf<'static> {
     /// Load the btf information from specified path.
+    #[doc(alias = "btf__parse")]
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         fn inner(path: &Path) -> Result<Btf<'static>> {
             let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
@@ -184,6 +187,7 @@ impl Btf<'static> {
     }
 
     /// Load the vmlinux btf information from few well-known locations.
+    #[doc(alias = "btf__load_vmlinux_btf")]
     pub fn from_vmlinux() -> Result<Self> {
         let ptr = unsafe { libbpf_sys::btf__load_vmlinux_btf() };
         let ptr = validate_bpf_ret(ptr).context("failed to load BTF from vmlinux")?;
@@ -196,6 +200,7 @@ impl Btf<'static> {
     }
 
     /// Load the btf information of an bpf object from a program id.
+    #[doc(alias = "btf__load_from_kernel_by_id")]
     pub fn from_prog_id(id: u32) -> Result<Self> {
         let fd = parse_ret_i32(unsafe { libbpf_sys::bpf_prog_get_fd_by_id(id) })?;
         let fd = unsafe {
@@ -224,6 +229,7 @@ impl Btf<'static> {
 
 impl<'btf> Btf<'btf> {
     /// Create a new `Btf` instance from the given [`libbpf_sys::bpf_object`].
+    #[doc(alias = "bpf_object__btf")]
     pub fn from_bpf_object(obj: &'btf libbpf_sys::bpf_object) -> Result<Option<Self>> {
         Self::from_bpf_object_raw(obj)
     }
@@ -313,6 +319,7 @@ impl<'btf> Btf<'btf> {
     }
 
     /// The number of [`BtfType`]s in this object.
+    #[doc(alias = "btf__type_cnt")]
     pub fn len(&self) -> usize {
         unsafe {
             // SAFETY: the btf pointer is valid.
@@ -321,6 +328,7 @@ impl<'btf> Btf<'btf> {
     }
 
     /// The btf pointer size.
+    #[doc(alias = "btf__pointer_size")]
     pub fn ptr_size(&self) -> Result<NonZeroUsize> {
         let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) as usize };
         NonZeroUsize::new(sz).ok_or_else(|| {
@@ -332,6 +340,7 @@ impl<'btf> Btf<'btf> {
     ///
     /// # Panics
     /// If `name` has null bytes.
+    #[doc(alias = "btf__find_by_name")]
     pub fn type_by_name<'s, K>(&'s self, name: &str) -> Option<K>
     where
         K: TryFrom<BtfType<'s>>,
@@ -352,6 +361,7 @@ impl<'btf> Btf<'btf> {
     }
 
     /// Find a type by its [`TypeId`].
+    #[doc(alias = "btf__type_by_id")]
     pub fn type_by_id<'s, K>(&'s self, type_id: TypeId) -> Option<K>
     where
         K: TryFrom<BtfType<'s>>,
@@ -426,6 +436,7 @@ impl Debug for Btf<'_> {
 }
 
 impl Drop for Btf<'_> {
+    #[doc(alias = "btf__free")]
     fn drop(&mut self) {
         match self.drop_policy {
             DropPolicy::Nothing => {}
@@ -453,6 +464,7 @@ impl Drop for Btf<'_> {
 ///
 /// You can also use the [`TryFrom`] trait to convert to any of the possible [`types`].
 #[derive(Clone, Copy)]
+#[doc(alias = "btf_type")]
 pub struct BtfType<'btf> {
     type_id: TypeId,
     name: Option<&'btf OsStr>,
@@ -480,6 +492,7 @@ impl<'btf> BtfType<'btf> {
 
     /// This type's name.
     #[inline]
+    #[doc(alias = "btf__name_by_offset")]
     pub fn name(&'_ self) -> Option<&'btf OsStr> {
         self.name
     }

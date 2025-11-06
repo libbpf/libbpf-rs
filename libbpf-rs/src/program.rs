@@ -47,6 +47,7 @@ use crate::TracepointOpts;
 
 /// Options to optionally be provided when attaching to a uprobe.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_uprobe_opts")]
 pub struct UprobeOpts {
     /// Offset of kernel reference counted USDT semaphore.
     pub ref_ctr_offset: usize,
@@ -72,6 +73,7 @@ pub struct UprobeOpts {
 
 /// Options to optionally be provided when attaching to a uprobe.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_uprobe_multi_opts")]
 pub struct UprobeMultiOpts {
     /// Optional, array of function symbols to attach to
     pub syms: Vec<String>,
@@ -91,6 +93,7 @@ pub struct UprobeMultiOpts {
 
 /// Options to optionally be provided when attaching to a USDT.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_usdt_opts")]
 pub struct UsdtOpts {
     /// Custom user-provided value accessible through `bpf_usdt_cookie`.
     pub cookie: u64,
@@ -116,6 +119,7 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
 
 /// Options to optionally be provided when attaching to a kprobe.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_kprobe_opts")]
 pub struct KprobeOpts {
     /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
     pub cookie: u64,
@@ -142,6 +146,7 @@ impl From<KprobeOpts> for libbpf_sys::bpf_kprobe_opts {
 
 /// Options to optionally be provided when attaching to multiple kprobes.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_kprobe_multi_opts")]
 pub struct KprobeMultiOpts {
     /// List of symbol names to attach to.
     pub symbols: Vec<String>,
@@ -155,6 +160,7 @@ pub struct KprobeMultiOpts {
 
 /// Options to optionally be provided when attaching to a perf event.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_perf_event_opts")]
 pub struct PerfEventOpts {
     /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
     pub cookie: u64,
@@ -208,6 +214,7 @@ impl<'fd> MapIterOpts<'fd> {
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_cgroup_iter_order")]
 pub enum CgroupIterOrder {
     /// Use the default iteration order.
     #[default]
@@ -248,6 +255,8 @@ impl<'fd> CgroupIterOpts<'fd> {
 /// Options to optionally be provided when attaching to an iterator.
 #[non_exhaustive]
 #[derive(Clone, Debug)]
+#[doc(alias = "bpf_iter_attach_opts")]
+#[doc(alias = "bpf_iter_link_info")]
 pub enum IterOpts<'fd> {
     /// No options used.
     None,
@@ -269,6 +278,7 @@ pub type OpenProgramMut<'obj> = OpenProgramImpl<'obj, Mut>;
 /// This object exposes operations that need to happen before the program is loaded.
 #[derive(Debug)]
 #[repr(transparent)]
+#[doc(alias = "bpf_program")]
 pub struct OpenProgramImpl<'obj, T = ()> {
     ptr: NonNull<libbpf_sys::bpf_program>,
     _phantom: PhantomData<&'obj T>,
@@ -286,11 +296,13 @@ impl<'obj> OpenProgram<'obj> {
     }
 
     /// The `ProgramType` of this `OpenProgram`.
+    #[doc(alias = "bpf_program__type")]
     pub fn prog_type(&self) -> ProgramType {
         ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
     }
 
     /// Retrieve the name of this `OpenProgram`.
+    #[doc(alias = "bpf_program__name")]
     pub fn name(&self) -> &'obj OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
@@ -299,6 +311,7 @@ impl<'obj> OpenProgram<'obj> {
     }
 
     /// Retrieve the name of the section this `OpenProgram` belongs to.
+    #[doc(alias = "bpf_program__section_name")]
     pub fn section(&self) -> &'obj OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
@@ -314,6 +327,7 @@ impl<'obj> OpenProgram<'obj> {
     /// Note: Keep in mind, libbpf can modify the program's instructions
     /// and consequently its instruction count, as it processes the BPF object file.
     /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
+    #[doc(alias = "bpf_program__insn_cnt")]
     pub fn insn_cnt(&self) -> usize {
         unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
     }
@@ -327,6 +341,7 @@ impl<'obj> OpenProgram<'obj> {
     /// instructions will be CO-RE-relocated, BPF subprograms instructions will be appended, ldimm64
     /// instructions will have FDs embedded, etc. So instructions returned before load and after it
     /// might be quite different.
+    #[doc(alias = "bpf_program__insns")]
     pub fn insns(&self) -> &'obj [libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
@@ -334,6 +349,7 @@ impl<'obj> OpenProgram<'obj> {
     }
 
     /// Return `true` if the bpf program is set to autoload, `false` otherwise.
+    #[doc(alias = "bpf_program__autoload")]
     pub fn autoload(&self) -> bool {
         unsafe { libbpf_sys::bpf_program__autoload(self.ptr.as_ptr()) }
     }
@@ -349,12 +365,14 @@ impl<'obj> OpenProgramMut<'obj> {
     }
 
     /// Set the program type.
+    #[doc(alias = "bpf_program__set_type")]
     pub fn set_prog_type(&mut self, prog_type: ProgramType) {
         let rc = unsafe { libbpf_sys::bpf_program__set_type(self.ptr.as_ptr(), prog_type as u32) };
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
     /// Set the attachment type of the program.
+    #[doc(alias = "bpf_program__set_expected_attach_type")]
     pub fn set_attach_type(&mut self, attach_type: ProgramAttachType) {
         let rc = unsafe {
             libbpf_sys::bpf_program__set_expected_attach_type(self.ptr.as_ptr(), attach_type as u32)
@@ -365,6 +383,7 @@ impl<'obj> OpenProgramMut<'obj> {
     /// Bind the program to a particular network device.
     ///
     /// Currently only used for hardware offload and certain XDP features such like HW metadata.
+    #[doc(alias = "bpf_program__set_ifindex")]
     pub fn set_ifindex(&mut self, idx: u32) {
         unsafe { libbpf_sys::bpf_program__set_ifindex(self.ptr.as_ptr(), idx) }
     }
@@ -377,6 +396,7 @@ impl<'obj> OpenProgramMut<'obj> {
     ///
     /// In general, a value of `0` disables logging while values `> 0` enables
     /// it.
+    #[doc(alias = "bpf_program__set_log_level")]
     pub fn set_log_level(&mut self, log_level: u32) {
         let rc = unsafe { libbpf_sys::bpf_program__set_log_level(self.ptr.as_ptr(), log_level) };
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
@@ -384,6 +404,7 @@ impl<'obj> OpenProgramMut<'obj> {
 
     /// Set whether a bpf program should be automatically loaded by default
     /// when the bpf object is loaded.
+    #[doc(alias = "bpf_program__set_autoload")]
     pub fn set_autoload(&mut self, autoload: bool) {
         let rc = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr.as_ptr(), autoload) };
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
@@ -391,11 +412,13 @@ impl<'obj> OpenProgramMut<'obj> {
 
     /// Set whether a bpf program should be automatically attached by default
     /// when the bpf object is loaded.
+    #[doc(alias = "bpf_program__set_autoattach")]
     pub fn set_autoattach(&mut self, autoattach: bool) {
         unsafe { libbpf_sys::bpf_program__set_autoattach(self.ptr.as_ptr(), autoattach) };
     }
 
     #[expect(missing_docs)]
+    #[doc(alias = "bpf_program__set_attach_target")]
     pub fn set_attach_target(
         &mut self,
         attach_prog_fd: i32,
@@ -414,6 +437,7 @@ impl<'obj> OpenProgramMut<'obj> {
     }
 
     /// Set flags on the program.
+    #[doc(alias = "bpf_program__set_flags")]
     pub fn set_flags(&mut self, flags: u32) {
         let rc = unsafe { libbpf_sys::bpf_program__set_flags(self.ptr.as_ptr(), flags) };
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
@@ -445,6 +469,7 @@ impl<T> AsRawLibbpf for OpenProgramImpl<'_, T> {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 // TODO: Document variants.
 #[expect(missing_docs)]
+#[doc(alias = "bpf_prog_type")]
 pub enum ProgramType {
     Unspec = 0,
     SocketFilter = libbpf_sys::BPF_PROG_TYPE_SOCKET_FILTER,
@@ -488,6 +513,7 @@ impl ProgramType {
     ///
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
+    #[doc(alias = "libbpf_probe_bpf_prog_type")]
     pub fn is_supported(&self) -> Result<bool> {
         let ret = unsafe { libbpf_sys::libbpf_probe_bpf_prog_type(*self as u32, ptr::null()) };
         match ret {
@@ -502,6 +528,7 @@ impl ProgramType {
     ///
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
+    #[doc(alias = "libbpf_probe_bpf_helper")]
     pub fn is_helper_supported(&self, helper_id: bpf_func_id) -> Result<bool> {
         let ret =
             unsafe { libbpf_sys::libbpf_probe_bpf_helper(*self as u32, helper_id, ptr::null()) };
@@ -562,6 +589,7 @@ impl From<u32> for ProgramType {
 #[derive(Clone, Debug)]
 // TODO: Document variants.
 #[expect(missing_docs)]
+#[doc(alias = "bpf_attach_type")]
 pub enum ProgramAttachType {
     CgroupInetIngress = libbpf_sys::BPF_CGROUP_INET_INGRESS,
     CgroupInetEgress = libbpf_sys::BPF_CGROUP_INET_EGRESS,
@@ -696,6 +724,7 @@ impl From<u32> for ProgramAttachType {
 /// This type is mostly used in conjunction with the [`Program::test_run`]
 /// facility.
 #[derive(Debug, Default)]
+#[doc(alias = "bpf_test_run_opts")]
 pub struct Input<'dat> {
     /// The input context to provide.
     ///
@@ -724,6 +753,7 @@ pub struct Input<'dat> {
 /// This type is mostly used in conjunction with the [`Program::test_run`]
 /// facility.
 #[derive(Debug)]
+#[doc(alias = "bpf_test_run_opts")]
 pub struct Output<'dat> {
     /// The value returned by the program.
     pub return_value: u32,
@@ -752,6 +782,7 @@ pub type ProgramMut<'obj> = ProgramImpl<'obj, Mut>;
 /// method will fail with the appropriate error.
 #[derive(Debug)]
 #[repr(transparent)]
+#[doc(alias = "bpf_program")]
 pub struct ProgramImpl<'obj, T = ()> {
     pub(crate) ptr: NonNull<libbpf_sys::bpf_program>,
     _phantom: PhantomData<&'obj T>,
@@ -769,6 +800,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Retrieve the name of this `Program`.
+    #[doc(alias = "bpf_program__name")]
     pub fn name(&self) -> &'obj OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
@@ -777,6 +809,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Retrieve the name of the section this `Program` belongs to.
+    #[doc(alias = "bpf_program__section_name")]
     pub fn section(&self) -> &'obj OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
@@ -788,6 +821,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Retrieve the type of the program.
+    #[doc(alias = "bpf_program__type")]
     pub fn prog_type(&self) -> ProgramType {
         ProgramType::from(unsafe { libbpf_sys::bpf_program__type(self.ptr.as_ptr()) })
     }
@@ -800,6 +834,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Returns program file descriptor given a program ID.
+    #[doc(alias = "bpf_prog_get_fd_by_id")]
     pub fn fd_from_id(id: u32) -> Result<OwnedFd> {
         let ret = unsafe { libbpf_sys::bpf_prog_get_fd_by_id(id) };
         let fd = util::parse_ret_i32(ret)?;
@@ -810,6 +845,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Returns program ID given a file descriptor.
+    #[doc(alias = "bpf_obj_get_info_by_fd")]
     pub fn id_from_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         let mut prog_info = libbpf_sys::bpf_prog_info::default();
         let prog_info_ptr: *mut libbpf_sys::bpf_prog_info = &mut prog_info;
@@ -828,6 +864,7 @@ impl<'obj> Program<'obj> {
     /// Returns fd of a previously pinned program
     ///
     /// Returns error, if the pinned path doesn't represent an eBPF program.
+    #[doc(alias = "bpf_obj_get")]
     pub fn fd_from_pinned_path<P: AsRef<Path>>(path: P) -> Result<OwnedFd> {
         let path_c = util::path_to_cstring(&path)?;
         let path_ptr = path_c.as_ptr();
@@ -854,11 +891,13 @@ impl<'obj> Program<'obj> {
     }
 
     /// Returns flags that have been set for the program.
+    #[doc(alias = "bpf_program__flags")]
     pub fn flags(&self) -> u32 {
         unsafe { libbpf_sys::bpf_program__flags(self.ptr.as_ptr()) }
     }
 
     /// Retrieve the attach type of the program.
+    #[doc(alias = "bpf_program__expected_attach_type")]
     pub fn attach_type(&self) -> ProgramAttachType {
         ProgramAttachType::from(unsafe {
             libbpf_sys::bpf_program__expected_attach_type(self.ptr.as_ptr())
@@ -866,11 +905,13 @@ impl<'obj> Program<'obj> {
     }
 
     /// Return `true` if the bpf program is set to autoload, `false` otherwise.
+    #[doc(alias = "bpf_program__autoload")]
     pub fn autoload(&self) -> bool {
         unsafe { libbpf_sys::bpf_program__autoload(self.ptr.as_ptr()) }
     }
 
     /// Return the bpf program's log level.
+    #[doc(alias = "bpf_program__log_level")]
     pub fn log_level(&self) -> u32 {
         unsafe { libbpf_sys::bpf_program__log_level(self.ptr.as_ptr()) }
     }
@@ -878,6 +919,7 @@ impl<'obj> Program<'obj> {
     /// Returns the number of instructions that form the program.
     ///
     /// Please see note in [`OpenProgram::insn_cnt`].
+    #[doc(alias = "bpf_program__insn_cnt")]
     pub fn insn_cnt(&self) -> usize {
         unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
     }
@@ -885,6 +927,7 @@ impl<'obj> Program<'obj> {
     /// Gives read-only access to BPF program's underlying BPF instructions.
     ///
     /// Please see note in [`OpenProgram::insns`].
+    #[doc(alias = "bpf_program__insns")]
     pub fn insns(&self) -> &'obj [libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
@@ -903,6 +946,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this program to bpffs.
+    #[doc(alias = "bpf_program__pin")]
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -913,6 +957,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this program from bpffs
+    #[doc(alias = "bpf_program__unpin")]
     pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -922,6 +967,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Auto-attach based on prog section
+    #[doc(alias = "bpf_program__attach")]
     pub fn attach(&self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach(self.ptr.as_ptr()) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach BPF program")?;
@@ -932,6 +978,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a
     /// [cgroup](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html).
+    #[doc(alias = "bpf_program__attach_cgroup")]
     pub fn attach_cgroup(&self, cgroup_fd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_cgroup(self.ptr.as_ptr(), cgroup_fd) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach cgroup")?;
@@ -941,6 +988,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open).
+    #[doc(alias = "bpf_program__attach_perf_event")]
     pub fn attach_perf_event(&self, pfd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_perf_event(self.ptr.as_ptr(), pfd) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
@@ -951,6 +999,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open),
     /// providing additional options.
+    #[doc(alias = "bpf_program__attach_perf_event_opts")]
     pub fn attach_perf_event_with_opts(&self, pfd: i32, opts: PerfEventOpts) -> Result<Link> {
         let libbpf_opts = libbpf_sys::bpf_perf_event_opts::from(opts);
         let ptr = unsafe {
@@ -964,6 +1013,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [userspace
     /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html).
+    #[doc(alias = "bpf_program__attach_uprobe")]
     pub fn attach_uprobe<T: AsRef<Path>>(
         &self,
         retprobe: bool,
@@ -991,6 +1041,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [userspace
     /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html),
     /// providing additional options.
+    #[doc(alias = "bpf_program__attach_uprobe_opts")]
     pub fn attach_uprobe_with_opts(
         &self,
         pid: i32,
@@ -1042,6 +1093,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to multiple
     /// [uprobes](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html) at once.
+    #[doc(alias = "bpf_program__attach_uprobe_multi")]
     pub fn attach_uprobe_multi(
         &self,
         pid: i32,
@@ -1066,6 +1118,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to multiple
     /// [uprobes](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html)
     /// at once, providing additional options.
+    #[doc(alias = "bpf_program__attach_uprobe_multi")]
     pub fn attach_uprobe_multi_with_opts(
         &self,
         pid: i32,
@@ -1160,6 +1213,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [kernel
     /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html).
+    #[doc(alias = "bpf_program__attach_kprobe")]
     pub fn attach_kprobe<T: AsRef<str>>(&self, retprobe: bool, func_name: T) -> Result<Link> {
         let func_name = util::str_to_cstring(func_name.as_ref())?;
         let func_name_ptr = func_name.as_ptr();
@@ -1175,6 +1229,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [kernel
     /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html),
     /// providing additional options.
+    #[doc(alias = "bpf_program__attach_kprobe_opts")]
     pub fn attach_kprobe_with_opts<T: AsRef<str>>(
         &self,
         retprobe: bool,
@@ -1231,6 +1286,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to multiple [kernel
     /// probes](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html)
     /// at once.
+    #[doc(alias = "bpf_program__attach_kprobe_multi_opts")]
     pub fn attach_kprobe_multi<T: AsRef<str>>(
         &self,
         retprobe: bool,
@@ -1259,6 +1315,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to multiple [kernel
     /// probes](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html)
     /// at once, providing additional options.
+    #[doc(alias = "bpf_program__attach_kprobe_multi_opts")]
     pub fn attach_kprobe_multi_with_opts(&self, opts: KprobeMultiOpts) -> Result<Link> {
         let KprobeMultiOpts {
             symbols,
@@ -1293,6 +1350,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to the specified syscall
+    #[doc(alias = "bpf_program__attach_ksyscall")]
     pub fn attach_ksyscall<T: AsRef<str>>(&self, retprobe: bool, syscall_name: T) -> Result<Link> {
         let opts = libbpf_sys::bpf_ksyscall_opts {
             sz: size_of::<libbpf_sys::bpf_ksyscall_opts>() as _,
@@ -1341,6 +1399,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [kernel
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
+    #[doc(alias = "bpf_program__attach_tracepoint")]
     pub fn attach_tracepoint(
         &self,
         tp_category: TracepointCategory,
@@ -1352,6 +1411,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [kernel
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html),
     /// providing additional options.
+    #[doc(alias = "bpf_program__attach_tracepoint_opts")]
     pub fn attach_tracepoint_with_opts(
         &self,
         tp_category: TracepointCategory,
@@ -1363,6 +1423,7 @@ impl<'obj> ProgramMut<'obj> {
 
     /// Attach this program to a [raw kernel
     /// tracepoint](https://lwn.net/Articles/748352/).
+    #[doc(alias = "bpf_program__attach_raw_tracepoint")]
     pub fn attach_raw_tracepoint<T: AsRef<str>>(&self, tp_name: T) -> Result<Link> {
         let tp_name = util::str_to_cstring(tp_name.as_ref())?;
         let tp_name_ptr = tp_name.as_ptr();
@@ -1378,6 +1439,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [raw kernel
     /// tracepoint](https://lwn.net/Articles/748352/), providing additional
     /// options.
+    #[doc(alias = "bpf_program__attach_raw_tracepoint_opts")]
     pub fn attach_raw_tracepoint_with_opts<T: AsRef<str>>(
         &self,
         tp_name: T,
@@ -1400,6 +1462,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach to an [LSM](https://en.wikipedia.org/wiki/Linux_Security_Modules) hook
+    #[doc(alias = "bpf_program__attach_lsm")]
     pub fn attach_lsm(&self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_lsm(self.ptr.as_ptr()) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach LSM")?;
@@ -1409,6 +1472,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach to a [fentry/fexit kernel probe](https://lwn.net/Articles/801479/)
+    #[doc(alias = "bpf_program__attach_trace")]
     pub fn attach_trace(&self) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_trace(self.ptr.as_ptr()) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach fentry/fexit kernel probe")?;
@@ -1418,6 +1482,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach a verdict/parser to a [sockmap/sockhash](https://lwn.net/Articles/731133/)
+    #[doc(alias = "bpf_prog_attach")]
     pub fn attach_sockmap(&self, map_fd: i32) -> Result<()> {
         let err = unsafe {
             libbpf_sys::bpf_prog_attach(
@@ -1431,6 +1496,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to [XDP](https://lwn.net/Articles/825998/)
+    #[doc(alias = "bpf_program__attach_xdp")]
     pub fn attach_xdp(&self, ifindex: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_xdp(self.ptr.as_ptr(), ifindex) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach XDP program")?;
@@ -1440,6 +1506,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to [netns-based programs](https://lwn.net/Articles/819618/)
+    #[doc(alias = "bpf_program__attach_netns")]
     pub fn attach_netns(&self, netns_fd: i32) -> Result<Link> {
         let ptr = unsafe { libbpf_sys::bpf_program__attach_netns(self.ptr.as_ptr(), netns_fd) };
         let ptr = validate_bpf_ret(ptr).context("failed to attach network namespace program")?;
@@ -1449,6 +1516,7 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Attach this program to [netfilter programs](https://lwn.net/Articles/925082/)
+    #[doc(alias = "bpf_program__attach_netfilter")]
     pub fn attach_netfilter_with_opts(
         &self,
         netfilter_opt: netfilter::NetfilterOpts,
@@ -1507,6 +1575,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
     /// point. The entry point of the program must be defined with
     /// `SEC("usdt")`.
+    #[doc(alias = "bpf_program__attach_usdt")]
     pub fn attach_usdt(
         &self,
         pid: i32,
@@ -1526,6 +1595,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a [USDT](https://lwn.net/Articles/753601/) probe
     /// point, providing additional options. The entry point of the program must
     /// be defined with `SEC("usdt")`.
+    #[doc(alias = "bpf_program__attach_usdt")]
     pub fn attach_usdt_with_opts(
         &self,
         pid: i32,
@@ -1546,6 +1616,7 @@ impl<'obj> ProgramMut<'obj> {
     /// Attach this program to a
     /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
+    #[doc(alias = "bpf_program__attach_iter")]
     pub fn attach_iter(&self, map_fd: BorrowedFd<'_>) -> Result<Link> {
         let map_opts = MapIterOpts {
             fd: map_fd,
@@ -1559,6 +1630,7 @@ impl<'obj> ProgramMut<'obj> {
     /// providing additional options.
     ///
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
+    #[doc(alias = "bpf_program__attach_iter")]
     pub fn attach_iter_with_opts(&self, opts: IterOpts<'_>) -> Result<Link> {
         let mut linkinfo = match opts {
             IterOpts::None => None,
@@ -1620,6 +1692,7 @@ impl<'obj> ProgramMut<'obj> {
     ///
     /// This program must not be of type [`ProgramType::StructOps`], and
     /// the map must be of type [`MapType::StructOps`][crate::MapType::StructOps].
+    #[doc(alias = "bpf_program__assoc_struct_ops")]
     pub fn assoc_struct_ops(&self, map: &Map<'_>) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_program__assoc_struct_ops(
@@ -1636,6 +1709,7 @@ impl<'obj> ProgramMut<'obj> {
     /// This function uses the
     /// [BPF_PROG_RUN](https://www.kernel.org/doc/html/latest/bpf/bpf_prog_run.html)
     /// facility.
+    #[doc(alias = "bpf_prog_test_run_opts")]
     pub fn test_run<'dat>(&self, input: Input<'dat>) -> Result<Output<'dat>> {
         unsafe fn slice_from_array<'t, T>(items: *mut T, num_items: usize) -> Option<&'t mut [T]> {
             if items.is_null() {
@@ -1696,11 +1770,13 @@ impl<'obj> ProgramMut<'obj> {
     }
 
     /// Get the stdout BPF stream of the program.
+    #[doc(alias = "bpf_prog_stream_read")]
     pub fn stdout(&self) -> impl Read + '_ {
         Stream::new(self.as_fd(), Stream::BPF_STDOUT)
     }
 
     /// Get the stderr BPF stream of the program.
+    #[doc(alias = "bpf_prog_stream_read")]
     pub fn stderr(&self) -> impl Read + '_ {
         Stream::new(self.as_fd(), Stream::BPF_STDERR)
     }
@@ -1717,6 +1793,7 @@ impl<'obj> Deref for ProgramMut<'obj> {
 }
 
 impl<T> AsFd for ProgramImpl<'_, T> {
+    #[doc(alias = "bpf_program__fd")]
     fn as_fd(&self) -> BorrowedFd<'_> {
         let fd = unsafe { libbpf_sys::bpf_program__fd(self.ptr.as_ptr()) };
         unsafe { BorrowedFd::borrow_raw(fd) }
@@ -1777,6 +1854,7 @@ impl ProgramHandle {
     }
 
     /// Open a previously pinned program from its bpffs path.
+    #[doc(alias = "bpf_obj_get")]
     pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let fd = Program::fd_from_pinned_path(path)?;
         Self::from_fd(fd)
@@ -1808,6 +1886,7 @@ impl ProgramHandle {
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this program to bpffs.
+    #[doc(alias = "bpf_obj_pin")]
     pub fn pin<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let ret = unsafe { libbpf_sys::bpf_obj_pin(self.fd.as_raw_fd(), path_c.as_ptr()) };

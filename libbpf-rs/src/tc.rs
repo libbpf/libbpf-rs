@@ -7,6 +7,7 @@ use crate::Error;
 use crate::Result;
 
 /// See [`libbpf_sys::bpf_tc_attach_point`].
+#[doc(alias = "bpf_tc_attach_point")]
 pub type TcAttachPoint = libbpf_sys::bpf_tc_attach_point;
 /// See [`libbpf_sys::BPF_TC_INGRESS`].
 pub const TC_INGRESS: TcAttachPoint = libbpf_sys::BPF_TC_INGRESS;
@@ -48,6 +49,8 @@ pub const TC_H_MIN_MASK: u32 = 0x0000FFFF;
 /// An example of using a BPF TC program can found
 /// [here](https://github.com/libbpf/libbpf-rs/tree/master/examples/tc_port_whitelist).
 #[derive(Clone, Copy, Debug)]
+#[doc(alias = "bpf_tc_hook")]
+#[doc(alias = "bpf_tc_opts")]
 pub struct TcHook {
     hook: libbpf_sys::bpf_tc_hook,
     opts: libbpf_sys::bpf_tc_opts,
@@ -75,6 +78,7 @@ impl TcHook {
     /// [`Self::create()`], this function will still succeed.
     ///
     /// Will always fail on a `TC_CUSTOM` hook
+    #[doc(alias = "bpf_tc_hook_create")]
     pub fn create(&mut self) -> Result<Self> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_create(&mut self.hook as *mut _) };
         if err != 0 {
@@ -166,6 +170,7 @@ impl TcHook {
     }
 
     /// Query a hook to inspect the program identifier (`prog_id`)
+    #[doc(alias = "bpf_tc_query")]
     pub fn query(&mut self) -> Result<u32> {
         let mut opts = self.opts;
         opts.prog_id = 0;
@@ -191,6 +196,7 @@ impl TcHook {
     ///
     /// NOTE: Once a [`TcHook`] is attached, it, and the maps it uses, will outlive the userspace
     /// application that spawned them Make sure to detach if this is not desired
+    #[doc(alias = "bpf_tc_attach")]
     pub fn attach(&mut self) -> Result<Self> {
         self.opts.prog_id = 0;
         let err =
@@ -203,6 +209,7 @@ impl TcHook {
     }
 
     /// Detach a filter from a [`TcHook`]
+    #[doc(alias = "bpf_tc_detach")]
     pub fn detach(&mut self) -> Result<()> {
         let mut opts = self.opts;
         opts.prog_id = 0;
@@ -231,6 +238,7 @@ impl TcHook {
     ///
     /// It is good practice to query before destroying as the tc qdisc may be used by multiple
     /// programs
+    #[doc(alias = "bpf_tc_hook_destroy")]
     pub fn destroy(&mut self) -> Result<()> {
         let err = unsafe { libbpf_sys::bpf_tc_hook_destroy(&mut self.hook as *mut _) };
         if err != 0 {

@@ -18,6 +18,7 @@ pub const NF_INET_POST_ROUTING: i32 = libc::NF_INET_POST_ROUTING;
 
 /// Options to be provided when attaching a program to a netfilter hook.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_netfilter_opts")]
 pub struct NetfilterOpts {
     /// Protocol family for netfilter; supported values are `NFPROTO_IPV4` (2) for IPv4
     /// and `NFPROTO_IPV6` (10) for IPv6.

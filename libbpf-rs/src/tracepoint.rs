@@ -3,6 +3,7 @@ use std::mem::size_of;
 
 /// Options to optionally be provided when attaching to a tracepoint.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_tracepoint_opts")]
 pub struct TracepointOpts {
     /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
     pub cookie: u64,
@@ -29,6 +30,7 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
 
 /// Options to optionally be provided when attaching to a raw tracepoint.
 #[derive(Clone, Debug, Default)]
+#[doc(alias = "bpf_raw_tracepoint_opts")]
 pub struct RawTracepointOpts {
     /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
     pub cookie: u64,

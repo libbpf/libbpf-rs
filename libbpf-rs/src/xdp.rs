@@ -34,6 +34,8 @@ bitflags! {
 ///
 /// This struct exposes operations to attach, detach and query a XDP program
 #[derive(Debug)]
+#[doc(alias = "bpf_xdp_attach_opts")]
+#[doc(alias = "bpf_xdp_query_opts")]
 pub struct Xdp<'fd> {
     fd: BorrowedFd<'fd>,
     attach_opts: libbpf_sys::bpf_xdp_attach_opts,
@@ -60,6 +62,7 @@ impl<'fd> Xdp<'fd> {
     /// # Notes
     /// Once a program is attached, it will outlive the userspace program. Make
     /// sure to detach the program if its not desired.
+    #[doc(alias = "bpf_xdp_attach")]
     pub fn attach(&self, ifindex: i32, flags: XdpFlags) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_xdp_attach(
@@ -73,12 +76,14 @@ impl<'fd> Xdp<'fd> {
     }
 
     /// Detach the XDP program from the interface
+    #[doc(alias = "bpf_xdp_detach")]
     pub fn detach(&self, ifindex: i32, flags: XdpFlags) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_xdp_detach(ifindex, flags.bits(), &self.attach_opts) };
         util::parse_ret(ret)
     }
 
     /// Query to inspect the program
+    #[doc(alias = "bpf_xdp_query")]
     pub fn query(&self, ifindex: i32, flags: XdpFlags) -> Result<libbpf_sys::bpf_xdp_query_opts> {
         let mut opts = self.query_opts;
         let err = unsafe { libbpf_sys::bpf_xdp_query(ifindex, flags.bits() as i32, &mut opts) };
@@ -86,6 +91,7 @@ impl<'fd> Xdp<'fd> {
     }
 
     /// Query to inspect the program identifier (`prog_id`)
+    #[doc(alias = "bpf_xdp_query_id")]
     pub fn query_id(&self, ifindex: i32, flags: XdpFlags) -> Result<u32> {
         let mut prog_id = 0;
         let err =
@@ -94,6 +100,7 @@ impl<'fd> Xdp<'fd> {
     }
 
     /// Replace an existing xdp program (identified by `old_prog_fd`) with this xdp program
+    #[doc(alias = "bpf_xdp_attach")]
     pub fn replace(&self, ifindex: i32, old_prog_fd: BorrowedFd<'_>) -> Result<()> {
         let mut opts = self.attach_opts;
         opts.old_prog_fd = old_prog_fd.as_raw_fd();

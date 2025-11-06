@@ -51,6 +51,7 @@ pub fn roundup(num: usize, r: usize) -> usize {
 }
 
 /// Get the number of CPUs in the system, e.g., to interact with per-cpu maps.
+#[doc(alias = "libbpf_num_possible_cpus")]
 pub fn num_possible_cpus() -> Result<usize> {
     let ret = unsafe { libbpf_sys::libbpf_num_possible_cpus() };
     parse_ret(ret).map(|()| ret as usize)

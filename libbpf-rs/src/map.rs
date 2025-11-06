@@ -55,6 +55,7 @@ pub type OpenMapMut<'obj> = OpenMapImpl<'obj, Mut>;
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
 #[repr(transparent)]
+#[doc(alias = "bpf_map")]
 pub struct OpenMapImpl<'obj, T = ()> {
     ptr: NonNull<libbpf_sys::bpf_map>,
     _phantom: PhantomData<&'obj T>,
@@ -72,6 +73,7 @@ impl<'obj> OpenMap<'obj> {
     }
 
     /// Retrieve the [`OpenMap`]'s name.
+    #[doc(alias = "bpf_map__name")]
     pub fn name(&self) -> &'obj OsStr {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
@@ -82,6 +84,7 @@ impl<'obj> OpenMap<'obj> {
     }
 
     /// Retrieve type of the map.
+    #[doc(alias = "bpf_map__type")]
     pub fn map_type(&self) -> MapType {
         let ty = unsafe { libbpf_sys::bpf_map__type(self.ptr.as_ptr()) };
         MapType::from(ty)
@@ -96,6 +99,7 @@ impl<'obj> OpenMap<'obj> {
     }
 
     /// Retrieve the initial value of the map.
+    #[doc(alias = "bpf_map__initial_value")]
     pub fn initial_value(&self) -> Option<&[u8]> {
         let (ptr, size) = self.initial_value_raw();
         if ptr.is_null() {
@@ -107,31 +111,37 @@ impl<'obj> OpenMap<'obj> {
     }
 
     /// Retrieve the maximum number of entries of the map.
+    #[doc(alias = "bpf_map__max_entries")]
     pub fn max_entries(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__max_entries(self.ptr.as_ptr()) }
     }
 
     /// Return `true` if the map is set to be auto-created during load, `false` otherwise.
+    #[doc(alias = "bpf_map__autocreate")]
     pub fn autocreate(&self) -> bool {
         unsafe { libbpf_sys::bpf_map__autocreate(self.ptr.as_ptr()) }
     }
 
     /// Retrieve the map flags.
+    #[doc(alias = "bpf_map__map_flags")]
     pub fn map_flags(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__map_flags(self.ptr.as_ptr()) }
     }
 
     /// Retrieve the map numa node.
+    #[doc(alias = "bpf_map__numa_node")]
     pub fn numa_node(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__numa_node(self.ptr.as_ptr()) }
     }
 
     /// Retrieve the key size of the map in bytes.
+    #[doc(alias = "bpf_map__key_size")]
     pub fn key_size(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__key_size(self.ptr.as_ptr()) }
     }
 
     /// Retrieve the value size of the map in bytes.
+    #[doc(alias = "bpf_map__value_size")]
     pub fn value_size(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__value_size(self.ptr.as_ptr()) }
     }
@@ -147,6 +157,7 @@ impl<'obj> OpenMapMut<'obj> {
     }
 
     /// Retrieve the initial value of the map.
+    #[doc(alias = "bpf_map__initial_value")]
     pub fn initial_value_mut(&mut self) -> Option<&mut [u8]> {
         let (ptr, size) = self.initial_value_raw();
         if ptr.is_null() {
@@ -160,11 +171,13 @@ impl<'obj> OpenMapMut<'obj> {
     /// Bind map to a particular network device.
     ///
     /// Used for offloading maps to hardware.
+    #[doc(alias = "bpf_map__set_ifindex")]
     pub fn set_map_ifindex(&mut self, idx: u32) {
         unsafe { libbpf_sys::bpf_map__set_ifindex(self.ptr.as_ptr(), idx) };
     }
 
     /// Set the initial value of the map.
+    #[doc(alias = "bpf_map__set_initial_value")]
     pub fn set_initial_value(&mut self, data: &[u8]) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_initial_value(
@@ -178,30 +191,35 @@ impl<'obj> OpenMapMut<'obj> {
     }
 
     /// Set the type of the map.
+    #[doc(alias = "bpf_map__set_type")]
     pub fn set_type(&mut self, ty: MapType) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_type(self.ptr.as_ptr(), ty as u32) };
         util::parse_ret(ret)
     }
 
     /// Set the key size of the map in bytes.
+    #[doc(alias = "bpf_map__set_key_size")]
     pub fn set_key_size(&mut self, size: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_key_size(self.ptr.as_ptr(), size) };
         util::parse_ret(ret)
     }
 
     /// Set the value size of the map in bytes.
+    #[doc(alias = "bpf_map__set_value_size")]
     pub fn set_value_size(&mut self, size: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_value_size(self.ptr.as_ptr(), size) };
         util::parse_ret(ret)
     }
 
     /// Set the maximum number of entries this map can have.
+    #[doc(alias = "bpf_map__set_max_entries")]
     pub fn set_max_entries(&mut self, count: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_max_entries(self.ptr.as_ptr(), count) };
         util::parse_ret(ret)
     }
 
     /// Set flags on this map.
+    #[doc(alias = "bpf_map__set_map_flags")]
     pub fn set_map_flags(&mut self, flags: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_map_flags(self.ptr.as_ptr(), flags) };
         util::parse_ret(ret)
@@ -211,6 +229,7 @@ impl<'obj> OpenMapMut<'obj> {
     ///
     /// This can be used to ensure that the map is allocated on a particular
     /// NUMA node, which can be useful for performance-critical applications.
+    #[doc(alias = "bpf_map__set_numa_node")]
     pub fn set_numa_node(&mut self, numa_node: u32) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_numa_node(self.ptr.as_ptr(), numa_node) };
         util::parse_ret(ret)
@@ -220,6 +239,7 @@ impl<'obj> OpenMapMut<'obj> {
     ///
     /// This is used for nested maps, where the value type of the outer map is a pointer to the
     /// inner map.
+    #[doc(alias = "bpf_map__set_inner_map_fd")]
     pub fn set_inner_map_fd(&mut self, inner_map_fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_inner_map_fd(self.ptr.as_ptr(), inner_map_fd.as_raw_fd())
@@ -235,12 +255,14 @@ impl<'obj> OpenMapMut<'obj> {
     ///
     /// This can be used to pass data to the kernel that is not otherwise
     /// representable via the existing `bpf_map_def` fields.
+    #[doc(alias = "bpf_map__set_map_extra")]
     pub fn set_map_extra(&mut self, map_extra: u64) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_map_extra(self.ptr.as_ptr(), map_extra) };
         util::parse_ret(ret)
     }
 
     /// Set whether or not libbpf should automatically create this map during load phase.
+    #[doc(alias = "bpf_map__set_autocreate")]
     pub fn set_autocreate(&mut self, autocreate: bool) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__set_autocreate(self.ptr.as_ptr(), autocreate) };
         util::parse_ret(ret)
@@ -249,6 +271,7 @@ impl<'obj> OpenMapMut<'obj> {
     /// Set where the map should be pinned.
     ///
     /// Note this does not actually create the pin.
+    #[doc(alias = "bpf_map__set_pin_path")]
     pub fn set_pin_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -258,12 +281,14 @@ impl<'obj> OpenMapMut<'obj> {
     }
 
     /// Reuse an fd for a BPF map
+    #[doc(alias = "bpf_map__reuse_fd")]
     pub fn reuse_fd(&mut self, fd: BorrowedFd<'_>) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr.as_ptr(), fd.as_raw_fd()) };
         util::parse_ret(ret)
     }
 
     /// Reuse an already-pinned map for `self`.
+    #[doc(alias = "bpf_obj_get")]
     pub fn reuse_pinned_map<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let cstring = util::path_to_cstring(path)?;
 
@@ -519,22 +544,28 @@ mod private {
 /// A trait representing core functionality common to fully initialized maps.
 pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Retrieve the map's name.
+    #[doc(alias = "bpf_map__name")]
     fn name(&self) -> &OsStr;
 
     /// Retrieve type of the map.
+    #[doc(alias = "bpf_map__type")]
     fn map_type(&self) -> MapType;
 
     /// Retrieve the size of the map's keys.
+    #[doc(alias = "bpf_map__key_size")]
     fn key_size(&self) -> u32;
 
     /// Retrieve the size of the map's values.
+    #[doc(alias = "bpf_map__value_size")]
     fn value_size(&self) -> u32;
 
     /// Retrieve `max_entries` of the map.
+    #[doc(alias = "bpf_map__max_entries")]
     fn max_entries(&self) -> u32;
 
     /// Fetch extra map information
     #[inline]
+    #[doc(alias = "bpf_obj_get_info_by_fd")]
     fn info(&self) -> Result<MapInfo> {
         MapInfo::new(self.as_fd())
     }
@@ -553,6 +584,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
     /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
     /// iteration becomes unpredictable.
+    #[doc(alias = "bpf_map_get_next_key")]
     fn keys(&self) -> MapKeyIter<'_> {
         MapKeyIter::new(self.as_fd(), self.key_size())
     }
@@ -565,6 +597,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// must be used.
     /// If the map is of type `bloom_filter` the function [`Self::lookup_bloom_filter()`] must be
     /// used
+    #[doc(alias = "bpf_map_lookup_elem_flags")]
     fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         check_not_bloom_or_percpu(self)?;
         let out_size = self.value_size() as usize;
@@ -583,6 +616,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     ///
     /// If the map is one of the per-cpu data structures, this function cannot be used.
     /// If the map is of type `bloom_filter`, this function cannot be used.
+    #[doc(alias = "bpf_map_lookup_elem_flags")]
     fn lookup_into(&self, key: &[u8], value: &mut [u8], flags: MapFlags) -> Result<bool> {
         check_not_bloom_or_percpu(self)?;
 
@@ -607,6 +641,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Returns many elements in batch mode from the map.
     ///
     /// `count` specifies the batch size.
+    #[doc(alias = "bpf_map_lookup_batch")]
     fn lookup_batch(
         &self,
         count: u32,
@@ -620,6 +655,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Returns many elements in batch mode from the map.
     ///
     /// `count` specifies the batch size.
+    #[doc(alias = "bpf_map_lookup_and_delete_batch")]
     fn lookup_and_delete_batch(
         &self,
         count: u32,
@@ -633,6 +669,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Returns if the given value is likely present in `bloom_filter` as `bool`.
     ///
     /// `value` must have exactly [`Self::value_size()`] elements.
+    #[doc(alias = "bpf_map_lookup_elem")]
     fn lookup_bloom_filter(&self, value: &[u8]) -> Result<bool> {
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem(
@@ -657,6 +694,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Returns one value per cpu as `Vec` of `Vec` of `u8` for per per-cpu maps.
     ///
     /// For normal maps, [`Self::lookup()`] must be used.
+    #[doc(alias = "bpf_map_lookup_elem_flags")]
     fn lookup_percpu(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<Vec<u8>>>> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::with_invalid_data(format!(
@@ -684,6 +722,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Deletes an element from the map.
     ///
     /// `key` must have exactly [`Self::key_size()`] elements.
+    #[doc(alias = "bpf_map_delete_elem")]
     fn delete(&self, key: &[u8]) -> Result<()> {
         if key.len() != self.key_size() as usize {
             return Err(Error::with_invalid_data(format!(
@@ -702,6 +741,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// Deletes many elements in batch mode from the map.
     ///
     /// `keys` must have exactly `Self::key_size() * count` elements.
+    #[doc(alias = "bpf_map_delete_batch")]
     fn delete_batch(
         &self,
         keys: &[u8],
@@ -746,6 +786,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// [`MapType::PercpuHash`] / [`MapType::LruPercpuHash`].
     ///
     /// `key` must have exactly [`Self::key_size()`] elements.
+    #[doc(alias = "bpf_map_lookup_and_delete_elem")]
     fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let out_size = self.value_size() as usize;
         lookup_raw_vec(self, key, LookupOp::LookupAndDelete, out_size)
@@ -762,6 +803,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// `Ok(false)` if the key was not found, or an error.
     ///
     /// See [`Self::lookup_and_delete()`] for kernel support details.
+    #[doc(alias = "bpf_map_lookup_and_delete_elem")]
     fn lookup_into_and_delete(&self, key: &[u8], value: &mut [u8]) -> Result<bool> {
         if value.len() != self.value_size() as usize {
             return Err(Error::with_invalid_data(format!(
@@ -787,6 +829,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// [`Self::value_size()`] elements.
     ///
     /// For per-cpu maps, [`Self::update_percpu()`] must be used.
+    #[doc(alias = "bpf_map_update_elem")]
     fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
         if self.map_type().is_percpu() {
             return Err(Error::with_invalid_data(format!(
@@ -810,6 +853,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     ///
     /// `keys` must have exactly `Self::key_size() * count` elements. `values` must have exactly
     /// `Self::key_size() * count` elements.
+    #[doc(alias = "bpf_map_update_batch")]
     fn update_batch(
         &self,
         keys: &[u8],
@@ -866,6 +910,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     /// with exactly [`Self::value_size()`] elements each.
     ///
     /// For per-cpu maps, [`Self::update_percpu()`] must be used.
+    #[doc(alias = "bpf_map_update_elem")]
     fn update_percpu(&self, key: &[u8], values: &[Vec<u8>], flags: MapFlags) -> Result<()> {
         if !self.map_type().is_percpu() && self.map_type() != MapType::Unknown {
             return Err(Error::with_invalid_data(format!(
@@ -916,6 +961,7 @@ pub type MapMut<'obj> = MapImpl<'obj, Mut>;
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 #[derive(Debug)]
+#[doc(alias = "bpf_map")]
 pub struct MapImpl<'obj, T = ()> {
     ptr: NonNull<libbpf_sys::bpf_map>,
     _phantom: PhantomData<&'obj T>,
@@ -956,12 +1002,14 @@ impl<'obj> Map<'obj> {
     }
 
     /// Returns whether map is pinned or not flag
+    #[doc(alias = "bpf_map__is_pinned")]
     pub fn is_pinned(&self) -> bool {
         unsafe { libbpf_sys::bpf_map__is_pinned(self.ptr.as_ptr()) }
     }
 
     /// Returns the `pin_path` if the map is pinned, otherwise, `None`
     /// is returned.
+    #[doc(alias = "bpf_map__pin_path")]
     pub fn get_pin_path(&self) -> Option<&OsStr> {
         let path_ptr = unsafe { libbpf_sys::bpf_map__pin_path(self.ptr.as_ptr()) };
         if path_ptr.is_null() {
@@ -973,6 +1021,7 @@ impl<'obj> Map<'obj> {
     }
 
     /// Return `true` if the map was set to be auto-created during load, `false` otherwise.
+    #[doc(alias = "bpf_map__autocreate")]
     pub fn autocreate(&self) -> bool {
         unsafe { libbpf_sys::bpf_map__autocreate(self.ptr.as_ptr()) }
     }
@@ -997,6 +1046,7 @@ impl<'obj> MapMut<'obj> {
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map to bpffs.
+    #[doc(alias = "bpf_map__pin")]
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -1007,6 +1057,7 @@ impl<'obj> MapMut<'obj> {
 
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map from bpffs.
+    #[doc(alias = "bpf_map__unpin")]
     pub fn unpin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -1015,6 +1066,7 @@ impl<'obj> MapMut<'obj> {
     }
 
     /// Attach a struct ops map
+    #[doc(alias = "bpf_map__attach_struct_ops")]
     pub fn attach_struct_ops(&mut self) -> Result<Link> {
         if self.map_type() != MapType::StructOps {
             return Err(Error::with_invalid_data(format!(
@@ -1041,6 +1093,7 @@ impl<'obj> Deref for MapMut<'obj> {
 
 impl<T> AsFd for MapImpl<'_, T> {
     #[inline]
+    #[doc(alias = "bpf_map__fd")]
     fn as_fd(&self) -> BorrowedFd<'_> {
         // SANITY: Our map must always have a file descriptor associated with
         //         it.
@@ -1123,6 +1176,7 @@ pub struct MapHandle {
 
 impl MapHandle {
     /// Create a bpf map whose data is not managed by libbpf.
+    #[doc(alias = "bpf_map_create")]
     pub fn create<T: AsRef<OsStr>>(
         map_type: MapType,
         name: Option<T>,
@@ -1174,6 +1228,7 @@ impl MapHandle {
     ///
     /// # Panics
     /// If the path contains null bytes.
+    #[doc(alias = "bpf_obj_get_opts")]
     pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         Self::from_pinned_path_with_file_flags(path, 0)
     }
@@ -1185,6 +1240,7 @@ impl MapHandle {
     ///
     /// # Panics
     /// If the path contains null bytes.
+    #[doc(alias = "bpf_obj_get_opts")]
     pub fn from_pinned_path_with_file_flags<P: AsRef<Path>>(
         path: P,
         file_flags: u32,
@@ -1213,6 +1269,7 @@ impl MapHandle {
     }
 
     /// Open a loaded map from its map id.
+    #[doc(alias = "bpf_map_get_fd_by_id")]
     pub fn from_map_id(id: u32) -> Result<Self> {
         parse_ret_i32(unsafe {
             // SAFETY
@@ -1246,6 +1303,7 @@ impl MapHandle {
     /// `bpf()` system call. This operation is not reversible, and the map remains
     /// immutable from user space until its destruction. However, read and write
     /// permissions for BPF programs to the map remain unchanged.
+    #[doc(alias = "bpf_map_freeze")]
     pub fn freeze(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_map_freeze(self.fd.as_raw_fd()) };
 
@@ -1254,6 +1312,7 @@ impl MapHandle {
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this map to bpffs.
+    #[doc(alias = "bpf_obj_pin")]
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -1362,6 +1421,7 @@ bitflags! {
 #[non_exhaustive]
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[doc(alias = "bpf_map_type")]
 pub enum MapType {
     /// An unspecified map type.
     Unspec = libbpf_sys::BPF_MAP_TYPE_UNSPEC,
@@ -1540,6 +1600,7 @@ impl MapType {
     ///
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
+    #[doc(alias = "libbpf_probe_bpf_map_type")]
     pub fn is_supported(&self) -> Result<bool> {
         let ret = unsafe { libbpf_sys::libbpf_probe_bpf_map_type(*self as u32, ptr::null()) };
         match ret {
@@ -1600,6 +1661,7 @@ impl From<MapType> for u32 {
 
 /// An iterator over the keys of a BPF map.
 #[derive(Debug)]
+#[doc(alias = "bpf_map_get_next_key")]
 pub struct MapKeyIter<'map> {
     map_fd: BorrowedFd<'map>,
     prev: Option<Vec<u8>>,
@@ -1640,6 +1702,8 @@ impl Iterator for MapKeyIter<'_> {
 
 /// An iterator over batches of key value pairs of a BPF map.
 #[derive(Debug)]
+#[doc(alias = "bpf_map_lookup_batch")]
+#[doc(alias = "bpf_map_lookup_and_delete_batch")]
 pub struct BatchedMapIter<'map> {
     map_fd: BorrowedFd<'map>,
     delete: bool,
@@ -1757,6 +1821,7 @@ impl Iterator for BatchedMapIter<'_> {
 /// A convenience wrapper for [`bpf_map_info`]. It provides the ability
 /// to retrieve the details of a certain map.
 #[derive(Debug)]
+#[doc(alias = "bpf_map_info")]
 pub struct MapInfo {
     /// The inner [`bpf_map_info`] object.
     pub info: bpf_map_info,
@@ -1764,6 +1829,7 @@ pub struct MapInfo {
 
 impl MapInfo {
     /// Create a `MapInfo` object from a fd.
+    #[doc(alias = "bpf_obj_get_info_by_fd")]
     pub fn new(fd: BorrowedFd<'_>) -> Result<Self> {
         let mut map_info = bpf_map_info::default();
         let mut size = mem::size_of_val(&map_info) as u32;

@@ -15,6 +15,7 @@ use crate::Result;
 /// <https://lwn.net/ml/bpf/20210310040431.916483-6-andrii@kernel.org/> for
 /// additional details.
 #[derive(Debug)]
+#[doc(alias = "bpf_linker")]
 pub struct Linker {
     /// The `libbpf` linker object.
     linker: NonNull<libbpf_sys::bpf_linker>,
@@ -22,6 +23,7 @@ pub struct Linker {
 
 impl Linker {
     /// Instantiate a `Linker` object.
+    #[doc(alias = "bpf_linker__new")]
     pub fn new<P>(output: P) -> Result<Self>
     where
         P: AsRef<Path>,
@@ -36,6 +38,7 @@ impl Linker {
     }
 
     /// Add a file to the set of files to link.
+    #[doc(alias = "bpf_linker__add_file")]
     pub fn add_file<P>(&mut self, file: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -53,6 +56,7 @@ impl Linker {
     }
 
     /// Add a buffer to the set of objects to link.
+    #[doc(alias = "bpf_linker__add_buf")]
     pub fn add_buf(&mut self, buf: &[u8]) -> Result<()> {
         let opts = null_mut();
         // SAFETY: `linker` and `buf` are valid pointers.
@@ -73,6 +77,7 @@ impl Linker {
 
     /// Link all BPF object files [added](Self::add_file) to this object into
     /// a single one.
+    #[doc(alias = "bpf_linker__finalize")]
     pub fn link(&self) -> Result<()> {
         // SAFETY: `linker` is a valid pointer.
         let err = unsafe { libbpf_sys::bpf_linker__finalize(self.linker.as_ptr()) };
@@ -96,6 +101,7 @@ impl AsRawLibbpf for Linker {
 unsafe impl Send for Linker {}
 
 impl Drop for Linker {
+    #[doc(alias = "bpf_linker__free")]
     fn drop(&mut self) {
         // SAFETY: `linker` is a valid pointer returned by `bpf_linker__new`.
         unsafe { libbpf_sys::bpf_linker__free(self.linker.as_ptr()) }

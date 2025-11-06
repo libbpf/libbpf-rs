@@ -103,6 +103,7 @@ macro_rules! gen_info_impl {
 
 /// BTF Line information.
 #[derive(Clone, Debug)]
+#[doc(alias = "bpf_line_info")]
 pub struct LineInfo {
     /// Offset of instruction in vector.
     pub insn_off: u32,
@@ -135,6 +136,7 @@ pub struct Tag(pub [u8; 8]);
 
 /// Information about a BPF program. Maps to `struct bpf_prog_info` in kernel uapi.
 #[derive(Debug, Clone)]
+#[doc(alias = "bpf_prog_info")]
 pub struct ProgramInfo {
     /// A user-defined name for the BPF program.
     pub name: OsString,
@@ -198,6 +200,7 @@ pub struct ProgramInfo {
 
 /// An iterator for the information of loaded bpf programs.
 #[derive(Default, Debug)]
+#[doc(alias = "bpf_prog_get_next_id")]
 pub struct ProgInfoIter {
     cur_id: u32,
     opts: ProgInfoQueryOptions,
@@ -473,6 +476,7 @@ impl Iterator for ProgInfoIter {
 
 /// Information about a BPF map. Maps to `struct bpf_map_info` in kernel uapi.
 #[derive(Debug, Clone)]
+#[doc(alias = "bpf_map_info")]
 pub struct MapInfo {
     /// A user-defined name for the BPF Map.
     pub name: OsString,
@@ -533,6 +537,7 @@ impl MapInfo {
 
 gen_info_impl!(
     /// Iterator that returns [`MapInfo`]s.
+    #[doc(alias = "bpf_map_get_next_id")]
     MapInfoIter,
     MapInfo,
     libbpf_sys::bpf_map_info,
@@ -542,6 +547,7 @@ gen_info_impl!(
 
 /// Information about BPF type format.
 #[derive(Debug, Clone)]
+#[doc(alias = "bpf_btf_info")]
 pub struct BtfInfo {
     /// The name associated with this btf information in the kernel.
     pub name: OsString,
@@ -593,6 +599,8 @@ impl BtfInfo {
 #[derive(Debug, Default)]
 /// An iterator for the btf type information of modules and programs
 /// in the kernel
+#[doc(alias = "bpf_btf_get_next_id")]
+#[doc(alias = "bpf_btf_get_fd_by_id")]
 pub struct BtfInfoIter {
     cur_id: u32,
 }
@@ -945,6 +953,7 @@ pub enum LinkTypeInfo {
 
 /// Information about a BPF link. Maps to `struct bpf_link_info` in kernel uapi.
 #[derive(Debug, Clone)]
+#[doc(alias = "bpf_link_info")]
 pub struct LinkInfo {
     /// Information about the BPF link type.
     pub info: LinkTypeInfo,
@@ -956,6 +965,7 @@ pub struct LinkInfo {
 
 impl LinkInfo {
     /// Create a `LinkInfo` object from a fd.
+    #[doc(alias = "bpf_obj_get_info_by_fd")]
     pub fn from_fd(fd: BorrowedFd<'_>) -> Result<Self> {
         // See comment in gen_info_impl!() for why we use std::mem::zeroed()
         let mut link_info: libbpf_sys::bpf_link_info = unsafe { zeroed() };
@@ -1346,6 +1356,8 @@ impl LinkInfo {
 
 gen_info_impl!(
     /// Iterator that returns [`LinkInfo`]s.
+    #[doc(alias = "bpf_link_get_next_id")]
+    #[doc(alias = "bpf_link_get_fd_by_id")]
     LinkInfoIter,
     LinkInfo,
     libbpf_sys::bpf_link_info,

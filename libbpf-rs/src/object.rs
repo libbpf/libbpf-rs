@@ -29,6 +29,7 @@ use crate::Result;
 
 /// An iterator over the maps in a BPF object.
 #[derive(Debug)]
+#[doc(alias = "bpf_object__next_map")]
 pub struct MapIter<'obj> {
     obj: &'obj libbpf_sys::bpf_object,
     last: *mut libbpf_sys::bpf_map,
@@ -56,6 +57,7 @@ impl Iterator for MapIter<'_> {
 
 /// An iterator over the programs in a BPF object.
 #[derive(Debug)]
+#[doc(alias = "bpf_object__next_program")]
 pub struct ProgIter<'obj> {
     obj: &'obj libbpf_sys::bpf_object,
     last: *mut libbpf_sys::bpf_program,
@@ -103,6 +105,7 @@ pub trait AsRawLibbpf {
 
 /// Builder for creating an [`OpenObject`]. Typically the entry point into libbpf-rs.
 #[derive(Debug)]
+#[doc(alias = "bpf_object_open_opts")]
 pub struct ObjectBuilder {
     name: Option<CString>,
     pin_root_path: Option<CString>,
@@ -208,6 +211,7 @@ impl ObjectBuilder {
     }
 
     /// Open an object using the provided path on the file system.
+    #[doc(alias = "bpf_object__open_file")]
     pub fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<OpenObject> {
         let path = path.as_ref();
         let path_c = util::path_to_cstring(path)?;
@@ -223,6 +227,7 @@ impl ObjectBuilder {
     }
 
     /// Open an object from memory.
+    #[doc(alias = "bpf_object__open_mem")]
     pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
         let opts_ptr = self.as_libbpf_object().as_ptr();
         let ptr = unsafe {
@@ -254,6 +259,7 @@ impl AsRawLibbpf for ObjectBuilder {
 /// Use this object to access [`OpenMap`]s and [`OpenProgram`]s.
 #[derive(Debug)]
 #[repr(transparent)]
+#[doc(alias = "bpf_object")]
 pub struct OpenObject {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
@@ -285,6 +291,7 @@ impl OpenObject {
     }
 
     /// Retrieve the object's name.
+    #[doc(alias = "bpf_object__name")]
     pub fn name(&self) -> Option<&OsStr> {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
@@ -322,6 +329,7 @@ impl OpenObject {
     }
 
     /// Load the maps and programs contained in this BPF object into the system.
+    #[doc(alias = "bpf_object__load")]
     pub fn load(self) -> Result<Object> {
         let ret = unsafe { libbpf_sys::bpf_object__load(self.ptr.as_ptr()) };
         let () = util::parse_ret(ret)?;
@@ -347,6 +355,7 @@ impl AsRawLibbpf for OpenObject {
 }
 
 impl Drop for OpenObject {
+    #[doc(alias = "bpf_object__close")]
     fn drop(&mut self) {
         // `self.ptr` may be null if `load()` was called. This is ok: libbpf noops
         unsafe {
@@ -367,6 +376,7 @@ impl Drop for OpenObject {
 /// enforcing this invariant.
 #[derive(Debug)]
 #[repr(transparent)]
+#[doc(alias = "bpf_object")]
 pub struct Object {
     ptr: NonNull<libbpf_sys::bpf_object>,
 }
@@ -385,6 +395,7 @@ impl Object {
     }
 
     /// Retrieve the object's name.
+    #[doc(alias = "bpf_object__name")]
     pub fn name(&self) -> Option<&OsStr> {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
@@ -399,6 +410,7 @@ impl Object {
     }
 
     /// Parse the btf information associated with this bpf object.
+    #[doc(alias = "bpf_object__btf")]
     pub fn btf(&self) -> Result<Option<Btf<'_>>> {
         Btf::from_bpf_object(unsafe { &*self.ptr.as_ptr() })
     }
@@ -444,6 +456,7 @@ impl AsRawLibbpf for Object {
 }
 
 impl Drop for Object {
+    #[doc(alias = "bpf_object__close")]
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::bpf_object__close(self.ptr.as_ptr());

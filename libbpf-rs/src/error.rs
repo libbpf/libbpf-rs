@@ -330,6 +330,7 @@ pub enum ErrorKind {
 // fallible (i.e., returns a `Result<T, Error>` which would be penalized
 // by a large `Err` variant).
 #[repr(transparent)]
+#[doc(alias = "libbpf_get_error")]
 pub struct Error {
     /// The top-most error of the chain.
     error: Box<ErrorImpl>,

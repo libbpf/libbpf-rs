@@ -110,6 +110,7 @@ where
     }
 
     /// Build the `PerfBuffer` object as configured.
+    #[doc(alias = "perf_buffer__new")]
     pub fn build(self) -> Result<PerfBuffer<'b>> {
         if self.map.map_type() != MapType::PerfEventArray {
             return Err(Error::with_invalid_data("Must use a PerfEventArray map"));
@@ -195,6 +196,7 @@ where
 /// Represents a special kind of [`MapCore`]. Typically used to transfer data between
 /// [`Program`][crate::Program]s and userspace.
 #[derive(Debug)]
+#[doc(alias = "perf_buffer")]
 pub struct PerfBuffer<'b> {
     ptr: NonNull<libbpf_sys::perf_buffer>,
     // Hold onto the box so it'll get dropped when PerfBuffer is dropped
@@ -204,21 +206,25 @@ pub struct PerfBuffer<'b> {
 // TODO: Document methods.
 #[expect(missing_docs)]
 impl PerfBuffer<'_> {
+    #[doc(alias = "perf_buffer__epoll_fd")]
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr.as_ptr()) }
     }
 
+    #[doc(alias = "perf_buffer__poll")]
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret =
             unsafe { libbpf_sys::perf_buffer__poll(self.ptr.as_ptr(), timeout.as_millis() as i32) };
         util::parse_ret(ret)
     }
 
+    #[doc(alias = "perf_buffer__consume")]
     pub fn consume(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::perf_buffer__consume(self.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 
+    #[doc(alias = "perf_buffer__consume_buffer")]
     pub fn consume_buffer(&self, buf_idx: usize) -> Result<()> {
         let ret = unsafe {
             libbpf_sys::perf_buffer__consume_buffer(
@@ -229,10 +235,12 @@ impl PerfBuffer<'_> {
         util::parse_ret(ret)
     }
 
+    #[doc(alias = "perf_buffer__buffer_cnt")]
     pub fn buffer_cnt(&self) -> usize {
         unsafe { libbpf_sys::perf_buffer__buffer_cnt(self.ptr.as_ptr()) as usize }
     }
 
+    #[doc(alias = "perf_buffer__buffer_fd")]
     pub fn buffer_fd(&self, buf_idx: usize) -> Result<i32> {
         let ret = unsafe {
             libbpf_sys::perf_buffer__buffer_fd(self.ptr.as_ptr(), buf_idx as libbpf_sys::size_t)
@@ -254,6 +262,7 @@ impl AsRawLibbpf for PerfBuffer<'_> {
 unsafe impl Send for PerfBuffer<'_> {}
 
 impl Drop for PerfBuffer<'_> {
+    #[doc(alias = "perf_buffer__free")]
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::perf_buffer__free(self.ptr.as_ptr());

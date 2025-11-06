@@ -11,6 +11,7 @@ use crate::util::LazyLock;
 /// An enum representing the different supported print levels.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 #[repr(u32)]
+#[doc(alias = "libbpf_print_level")]
 pub enum PrintLevel {
     /// Print warnings and more severe messages.
     Warn = libbpf_sys::LIBBPF_WARN,
@@ -33,6 +34,7 @@ impl From<libbpf_sys::libbpf_print_level> for PrintLevel {
 }
 
 /// The type of callback functions suitable for being provided to [`set_print`].
+#[doc(alias = "libbpf_print_fn_t")]
 pub type PrintCallback = fn(PrintLevel, String);
 
 /// Mimic the default print functionality of libbpf. This way if the user calls `get_print` when no
@@ -118,6 +120,7 @@ extern "C" fn outer_print_cb(
 /// // do things quietly
 /// set_print(prev);
 /// ```
+#[doc(alias = "libbpf_set_print")]
 pub fn set_print(
     mut callback: Option<(PrintLevel, PrintCallback)>,
 ) -> Option<(PrintLevel, PrintCallback)> {

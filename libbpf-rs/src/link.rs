@@ -19,6 +19,7 @@ use crate::Result;
 /// when this object is dropped if nothing else is holding a reference count.
 #[derive(Debug)]
 #[must_use = "not using this `Link` will detach the underlying program immediately"]
+#[doc(alias = "bpf_link")]
 pub struct Link {
     ptr: NonNull<libbpf_sys::bpf_link>,
 }
@@ -34,6 +35,7 @@ impl Link {
     }
 
     /// Create link from BPF FS file.
+    #[doc(alias = "bpf_link__open")]
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -53,6 +55,7 @@ impl Link {
     }
 
     /// Replace the underlying prog with `prog`.
+    #[doc(alias = "bpf_link__update_program")]
     pub fn update_prog(&mut self, prog: &Program<'_>) -> Result<()> {
         let ret =
             unsafe { libbpf_sys::bpf_link__update_program(self.ptr.as_ptr(), prog.ptr.as_ptr()) };
@@ -68,12 +71,14 @@ impl Link {
     /// additional steps (like pinning BPF program in BPF FS) necessary to ensure
     /// exit of userspace program doesn't trigger automatic detachment and clean up
     /// inside the kernel.
+    #[doc(alias = "bpf_link__disconnect")]
     pub fn disconnect(&mut self) {
         unsafe { libbpf_sys::bpf_link__disconnect(self.ptr.as_ptr()) }
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// this link to bpffs.
+    #[doc(alias = "bpf_link__pin")]
     pub fn pin<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let path_c = util::path_to_cstring(path)?;
         let path_ptr = path_c.as_ptr();
@@ -84,12 +89,14 @@ impl Link {
 
     /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
     /// from bpffs
+    #[doc(alias = "bpf_link__unpin")]
     pub fn unpin(&mut self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__unpin(self.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
 
     /// Returns path to BPF FS file or `None` if not pinned.
+    #[doc(alias = "bpf_link__pin_path")]
     pub fn pin_path(&self) -> Option<PathBuf> {
         let path_ptr = unsafe { libbpf_sys::bpf_link__pin_path(self.ptr.as_ptr()) };
         if path_ptr.is_null() {
@@ -105,6 +112,7 @@ impl Link {
     }
 
     /// Detach the link.
+    #[doc(alias = "bpf_link__detach")]
     pub fn detach(&self) -> Result<()> {
         let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr.as_ptr()) };
         util::parse_ret(ret)
@@ -132,6 +140,7 @@ unsafe impl Sync for Link {}
 
 impl AsFd for Link {
     #[inline]
+    #[doc(alias = "bpf_link__fd")]
     fn as_fd(&self) -> BorrowedFd<'_> {
         let fd = unsafe { libbpf_sys::bpf_link__fd(self.ptr.as_ptr()) };
         // SAFETY: `bpf_link__fd` always returns a valid fd and the underlying
@@ -142,6 +151,7 @@ impl AsFd for Link {
 }
 
 impl Drop for Link {
+    #[doc(alias = "bpf_link__destroy")]
     fn drop(&mut self) {
         let _ = unsafe { libbpf_sys::bpf_link__destroy(self.ptr.as_ptr()) };
     }

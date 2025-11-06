@@ -276,6 +276,7 @@ impl MemberAttr {
 /// The kind of linkage a variable of function can have.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
+#[doc(alias = "btf_func_linkage")]
 pub enum Linkage {
     /// Static linkage
     Static = 0,
@@ -324,6 +325,7 @@ impl Display for Linkage {
 // Void
 gen_fieldless_concrete_type! {
     /// The representation of the [`c_void`][std::ffi::c_void] type.
+    #[doc(alias = "BTF_KIND_UNKN")]
     Void
 }
 
@@ -333,6 +335,7 @@ gen_fieldless_concrete_type! {
 ///
 /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-int)
 #[derive(Clone, Copy, Debug)]
+#[doc(alias = "BTF_KIND_INT")]
 pub struct Int<'btf> {
     source: BtfType<'btf>,
     /// The encoding of the number.
@@ -419,6 +422,7 @@ gen_fieldless_concrete_type! {
     /// A pointer.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-ptr)
+    #[doc(alias = "BTF_KIND_PTR")]
     Ptr with ReferencesType
 }
 
@@ -427,6 +431,8 @@ gen_concrete_type! {
     /// An array.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-array)
+    #[doc(alias = "BTF_KIND_ARRAY")]
+    #[doc(alias = "btf_array")]
     btf_array as Array
 }
 
@@ -464,9 +470,11 @@ gen_collection_concrete_type! {
     /// A struct.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-struct)
+    #[doc(alias = "BTF_KIND_STRUCT")]
     btf_member as Struct with HasSize;
 
     /// A member of a [Struct]
+    #[doc(alias = "btf_member")]
     struct StructMember<'btf> {
         /// The member's name
         pub name: Option<&'btf OsStr>,
@@ -488,9 +496,11 @@ gen_collection_concrete_type! {
     /// A Union.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-union)
+    #[doc(alias = "BTF_KIND_UNION")]
     btf_member as Union with HasSize;
 
     /// A member of an [Union]
+    #[doc(alias = "btf_member")]
     struct UnionMember<'btf> {
         /// The member's name
         pub name: Option<&'btf OsStr>,
@@ -612,9 +622,11 @@ gen_collection_concrete_type! {
     /// An Enum of at most 32 bits.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-enum)
+    #[doc(alias = "BTF_KIND_ENUM")]
     btf_enum as Enum with HasSize;
 
     /// A member of an [Enum]
+    #[doc(alias = "btf_enum")]
     struct EnumMember<'btf> {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,
@@ -648,6 +660,7 @@ gen_fieldless_concrete_type! {
     /// A forward declared C type.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-fwd)
+    #[doc(alias = "BTF_KIND_FWD")]
     Fwd
 }
 
@@ -678,6 +691,7 @@ gen_fieldless_concrete_type! {
     /// References the original type.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-typedef)
+    #[doc(alias = "BTF_KIND_TYPEDEF")]
     Typedef with ReferencesType
 }
 
@@ -686,6 +700,7 @@ gen_fieldless_concrete_type! {
     /// The volatile modifier.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-volatile)
+    #[doc(alias = "BTF_KIND_VOLATILE")]
     Volatile with ReferencesType
 }
 
@@ -694,6 +709,7 @@ gen_fieldless_concrete_type! {
     /// The const modifier.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-const)
+    #[doc(alias = "BTF_KIND_CONST")]
     Const with ReferencesType
 }
 
@@ -702,6 +718,7 @@ gen_fieldless_concrete_type! {
     /// The restrict modifier.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-restrict)
+    #[doc(alias = "BTF_KIND_RESTRICT")]
     Restrict with ReferencesType
 }
 
@@ -710,6 +727,7 @@ gen_fieldless_concrete_type! {
     /// A function.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-func)
+    #[doc(alias = "BTF_KIND_FUNC")]
     Func with ReferencesType
 }
 
@@ -726,9 +744,11 @@ gen_collection_concrete_type! {
     /// A function prototype.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-func-proto)
+    #[doc(alias = "BTF_KIND_FUNC_PROTO")]
     btf_param as FuncProto with ReferencesType;
 
     /// A parameter of a [`FuncProto`].
+    #[doc(alias = "btf_param")]
     struct FuncProtoParam<'btf> {
         /// The parameter's name
         pub name: Option<&'btf OsStr>,
@@ -747,6 +767,8 @@ gen_concrete_type! {
     /// A global variable.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-var)
+    #[doc(alias = "BTF_KIND_VAR")]
+    #[doc(alias = "btf_var")]
     btf_var as Var with ReferencesType
 }
 
@@ -763,11 +785,13 @@ gen_collection_concrete_type! {
     /// An ELF's data section, such as `.data`, `.bss` or `.rodata`.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-datasec)
+    #[doc(alias = "BTF_KIND_DATASEC")]
     btf_var_secinfo as DataSec with HasSize;
 
     /// Describes the btf var in a section.
     ///
     /// See [`DataSec`].
+    #[doc(alias = "btf_var_secinfo")]
     struct VarSecInfo {
         /// The type id of the var
         pub ty: TypeId,
@@ -789,6 +813,7 @@ gen_fieldless_concrete_type! {
     /// A floating point number.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-float)
+    #[doc(alias = "BTF_KIND_FLOAT")]
     Float with HasSize
 }
 
@@ -801,6 +826,8 @@ gen_concrete_type! {
     /// See the [clang docs](https://clang.llvm.org/docs/AttributeReference.html#btf-decl-tag) on
     /// it.
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-decl-tag)
+    #[doc(alias = "BTF_KIND_DECL_TAG")]
+    #[doc(alias = "btf_decl_tag")]
     btf_decl_tag as DeclTag with ReferencesType
 }
 
@@ -819,6 +846,7 @@ gen_fieldless_concrete_type! {
     /// A type tag.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-type-tag)
+    #[doc(alias = "BTF_KIND_TYPE_TAG")]
     TypeTag with ReferencesType
 }
 
@@ -827,9 +855,11 @@ gen_collection_concrete_type! {
     /// An Enum of 64 bits.
     ///
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-enum64)
+    #[doc(alias = "BTF_KIND_ENUM64")]
     btf_enum64 as Enum64 with HasSize;
 
     /// A member of an [Enum64].
+    #[doc(alias = "btf_enum64")]
     struct Enum64Member<'btf> {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,

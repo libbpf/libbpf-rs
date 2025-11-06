@@ -54,6 +54,7 @@ impl DerefMut for UserRingBufferSample<'_> {
 }
 
 impl Drop for UserRingBufferSample<'_> {
+    #[doc(alias = "user_ring_buffer__discard")]
     fn drop(&mut self) {
         // If the sample has not been submitted, explicitly discard it.
         // This is necessary to avoid leaking ring buffer memory.
@@ -68,6 +69,7 @@ impl Drop for UserRingBufferSample<'_> {
 /// Represents a user ring buffer. This is a special kind of map that is used to
 /// transfer data between user space and kernel space.
 #[derive(Debug)]
+#[doc(alias = "user_ring_buffer")]
 pub struct UserRingBuffer {
     // A non-null pointer to the underlying user ring buffer.
     ptr: NonNull<libbpf_sys::user_ring_buffer>,
@@ -79,6 +81,7 @@ impl UserRingBuffer {
     /// # Errors
     /// * If the map is not a user ring buffer.
     /// * If the underlying libbpf function fails.
+    #[doc(alias = "user_ring_buffer__new")]
     pub fn new(map: &dyn MapCore) -> Result<Self> {
         if map.map_type() != MapType::UserRingBuf {
             return Err(Error::with_invalid_data("must use a UserRingBuf map"));
@@ -107,6 +110,7 @@ impl UserRingBuffer {
     ///
     /// This function is *not* thread-safe. It is necessary to synchronize
     /// amongst multiple producers when invoking this function.
+    #[doc(alias = "user_ring_buffer__reserve")]
     pub fn reserve(&self, size: usize) -> Result<UserRingBufferSample<'_>> {
         let sample_ptr =
             unsafe { libbpf_sys::user_ring_buffer__reserve(self.ptr.as_ptr(), size as c_uint) };
@@ -137,6 +141,7 @@ impl UserRingBuffer {
     ///
     /// This function is thread-safe. It is *not* necessary to synchronize
     /// amongst multiple producers when invoking this function.
+    #[doc(alias = "user_ring_buffer__submit")]
     pub fn submit(&self, mut sample: UserRingBufferSample<'_>) -> Result<()> {
         unsafe {
             libbpf_sys::user_ring_buffer__submit(self.ptr.as_ptr(), sample.ptr.as_ptr());
@@ -161,6 +166,7 @@ impl AsRawLibbpf for UserRingBuffer {
 }
 
 impl Drop for UserRingBuffer {
+    #[doc(alias = "user_ring_buffer__free")]
     fn drop(&mut self) {
         unsafe {
             libbpf_sys::user_ring_buffer__free(self.ptr.as_ptr());
