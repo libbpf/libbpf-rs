@@ -65,6 +65,25 @@ pub struct UprobeOpts {
     pub _non_exhaustive: (),
 }
 
+/// Options to optionally be provided when attaching to a uprobe.
+#[derive(Clone, Debug, Default)]
+pub struct UprobeMultiOpts {
+    /// Optional, array of function symbols to attach to
+    pub syms: Vec<String>,
+    /// Optional, array of function addresses to attach to
+    pub offsets: Vec<usize>,
+    /// Optional, array of associated ref counter offsets
+    pub ref_ctr_offsets: Vec<usize>,
+    /// Optional, array of associated BPF cookies
+    pub cookies: Vec<u64>,
+    /// Create return uprobes
+    pub retprobe: bool,
+    /// Create session uprobes
+    pub session: bool,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
 /// Options to optionally be provided when attaching to a USDT.
 #[derive(Clone, Debug, Default)]
 pub struct UsdtOpts {
@@ -1029,6 +1048,119 @@ impl<'obj> ProgramMut<'obj> {
             )
         };
         let ptr = validate_bpf_ret(ptr).context("failed to attach uprobe")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to multiple
+    /// [uprobes](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html) at once.
+    pub fn attach_uprobe_multi(
+        &self,
+        pid: i32,
+        binary_path: impl AsRef<Path>,
+        func_pattern: impl AsRef<str>,
+        retprobe: bool,
+        session: bool,
+    ) -> Result<Link> {
+        let opts = UprobeMultiOpts {
+            syms: Vec::new(),
+            offsets: Vec::new(),
+            ref_ctr_offsets: Vec::new(),
+            cookies: Vec::new(),
+            retprobe,
+            session,
+            _non_exhaustive: (),
+        };
+
+        self.attach_uprobe_multi_with_opts(pid, binary_path, func_pattern, opts)
+    }
+
+    /// Attach this program to multiple
+    /// [uprobes](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html)
+    /// at once, providing additional options.
+    pub fn attach_uprobe_multi_with_opts(
+        &self,
+        pid: i32,
+        binary_path: impl AsRef<Path>,
+        func_pattern: impl AsRef<str>,
+        opts: UprobeMultiOpts,
+    ) -> Result<Link> {
+        let path = util::path_to_cstring(binary_path)?;
+        let path_ptr = path.as_ptr();
+
+        let UprobeMultiOpts {
+            syms,
+            offsets,
+            ref_ctr_offsets,
+            cookies,
+            retprobe,
+            session,
+            _non_exhaustive,
+        } = opts;
+
+        let pattern = util::str_to_cstring(func_pattern.as_ref())?;
+        let pattern_ptr = pattern.as_ptr();
+
+        let syms_cstrings = syms
+            .iter()
+            .map(|s| util::str_to_cstring(s))
+            .collect::<Result<Vec<_>>>()?;
+        let syms_ptrs = syms_cstrings
+            .iter()
+            .map(|cs| cs.as_ptr())
+            .collect::<Vec<_>>();
+        let syms_ptr = if !syms_ptrs.is_empty() {
+            syms_ptrs.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let offsets_ptr = if !offsets.is_empty() {
+            offsets.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let ref_ctr_offsets_ptr = if !ref_ctr_offsets.is_empty() {
+            ref_ctr_offsets.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let cookies_ptr = if !cookies.is_empty() {
+            cookies.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let cnt = if !syms.is_empty() {
+            syms.len()
+        } else if !offsets.is_empty() {
+            offsets.len()
+        } else {
+            0
+        };
+
+        let c_opts = libbpf_sys::bpf_uprobe_multi_opts {
+            sz: size_of::<libbpf_sys::bpf_uprobe_multi_opts>() as _,
+            syms: syms_ptr.cast_mut(),
+            offsets: offsets_ptr.cast(),
+            ref_ctr_offsets: ref_ctr_offsets_ptr.cast(),
+            cookies: cookies_ptr.cast(),
+            cnt: cnt as libbpf_sys::size_t,
+            retprobe,
+            session,
+            ..Default::default()
+        };
+
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_uprobe_multi(
+                self.ptr.as_ptr(),
+                pid,
+                path_ptr,
+                pattern_ptr,
+                &c_opts as *const _,
+            )
+        };
+
+        let ptr = validate_bpf_ret(ptr).context("failed to attach uprobe multi")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
         Ok(link)
