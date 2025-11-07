@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2019 Facebook
 #include "vmlinux.h"
+#include "runqslower.h"
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
-#include "runqslower.h"
 
-#define TASK_RUNNING    0
+#define TASK_RUNNING 0
 
 const volatile __u64 min_us = 0;
 const volatile pid_t targ_pid = 0;
@@ -33,8 +33,7 @@ struct {
 } events SEC(".maps");
 
 /* record enqueue timestamp */
-static __always_inline
-int trace_enqueue(u32 tgid, u32 pid)
+static __always_inline int trace_enqueue(u32 tgid, u32 pid)
 {
     u64 ts;
 
@@ -73,7 +72,7 @@ static inline long get_task_state(struct task_struct *t)
     if (bpf_core_field_exists(t->__state))
         return t->__state;
 
-    return ((struct task_struct___pre_5_14*)t)->state;
+    return ((struct task_struct___pre_5_14 *)t)->state;
 }
 
 SEC("tp_btf/sched_switch")
@@ -98,7 +97,7 @@ int handle__sched_switch(u64 *ctx)
     /* fetch timestamp and calculate delta */
     tsp = bpf_map_lookup_elem(&start, &pid);
     if (!tsp)
-        return 0;   /* missed enqueue */
+        return 0; /* missed enqueue */
 
     delta_us = (bpf_ktime_get_ns() - *tsp) / 1000;
     if (min_us && delta_us <= min_us)
@@ -109,8 +108,8 @@ int handle__sched_switch(u64 *ctx)
     bpf_probe_read_kernel_str(&event.task, sizeof(event.task), next->comm);
 
     /* output */
-    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
-                  &event, sizeof(event));
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
+                          sizeof(event));
 
     bpf_map_delete_elem(&start, &pid);
     return 0;

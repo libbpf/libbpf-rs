@@ -16,8 +16,7 @@ int handle__uprobe(void *ctx)
 
     value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
     if (!value) {
-        bpf_printk(
-            "handle__uprobe: failed to reserve ring buffer space");
+        bpf_printk("handle__uprobe: failed to reserve ring buffer space");
         return 1;
     }
 

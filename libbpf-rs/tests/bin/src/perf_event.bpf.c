@@ -6,7 +6,7 @@
 SEC("perf_event")
 int handle__perf_event(void *ctx)
 {
-	return 0;
+    return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

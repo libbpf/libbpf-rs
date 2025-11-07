@@ -15,8 +15,7 @@ int handle__tracepoint(void *ctx)
 
     value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
     if (!value) {
-        bpf_printk(
-            "handle__tracepoint: failed to reserve ring buffer space");
+        bpf_printk("handle__tracepoint: failed to reserve ring buffer space");
         return 1;
     }
 
@@ -33,8 +32,8 @@ int handle__tracepoint_with_cookie(void *ctx)
 
     value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
     if (!value) {
-        bpf_printk(
-            "handle__tracepoint_with_cookie: failed to reserve ring buffer space");
+        bpf_printk("handle__tracepoint_with_cookie: failed to reserve ring "
+                   "buffer space");
         return 1;
     }
 
@@ -54,8 +53,7 @@ SEC("tracepoint/syscalls/sys_enter_getpid")
 int handle__tracepoint_with_cookie_pb(void *ctx)
 {
     int value = bpf_get_attach_cookie(ctx);
-    bpf_perf_event_output(ctx, &pb, BPF_F_CURRENT_CPU, &value,
-                  sizeof(value));
+    bpf_perf_event_output(ctx, &pb, BPF_F_CURRENT_CPU, &value, sizeof(value));
 
     return 0;
 }
