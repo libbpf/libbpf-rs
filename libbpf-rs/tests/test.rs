@@ -52,6 +52,7 @@ use libbpf_rs::ProgramType;
 use libbpf_rs::RawTracepointOpts;
 use libbpf_rs::TracepointCategory;
 use libbpf_rs::TracepointOpts;
+use libbpf_rs::UprobeMultiOpts;
 use libbpf_rs::UprobeOpts;
 use libbpf_rs::UsdtOpts;
 use libbpf_rs::UserRingBuffer;
@@ -1830,11 +1831,105 @@ fn test_object_raw_tracepoint_with_opts() {
 
 #[inline(never)]
 #[no_mangle]
-extern "C" fn uprobe_target() -> usize {
+extern "C" fn uprobe_multi_func_1() -> usize {
     // Use `black_box` here as an additional barrier to inlining.
     hint::black_box(42)
 }
 
+#[inline(never)]
+#[no_mangle]
+extern "C" fn uprobe_multi_func_2() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(43)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn multi_uprobe_func_with_opts_func_1() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(44)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn multi_uprobe_func_with_opts_func_2() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(45)
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_multi_with_opts() {
+    let mut obj = get_test_object("uprobe_multi.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe_multi_with_opts");
+    let func_pattern = "multi_uprobe_func_*";
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+    let opts = UprobeMultiOpts::default();
+
+    let _link = prog
+        .attach_uprobe_multi_with_opts(pid, path, func_pattern, opts)
+        .expect("failed to attach uprobe multi");
+
+    multi_uprobe_func_with_opts_func_1();
+    multi_uprobe_func_with_opts_func_2();
+
+    let map = get_map_mut(&mut obj, "hash_map");
+    let result_bytes = map
+        .lookup(&(1_u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    let result = i32::from_ne_bytes(
+        result_bytes
+            .as_slice()
+            .try_into()
+            .expect("invalid value size"),
+    );
+
+    assert_eq!(result, 2);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_multi() {
+    let mut obj = get_test_object("uprobe_multi.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe_multi");
+    let func_pattern = "uprobe_multi_func_*";
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+
+    let _link = prog
+        .attach_uprobe_multi(pid, path, func_pattern, false, false)
+        .expect("failed to attach uprobe multi");
+
+    uprobe_multi_func_1();
+    uprobe_multi_func_2();
+
+    let map = get_map_mut(&mut obj, "hash_map");
+    let result_bytes = map
+        .lookup(&(0_u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    let result = i32::from_ne_bytes(
+        result_bytes
+            .as_slice()
+            .try_into()
+            .expect("invalid value size"),
+    );
+
+    assert_eq!(result, 2);
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn uprobe_target() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(42)
+}
 /// Check that we can attach a BPF program to a uprobe.
 #[tag(root)]
 #[test]

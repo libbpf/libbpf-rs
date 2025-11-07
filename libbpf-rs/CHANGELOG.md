@@ -7,6 +7,8 @@ Unreleased
   the set of objects to link
 - Added `Program::attach_iter_with_opts` for attaching to iterators with
   additional options
+- Added `Program::attach_uprobe_multi` & `Program::attach_uprobe_multi_opts`
+  to enable attachments of multi uprobes at once
 
 
 0.26.0-beta.0
