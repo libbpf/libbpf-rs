@@ -1,6 +1,6 @@
 #include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
 
 #define NF_DROP 0
 #define NF_ACCEPT 1
@@ -19,7 +19,8 @@ struct {
 } block_ips SEC(".maps");
 
 SEC("netfilter")
-int netfilter_local_in(struct bpf_nf_ctx *ctx) {
+int netfilter_local_in(struct bpf_nf_ctx *ctx)
+{
 
     struct sk_buff *skb = ctx->skb;
     struct bpf_dynptr ptr;
@@ -44,10 +45,11 @@ int netfilter_local_in(struct bpf_nf_ctx *ctx) {
     if (match_value) {
         /* To view log output, use: cat /sys/kernel/debug/tracing/trace_pipe */
         __be32 addr_host = bpf_ntohl(key.addr);
-        bpf_printk("Blocked IP: %d.%d.%d.%d, prefix length: %d, map value: %d\n",
-           (addr_host >> 24) & 0xFF, (addr_host >> 16) & 0xFF,
-           (addr_host >> 8) & 0xFF, addr_host & 0xFF,
-           key.prefixlen, *match_value);
+        bpf_printk(
+            "Blocked IP: %d.%d.%d.%d, prefix length: %d, map value: %d\n",
+            (addr_host >> 24) & 0xFF, (addr_host >> 16) & 0xFF,
+            (addr_host >> 8) & 0xFF, addr_host & 0xFF, key.prefixlen,
+            *match_value);
         return NF_DROP;
     }
     return NF_ACCEPT;

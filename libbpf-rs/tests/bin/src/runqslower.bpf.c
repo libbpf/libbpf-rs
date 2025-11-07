@@ -12,7 +12,7 @@ const volatile pid_t targ_pid = 0;
 const volatile pid_t targ_tgid = 0;
 
 // Dummy instance to get skeleton to generate definition for `struct event`
-struct event _event = { 0 };
+struct event _event = {0};
 
 // Kernel 5.14 changed the state field to __state
 struct task_struct___pre_5_14 {
@@ -109,7 +109,7 @@ int handle__sched_switch(u64 *ctx)
 
     /* output */
     bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
-                  sizeof(event));
+                          sizeof(event));
 
     bpf_map_delete_elem(&start, &pid);
     return 0;

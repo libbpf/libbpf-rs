@@ -1,12 +1,12 @@
 #include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
 
 /* Define constants not captured by BTF */
-#define BPF_F_CURRENT_NETNS    (-1L)
-#define TC_ACT_OK        0
-#define TC_ACT_SHOT        2
-#define ETH_P_IP        (0x0800)
+#define BPF_F_CURRENT_NETNS (-1L)
+#define TC_ACT_OK 0
+#define TC_ACT_SHOT 2
+#define ETH_P_IP (0x0800)
 
 volatile const __be16 target_port = 0;
 volatile const __be32 proxy_addr = 0;
@@ -27,31 +27,31 @@ static inline struct bpf_sock_tuple *get_tuple(struct __sk_buff *skb)
     if (eth + 1 > data_end)
         return NULL;
 
-        /* Only support ipv4 */
+    /* Only support ipv4 */
     if (eth->h_proto != bpf_htons(ETH_P_IP))
         return NULL;
 
     struct iphdr *iph = (struct iphdr *)(data + sizeof(*eth));
     if (iph + 1 > data_end)
-            return NULL;
+        return NULL;
     if (iph->ihl != 5)
-            /* Options are not supported */
-            return NULL;
+        /* Options are not supported */
+        return NULL;
     ihl_len = iph->ihl * 4;
     proto = iph->protocol;
     result = (struct bpf_sock_tuple *)&iph->saddr;
 
-        /* Only support TCP */
+    /* Only support TCP */
     if (proto != IPPROTO_TCP)
         return NULL;
 
     return result;
 }
 
-static inline int
-handle_tcp(struct __sk_buff *skb, struct bpf_sock_tuple *tuple)
+static inline int handle_tcp(struct __sk_buff *skb,
+                             struct bpf_sock_tuple *tuple)
 {
-        struct bpf_sock_tuple server = {};
+    struct bpf_sock_tuple server = {};
     struct bpf_sock *sk;
     const int zero = 0;
     size_t tuple_len;
@@ -61,11 +61,11 @@ handle_tcp(struct __sk_buff *skb, struct bpf_sock_tuple *tuple)
     if ((void *)tuple + tuple_len > (void *)(long)skb->data_end)
         return TC_ACT_SHOT;
 
-        /* Only proxy packets destined for the target port */
+    /* Only proxy packets destined for the target port */
     if (tuple->ipv4.dport != target_port)
         return TC_ACT_OK;
 
-        /* Reuse existing connection if it exists */
+    /* Reuse existing connection if it exists */
     sk = bpf_skc_lookup_tcp(skb, tuple, tuple_len, BPF_F_CURRENT_NETNS, 0);
     if (sk) {
         if (sk->state != BPF_TCP_LISTEN)

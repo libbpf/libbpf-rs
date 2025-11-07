@@ -17,8 +17,7 @@ struct ringbuf_map {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     /* libbpf will adjust to valid page size */
     __uint(max_entries, 1000);
-} ringbuf1 SEC(".maps"),
-  ringbuf2 SEC(".maps");
+} ringbuf1 SEC(".maps"), ringbuf2 SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
@@ -26,10 +25,11 @@ struct {
     __type(key, int);
     __array(values, struct ringbuf_map);
 } ringbuf_arr SEC(".maps") = {
-    .values = {
-        [0] = &ringbuf1,
-        [2] = &ringbuf2,
-    },
+    .values =
+        {
+            [0] = &ringbuf1,
+            [2] = &ringbuf2,
+        },
 };
 
 struct {
@@ -38,9 +38,10 @@ struct {
     __type(key, int);
     __array(values, struct ringbuf_map);
 } ringbuf_hash SEC(".maps") = {
-    .values = {
-        [0] = &ringbuf1,
-    },
+    .values =
+        {
+            [0] = &ringbuf1,
+        },
 };
 
 struct sample nosample = {};

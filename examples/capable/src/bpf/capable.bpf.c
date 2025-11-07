@@ -4,20 +4,20 @@
 
 #include "vmlinux.h"
 #include "capable.h"
+#include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <bpf/bpf_core_read.h>
 
 extern int LINUX_KERNEL_VERSION __kconfig;
 
 const volatile struct {
-    gid_t tgid; //PID to filter
+    gid_t tgid;   // PID to filter
     bool verbose; // Include non audit logs
-    enum uniqueness unique_type; // Only unique info traces for same pid or cgroup
+    enum uniqueness
+        unique_type; // Only unique info traces for same pid or cgroup
 } tool_config = {};
 
-
-struct event _event = {}; //Dummy instance for skeleton to generate definition
+struct event _event = {}; // Dummy instance for skeleton to generate definition
 
 struct unique_key {
     int cap;
@@ -29,19 +29,19 @@ struct {
     __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
     __type(key, u32);
     __type(value, u32);
-} events
-SEC(".maps");
+} events SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 10240);
     __type(key, struct unique_key);
     __type(value, u64);
-} seen
-SEC(".maps");
+} seen SEC(".maps");
 
 static __always_inline int record_cap(void *ctx, const struct cred *cred,
-                                      struct user_namespace *targ_ns, int cap, int cap_opt) {
+                                      struct user_namespace *targ_ns, int cap,
+                                      int cap_opt)
+{
     u64 __pid_tgid = bpf_get_current_pid_tgid();
     gid_t tgid = __pid_tgid >> 32;
     pid_t pid = __pid_tgid;
@@ -67,13 +67,12 @@ static __always_inline int record_cap(void *ctx, const struct cred *cred,
 
     uid_t uid = bpf_get_current_uid_gid();
 
-    struct event event = {
-            .tgid = tgid,
-            .pid = pid,
-            .uid = uid,
-            .cap = cap,
-            .audit = audit,
-            .insetid = insetid};
+    struct event event = {.tgid = tgid,
+                          .pid = pid,
+                          .uid = uid,
+                          .cap = cap,
+                          .audit = audit,
+                          .insetid = insetid};
 
     if (tool_config.unique_type) {
         struct unique_key key = {.cap = cap};
@@ -91,16 +90,17 @@ static __always_inline int record_cap(void *ctx, const struct cred *cred,
     }
 
     bpf_get_current_comm(&event.comm, sizeof(event.comm));
-    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
+                          sizeof(event));
     return 0;
 }
 
 /* bpflint: disable=unstable-attach-point */
 SEC("kprobe/cap_capable")
 int BPF_KPROBE(kprobe__cap_capable, const struct cred *cred,
-               struct user_namespace *targ_ns, int cap, int cap_opt) {
+               struct user_namespace *targ_ns, int cap, int cap_opt)
+{
     return record_cap(ctx, cred, targ_ns, cap, cap_opt);
-
 }
 
 char LICENSE[] SEC("license") = "GPL";

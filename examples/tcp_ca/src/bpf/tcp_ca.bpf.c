@@ -28,13 +28,13 @@ void BPF_PROG(ca_update_2_init, struct sock *sk)
 
 SEC("struct_ops/ca_update_cong_control")
 void BPF_PROG(ca_update_cong_control, struct sock *sk,
-          const struct rate_sample *rs)
+              const struct rate_sample *rs)
 {
 }
 
 SEC("struct_ops/ca_update_cong_control2")
 void BPF_PROG(ca_update_cong_control2, struct sock *sk,
-          const struct rate_sample *rs)
+              const struct rate_sample *rs)
 {
     cong_control = true;
 }

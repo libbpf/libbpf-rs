@@ -252,8 +252,21 @@ jobs:
         with:
           args: '@bpf.c.files'
 
+  bpfcfmt:
+    name: Check BPF C code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: find . -iname "*.bpf.c" -print0 | xargs -0 clang-format -i
+      - name: Check that C header is up-to-date
+        run: git diff --exit-code ||
+               (echo "!!!! BPF C code is inappropriately formatted !!!!" && false)
+
   rustfmt:
-    name: Check code formatting
+    name: Check Rust code formatting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
