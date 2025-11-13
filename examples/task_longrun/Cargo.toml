@@ -11,10 +11,10 @@ vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc
 
 [dependencies]
 anyhow = "1.0"
+blazesym = "0.2"
+clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
 libbpf-rs = { path = "../../libbpf-rs" }
 plain = "0.2"
-clap = { version = "4.0.32", default-features = false, features = ["std", "derive", "help", "usage"] }
-blazesym = "0.2.0-rc.3"
 
 [lints]
 workspace = true
