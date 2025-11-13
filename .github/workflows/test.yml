@@ -146,7 +146,7 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo build --verbose --workspace --exclude runqslower
+        run: cargo build --verbose --workspace --exclude runqslower --exclude task_longrun
 
   build-capable:
     name: Build capable example with static libelf and libz
