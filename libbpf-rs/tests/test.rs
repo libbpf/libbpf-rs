@@ -1651,6 +1651,26 @@ fn test_object_program_insns() {
     assert!(!insns.is_empty());
 }
 
+#[tag(root)]
+#[test]
+fn test_object_program_autoload() {
+    let mut open_obj = open_test_object("kprobe.bpf.o");
+    let prog_name = "handle__kprobe";
+    let mut open_prog = open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == prog_name)
+        .expect("failed to find `handle__kprobe` program");
+
+    assert!(open_prog.autoload());
+    open_prog.set_autoload(false);
+    assert!(!open_prog.autoload());
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, prog_name);
+    assert!(!prog.autoload());
+    assert!(prog.as_fd().as_raw_fd() < 0); // not loaded
+}
+
 /// Check that we can attach a BPF program to a kernel kprobe.
 #[tag(root)]
 #[test]

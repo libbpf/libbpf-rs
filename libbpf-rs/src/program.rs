@@ -351,6 +351,11 @@ impl<'obj> OpenProgram<'obj> {
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
     }
+
+    /// Return `true` if the bpf program is set to autoload, `false` otherwise.
+    pub fn autoload(&self) -> bool {
+        unsafe { libbpf_sys::bpf_program__autoload(self.ptr.as_ptr()) }
+    }
 }
 
 impl<'obj> OpenProgramMut<'obj> {
