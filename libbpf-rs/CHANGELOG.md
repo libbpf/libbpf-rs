@@ -9,6 +9,7 @@ Unreleased
   additional options
 - Added `Program::attach_uprobe_multi` & `Program::attach_uprobe_multi_opts`
   to enable attachments of multi uprobes at once
+- Added `OpenProgram::autoload` getter
 
 
 0.26.0-beta.0
