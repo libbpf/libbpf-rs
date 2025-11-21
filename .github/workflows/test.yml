@@ -45,7 +45,7 @@ jobs:
         tc_var RUSTFLAGS
         tc_var CFLAGS
         tc_var CXXFLAGS
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
@@ -69,7 +69,7 @@ jobs:
     name: Run chosen examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install deps
         run: |
           sudo apt-get update
@@ -102,7 +102,7 @@ jobs:
           #       libbpf and ubuntu 22.04 only has 0.5 (..?)
           #- args: "default-features = false"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install deps
         run: |
           sudo apt-get update
@@ -128,7 +128,7 @@ jobs:
     name: Build using minimum versions of dependencies
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install deps
         run: |
           sudo apt-get update
@@ -152,7 +152,7 @@ jobs:
     name: Build capable example with static libelf and libz
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install deps
         run: |
           sudo apt-get update
@@ -169,7 +169,7 @@ jobs:
     name: Build for aarch64
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Add apt sources for arm64
         run: |
           dpkg --add-architecture arm64
@@ -197,7 +197,7 @@ jobs:
     name: Build for aarch32
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Add apt sources for armhf
         run: |
           dpkg --add-architecture armhf
@@ -225,7 +225,7 @@ jobs:
     name: Lint with clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install deps
         run: |
           sudo apt-get update
@@ -245,7 +245,7 @@ jobs:
     name: Lint .bpf.c files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - run: find . -iname '*.bpf.c' > bpf.c.files
       - name: Linter action test
         uses: d-e-s-o/lint-bpf@v0.1.1
@@ -256,7 +256,7 @@ jobs:
     name: Check BPF C code formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
@@ -269,7 +269,7 @@ jobs:
     name: Check Rust code formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
@@ -281,7 +281,7 @@ jobs:
     env:
       RUSTDOCFLAGS: '-D warnings'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install deps
         run: |
           sudo apt-get update
