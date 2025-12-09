@@ -6,6 +6,7 @@ use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::OsStr;
+use std::io::Read;
 use std::marker::PhantomData;
 use std::mem;
 use std::mem::size_of;
@@ -27,6 +28,7 @@ use std::time::Duration;
 use libbpf_sys::bpf_func_id;
 
 use crate::netfilter;
+use crate::streams::Stream;
 use crate::util;
 use crate::util::validate_bpf_ret;
 use crate::util::BpfObjectType;
@@ -282,6 +284,7 @@ impl From<IterOpts<'_>> for libbpf_sys::bpf_iter_link_info {
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF program.
 pub type OpenProgramMut<'obj> = OpenProgramImpl<'obj, Mut>;
+
 
 /// Represents a parsed but not yet loaded BPF program.
 ///
@@ -759,7 +762,6 @@ pub struct Output<'dat> {
 pub type Program<'obj> = ProgramImpl<'obj>;
 /// A mutable loaded BPF program.
 pub type ProgramMut<'obj> = ProgramImpl<'obj, Mut>;
-
 
 /// Represents a loaded [`Program`].
 ///
@@ -1655,6 +1657,16 @@ impl<'obj> ProgramMut<'obj> {
             _non_exhaustive: (),
         };
         Ok(output)
+    }
+
+    /// Get the stdout BPF stream of the program.
+    pub fn stdout(&self) -> impl Read + '_ {
+        Stream::new(self.as_fd(), Stream::BPF_STDOUT)
+    }
+
+    /// Get the stderr BPF stream of the program.
+    pub fn stderr(&self) -> impl Read + '_ {
+        Stream::new(self.as_fd(), Stream::BPF_STDERR)
     }
 }
 

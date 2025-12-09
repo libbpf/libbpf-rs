@@ -80,6 +80,7 @@ mod program;
 pub mod query;
 mod ringbuf;
 mod skeleton;
+mod streams;
 mod tc;
 mod tracepoint;
 mod user_ringbuf;
