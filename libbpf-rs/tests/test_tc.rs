@@ -1,8 +1,5 @@
 //! Tests for the TC functionality.
 
-#[allow(dead_code)]
-mod common;
-
 use std::os::unix::io::AsFd as _;
 use std::os::unix::io::BorrowedFd;
 

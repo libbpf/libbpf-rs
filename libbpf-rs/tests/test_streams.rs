@@ -1,8 +1,5 @@
 //! Tests for BPF program streams (stdout/stderr).
 
-#[allow(dead_code)]
-mod common;
-
 use std::io::Read;
 
 use libbpf_rs::ProgramInput;
