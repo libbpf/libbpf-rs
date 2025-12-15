@@ -9,6 +9,8 @@ Unreleased
   additional options
 - Added `Program::attach_uprobe_multi` & `Program::attach_uprobe_multi_opts`
   to enable attachments of multi uprobes at once
+- Added `Program::{stdout,stderr}` for accessing BPF stdout and stderr
+  streams
 - Added `OpenProgram::autoload` getter
 
 
