@@ -2,6 +2,12 @@
 
 mod common;
 
+mod test_netfilter;
+mod test_print;
+mod test_streams;
+mod test_tc;
+mod test_xdp;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env::current_exe;

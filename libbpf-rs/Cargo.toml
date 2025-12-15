@@ -11,6 +11,7 @@ description = "libbpf-rs is a safe, idiomatic, and opinionated wrapper around li
 readme = "README.md"
 authors = ["Daniel Xu <dxu@dxuuu.xyz>", "Daniel Müller <deso@posteo.net>"]
 keywords = ["bpf", "ebpf", "libbpf"]
+autotests = false
 
 [badges]
 maintenance = { status = "actively-developed" }
@@ -33,6 +34,9 @@ generate-test-files = ["libbpf-sys/vendored-libbpf", "dep:tempfile"]
 # Disable generation of test files. This feature takes preference over
 # `generate-test-files`.
 dont-generate-test-files = []
+
+[[test]]
+name = "test"
 
 [dependencies]
 bitflags = "2.0"

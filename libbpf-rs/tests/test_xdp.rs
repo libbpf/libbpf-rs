@@ -1,8 +1,5 @@
 //! Tests for the XDP functionality.
 
-#[allow(dead_code)]
-mod common;
-
 use std::os::fd::AsFd;
 
 use scopeguard::defer;
