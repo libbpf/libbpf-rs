@@ -164,11 +164,17 @@ fn is_struct_packed(composite: &types::Composite<'_>, btf: &Btf<'_>) -> Result<b
 /// Given a `current_offset` (in bytes) into a struct and a `required_offset` (in bytes) that
 /// type `type_id` needs to be placed at, returns how much padding must be inserted before
 /// `type_id`.
+///
+/// If `force` is `true`, then padding will be reported even if the
+/// current offset matches the required one, when taking into account
+/// type alignment (this can be necessary for bitfield handling, for
+/// example).
 fn required_padding(
     current_offset: usize,
     required_offset: usize,
     ty: &BtfType<'_>,
     packed: bool,
+    force: bool,
 ) -> Result<usize> {
     ensure!(
         current_offset <= required_offset,
@@ -193,7 +199,7 @@ fn required_padding(
 
     // If we aren't aligning to the natural offset, padding needs to be inserted
     let aligned_offset = (current_offset + align.get() - 1) / align * align.get();
-    if aligned_offset == required_offset {
+    if !force && aligned_offset == required_offset {
         Ok(0)
     } else {
         Ok(required_offset - current_offset)
@@ -776,14 +782,24 @@ impl<'s> GenBtf<'s> {
         let mut impl_default: Vec<String> = Vec::new(); // output for impl Default
         let mut gen_impl_default = false; // whether to output impl Default or use #[derive]
 
+        // An indication as to whether to force emitting of padding
+        // bytes. This is necessary for somewhat sensible handling of
+        // a bitfield that makes up the last member of a struct.
+        let mut force_pad = false;
         let mut offset = 0; // In bytes
         for member in t.iter() {
             let member_offset = match member.attr {
-                MemberAttr::Normal { offset } => offset,
+                MemberAttr::Normal { offset } => {
+                    force_pad = false;
+                    offset
+                }
                 // Bitfields are tricky to get correct, if at all possible. For
                 // now we just skip them, which results in them being covered by
                 // padding bytes.
-                MemberAttr::BitField { .. } => continue,
+                MemberAttr::BitField { .. } => {
+                    force_pad = true;
+                    continue;
+                }
             };
 
             let field_ty = self
@@ -819,6 +835,7 @@ impl<'s> GenBtf<'s> {
                     member_offset as usize / 8,
                     &self.type_by_id::<BtfType<'_>>(member.ty).unwrap(),
                     packed,
+                    false,
                 )?;
 
                 if padding != 0 {
@@ -885,7 +902,7 @@ impl<'s> GenBtf<'s> {
 
         if t.is_struct {
             let struct_size = t.size();
-            let padding = required_padding(offset, struct_size, &t, packed)?;
+            let padding = required_padding(offset, struct_size, &t, packed, force_pad)?;
             if padding != 0 {
                 agg_content.push(format!(r#"    pub __pad_{offset}: [u8; {padding}],"#,));
                 impl_default.push(format!(
@@ -1055,8 +1072,13 @@ impl<'s> GenBtf<'s> {
                 dependent_types.push(next_ty);
             }
 
-            let padding =
-                required_padding(offset as usize, datasec_var.offset as usize, &var, false)?;
+            let padding = required_padding(
+                offset as usize,
+                datasec_var.offset as usize,
+                &var,
+                false,
+                false,
+            )?;
             if padding != 0 {
                 writeln!(def, r#"    __pad_{offset}: [u8; {padding}],"#)?;
             }

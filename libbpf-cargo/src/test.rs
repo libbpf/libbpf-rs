@@ -1589,6 +1589,76 @@ fn test_btf_dump_insane_align() {
 }
 
 #[test]
+fn test_btf_dump_align_trailing_bitfield() {
+    let prog_text = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct Foo {
+            __u8 x;
+            __u32 y : 23;
+        };
+
+        struct Bar {
+            __u8 x;
+            __u32 y : 23;
+        } __attribute__((__packed__));
+
+        struct Baz {
+            __u8 x;
+            __u32 y : 20;
+            __u32 z : 3;
+        };
+
+        struct Foo foo = {};
+        struct Bar bar = {};
+        struct Baz baz = {};
+    "#};
+
+    let expected_foo_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Foo {
+            pub x: u8,
+            pub __pad_1: [u8; 3],
+        }
+    "#};
+
+    // Note that ideally the `repr` would be `packed` as well, but we
+    // have no way of telling that this is the desired outcome based on
+    // the BTF (it is simply identical to the non-packed `Foo`).
+    let expected_bar_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Bar {
+            pub x: u8,
+            pub __pad_1: [u8; 3],
+        }
+    "#};
+
+    let expected_baz_output = indoc! {r#"
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct Baz {
+            pub x: u8,
+            pub __pad_1: [u8; 3],
+        }
+    "#};
+
+    let mmap = build_btf_mmap(prog_text);
+    let btf = btf_from_mmap(&mmap);
+
+    let struct_foo = find_type_in_btf!(btf, types::Struct<'_>, "Foo");
+    assert_definition(&btf, &struct_foo, expected_foo_output);
+
+    let struct_bar = find_type_in_btf!(btf, types::Struct<'_>, "Bar");
+    assert_definition(&btf, &struct_bar, expected_bar_output);
+
+    let struct_baz = find_type_in_btf!(btf, types::Struct<'_>, "Baz");
+    assert_definition(&btf, &struct_baz, expected_baz_output);
+}
+
+#[test]
 fn test_btf_dump_basic_long_array() {
     let prog_text = indoc! {r#"
         #include "vmlinux.h"

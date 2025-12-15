@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Fixed Rust type generation for trailing bitfields in composite C types
 - Allowlisted `libbpf-sys` `1.6.2`
 
 
