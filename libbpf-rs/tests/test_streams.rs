@@ -14,7 +14,7 @@ use crate::common::get_test_object;
 /// runs it, and then attempts to read from the stdout stream.
 #[tag(root)]
 #[test]
-#[ignore = "requires kernel with BPF streams support (6.17+?)"]
+#[ignore = "requires kernel with BPF streams support (6.17+)"]
 fn test_stream_stdout_read() {
     let mut obj = get_test_object("stream.bpf.o");
     let prog = get_prog_mut(&mut obj, "trigger_streams");
@@ -39,7 +39,7 @@ fn test_stream_stdout_read() {
 
 #[tag(root)]
 #[test]
-#[ignore = "requires kernel with BPF streams support (6.17+?)"]
+#[ignore = "requires kernel with BPF streams support (6.17+)"]
 fn test_stream_stderr_read() {
     let mut obj = get_test_object("stream.bpf.o");
     let prog = get_prog_mut(&mut obj, "trigger_streams");

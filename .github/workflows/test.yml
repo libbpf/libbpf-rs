@@ -10,9 +10,17 @@ on:
   workflow_call:
 
 jobs:
+  build-linux-kernel:
+    uses: ./.github/workflows/build-linux.yml
+    secrets: inherit
+    with:
+      rev: v6.18
+      config: 'var/config'
+
   test:
     name: Test [${{ matrix.rust }}, ${{ matrix.profile }}]
     runs-on: ubuntu-24.04
+    needs: [build-linux-kernel]
     strategy:
       fail-fast: false
       matrix:
@@ -62,8 +70,48 @@ jobs:
     - name: Run tests
       # Skip tests which require sudo
       run: cargo test --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower -- --skip ':root:'  --include-ignored
+    - name: Build main.sh
+      env:
+        ARTIFACT_URL: ${{ needs.build-linux-kernel.outputs.kernel-artifact-url }}
+      shell: bash
+      run: |
+        cargo test -p libbpf-rs --profile=${{ matrix.profile }} --locked --no-run 2>&1 | tee /tmp/cargo-build.log
+        tests=$(IFS='' grep Executable /tmp/cargo-build.log |
+          awk '{print $NF}' |
+          sed 's@[()]@@g' |
+          sed 's@.*@\0 --include-ignored -- :root:@'
+        )
+        # Yes, there appears to be no way to just retrieve the
+        # uploaded artifact. One can't use actions/download-artifact
+        # and provide any of the outputs of actions/upload-artifact.
+        # Neither does it seem possible to just download the thing
+        # directly, because contents are unconditionally zipped. Good.
+        # Lord.
+        curl --location \
+          --fail-with-body \
+          --header "Accept: application/vnd.github+json" \
+          --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"\
+          --header "X-GitHub-Api-Version: 2022-11-28" \
+          --output artifact.zip \
+          "${ARTIFACT_URL}"
+        # This unzip will produce the kernel bzImage.
+        unzip artifact.zip
+
+        cat <<EOF > main.sh
+        #!/bin/sh
+        set -e
+        # Perform necessary one-time setup.
+        mount -t bpf bpf /sys/fs/bpf
+        mount -t tracefs tracefs /sys/kernel/tracing
+        ip link set lo up
+        $tests
+        EOF
+        chmod a+x main.sh
     - name: Run root tests
-      run: cd libbpf-rs && cargo test --profile=${{ matrix.profile }} --locked --verbose -- ':root:'
+      uses: danobi/vmtest-action@f8c84191b5925c3290595743fc46eaaafd827bf3
+      with:
+        kernel: bzImage
+        command: sh -c 'cd ${{ github.workspace }} && ./main.sh'
 
   run-examples:
     name: Run chosen examples
