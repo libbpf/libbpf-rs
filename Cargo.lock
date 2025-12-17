@@ -171,7 +171,7 @@ dependencies = [
  "phf",
  "plain",
  "time",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -287,7 +287,7 @@ dependencies = [
  "libbpf-rs",
  "tracing",
  "tracing-subscriber",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -503,7 +503,7 @@ dependencies = [
  "test-log",
  "tracing",
  "tracing-subscriber",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -537,7 +537,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -638,7 +638,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "plain",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=8f91e9fd5b488ff57074e589e3960940f3387830)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -882,7 +882,7 @@ dependencies = [
  "libbpf-rs",
  "libc",
  "plain",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -896,7 +896,7 @@ dependencies = [
  "libc",
  "plain",
  "time",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -1106,7 +1106,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "plain",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -1119,7 +1119,7 @@ dependencies = [
  "libbpf-rs",
  "libc",
  "nix 0.28.0",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -1130,7 +1130,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -1143,7 +1143,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -1264,7 +1264,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "nix 0.28.0",
- "vmlinux 0.0.0 (git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94)",
+ "vmlinux",
 ]
 
 [[package]]
@@ -1338,12 +1338,7 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 [[package]]
 name = "vmlinux"
 version = "0.0.0"
-source = "git+https://github.com/libbpf/vmlinux.h.git?rev=83a228cf37fc65f2d14e4896a04922b5ee531a94#83a228cf37fc65f2d14e4896a04922b5ee531a94"
-
-[[package]]
-name = "vmlinux"
-version = "0.0.0"
-source = "git+https://github.com/libbpf/vmlinux.h.git?rev=8f91e9fd5b488ff57074e589e3960940f3387830#8f91e9fd5b488ff57074e589e3960940f3387830"
+source = "git+https://github.com/libbpf/vmlinux.h.git?rev=991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52#991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52"
 
 [[package]]
 name = "vsprintf"

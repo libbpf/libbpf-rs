@@ -48,7 +48,7 @@ libbpf-sys_restricted = { package = "libbpf-sys", version = ">=1.5.0, <=1.6.2", 
 goblin = "0.9"
 indoc = "2"
 test-log = { version = "0.2.16", default-features = false, features = ["trace"] }
-vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52" }
 
 [lints]
 workspace = true

@@ -7,7 +7,7 @@ license = "LGPL-2.1-only OR BSD-2-Clause"
 
 [build-dependencies]
 libbpf-cargo = { path = "../../libbpf-cargo" }
-vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "83a228cf37fc65f2d14e4896a04922b5ee531a94" }
+vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52" }
 
 [dependencies]
 libbpf-rs = { path = "../../libbpf-rs" }
