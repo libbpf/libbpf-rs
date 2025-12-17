@@ -25,16 +25,9 @@ fn test_stream_stdout_read() {
     let mut stdout = prog.stdout();
     let mut buf = [0u8; 1024];
 
-    // The read itself should succeed and return 0 bytes
     let result = stdout.read(&mut buf);
-    assert!(
-        result.is_ok(),
-        "Failed to read from stdout stream: {:?}",
-        result.err()
-    );
-
-    let len = result.unwrap();
-    assert!(len == 0, "Found {len} characters in stdout stream");
+    let cnt = result.unwrap();
+    assert_eq!(&buf[..cnt], b"stdout");
 }
 
 #[tag(root)]
@@ -50,13 +43,7 @@ fn test_stream_stderr_read() {
     let mut stderr = prog.stderr();
     let mut buf = [0u8; 1024];
 
-    // The read should successfully read a non-zero amount of bytes
     let result = stderr.read(&mut buf);
-    assert!(
-        result.is_ok(),
-        "Failed to read from stderr stream: {:?}",
-        result.err()
-    );
-
-    assert!(result.unwrap() != 0, "No output from stderr stream");
+    let cnt = result.unwrap();
+    assert_eq!(&buf[..cnt], b"stderr");
 }
