@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-linux-kernel:
-    uses: ./.github/workflows/build-linux.yml
+    uses: libbpf/github-actions/.github/workflows/build-linux.yml@bd7fc70260c9ab81801001fcd86ba94070b34e5d
     secrets: inherit
     with:
       rev: v6.18
