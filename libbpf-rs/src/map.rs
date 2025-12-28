@@ -311,8 +311,14 @@ where
     key.as_ptr() as *const c_void
 }
 
-/// Internal function to return a value from a map into a buffer of the given size.
-fn lookup_raw<M>(map: &M, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>>
+/// Internal function to perform a map lookup and write the value into raw pointer.
+/// Returns `Ok(true)` if the key was found, `Ok(false)` if not found, or an error.
+fn lookup_raw<M>(
+    map: &M,
+    key: &[u8],
+    value: &mut [mem::MaybeUninit<u8>],
+    flags: MapFlags,
+) -> Result<bool>
 where
     M: MapCore + ?Sized,
 {
@@ -322,31 +328,62 @@ where
             key.len(),
             map.key_size()
         )));
-    };
+    }
 
-    let mut out: Vec<u8> = Vec::with_capacity(out_size);
+    // Make sure the internal users of this function pass the expected buffer size
+    debug_assert_eq!(
+        value.len(),
+        if map.map_type().is_percpu() {
+            percpu_buffer_size(map).unwrap()
+        } else {
+            map.value_size() as usize
+        }
+    );
 
     let ret = unsafe {
         libbpf_sys::bpf_map_lookup_elem_flags(
             map.as_fd().as_raw_fd(),
             map_key(map, key),
-            out.as_mut_ptr() as *mut c_void,
+            // TODO: Use `MaybeUninit::slice_as_mut_ptr` once stable.
+            value.as_mut_ptr().cast(),
             flags.bits(),
         )
     };
 
     if ret == 0 {
-        unsafe {
-            out.set_len(out_size);
-        }
-        Ok(Some(out))
+        Ok(true)
     } else {
         let err = io::Error::last_os_error();
         if err.kind() == io::ErrorKind::NotFound {
-            Ok(None)
+            Ok(false)
         } else {
             Err(Error::from(err))
         }
+    }
+}
+
+/// Internal function to return a value from a map into a buffer of the given size.
+fn lookup_raw_vec<M>(
+    map: &M,
+    key: &[u8],
+    flags: MapFlags,
+    out_size: usize,
+) -> Result<Option<Vec<u8>>>
+where
+    M: MapCore + ?Sized,
+{
+    // Allocate without initializing (avoiding memset)
+    let mut out = Vec::with_capacity(out_size);
+
+    match lookup_raw(map, key, out.spare_capacity_mut(), flags)? {
+        true => {
+            // SAFETY: `lookup_raw` successfully filled the buffer
+            unsafe {
+                out.set_len(out_size);
+            }
+            Ok(Some(out))
+        }
+        false => Ok(None),
     }
 }
 
@@ -480,7 +517,40 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         check_not_bloom_or_percpu(self)?;
         let out_size = self.value_size() as usize;
-        lookup_raw(self, key, flags, out_size)
+        lookup_raw_vec(self, key, flags, out_size)
+    }
+
+    /// Looks up a map value into a pre-allocated buffer, avoiding allocation.
+    ///
+    /// This method provides a zero-allocation alternative to [`Self::lookup()`].
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements.
+    /// `value` must have exactly [`Self::value_size()`] elements.
+    ///
+    /// Returns `Ok(true)` if the key was found and the buffer was filled,
+    /// `Ok(false)` if the key was not found, or an error.
+    ///
+    /// If the map is one of the per-cpu data structures, this function cannot be used.
+    /// If the map is of type `bloom_filter`, this function cannot be used.
+    fn lookup_into(&self, key: &[u8], value: &mut [u8], flags: MapFlags) -> Result<bool> {
+        check_not_bloom_or_percpu(self)?;
+
+        if value.len() != self.value_size() as usize {
+            return Err(Error::with_invalid_data(format!(
+                "value buffer size {} != {}",
+                value.len(),
+                self.value_size()
+            )));
+        }
+
+        // SAFETY: `u8` and `MaybeUninit<u8>` have the same in-memory representation.
+        let value = unsafe {
+            slice::from_raw_parts_mut::<mem::MaybeUninit<u8>>(
+                value.as_mut_ptr().cast(),
+                value.len(),
+            )
+        };
+        lookup_raw(self, key, value, flags)
     }
 
     /// Returns many elements in batch mode from the map.
@@ -548,7 +618,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         let aligned_val_size = percpu_aligned_value_size(self);
         let out_size = percpu_buffer_size(self)?;
 
-        let raw_res = lookup_raw(self, key, flags, out_size)?;
+        let raw_res = lookup_raw_vec(self, key, flags, out_size)?;
         if let Some(raw_vals) = raw_res {
             let mut out = Vec::new();
             for chunk in raw_vals.chunks_exact(aligned_val_size) {

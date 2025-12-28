@@ -669,6 +669,90 @@ fn test_object_map_mutation() {
 
 #[tag(root)]
 #[test]
+fn test_object_map_lookup_into() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    // Insert a test value
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    // Test successful lookup with pre-allocated buffer
+    let mut value = [0u8; 8];
+    let found = start
+        .lookup_into(&[1, 2, 3, 4], &mut value, MapFlags::empty())
+        .expect("failed to lookup_into");
+
+    assert!(found, "key should be found");
+    assert_eq!(value, [1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // Test lookup of non-existent key
+    let mut value2 = [0u8; 8];
+    let found2 = start
+        .lookup_into(&[5, 6, 7, 8], &mut value2, MapFlags::empty())
+        .expect("failed to lookup_into for non-existent key");
+
+    assert!(!found2, "key should not be found");
+    // Buffer should remain unchanged when key is not found
+    assert_eq!(value2, [0u8; 8]);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_into_wrong_size() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    // Insert a test value
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    // Test with wrong buffer size (too small)
+    let mut value_small = [0u8; 4];
+    let result = start.lookup_into(&[1, 2, 3, 4], &mut value_small, MapFlags::empty());
+    assert!(result.is_err(), "should fail with wrong buffer size");
+
+    // Test with wrong buffer size (too large)
+    let mut value_large = [0u8; 16];
+    let result = start.lookup_into(&[1, 2, 3, 4], &mut value_large, MapFlags::empty());
+    assert!(result.is_err(), "should fail with wrong buffer size");
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_into_consistency() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    // Insert a test value
+    let test_value = [10, 20, 30, 40, 50, 60, 70, 80];
+    start
+        .update(&[1, 2, 3, 4], &test_value, MapFlags::empty())
+        .expect("failed to write");
+
+    // Compare results from lookup() and lookup_into()
+    let lookup_result = start
+        .lookup(&[1, 2, 3, 4], MapFlags::empty())
+        .expect("failed to lookup")
+        .expect("key not found");
+
+    let mut value_buffer = [0u8; 8];
+    let found = start
+        .lookup_into(&[1, 2, 3, 4], &mut value_buffer, MapFlags::empty())
+        .expect("failed to lookup_into");
+
+    assert!(found, "key should be found");
+    assert_eq!(
+        lookup_result.as_slice(),
+        &value_buffer,
+        "lookup() and lookup_into() should return the same value"
+    );
+}
+
+#[tag(root)]
+#[test]
 fn test_object_map_lookup_flags() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
