@@ -12,6 +12,8 @@ Unreleased
 - Added `Program::{stdout,stderr}` for accessing BPF stdout and stderr
   streams
 - Added `OpenProgram::autoload` getter
+- Added `MapCore::lookup_into` for looking up values into preallocated
+  buffers
 
 
 0.26.0-beta.0
