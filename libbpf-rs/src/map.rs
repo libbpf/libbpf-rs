@@ -971,7 +971,7 @@ impl AsRawLibbpf for Map<'_> {
 
 /// A handle to a map. Handles can be duplicated and dropped.
 ///
-/// While possible to [created directly][MapHandle::create], in many cases it is
+/// While possible to [create directly][MapHandle::create], in many cases it is
 /// useful to create such a handle from an existing [`Map`]:
 /// ```no_run
 /// # use libbpf_rs::Map;
