@@ -99,6 +99,7 @@ pub use crate::error::Result;
 pub use crate::iter::Iter;
 pub use crate::link::Link;
 pub use crate::linker::Linker;
+pub use crate::map::BatchedMapIter;
 pub use crate::map::Map;
 pub use crate::map::MapCore;
 pub use crate::map::MapFlags;
