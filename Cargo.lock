@@ -106,9 +106,9 @@ checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "blazesym"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ace0ab71bbe9a25cb82f6d0e513ae11aebd1a38787664475bb2ed5cbe2329736"
+checksum = "b4d16cee5b1fd47505fd901363ec3a87382232d5c41832de7232b48071b1f38a"
 dependencies = [
  "cpp_demangle",
  "gimli",
@@ -620,9 +620,9 @@ dependencies = [
 
 [[package]]
 name = "miniz_oxide"
-version = "0.8.8"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3be647b768db090acb35d5ec5db2b0e1f1de11133ca123b9eacf5137868f892a"
+checksum = "5faa9f23e86bd5768d76def086192ff5f869fb088da12a976ea21e9796b975f6"
 dependencies = [
  "adler2",
  "simd-adler32",
