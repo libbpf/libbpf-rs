@@ -293,7 +293,7 @@ impl<'btf> Btf<'btf> {
     /// Gets a string at a given offset.
     ///
     /// Returns [`None`] when the offset is out of bounds or if the name is empty.
-    fn name_at(&self, offset: u32) -> Option<&OsStr> {
+    fn name_at(&self, offset: u32) -> Option<&'btf OsStr> {
         let name = unsafe {
             // SAFETY:
             // Assuming that btf is a valid pointer, this is always okay to call.
