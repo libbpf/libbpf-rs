@@ -860,6 +860,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
         use libbpf_rs::skel::SkelBuilder;
         use libbpf_rs::AsRawLibbpf as _;
         use libbpf_rs::MapCore as _;
+        use libbpf_rs::ObjectBuilder;
         "
     )?;
 
@@ -983,7 +984,15 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
                 self,
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
             ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
-                self.open_opts_impl(std::ptr::null(), object)
+                // Only produce a pointer to our custom open opts object
+                // if customizations have been made. This works around a
+                // bug in older versions of libbpf.
+                let opts = if self.obj_builder.ne(&ObjectBuilder::default()) {{
+                    self.obj_builder.as_libbpf_object().as_ptr().cast_const()
+                }} else {{
+                    std::ptr::null()
+                }};
+                self.open_opts_impl(opts, object)
             }}
 
             fn open_opts(
