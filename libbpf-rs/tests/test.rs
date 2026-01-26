@@ -2516,16 +2516,18 @@ fn test_map_pinned_status_with_pin_root_path() {
         .expect("failed to open object")
         .load()
         .expect("failed to load object");
+    let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
+
+    defer! {
+      let _unused = fs::remove_file(expected_path);
+      let _unused = fs::remove_dir("/sys/fs/bpf/test_namespace");
+    }
 
     let map = get_map_mut(&mut obj, "auto_pin_map");
     let is_pinned = map.is_pinned();
     assert!(is_pinned);
-    let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
     let get_path = map.get_pin_path().expect("get map pin path failed");
     assert_eq!(expected_path, get_path.to_str().unwrap());
-    // cleanup
-    let _unused = fs::remove_file(expected_path);
-    let _unused = fs::remove_dir("/sys/fs/bpf/test_namespace");
 }
 
 /// Check that we can get program fd by id and vice versa.
