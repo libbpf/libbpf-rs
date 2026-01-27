@@ -59,6 +59,7 @@ probe = "0.3"
 scopeguard = "1.1"
 serial_test = { version = "3.0", default-features = false }
 tempfile = "3.3"
+test-fork = "0.1"
 test-tag = "0.1"
 
 # A set of unused dependencies that we require to force correct minimum versions

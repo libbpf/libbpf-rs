@@ -1,9 +1,7 @@
-//! This test is in its own file because the underlying `libbpf_set_print` function used by
-//! `set_print()` and `ObjectBuilder::debug()` sets global state. The default is to run multiple
-//! tests in different threads, so this test will always race with the others unless its isolated to
-//! a different process.
-//!
-//! For the same reason, all tests here must run serially.
+// Note that the `libbpf_set_print` function underlying `set_print()`
+// and `ObjectBuilder::debug()` sets global state. To prevent issues
+// with tests loading objects and similar we run print tests in separate
+// processes.
 
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -13,10 +11,12 @@ use libbpf_rs::set_print;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::PrintCallback;
 use libbpf_rs::PrintLevel;
-use serial_test::serial;
 
+use test_fork::fork;
+
+
+#[fork]
 #[test]
-#[serial]
 fn test_set_print() {
     static CORRECT_LEVEL: AtomicBool = AtomicBool::new(false);
     static CORRECT_MESSAGE: AtomicBool = AtomicBool::new(false);
@@ -42,8 +42,8 @@ fn test_set_print() {
     assert!(correct_message, "Did not capture the correct message");
 }
 
+#[fork]
 #[test]
-#[serial]
 fn test_set_restore_print() {
     fn callback1(_: PrintLevel, _: String) {
         println!("one");
@@ -61,8 +61,8 @@ fn test_set_restore_print() {
     assert_eq!(prev, Some((PrintLevel::Debug, callback2 as PrintCallback)));
 }
 
+#[fork]
 #[test]
-#[serial]
 fn test_set_and_save_print() {
     fn callback1(_: PrintLevel, _: String) {
         println!("one");
