@@ -525,6 +525,7 @@ dependencies = [
  "scopeguard",
  "serial_test",
  "tempfile",
+ "test-fork",
  "test-tag",
  "vsprintf",
 ]
@@ -1151,6 +1152,33 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.61.0",
+]
+
+[[package]]
+name = "test-fork"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09f0a9bb71b4a8a0f9c8d73babc8485fef8edbddcba52a6994f08010c817cf88"
+dependencies = [
+ "test-fork-core",
+ "test-fork-macros",
+]
+
+[[package]]
+name = "test-fork-core"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5ffda5a1ceaccc77ec98edbbb372e26d64fda679b3c5763e03f6d949be5cb99"
+
+[[package]]
+name = "test-fork-macros"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f89d30719f772502bbed7e1613f7613b7cfc16609708be2c4a8a0c236b2ec5d2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
