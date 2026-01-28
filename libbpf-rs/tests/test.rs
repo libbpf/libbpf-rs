@@ -142,6 +142,26 @@ fn test_object_name() {
 
 #[tag(root)]
 #[test]
+fn test_valid_btf_custom_path() {
+    let obj_path = get_test_object_path("runqslower.bpf.o");
+    let mut builder = ObjectBuilder::default();
+    builder.btf_custom_path("/sys/kernel/btf/vmlinux").unwrap();
+    let obj = builder.open_file(obj_path).expect("failed to build object");
+    obj.load().expect("failed to load object");
+}
+
+#[tag(root)]
+#[test]
+fn test_invalid_btf_custom_path() {
+    let obj_path = get_test_object_path("runqslower.bpf.o");
+    let mut builder = ObjectBuilder::default();
+    builder.btf_custom_path("/").unwrap();
+    let obj = builder.open_file(obj_path).expect("failed to build object");
+    assert!(obj.load().is_err());
+}
+
+#[tag(root)]
+#[test]
 fn test_object_maps() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let _map = get_map_mut(&mut obj, "start");
