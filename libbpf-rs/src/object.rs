@@ -106,6 +106,7 @@ pub trait AsRawLibbpf {
 pub struct ObjectBuilder {
     name: Option<CString>,
     pin_root_path: Option<CString>,
+    btf_custom_path: Option<CString>,
 
     opts: OnceCell<libbpf_sys::bpf_object_open_opts>,
 }
@@ -115,6 +116,7 @@ impl Default for ObjectBuilder {
         Self {
             name: None,
             pin_root_path: None,
+            btf_custom_path: None,
             opts: OnceCell::new(),
         }
     }
@@ -125,6 +127,7 @@ impl PartialEq for ObjectBuilder {
         let Self {
             name,
             pin_root_path,
+            btf_custom_path,
             opts,
         } = self;
 
@@ -135,6 +138,7 @@ impl PartialEq for ObjectBuilder {
             && other.opts.get().is_none()
             && name == &other.name
             && pin_root_path == &other.pin_root_path
+            && btf_custom_path == &other.btf_custom_path
     }
 }
 
@@ -166,6 +170,19 @@ impl ObjectBuilder {
         self.pin_root_path = Some(util::path_to_cstring(path)?);
         self.opts_mut().pin_root_path = self
             .pin_root_path
+            .as_ref()
+            .map_or(ptr::null(), |p| p.as_ptr());
+        Ok(self)
+    }
+
+    /// Set the `btf_custom_path`.
+    ///
+    /// By default, no path is set and libbpf probes to find the BTF file in a set
+    /// of well-known paths.
+    pub fn btf_custom_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {
+        self.btf_custom_path = Some(util::path_to_cstring(path)?);
+        self.opts_mut().btf_custom_path = self
+            .btf_custom_path
             .as_ref()
             .map_or(ptr::null(), |p| p.as_ptr());
         Ok(self)

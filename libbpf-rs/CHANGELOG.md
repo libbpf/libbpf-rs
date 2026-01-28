@@ -17,6 +17,7 @@ Unreleased
   buffers
 - Added `verified_insns` attribute to `query::ProgramInfo` type
 - Made `query::ProgramInfo` non-exhaustive
+- Added `ObjectBuilder::btf_custom_path` setter
 
 
 0.26.0-beta.0
