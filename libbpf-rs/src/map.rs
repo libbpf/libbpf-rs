@@ -106,6 +106,11 @@ impl<'obj> OpenMap<'obj> {
     pub fn max_entries(&self) -> u32 {
         unsafe { libbpf_sys::bpf_map__max_entries(self.ptr.as_ptr()) }
     }
+
+    /// Return `true` if the map is set to be auto-created during load, `false` otherwise.
+    pub fn autocreate(&self) -> bool {
+        unsafe { libbpf_sys::bpf_map__autocreate(self.ptr.as_ptr()) }
+    }
 }
 
 impl<'obj> OpenMapMut<'obj> {
@@ -917,6 +922,11 @@ impl<'obj> Map<'obj> {
         }
         let path_c_str = unsafe { CStr::from_ptr(path_ptr) };
         Some(OsStr::from_bytes(path_c_str.to_bytes()))
+    }
+
+    /// Return `true` if the map was set to be auto-created during load, `false` otherwise.
+    pub fn autocreate(&self) -> bool {
+        unsafe { libbpf_sys::bpf_map__autocreate(self.ptr.as_ptr()) }
     }
 }
 

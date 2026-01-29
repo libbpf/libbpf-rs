@@ -2557,6 +2557,46 @@ fn test_map_autocreate_disable() {
     open_obj.load().expect("failed to load object");
 }
 
+/// Check that `autocreate()` getter works on `OpenMap` and `Map`.
+#[tag(root)]
+#[test]
+fn test_map_autocreate_getter() {
+    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
+
+    // OpenMap: autocreate=true by default
+    let map = open_obj
+        .maps()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    assert!(map.autocreate());
+
+    // OpenMap: autocreate=false after set_autocreate(false)
+    let mut map = open_obj
+        .maps_mut()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    map.set_autocreate(false).expect("set_autocreate() failed");
+    assert!(!map.autocreate());
+
+    let obj = open_obj.load().expect("failed to load object");
+
+    // Map (post-load): autocreate=false (the map wasn't created, but we can still query)
+    let map = obj
+        .maps()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    assert!(!map.autocreate());
+
+    // Test autocreate=true post-load with a fresh object
+    let open_obj2 = open_test_object("map_auto_pin.bpf.o");
+    let obj2 = open_obj2.load().expect("failed to load object");
+    let map = obj2
+        .maps()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    assert!(map.autocreate());
+}
+
 /// Check that we can adjust a map's value size.
 #[tag(root)]
 #[test]
