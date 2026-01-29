@@ -161,7 +161,7 @@ impl ObjectBuilder {
 
     /// Set the `pin_root_path` for maps that are pinned by name.
     ///
-    /// By default, this is NULL which bpf translates to /sys/fs/bpf
+    /// By default no path is set, which causes BPF to use `/sys/fs/bpf`.
     pub fn pin_root_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {
         self.pin_root_path = Some(util::path_to_cstring(path)?);
         self.opts_mut().pin_root_path = self
