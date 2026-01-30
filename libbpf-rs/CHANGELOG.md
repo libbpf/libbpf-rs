@@ -14,6 +14,7 @@ Unreleased
 - Added `OpenProgram::autoload` getter
 - Added `MapCore::lookup_into` for looking up values into preallocated
   buffers
+- Added `ObjectBuilder::btf_custom_path` setter
 
 
 0.26.0-beta.0
