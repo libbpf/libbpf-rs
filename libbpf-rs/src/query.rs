@@ -182,6 +182,9 @@ pub struct ProgramInfo {
     pub recursion_misses: u64,
     /// Number of instructions that were verified by the verifier.
     pub verified_insns: u32,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// An iterator for the information of loaded bpf programs.
@@ -423,6 +426,7 @@ impl ProgramInfo {
             run_cnt: item.run_cnt,
             recursion_misses: item.recursion_misses,
             verified_insns: item.verified_insns,
+            _non_exhaustive: (),
         })
     }
 }
