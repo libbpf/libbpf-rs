@@ -109,7 +109,7 @@ pub struct LineInfo {
 
 impl From<&libbpf_sys::bpf_line_info> for LineInfo {
     fn from(item: &libbpf_sys::bpf_line_info) -> Self {
-        LineInfo {
+        Self {
             insn_off: item.insn_off,
             file_name_off: item.file_name_off,
             line_off: item.line_off,
@@ -398,7 +398,7 @@ impl ProgramInfo {
         };
         util::parse_ret(ret)?;
 
-        Ok(ProgramInfo {
+        Ok(Self {
             name: name.to_owned(),
             ty,
             tag: Tag(item.tag),
@@ -570,7 +570,7 @@ impl BtfInfo {
         };
         util::parse_ret(ret)?;
 
-        Ok(BtfInfo {
+        Ok(Self {
             // SANITY: Our buffer contained space for a NUL byte and we set its
             //         contents to 0. Barring a `libbpf` bug a NUL byte will be
             //         present.

@@ -81,9 +81,9 @@ impl FromStr for uniqueness {
     fn from_str(unq_type: &str) -> Result<Self, Self::Err> {
         let unq_type_lower: &str = &unq_type.to_lowercase();
         match unq_type_lower {
-            "off" => Ok(uniqueness::UNQ_OFF),
-            "pid" => Ok(uniqueness::UNQ_PID),
-            "cgroup" => Ok(uniqueness::UNQ_CGROUP),
+            "off" => Ok(Self::UNQ_OFF),
+            "pid" => Ok(Self::UNQ_PID),
+            "cgroup" => Ok(Self::UNQ_CGROUP),
             _ => Err("Use 1 for pid (default), 2 for cgroups"),
         }
     }

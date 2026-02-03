@@ -302,7 +302,7 @@ impl From<u32> for Linkage {
 
 impl From<Linkage> for u32 {
     fn from(value: Linkage) -> Self {
-        value as u32
+        value as Self
     }
 }
 
@@ -312,10 +312,10 @@ impl Display for Linkage {
             f,
             "{}",
             match self {
-                Linkage::Static => "static",
-                Linkage::Global => "global",
-                Linkage::Extern => "extern",
-                Linkage::Unknown => "(unknown)",
+                Self::Static => "static",
+                Self::Global => "global",
+                Self::Extern => "extern",
+                Self::Unknown => "(unknown)",
             }
         )
     }

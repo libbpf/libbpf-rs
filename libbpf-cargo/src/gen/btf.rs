@@ -652,7 +652,7 @@ impl Debug for GenBtf<'_> {
 }
 
 impl<'s> From<Btf<'s>> for GenBtf<'s> {
-    fn from(btf: Btf<'s>) -> GenBtf<'s> {
+    fn from(btf: Btf<'s>) -> Self {
         Self {
             btf,
             type_map: Default::default(),
