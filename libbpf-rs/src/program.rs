@@ -102,7 +102,7 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
             _non_exhaustive,
         } = opts;
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_usdt_opts {
+        Self {
             sz: size_of::<Self>() as _,
             usdt_cookie: cookie,
             // bpf_usdt_opts might have padding fields on some platform
@@ -128,7 +128,7 @@ impl From<KprobeOpts> for libbpf_sys::bpf_kprobe_opts {
         } = opts;
 
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_kprobe_opts {
+        Self {
             sz: size_of::<Self>() as _,
             bpf_cookie: cookie,
             // bpf_kprobe_opts might have padding fields on some platform
@@ -170,7 +170,7 @@ impl From<PerfEventOpts> for libbpf_sys::bpf_perf_event_opts {
         } = opts;
 
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_perf_event_opts {
+        Self {
             sz: size_of::<Self>() as _,
             bpf_cookie: cookie,
             force_ioctl_attach,
@@ -254,7 +254,7 @@ pub enum IterOpts<'fd> {
 
 impl From<IterOpts<'_>> for libbpf_sys::bpf_iter_link_info {
     fn from(opts: IterOpts) -> Self {
-        let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
+        let mut linkinfo = Self::default();
         match opts {
             IterOpts::Map(map_opts) => {
                 let MapIterOpts {

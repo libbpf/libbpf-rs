@@ -113,7 +113,7 @@ impl Default for SkeletonBuilder {
 impl SkeletonBuilder {
     /// Create a new [`SkeletonBuilder`].
     pub fn new() -> Self {
-        SkeletonBuilder {
+        Self {
             source: None,
             obj: None,
             clang: None,
@@ -126,7 +126,7 @@ impl SkeletonBuilder {
     /// Point the [`SkeletonBuilder`] to a source file for compilation
     ///
     /// Default is None
-    pub fn source<P: AsRef<Path>>(&mut self, source: P) -> &mut SkeletonBuilder {
+    pub fn source<P: AsRef<Path>>(&mut self, source: P) -> &mut Self {
         self.source = Some(source.as_ref().to_path_buf());
         self
     }
@@ -134,7 +134,7 @@ impl SkeletonBuilder {
     /// Point the [`SkeletonBuilder`] to an object file for generation
     ///
     /// Default is None
-    pub fn obj<P: AsRef<Path>>(&mut self, obj: P) -> &mut SkeletonBuilder {
+    pub fn obj<P: AsRef<Path>>(&mut self, obj: P) -> &mut Self {
         self.obj = Some(obj.as_ref().to_path_buf());
         self
     }
@@ -142,7 +142,7 @@ impl SkeletonBuilder {
     /// Specify which `clang` binary to use
     ///
     /// Default searches `$PATH` for `clang`
-    pub fn clang<P: AsRef<Path>>(&mut self, clang: P) -> &mut SkeletonBuilder {
+    pub fn clang<P: AsRef<Path>>(&mut self, clang: P) -> &mut Self {
         self.clang = Some(clang.as_ref().to_path_buf());
         self
     }
@@ -163,7 +163,7 @@ impl SkeletonBuilder {
     ///     .build_and_generate("/output/path")
     ///     .unwrap();
     /// ```
-    pub fn clang_args<A, S>(&mut self, args: A) -> &mut SkeletonBuilder
+    pub fn clang_args<A, S>(&mut self, args: A) -> &mut Self
     where
         A: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
@@ -178,7 +178,7 @@ impl SkeletonBuilder {
     /// Specify which `rustfmt` binary to use
     ///
     /// Default searches `$PATH` for `rustfmt`
-    pub fn rustfmt<P: AsRef<Path>>(&mut self, rustfmt: P) -> &mut SkeletonBuilder {
+    pub fn rustfmt<P: AsRef<Path>>(&mut self, rustfmt: P) -> &mut Self {
         self.rustfmt = rustfmt.as_ref().to_path_buf();
         self
     }

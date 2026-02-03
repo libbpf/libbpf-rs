@@ -849,6 +849,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path) -> Result<String>
         #[allow(non_camel_case_types)]
         #[allow(clippy::absolute_paths)]
         #[allow(clippy::upper_case_acronyms)]
+        #[allow(clippy::use_self)]
         #[allow(clippy::zero_repeat_side_effects)]
         #[warn(single_use_lifetimes)]
         mod imp {{

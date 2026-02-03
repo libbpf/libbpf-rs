@@ -30,7 +30,7 @@ impl Link {
     ///
     /// `ptr` must point to a correctly initialized [`libbpf_sys::bpf_link`].
     pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_link>) -> Self {
-        Link { ptr }
+        Self { ptr }
     }
 
     /// Create link from BPF FS file.

@@ -25,7 +25,7 @@ impl<'a> Stream<'a> {
     pub(crate) const BPF_STDERR: u32 = 2;
 
     /// Create a new Stream instance.
-    pub(crate) fn new(prog_fd: fd::BorrowedFd<'a>, stream_id: u32) -> Stream<'a> {
+    pub(crate) fn new(prog_fd: fd::BorrowedFd<'a>, stream_id: u32) -> Self {
         Stream { prog_fd, stream_id }
     }
 }

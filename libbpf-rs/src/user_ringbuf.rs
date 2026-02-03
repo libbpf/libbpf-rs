@@ -92,7 +92,7 @@ impl UserRingBuffer {
             io::Error::last_os_error()
         })?;
 
-        Ok(UserRingBuffer { ptr })
+        Ok(Self { ptr })
     }
 
     /// Reserve a sample in the user ring buffer.

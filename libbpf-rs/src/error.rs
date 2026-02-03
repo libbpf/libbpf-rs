@@ -104,11 +104,11 @@ enum ErrorImpl {
     // enough.
     ContextOwned {
         context: Box<str>,
-        source: Box<ErrorImpl>,
+        source: Box<Self>,
     },
     ContextStatic {
         context: &'static str,
-        source: Box<ErrorImpl>,
+        source: Box<Self>,
     },
 }
 
@@ -440,7 +440,7 @@ pub trait ErrorExt: private::Sealed {
 }
 
 impl ErrorExt for Error {
-    type Output = Error;
+    type Output = Self;
 
     fn context<C>(self, context: C) -> Self::Output
     where

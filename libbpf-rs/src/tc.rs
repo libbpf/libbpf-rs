@@ -57,7 +57,7 @@ impl TcHook {
     /// Create a new [`TcHook`] given the file descriptor of the loaded
     /// `SEC("tc")` [`Program`][crate::Program].
     pub fn new(fd: BorrowedFd<'_>) -> Self {
-        let mut tc_hook = TcHook {
+        let mut tc_hook = Self {
             hook: libbpf_sys::bpf_tc_hook::default(),
             opts: libbpf_sys::bpf_tc_opts::default(),
         };

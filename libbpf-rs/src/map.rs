@@ -1257,10 +1257,10 @@ where
     }
 }
 
-impl TryFrom<&MapHandle> for MapHandle {
+impl TryFrom<&Self> for MapHandle {
     type Error = Error;
 
-    fn try_from(other: &MapHandle) -> Result<Self> {
+    fn try_from(other: &Self) -> Result<Self> {
         Ok(Self {
             fd: other
                 .as_fd()
@@ -1446,10 +1446,7 @@ impl MapType {
     pub fn is_percpu(&self) -> bool {
         matches!(
             self,
-            MapType::PercpuArray
-                | MapType::PercpuHash
-                | MapType::LruPercpuHash
-                | MapType::PercpuCgroupStorage
+            Self::PercpuArray | Self::PercpuHash | Self::LruPercpuHash | Self::PercpuCgroupStorage
         )
     }
 
@@ -1457,19 +1454,19 @@ impl MapType {
     pub fn is_hash_map(&self) -> bool {
         matches!(
             self,
-            MapType::Hash | MapType::PercpuHash | MapType::LruHash | MapType::LruPercpuHash
+            Self::Hash | Self::PercpuHash | Self::LruHash | Self::LruPercpuHash
         )
     }
 
     /// Returns if the map is keyless map type as per documentation of libbpf
     /// Keyless map types are: Queues, Stacks and Bloom Filters
     fn is_keyless(&self) -> bool {
-        matches!(self, MapType::Queue | MapType::Stack | MapType::BloomFilter)
+        matches!(self, Self::Queue | Self::Stack | Self::BloomFilter)
     }
 
     /// Returns if the map is of bloom filter type
     pub fn is_bloom_filter(&self) -> bool {
-        MapType::BloomFilter.eq(self)
+        Self::BloomFilter.eq(self)
     }
 
     /// Detects if host kernel supports this BPF map type.
@@ -1530,7 +1527,7 @@ impl From<u32> for MapType {
 
 impl From<MapType> for u32 {
     fn from(value: MapType) -> Self {
-        value as u32
+        value as Self
     }
 }
 

@@ -56,7 +56,7 @@ impl From<NetfilterOpts> for libbpf_sys::bpf_netfilter_opts {
         } = opts;
 
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_netfilter_opts {
+        Self {
             sz: size_of::<Self>() as _,
             pf: protocol_family as u32,
             hooknum: hooknum as u32,
