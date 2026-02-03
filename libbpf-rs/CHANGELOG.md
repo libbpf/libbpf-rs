@@ -16,6 +16,7 @@ Unreleased
 - Added `MapCore::lookup_into` for looking up values into preallocated
   buffers
 - Added `verified_insns` attribute to `query::ProgramInfo` type
+- Made `query::ProgramInfo` non-exhaustive
 
 
 0.26.0-beta.0
