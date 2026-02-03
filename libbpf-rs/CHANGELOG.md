@@ -15,6 +15,7 @@ Unreleased
 - Added `OpenMap::autocreate` and `Map::autocreate` getters
 - Added `MapCore::lookup_into` for looking up values into preallocated
   buffers
+- Added `verified_insns` attribute to `query::ProgramInfo` type
 
 
 0.26.0-beta.0

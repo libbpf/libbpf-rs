@@ -180,6 +180,8 @@ pub struct ProgramInfo {
     pub run_cnt: u64,
     /// Skipped BPF executions due to recursion or concurrent execution prevention.
     pub recursion_misses: u64,
+    /// Number of instructions that were verified by the verifier.
+    pub verified_insns: u32,
 }
 
 /// An iterator for the information of loaded bpf programs.
@@ -420,6 +422,7 @@ impl ProgramInfo {
             run_time_ns: item.run_time_ns,
             run_cnt: item.run_cnt,
             recursion_misses: item.recursion_misses,
+            verified_insns: item.verified_insns,
         })
     }
 }
