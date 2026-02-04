@@ -3,7 +3,7 @@ Unreleased
 - Fixed Rust type generation for trailing bitfields in composite C types
 - Fixed handling of `XxxSkelBuilder::obj_builder` customizations when
   using `open()` constructor
-- Allowlisted `libbpf-sys` `1.6.2`
+- Allowlisted `libbpf-sys` `1.6.3`
 
 
 0.26.0-beta.1
