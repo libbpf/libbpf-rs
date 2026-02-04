@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.26.0
+------
 - Added `Link::info` method for retrieving `LinkInfo`
 - Extended `LinkTypeInfo::PerfEvent` variant to contain newly added
   `PerfEventLinkInfo` object
