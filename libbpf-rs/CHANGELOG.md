@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Added `MapCore::query_fdinfo` for querying map fdinfo
+
+
 0.26.0
 ------
 - Added `Link::info` method for retrieving `LinkInfo`

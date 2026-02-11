@@ -2617,6 +2617,34 @@ fn test_map_autocreate_getter() {
     assert!(map.autocreate());
 }
 
+/// Check that `query_fdinfo` returns valid map information.
+#[tag(root)]
+#[test]
+fn test_map_query_fdinfo() {
+    let open_obj = open_test_object("runqslower.bpf.o");
+    let obj = open_obj.load().expect("failed to load object");
+    let map = obj
+        .maps()
+        .find(|m| m.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+
+    let info = map.info().expect("info() failed");
+    let fdinfo = map.query_fdinfo().expect("query_fdinfo() failed");
+
+    assert_eq!(fdinfo.map_type, map.map_type());
+    assert_eq!(fdinfo.key_size, map.key_size());
+    assert_eq!(fdinfo.value_size, map.value_size());
+    assert_eq!(fdinfo.max_entries, map.max_entries());
+    assert_eq!(fdinfo.map_flags.unwrap(), info.info.map_flags);
+    assert_eq!(fdinfo.map_extra.unwrap(), info.info.map_extra);
+    assert!(fdinfo.memlock.unwrap() > 0);
+    assert_eq!(fdinfo.map_id.unwrap(), info.info.id);
+    assert!(!fdinfo.frozen.unwrap());
+    // owner_prog_type and owner_jited are only set for prog_array maps.
+    assert_eq!(fdinfo.owner_prog_type, None);
+    assert_eq!(fdinfo.owner_jited, None);
+}
+
 /// Check that we can adjust a map's value size.
 #[tag(root)]
 #[test]

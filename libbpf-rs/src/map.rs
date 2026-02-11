@@ -5,7 +5,10 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::remove_file;
+use std::fs::File;
 use std::io;
+use std::io::BufRead as _;
+use std::io::BufReader;
 use std::marker::PhantomData;
 use std::mem;
 use std::mem::transmute;
@@ -36,6 +39,7 @@ use crate::Error;
 use crate::ErrorExt as _;
 use crate::Link;
 use crate::Mut;
+use crate::ProgramType;
 use crate::Result;
 
 /// An immutable parsed but not yet loaded BPF map.
@@ -500,6 +504,15 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     #[inline]
     fn info(&self) -> Result<MapInfo> {
         MapInfo::new(self.as_fd())
+    }
+
+    /// Query map information from `/proc/self/fdinfo`.
+    ///
+    /// This provides information not available through [`MapInfo`],
+    /// such as [`memlock`][MapFdInfo::memlock] (memory usage).
+    #[inline]
+    fn query_fdinfo(&self) -> Result<MapFdInfo> {
+        MapFdInfo::from_fd(self.as_fd())
     }
 
     /// Returns an iterator over keys in this map
@@ -1739,6 +1752,126 @@ impl MapInfo {
     }
 }
 
+/// Information about a BPF map obtained from `/proc/self/fdinfo`.
+///
+/// This provides information not available through [`MapInfo`], such as
+/// [`memlock`][MapFdInfo::memlock] (memory usage) and [`frozen`][MapFdInfo::frozen] status.
+///
+/// The fields correspond to those printed by
+/// [`bpf_map_show_fdinfo`](https://github.com/torvalds/linux/blob/37a93dd5c49b/kernel/bpf/syscall.c#L1007)
+/// in the kernel source. See also bpftool's
+/// [`get_fdinfo`](https://github.com/torvalds/linux/blob/37a93dd5c49/tools/bpf/bpftool/common.c#L485)
+/// for the matching userspace parsing logic.
+#[derive(Debug, Clone)]
+pub struct MapFdInfo {
+    /// The map type.
+    pub map_type: MapType,
+    /// The size of the map's keys in bytes.
+    pub key_size: u32,
+    /// The size of the map's values in bytes.
+    pub value_size: u32,
+    /// The maximum number of entries in the map.
+    pub max_entries: u32,
+    // The following fields were added in later kernel versions and may not be
+    // present in older kernels.
+    /// The map flags.
+    pub map_flags: Option<u32>,
+    /// Extra map-specific data.
+    pub map_extra: Option<u64>,
+    /// The amount of memory locked by the map in bytes.
+    pub memlock: Option<u64>,
+    /// The map's ID.
+    pub map_id: Option<u32>,
+    /// Whether the map is frozen.
+    pub frozen: Option<bool>,
+    /// The type of the owner program (only for `prog_array` maps).
+    pub owner_prog_type: Option<ProgramType>,
+    /// Whether the owner program is JIT-compiled (only for `prog_array` maps).
+    pub owner_jited: Option<bool>,
+}
+
+impl MapFdInfo {
+    /// Create a `MapFdInfo` by reading `/proc/self/fdinfo` for the given fd.
+    pub fn from_fd(fd: BorrowedFd<'_>) -> Result<Self> {
+        let path = format!("/proc/self/fdinfo/{}", fd.as_raw_fd());
+        let file = File::open(&path).with_context(|| format!("failed to open `{path}`"))?;
+        let reader = BufReader::new(file);
+
+        let parse = |key: &str, val: &str| -> Result<u32> {
+            val.parse()
+                .map_err(|e| Error::with_invalid_data(format!("`{key}`: {e}")))
+        };
+
+        let mut map_type = None;
+        let mut key_size = None;
+        let mut value_size = None;
+        let mut max_entries = None;
+        let mut map_flags = None;
+        let mut map_extra = None;
+        let mut memlock = None;
+        let mut map_id = None;
+        let mut frozen = None;
+        let mut owner_prog_type = None;
+        let mut owner_jited = None;
+
+        for result in reader.lines() {
+            let line = result?;
+            let Some((key, value)) = line.split_once('\t') else {
+                continue;
+            };
+            // Keys have a trailing colon, e.g. "map_type:"
+            let key = key.trim_end_matches(':');
+            let value = value.trim();
+
+            match key {
+                "map_type" => map_type = Some(parse(key, value)?),
+                "key_size" => key_size = Some(parse(key, value)?),
+                "value_size" => value_size = Some(parse(key, value)?),
+                "max_entries" => max_entries = Some(parse(key, value)?),
+                "map_flags" => {
+                    map_flags =
+                        Some(parse_hex(value).with_context(|| format!("bad `{key}`"))? as u32)
+                }
+                "map_extra" => {
+                    map_extra = Some(parse_hex(value).with_context(|| format!("bad `{key}`"))?)
+                }
+                "memlock" => memlock = Some(parse(key, value)? as u64),
+                "map_id" => map_id = Some(parse(key, value)?),
+                "frozen" => frozen = Some(parse(key, value)? != 0),
+                "owner_prog_type" => owner_prog_type = Some(parse(key, value)?),
+                "owner_jited" => owner_jited = Some(parse(key, value)? != 0),
+                _ => {}
+            }
+        }
+
+        let missing = |f| Error::with_invalid_data(format!("missing `{f}` in fdinfo"));
+
+        Ok(Self {
+            map_type: MapType::from(map_type.ok_or_else(|| missing("map_type"))?),
+            key_size: key_size.ok_or_else(|| missing("key_size"))?,
+            value_size: value_size.ok_or_else(|| missing("value_size"))?,
+            max_entries: max_entries.ok_or_else(|| missing("max_entries"))?,
+            map_flags,
+            map_extra,
+            memlock,
+            map_id,
+            frozen,
+            owner_prog_type: owner_prog_type.map(ProgramType::from),
+            owner_jited,
+        })
+    }
+}
+
+/// Parse a value that may be in hex (0x...) or decimal format.
+fn parse_hex(s: &str) -> Result<u64> {
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        u64::from_str_radix(hex, 16)
+    } else {
+        s.parse()
+    }
+    .map_err(Error::with_invalid_data)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1787,5 +1920,27 @@ mod tests {
             // check if discriminants match after a roundtrip conversion
             assert_eq!(discriminant(&t), discriminant(&MapType::from(t as u32)));
         }
+    }
+
+    #[test]
+    fn parse_hex_decimal() {
+        assert_eq!(parse_hex("0").unwrap(), 0);
+        assert_eq!(parse_hex("42").unwrap(), 42);
+        assert_eq!(parse_hex("18446744073709551615").unwrap(), u64::MAX);
+    }
+
+    #[test]
+    fn parse_hex_hex_prefix() {
+        assert_eq!(parse_hex("0x0").unwrap(), 0);
+        assert_eq!(parse_hex("0xff").unwrap(), 255);
+        assert_eq!(parse_hex("0X1A").unwrap(), 26);
+        assert_eq!(parse_hex("0xdeadbeef").unwrap(), 0xdeadbeef);
+    }
+
+    #[test]
+    fn parse_hex_invalid() {
+        assert!(parse_hex("").is_err());
+        assert!(parse_hex("xyz").is_err());
+        assert!(parse_hex("0xGG").is_err());
     }
 }
