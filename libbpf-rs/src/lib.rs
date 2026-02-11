@@ -102,6 +102,7 @@ pub use crate::linker::Linker;
 pub use crate::map::BatchedMapIter;
 pub use crate::map::Map;
 pub use crate::map::MapCore;
+pub use crate::map::MapFdInfo;
 pub use crate::map::MapFlags;
 pub use crate::map::MapHandle;
 pub use crate::map::MapImpl;

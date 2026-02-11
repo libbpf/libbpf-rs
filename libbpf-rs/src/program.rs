@@ -464,7 +464,7 @@ impl<T> AsRawLibbpf for OpenProgramImpl<'_, T> {
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 // TODO: Document variants.
 #[expect(missing_docs)]
 pub enum ProgramType {
