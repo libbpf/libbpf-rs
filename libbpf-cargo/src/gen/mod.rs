@@ -1163,11 +1163,17 @@ pub struct StructOps {{}}
     gen_skel_struct_ops_getters(&mut skel, &object)?;
     writeln!(skel, "}}")?;
 
-    // Coerce to &[u8] just to be safe, as we'll be using debug formatting
-    let bytes: &[u8] = &mmap;
+    let obj_file_path = obj_file_path
+        .canonicalize()
+        .unwrap_or_else(|_| obj_file_path.to_path_buf());
 
     writeln!(skel, "#[unsafe(link_section = \".bpf.objs\")]")?;
-    writeln!(skel, "static DATA: [u8; {}] = {bytes:?};", bytes.len())?;
+    writeln!(
+        skel,
+        "static DATA: [u8; {}] = *include_bytes!({path:?});",
+        mmap.len(),
+        path = obj_file_path,
+    )?;
     writeln!(skel, "}}")?;
 
     Ok(skel)
