@@ -733,8 +733,10 @@ fn test_skeleton_builder_basic() {
 
     // Generate skeleton file
     let skel = proj_dir.join("src/bpf/skel.rs");
+    let obj = proj_dir.join("src/bpf/prog.o");
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .obj(&obj)
         .build_and_generate(&skel)
         .unwrap();
 
@@ -1150,9 +1152,11 @@ fn test_skeleton_builder_deterministic() {
 
     add_vmlinux_header(&proj_dir);
 
+    let obj = proj_dir.join("src/bpf/prog.o");
     let skel1 = proj_dir.join("src/bpf/skel1.rs");
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .obj(&obj)
         .build_and_generate(&skel1)
         .unwrap();
     let skel1 = read_to_string(skel1).unwrap();
@@ -1160,6 +1164,7 @@ fn test_skeleton_builder_deterministic() {
     let skel2 = proj_dir.join("src/bpf/skel2.rs");
     SkeletonBuilder::new()
         .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .obj(&obj)
         .build_and_generate(&skel2)
         .unwrap();
     let skel2 = read_to_string(skel2).unwrap();

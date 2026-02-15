@@ -55,6 +55,7 @@
 //! build`. This is a convenience command so you don't forget any steps. Alternatively, you could
 //! write a Makefile for your project.
 
+use std::env;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
@@ -227,11 +228,19 @@ impl SkeletonBuilder {
 
         if self.obj.is_none() {
             let name = filename.split('.').next().unwrap();
-            let dir = tempdir().context("failed to create temporary directory")?;
-            let objfile = dir.path().join(format!("{name}.o"));
-            self.obj = Some(objfile);
-            // Hold onto tempdir so that it doesn't get deleted early
-            self.dir = Some(dir);
+            // Prefer OUT_DIR so that the .o file persists after the build
+            // script exits. This is required for include_bytes! in the
+            // generated skeleton to resolve at rustc compile time.
+            if let Ok(out_dir) = env::var("OUT_DIR") {
+                let objfile = PathBuf::from(out_dir).join(format!("{name}.o"));
+                self.obj = Some(objfile);
+            } else {
+                let dir = tempdir().context("failed to create temporary directory")?;
+                let objfile = dir.path().join(format!("{name}.o"));
+                self.obj = Some(objfile);
+                // Hold onto tempdir so that it doesn't get deleted early
+                self.dir = Some(dir);
+            }
         }
 
         let mut builder = BpfObjBuilder::default();
