@@ -1215,7 +1215,6 @@ fn test_skeleton_builder_reference_obj() {
 
 /// Check that the default skeleton inlines bytes rather than using `include_bytes!`.
 #[test]
-#[ignore = "may fail on some systems; depends on kernel headers that have been seen to be broken"]
 fn test_skeleton_builder_default_inlines_bytes() {
     let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
 

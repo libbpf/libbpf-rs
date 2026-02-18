@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Added `SkeletonBuilder::reference_obj` for enabling generate skeleton
+  to reference an object file instead of embedding it
+
+
 0.26.0
 ------
 - Fixed Rust type generation for trailing bitfields in composite C types
