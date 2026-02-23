@@ -1987,6 +1987,20 @@ extern "C" fn multi_uprobe_func_with_opts_func_2() -> usize {
     hint::black_box(45)
 }
 
+#[inline(never)]
+#[no_mangle]
+extern "C" fn non_default_opts_multi_uprobe_func_with_opts_func_1() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(46)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn non_default_opts_multi_uprobe_func_with_opts_func_2() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(47)
+}
+
 #[tag(root)]
 #[test]
 fn test_object_uprobe_multi_with_opts() {
@@ -2004,6 +2018,46 @@ fn test_object_uprobe_multi_with_opts() {
 
     multi_uprobe_func_with_opts_func_1();
     multi_uprobe_func_with_opts_func_2();
+
+    let map = get_map_mut(&mut obj, "hash_map");
+    let result_bytes = map
+        .lookup(&(1_u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    let result = i32::from_ne_bytes(
+        result_bytes
+            .as_slice()
+            .try_into()
+            .expect("invalid value size"),
+    );
+
+    assert_eq!(result, 2);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_multi_with_non_default_opts() {
+    let mut obj = get_test_object("uprobe_multi.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe_multi_with_non_default_opts");
+    let func_pattern = "";
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+    let opts = UprobeMultiOpts {
+        syms: vec![
+            "non_default_opts_multi_uprobe_func_with_opts_func_1".to_string(),
+            "non_default_opts_multi_uprobe_func_with_opts_func_2".to_string(),
+        ],
+        ..Default::default()
+    };
+
+    let _link = prog
+        .attach_uprobe_multi_with_opts(pid, path, func_pattern, opts)
+        .expect("failed to attach uprobe multi");
+
+    non_default_opts_multi_uprobe_func_with_opts_func_1();
+    non_default_opts_multi_uprobe_func_with_opts_func_2();
 
     let map = get_map_mut(&mut obj, "hash_map");
     let result_bytes = map

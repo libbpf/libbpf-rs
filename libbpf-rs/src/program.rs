@@ -1107,7 +1107,11 @@ impl<'obj> ProgramMut<'obj> {
         } = opts;
 
         let pattern = util::str_to_cstring(func_pattern.as_ref())?;
-        let pattern_ptr = pattern.as_ptr();
+        let pattern_ptr = if pattern.is_empty() {
+            ptr::null()
+        } else {
+            pattern.as_ptr()
+        };
 
         let syms_cstrings = syms
             .iter()
