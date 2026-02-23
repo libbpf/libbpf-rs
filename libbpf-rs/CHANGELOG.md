@@ -1,6 +1,8 @@
 Unreleased
 ----------
 - Added `MapCore::query_fdinfo` for querying map fdinfo
+- Adjusted `Program::attach_uprobe_multi_with_opts` to work with empty
+  `func_pattern`
 
 
 0.26.0
