@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.26.1
+------
 - Added `MapCore::query_fdinfo` for querying map fdinfo
 - Added `ProgramType::Netfilter` variant
 - Adjusted `Program::attach_uprobe_multi_with_opts` to work with empty

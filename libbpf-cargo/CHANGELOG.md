@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.26.1
+------
 - Added `SkeletonBuilder::reference_obj` for enabling generate skeleton
   to reference an object file instead of embedding it
 
