@@ -1457,11 +1457,6 @@ fn test_object_user_ringbuf_not_enough_space() {
 #[tag(root)]
 #[test]
 fn test_object_task_iter() {
-    let mut obj = get_test_object("taskiter.bpf.o");
-    let prog = get_prog_mut(&mut obj, "dump_pid");
-    let link = prog.attach().expect("failed to attach prog");
-    let mut iter = Iter::new(&link).expect("failed to create iterator");
-
     #[repr(C)]
     #[derive(Clone, Copy)]
     struct IndexPidPair {
@@ -1471,21 +1466,38 @@ fn test_object_task_iter() {
 
     unsafe impl Plain for IndexPidPair {}
 
-    let mut buf = Vec::new();
-    let bytes_read = iter
-        .read_to_end(&mut buf)
-        .expect("failed to read from iterator");
+    fn test_iter(link: libbpf_rs::Link) {
+        let mut iter = Iter::new(&link).expect("failed to create iterator");
 
-    assert!(bytes_read > 0);
-    assert_eq!(bytes_read % size_of::<IndexPidPair>(), 0);
-    let items: &[IndexPidPair] =
-        plain::slice_from_bytes(buf.as_slice()).expect("Input slice cannot satisfy length");
+        let mut buf = Vec::new();
+        let bytes_read = iter
+            .read_to_end(&mut buf)
+            .expect("failed to read from iterator");
+        assert!(bytes_read > 0);
+        assert_eq!(bytes_read % size_of::<IndexPidPair>(), 0);
 
-    assert!(!items.is_empty());
-    assert_eq!(items[0].i, 0);
-    assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
-    // Check for init
-    assert!(items.iter().any(|&item| item.pid == 1));
+        let items: &[IndexPidPair] =
+            plain::slice_from_bytes(buf.as_slice()).expect("Input slice cannot satisfy length");
+        assert!(!items.is_empty());
+        assert_eq!(items[0].i, 0);
+        assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
+        // Check for init
+        assert!(items.iter().any(|&item| item.pid == 1));
+    }
+
+    // Test using auto-attachment.
+    let mut obj = get_test_object("taskiter.bpf.o");
+    let prog = get_prog_mut(&mut obj, "dump_pid");
+    let link_autoattach = prog.attach().expect("failed to auto-attach prog");
+    test_iter(link_autoattach);
+
+    // Test using attach_iter with no options.
+    let mut obj = get_test_object("taskiter.bpf.o");
+    let prog = get_prog_mut(&mut obj, "dump_pid");
+    let link_noopts = prog
+        .attach_iter_with_opts(libbpf_rs::IterOpts::None)
+        .expect("failed to attach prog with no opts");
+    test_iter(link_noopts);
 }
 
 #[tag(root)]
