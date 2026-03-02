@@ -1,8 +1,7 @@
-0.26.2
-------
+Unreleased
+----------
 - Added `IterOpts::None` variant for `attach_iter_with_opts()`
-- Remove `From<IterOpts>` trait for `bpf_iter_link_info` due to the added
-  `IterOpts::None` variant
+
 
 0.26.1
 ------
