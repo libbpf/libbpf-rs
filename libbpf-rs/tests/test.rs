@@ -39,6 +39,7 @@ use std::time::Duration;
 use libbpf_rs::num_possible_cpus;
 use libbpf_rs::query::LinkTypeInfo;
 use libbpf_rs::query::PerfEventType;
+use libbpf_rs::query::ProgInfoIter;
 use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::KprobeMultiOpts;
@@ -2868,5 +2869,27 @@ fn test_run_prog_repeat_and_duration() {
         output.duration,
         Duration::ZERO,
         "duration should be non-zero"
+    );
+}
+
+/// Test that `ProgramInfo::verified_insns` is populated for loaded programs.
+#[tag(root)]
+#[test]
+fn test_prog_info_verified_insns() {
+    let obj = get_test_object("tracepoint.bpf.o");
+    let prog = obj
+        .progs()
+        .next()
+        .expect("should have at least one program");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to get program ID");
+
+    let info = ProgInfoIter::default()
+        .find(|p| p.id == prog_id)
+        .unwrap_or_else(|| panic!("failed to find program with ID {prog_id} via ProgInfoIter"));
+
+    assert!(
+        info.verified_insns > 0,
+        "expected verified_insns > 0, got {}",
+        info.verified_insns,
     );
 }
