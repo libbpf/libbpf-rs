@@ -500,6 +500,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "test-fork",
  "test-log",
  "tracing",
  "tracing-subscriber",

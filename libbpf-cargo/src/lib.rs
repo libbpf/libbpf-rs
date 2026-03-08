@@ -104,6 +104,7 @@ pub struct SkeletonBuilder {
     rustfmt: PathBuf,
     dir: Option<TempDir>,
     reference_obj: bool,
+    original_obj_name: Option<String>,
 }
 
 impl Default for SkeletonBuilder {
@@ -123,6 +124,7 @@ impl SkeletonBuilder {
             rustfmt: "rustfmt".into(),
             dir: None,
             reference_obj: false,
+            original_obj_name: None,
         }
     }
 
@@ -269,6 +271,10 @@ impl SkeletonBuilder {
                 };
                 let objfile = PathBuf::from(out_dir).join(format!("{name}_{hash:016x}.o"));
                 self.obj = Some(objfile);
+                // Save and use the original name for generating skel so that the identifiers in
+                // generated skel do not contain hashes that cause them to be unreliable to
+                // reference in rust code.
+                self.original_obj_name = Some(name.to_owned());
             } else {
                 let dir = tempdir().context("failed to create temporary directory")?;
                 let objfile = dir.path().join(format!("{name}.o"));
@@ -301,6 +307,7 @@ impl SkeletonBuilder {
             r#gen::OutputDest::File(output.as_ref()),
             Some(&self.rustfmt),
             self.reference_obj,
+            self.original_obj_name.as_deref(),
         )
         .with_context(|| format!("failed to generate `{}`", objfile.display()))?;
 

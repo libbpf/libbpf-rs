@@ -1262,6 +1262,7 @@ pub(crate) fn gen_single(
     output: OutputDest<'_>,
     rustfmt_path: Option<&Path>,
     obj_ref: bool,
+    original_name: Option<&str>,
 ) -> Result<()> {
     let filename = match obj_file.file_name() {
         Some(n) => n,
@@ -1271,19 +1272,23 @@ pub(crate) fn gen_single(
         ),
     };
 
-    let name = match filename.to_str() {
-        Some(n) => {
-            ensure!(
-                n.ends_with(".o"),
-                "Object file does not have `.o` suffix: {n}"
-            );
+    let name = if let Some(name) = original_name {
+        name
+    } else {
+        match filename.to_str() {
+            Some(n) => {
+                ensure!(
+                    n.ends_with(".o"),
+                    "Object file does not have `.o` suffix: {n}"
+                );
 
-            n.split('.').next().unwrap()
+                n.split('.').next().unwrap()
+            }
+            None => bail!(
+                "Object file name is not valid unicode: {}",
+                filename.to_string_lossy()
+            ),
         }
-        None => bail!(
-            "Object file name is not valid unicode: {}",
-            filename.to_string_lossy()
-        ),
     };
 
     let () = gen_skel(name, obj_file, output, rustfmt_path, obj_ref).with_context(|| {
@@ -1358,7 +1363,7 @@ pub fn generate(
     }
 
     if let Some(obj_file) = object {
-        gen_single(obj_file, OutputDest::Stdout, rustfmt_path, false)
+        gen_single(obj_file, OutputDest::Stdout, rustfmt_path, false, None)
     } else {
         gen_project(manifest_path, rustfmt_path)
     }

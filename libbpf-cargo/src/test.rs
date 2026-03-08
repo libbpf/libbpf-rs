@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::env;
 use std::fs::create_dir;
 use std::fs::read;
 use std::fs::read_to_string;
@@ -19,6 +20,7 @@ use memmap2::Mmap;
 use tempfile::tempdir;
 use tempfile::NamedTempFile;
 use tempfile::TempDir;
+use test_fork::fork;
 use test_log::test;
 
 use crate::build::build_project;
@@ -1169,6 +1171,7 @@ fn test_skeleton_builder_deterministic() {
 
 /// Check that `reference_obj(true)` generates a skeleton using `include_bytes!`
 /// instead of inline byte arrays.
+#[fork]
 #[test]
 fn test_skeleton_builder_reference_obj() {
     let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
@@ -1205,12 +1208,30 @@ fn test_skeleton_builder_reference_obj() {
         .reference_obj(true)
         .build_and_generate(&skel)
         .unwrap();
-    let skel = read_to_string(skel).unwrap();
+    let skel_content = read_to_string(&skel).unwrap();
 
-    assert!(skel.contains("include_bytes!"));
+    // Check the struct name in the generated skel (when obj path is set)
+    assert!(skel_content.contains("struct ProgSkel<"));
+    assert!(skel_content.contains("include_bytes!"));
     // 127, 69, 76, 70 is the ELF magic number (\x7fELF); its absence
     // confirms the object bytes are referenced, not inlined.
-    assert!(!skel.contains("127, 69, 76, 70"));
+    assert!(!skel_content.contains("127, 69, 76, 70"));
+
+    unsafe {
+        // SAFETY: this test runs in a forked process
+        env::set_var("OUT_DIR", proj_dir.join("src/bpf"));
+    }
+
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .reference_obj(true)
+        .build_and_generate(&skel)
+        .unwrap();
+    let skel = read_to_string(&skel).unwrap();
+
+    // Check the struct name in the generated skel (when obj path is not set)
+    // It shouldn't contain hashes
+    assert!(skel.contains("struct ProgSkel<"));
 }
 
 /// Check that the default skeleton inlines bytes rather than using `include_bytes!`.
