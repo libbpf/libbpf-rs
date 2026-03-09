@@ -2872,6 +2872,20 @@ fn test_run_prog_repeat_and_duration() {
     );
 }
 
+/// Check that we can associate a non-struct_ops program with a `struct_ops` map.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with struct_ops association support"]
+fn test_assoc_struct_ops() {
+    let obj_for_map = get_test_object("run_prog.bpf.o");
+    let map = get_map(&obj_for_map, "dummy_1");
+
+    let mut obj_for_prog = get_test_object("run_prog.bpf.o");
+    let prog = get_prog_mut(&mut obj_for_prog, "xdp_counter");
+
+    prog.assoc_struct_ops(&map).unwrap();
+}
+
 /// Test that `ProgramInfo::verified_insns` is populated for loaded programs.
 #[tag(root)]
 #[test]
