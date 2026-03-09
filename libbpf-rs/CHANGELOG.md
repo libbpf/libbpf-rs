@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Added `IterOpts::None` variant for `attach_iter_with_opts()`
+- Updated `libbpf-sys` dependency to `1.7.0`
 
 
 0.26.1

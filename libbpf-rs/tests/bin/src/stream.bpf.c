@@ -10,8 +10,10 @@
 SEC("syscall")
 int trigger_streams(void *ctx)
 {
-    bpf_stream_printk(1, "stdout");
-    bpf_stream_printk(2, "stderr");
+    unsigned long long args[1] = {};
+
+    bpf_stream_vprintk_impl(1, "stdout", args, 0, NULL);
+    bpf_stream_vprintk_impl(2, "stderr", args, 0, NULL);
     return 0;
 }
 
