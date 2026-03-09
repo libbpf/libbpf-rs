@@ -36,6 +36,7 @@ use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
 use crate::Link;
+use crate::Map;
 use crate::Mut;
 use crate::RawTracepointOpts;
 use crate::Result;
@@ -1607,6 +1608,25 @@ impl<'obj> ProgramMut<'obj> {
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
         Ok(link)
+    }
+
+    /// Associate this program with a `struct_ops` map.
+    ///
+    /// This allows a non-struct_ops BPF program to be used as a callback
+    /// implementation within a `struct_ops` map. Both the program and map
+    /// must be loaded.
+    ///
+    /// This program must not be of type [`ProgramType::StructOps`], and
+    /// the map must be of type [`MapType::StructOps`][crate::MapType::StructOps].
+    pub fn assoc_struct_ops(&self, map: &Map<'_>) -> Result<()> {
+        let ret = unsafe {
+            libbpf_sys::bpf_program__assoc_struct_ops(
+                self.ptr.as_ptr(),
+                map.as_libbpf_object().as_ptr(),
+                ptr::null_mut(),
+            )
+        };
+        util::parse_ret(ret).context("failed to associate program with struct_ops map")
     }
 
     /// Test run the program with the given input data.

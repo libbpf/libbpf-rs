@@ -20,7 +20,9 @@ jobs:
       - uses: d-e-s-o/build-linux@23cb60a346b84ab120feb1a4e584f18563b3867f
         id: build
         with:
-          rev: 'v6.19'
+          # TODO: Bump to whatever gets tagged next that includes this
+          #       commit.
+          rev: 'b5709f6d26d65f6bb9711f4b5f98469fd507cb5b'
           config: 'var/config'
 
   test:
