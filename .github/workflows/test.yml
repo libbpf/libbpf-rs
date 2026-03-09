@@ -14,8 +14,7 @@ jobs:
     uses: libbpf/github-actions/.github/workflows/build-linux.yml@bd7fc70260c9ab81801001fcd86ba94070b34e5d
     secrets: inherit
     with:
-      # TODO: Use v6.19 tag once available.
-      rev: ea0714d61dea6e00b853a0116d0afe2b2fe70ef3
+      rev: v6.19
       config: 'var/config'
 
   test:

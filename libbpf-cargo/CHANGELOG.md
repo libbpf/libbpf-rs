@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Updated `libbpf-sys` dependency to `1.7.0`
+
+
 0.26.1
 ------
 - Added `SkeletonBuilder::reference_obj` for enabling generate skeleton
