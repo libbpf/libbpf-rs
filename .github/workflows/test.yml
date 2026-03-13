@@ -297,7 +297,7 @@ jobs:
       - uses: actions/checkout@v6
       - run: find . -iname '*.bpf.c' > bpf.c.files
       - name: Linter action test
-        uses: d-e-s-o/lint-bpf@v0.1.1
+        uses: d-e-s-o/lint-bpf@v0.1.2
         with:
           args: '@bpf.c.files'
 
