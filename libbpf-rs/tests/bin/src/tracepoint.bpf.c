@@ -44,6 +44,7 @@ int handle__tracepoint_with_cookie(void *ctx)
 }
 
 struct {
+    /* bpflint: disable=perfbuf-usage */
     __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
     __type(key, int);
     __type(value, int);
