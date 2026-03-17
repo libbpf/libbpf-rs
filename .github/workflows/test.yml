@@ -100,18 +100,13 @@ jobs:
         cat <<EOF > main.sh
         #!/bin/sh
         set -e
-        # Perform necessary one-time setup.
-        mount -t bpf bpf /sys/fs/bpf
-        mount -t tracefs tracefs /sys/kernel/tracing
-        ip link set lo up
         $tests
         EOF
         chmod a+x main.sh
     - name: Run root tests
-      uses: danobi/vmtest-action@c0fe6f82e21db9b9a8105f2a385e8a6e3fff2d23
-      with:
-        kernel: bzImage
-        command: sh -c 'cd ${{ github.workspace }} && ./main.sh'
+      uses: d-e-s-o/vmsh@adcb371a90d9e8e9cc3e998399d3b00ad21f5b76
+    - run: |
+        vmsh bzImage --env=HOME --env=PATH -- sh -c 'cd ${{ github.workspace }} && ./main.sh'
 
   run-examples:
     name: Run chosen examples
