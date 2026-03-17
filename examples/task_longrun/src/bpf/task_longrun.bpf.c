@@ -22,6 +22,7 @@ struct {
 } running_tasks SEC(".maps");
 
 struct {
+    /* bpflint: disable=perfbuf-usage */
     __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
     __type(key, u32);
     __type(value, u32);
