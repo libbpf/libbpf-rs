@@ -71,6 +71,8 @@ jobs:
         sudo ln -s /usr/include/asm-generic /usr/include/asm
         sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-18 /bin/clang
     - uses: Swatinem/rust-cache@v2
+      with:
+        save-if: ${{ github.ref == 'refs/heads/master' }}
     - name: Build
       run: cargo build --profile=${{ matrix.profile }} --locked --verbose --workspace --exclude runqslower
     - name: Run tests
@@ -128,6 +130,8 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Run examples
         #env:
         #  CFLAGS: '-fsanitize=leak'
@@ -158,6 +162,8 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libelf-dev autopoint
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Build libbpf-rs sample
         run: |
           cargo init --bin ../libbpf-rs-test-project
@@ -194,6 +200,8 @@ jobs:
           toolchain: 1.82.0
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Build
         run: cargo build --verbose --workspace --exclude runqslower --exclude task_longrun
 
@@ -210,6 +218,8 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       # `-lzstd` is necessary because Ubuntu's system libelf.a is built
       # with zstd support.
       - run: RUSTFLAGS="$RUSTFLAGS -L /usr/lib/x86_64-linux-gnu -lzstd" cargo build --locked --package capable --features=static
@@ -236,6 +246,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libelf-dev:arm64 zlib1g-dev:arm64 gcc-aarch64-linux-gnu
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Build
         env:
           CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
@@ -264,6 +276,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libelf-dev:armhf zlib1g-dev:armhf gcc-arm-linux-gnueabihf
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Build
         env:
           CARGO_BUILD_TARGET: armv7-unknown-linux-gnueabihf
@@ -284,6 +298,8 @@ jobs:
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - run: |
           # We want the old resolver here as it has more suitable feature
           # unification logic for this invocation.
