@@ -394,7 +394,7 @@ impl<'btf> TryFrom<BtfType<'btf>> for Int<'btf> {
             Ok(Self {
                 source: t,
                 encoding,
-                offset: ((int & 0x00_ff_00_00) >> 24) as u8,
+                offset: ((int & 0x00_ff_00_00) >> 16) as u8,
                 bits: (int & 0x00_00_00_ff) as u8,
             })
         } else {
