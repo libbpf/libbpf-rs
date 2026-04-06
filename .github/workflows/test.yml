@@ -17,7 +17,7 @@ jobs:
       kernel-artifact-url: ${{ steps.build.outputs.kernel-artifact-url }}
     steps:
       - uses: actions/checkout@v6
-      - uses: d-e-s-o/build-linux@23cb60a346b84ab120feb1a4e584f18563b3867f
+      - uses: d-e-s-o/build-linux@ec34a7ad2635733082b2bab63c62136a06d272e9
         id: build
         with:
           # TODO: Bump to whatever gets tagged next that includes this
