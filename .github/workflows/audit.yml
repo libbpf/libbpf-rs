@@ -3,6 +3,7 @@ name: Audit
 on:
   schedule:
     - cron: '10 0 * * 1' # At 10am on Monday
+  workflow_dispatch:
 
 jobs:
   cargo-deny:
