@@ -845,6 +845,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path, obj_ref: bool) ->
 
         #[allow(renamed_and_removed_lints)]
         #[allow(dead_code)]
+        #[allow(missing_docs)]
         #[allow(non_snake_case)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::absolute_paths)]
