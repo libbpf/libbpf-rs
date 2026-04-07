@@ -313,11 +313,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: find . -iname '*.bpf.c' > bpf.c.files
-      - name: Linter action test
-        uses: d-e-s-o/lint-bpf@v0.1.2
-        with:
-          args: '@bpf.c.files'
+      - uses: d-e-s-o/bpflint@fab45e647ea66c9e204220e823868a320e96822c
+      - run: |
+          find . -iname '*.bpf.c' > bpf.c.files
+          bpflinter '@bpf.c.files'
 
   bpfcfmt:
     name: Check BPF C code formatting
