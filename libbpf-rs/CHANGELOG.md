@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.26.2
+------
 - Added `ProgramMut::assoc_struct_ops` for associating non-struct_ops programs
   with struct_ops maps
 - Added `IterOpts::None` variant for `attach_iter_with_opts()`

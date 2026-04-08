@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.26.2
+------
 - Included `missing-docs` lint suppression on generated skeleton
 - Updated `libbpf-sys` dependency to `1.7.0`
 
