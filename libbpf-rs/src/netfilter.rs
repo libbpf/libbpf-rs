@@ -38,7 +38,7 @@ pub struct NetfilterOpts {
     pub priority: i32,
 
     /// Bitmask of flags for the netfilter hook.
-    /// - `NF_IP_PRI_CONNTRACK_DEFRAG` - Enables defragmentation of IP fragments. This hook will
+    /// - `BPF_F_NETFILTER_IP_DEFRAG` - Enables defragmentation of IP fragments. This hook will
     ///   only see defragmented packets.
     pub flags: u32,
     #[doc(hidden)]
