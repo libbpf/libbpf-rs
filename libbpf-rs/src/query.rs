@@ -13,6 +13,7 @@
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::ffi::OsStr;
 use std::io;
 use std::mem::size_of_val;
 use std::mem::zeroed;
@@ -22,6 +23,8 @@ use std::os::fd::BorrowedFd;
 use std::os::fd::FromRawFd;
 use std::os::fd::OwnedFd;
 use std::os::raw::c_char;
+use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
 use std::ptr;
 use std::time::Duration;
 
@@ -731,12 +734,20 @@ pub struct KprobeMultiLinkInfo {
 pub struct UprobeMultiLinkInfo {
     /// Size of the path.
     pub path_size: u32,
+    /// The absolute file path of the binary being probed.
+    pub path: Option<PathBuf>,
     /// Count of uprobe targets.
     pub count: u32,
     /// Flags for the link.
     pub flags: u32,
     /// PID to which the uprobe is attached.
     pub pid: u32,
+    /// Offsets from the binary.
+    pub offsets: Vec<u64>,
+    /// Offsets of kernel reference counted USDT semaphore.
+    pub ref_ctr_offsets: Vec<u64>,
+    /// Cookies corresponding to the attach addresses.
+    pub cookies: Vec<u64>,
 }
 
 /// Information about a perf event link.
@@ -968,11 +979,45 @@ impl LinkInfo {
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_UPROBE_MULTI => {
+                let mut buf = [0u8; libc::PATH_MAX as usize];
+                let count = unsafe { s.__bindgen_anon_1.uprobe_multi.count } as usize;
+                let mut offsets = vec![0; count];
+                let mut ref_ctr_offsets = vec![0; count];
+                let mut cookies = vec![0; count];
+
+                s.__bindgen_anon_1.uprobe_multi.path = buf.as_mut_ptr() as u64;
+                s.__bindgen_anon_1.uprobe_multi.path_size = buf.len() as u32;
+                s.__bindgen_anon_1.uprobe_multi.offsets = offsets.as_mut_ptr() as u64;
+                s.__bindgen_anon_1.uprobe_multi.ref_ctr_offsets =
+                    ref_ctr_offsets.as_mut_ptr() as u64;
+                s.__bindgen_anon_1.uprobe_multi.cookies = cookies.as_mut_ptr() as u64;
+                let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
+                let mut len = size_of_val(&s) as u32;
+                let ret = unsafe {
+                    libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast(), &mut len)
+                };
+                if ret != 0 {
+                    return None;
+                }
+
+                let path_size = unsafe { s.__bindgen_anon_1.uprobe_multi.path_size };
+                let path = if path_size != 0 {
+                    let path_ptr = unsafe { s.__bindgen_anon_1.uprobe_multi.path } as *const c_char;
+                    let c_str = unsafe { CStr::from_ptr(path_ptr) };
+                    Some(PathBuf::from(OsStr::from_bytes(c_str.to_bytes())))
+                } else {
+                    None
+                };
+
                 LinkTypeInfo::UprobeMulti(UprobeMultiLinkInfo {
-                    path_size: unsafe { s.__bindgen_anon_1.uprobe_multi.path_size },
+                    path_size,
+                    path,
                     count: unsafe { s.__bindgen_anon_1.uprobe_multi.count },
                     flags: unsafe { s.__bindgen_anon_1.uprobe_multi.flags },
                     pid: unsafe { s.__bindgen_anon_1.uprobe_multi.pid },
+                    offsets,
+                    ref_ctr_offsets,
+                    cookies,
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_SOCKMAP => LinkTypeInfo::SockMap(SockMapLinkInfo {

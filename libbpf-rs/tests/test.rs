@@ -42,6 +42,7 @@ use libbpf_rs::query::KprobeMultiLinkInfo;
 use libbpf_rs::query::LinkTypeInfo;
 use libbpf_rs::query::PerfEventType;
 use libbpf_rs::query::ProgInfoIter;
+use libbpf_rs::query::UprobeMultiLinkInfo;
 use libbpf_rs::AsRawLibbpf;
 use libbpf_rs::Iter;
 use libbpf_rs::KprobeMultiOpts;
@@ -2088,18 +2089,23 @@ fn test_object_uprobe_multi_with_non_default_opts() {
     let prog = get_prog_mut(&mut obj, "handle__uprobe_multi_with_non_default_opts");
     let func_pattern = "";
 
-    let pid = unsafe { libc::getpid() };
-    let path = current_exe().expect("failed to find executable name");
+    let current_pid = unsafe { libc::getpid() };
+    let current_path = current_exe().expect("failed to find executable name");
+    let syms_opt = vec![
+        "non_default_opts_multi_uprobe_func_with_opts_func_1".to_string(),
+        "non_default_opts_multi_uprobe_func_with_opts_func_2".to_string(),
+    ];
+    let ref_ctr_offsets_opt = vec![2, 4];
+    let cookies_opt = vec![5, 2];
     let opts = UprobeMultiOpts {
-        syms: vec![
-            "non_default_opts_multi_uprobe_func_with_opts_func_1".to_string(),
-            "non_default_opts_multi_uprobe_func_with_opts_func_2".to_string(),
-        ],
+        syms: syms_opt.clone(),
+        ref_ctr_offsets: ref_ctr_offsets_opt.clone(),
+        cookies: cookies_opt.clone(),
         ..Default::default()
     };
 
-    let _link = prog
-        .attach_uprobe_multi_with_opts(pid, path, func_pattern, opts)
+    let link = prog
+        .attach_uprobe_multi_with_opts(current_pid, &current_path, func_pattern, opts)
         .expect("failed to attach uprobe multi");
 
     non_default_opts_multi_uprobe_func_with_opts_func_1();
@@ -2119,6 +2125,37 @@ fn test_object_uprobe_multi_with_non_default_opts() {
     );
 
     assert_eq!(result, 2);
+
+    let link_info = link.info().expect("failed to get uprobe_multi link info");
+    let LinkTypeInfo::UprobeMulti(uprobe_multi) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::UprobeMulti for uprobe_multi, got: {:?}",
+            link_info.info
+        );
+    };
+
+    let UprobeMultiLinkInfo {
+        path,
+        count,
+        pid,
+        offsets,
+        ref_ctr_offsets,
+        cookies,
+        ..
+    } = uprobe_multi;
+    assert_eq!(path.as_ref(), Some(&current_path));
+    assert_eq!(pid, current_pid as u32);
+    assert_eq!(count, syms_opt.len() as u32);
+    for (actual, sym) in zip(offsets, syms_opt) {
+        let expected = get_symbol_offset(&current_path, &sym).unwrap();
+        assert_eq!(actual, expected as u64);
+    }
+    for (actual, expected) in zip(ref_ctr_offsets, ref_ctr_offsets_opt) {
+        assert_eq!(actual, expected as u64);
+    }
+    for (actual, expected) in zip(cookies, cookies_opt) {
+        assert_eq!(actual, expected);
+    }
 }
 
 #[tag(root)]
