@@ -720,6 +720,10 @@ pub struct KprobeMultiLinkInfo {
     pub flags: u32,
     /// Missed probes count.
     pub missed: u64,
+    /// Addresses of the probe.
+    pub addrs: Vec<u64>,
+    /// Cookies corresponding to the attach addresses.
+    pub cookies: Vec<u64>,
 }
 
 /// Information about a multi-uprobe link.
@@ -940,10 +944,27 @@ impl LinkInfo {
                 map_id: unsafe { s.__bindgen_anon_1.struct_ops.map_id },
             }),
             libbpf_sys::BPF_LINK_TYPE_KPROBE_MULTI => {
+                let count = unsafe { s.__bindgen_anon_1.kprobe_multi.count } as usize;
+                let mut addrs = vec![0; count];
+                let mut cookies = vec![0; count];
+
+                s.__bindgen_anon_1.kprobe_multi.addrs = addrs.as_mut_ptr() as u64;
+                s.__bindgen_anon_1.kprobe_multi.cookies = cookies.as_mut_ptr() as u64;
+                let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
+                let mut len = size_of_val(&s) as u32;
+                let ret = unsafe {
+                    libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast(), &mut len)
+                };
+                if ret != 0 {
+                    return None;
+                }
+
                 LinkTypeInfo::KprobeMulti(KprobeMultiLinkInfo {
                     count: unsafe { s.__bindgen_anon_1.kprobe_multi.count },
                     flags: unsafe { s.__bindgen_anon_1.kprobe_multi.flags },
                     missed: unsafe { s.__bindgen_anon_1.kprobe_multi.missed },
+                    addrs,
+                    cookies,
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_UPROBE_MULTI => {

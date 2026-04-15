@@ -19,6 +19,7 @@ use std::fs;
 use std::hint;
 use std::io;
 use std::io::Read;
+use std::iter::zip;
 use std::mem::size_of;
 use std::mem::size_of_val;
 use std::os::unix::io::AsFd;
@@ -37,6 +38,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use libbpf_rs::num_possible_cpus;
+use libbpf_rs::query::KprobeMultiLinkInfo;
 use libbpf_rs::query::LinkTypeInfo;
 use libbpf_rs::query::PerfEventType;
 use libbpf_rs::query::ProgInfoIter;
@@ -1854,16 +1856,47 @@ fn test_object_kprobe_multi_with_opts() {
     let mut obj = open_obj.load().expect("failed to load object");
     let prog = get_prog_mut(&mut obj, "handle__kprobe");
 
+    let syms_opt = vec![
+        "bpf_fentry_test1".to_string(),
+        "bpf_fentry_test2".to_string(),
+    ];
+    let cookies_opt = vec![6, 7];
     let opts = KprobeMultiOpts {
-        symbols: vec![
-            "bpf_fentry_test1".to_string(),
-            "bpf_fentry_test2".to_string(),
-        ],
+        symbols: syms_opt.clone(),
+        cookies: cookies_opt.clone(),
         ..Default::default()
     };
-    let _link = prog
+
+    let link = prog
         .attach_kprobe_multi_with_opts(opts)
         .expect("failed to attach prog");
+
+    let link_info = link.info().expect("failed to get kprobe_multi link info");
+    let LinkTypeInfo::KprobeMulti(kprobe_multi) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::KprobeMulti for kprobe_multi, got: {:?}",
+            link_info.info
+        );
+    };
+
+    let KprobeMultiLinkInfo {
+        count,
+        addrs,
+        cookies,
+        ..
+    } = kprobe_multi;
+    assert_eq!(count, syms_opt.len() as u32);
+    for (actual, sym) in zip(addrs, syms_opt) {
+        let Some(expected) = common::resolve_ksym_addr(&sym) else {
+            // requires reading `/proc/kallsyms`
+            break;
+        };
+
+        assert_eq!(actual, expected);
+    }
+    for (actual, expected) in zip(cookies, cookies_opt) {
+        assert_eq!(actual, expected);
+    }
 }
 
 /// Check that we can attach a BPF program to a kernel tracepoint.

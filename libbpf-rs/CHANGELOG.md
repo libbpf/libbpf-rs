@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Added `KprobeMultiLinkInfo` fields that required a second info call.
+
+
 0.26.2
 ------
 - Added `ProgramMut::assoc_struct_ops` for associating non-struct_ops programs
