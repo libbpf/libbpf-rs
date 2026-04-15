@@ -143,3 +143,28 @@ fn check_symbol_offset(elf: &Elf, sym: &sym::Sym) -> Option<usize> {
     }
     None
 }
+
+pub(crate) fn resolve_ksym_addr(sym_name: &str) -> Option<u64> {
+    let kallsyms = fs::read_to_string("/proc/kallsyms").ok()?;
+
+    for line in kallsyms.split('\n') {
+        let mut parts = line.split_whitespace();
+        let Some(addr) = parts.next() else {
+            continue;
+        };
+        if parts.next().is_none() {
+            continue;
+        }
+        let Some(sym) = parts.next() else {
+            continue;
+        };
+
+        if sym_name == sym {
+            return Some(
+                u64::from_str_radix(addr, 16).expect("ksym found but could not resolve addr"),
+            );
+        }
+    }
+
+    None
+}
