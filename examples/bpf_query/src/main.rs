@@ -83,7 +83,7 @@ fn link() {
             query::LinkTypeInfo::RawTracepoint(_) => "raw_tracepoint",
             query::LinkTypeInfo::Tracing(_) => "tracing",
             query::LinkTypeInfo::Cgroup(_) => "cgroup",
-            query::LinkTypeInfo::Iter => "iter",
+            query::LinkTypeInfo::Iter(_) => "iter",
             query::LinkTypeInfo::NetNs(_) => "netns",
             query::LinkTypeInfo::Unknown => "unknown",
             query::LinkTypeInfo::Netfilter(_) => "netfilter",

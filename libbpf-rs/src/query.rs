@@ -29,6 +29,7 @@ use std::ptr;
 use std::time::Duration;
 
 use crate::util;
+use crate::CgroupIterOrder;
 use crate::MapType;
 use crate::ProgramAttachType;
 use crate::ProgramType;
@@ -651,6 +652,39 @@ pub struct CgroupLinkInfo {
     pub attach_type: ProgramAttachType,
 }
 
+/// Information about a BPF iterator link.
+#[derive(Debug, Clone)]
+pub struct IterLinkInfo {
+    /// The `bpf_iter__*` target name.
+    pub target_name: Option<CString>,
+    /// Specific BPF iterator information.
+    pub iter_type: Option<IterType>,
+}
+
+/// Specific BPF iterator types with decoded information.
+#[derive(Debug, Clone)]
+pub enum IterType {
+    /// A map type iterator.
+    Map {
+        /// The ID of the map being iterated.
+        map_id: u32,
+    },
+    /// A cgroup type iterator.
+    Cgroup {
+        /// The cgroup ID of where the iterator starts.
+        cgroup_id: u64,
+        /// The order in how the iterator traverses.
+        order: CgroupIterOrder,
+    },
+    /// A task type iterator.
+    Task {
+        /// Specific thread that is iterated over.
+        tid: u32,
+        /// Specific process that is iterated over.
+        pid: u32,
+    },
+}
+
 /// Information about a network namespace link.
 #[derive(Debug, Clone)]
 pub struct NetNsLinkInfo {
@@ -823,7 +857,7 @@ pub enum LinkTypeInfo {
     /// Contains information about the cgroups and its attachment type.
     Cgroup(CgroupLinkInfo),
     /// Iterator link type.
-    Iter,
+    Iter(IterLinkInfo),
     /// Network namespace link type.
     NetNs(NetNsLinkInfo),
     /// Link type for XDP programs.
@@ -925,7 +959,66 @@ impl LinkInfo {
                     s.__bindgen_anon_1.cgroup.attach_type
                 }),
             }),
-            libbpf_sys::BPF_LINK_TYPE_ITER => LinkTypeInfo::Iter,
+            libbpf_sys::BPF_LINK_TYPE_ITER => {
+                let mut buf = [0; 256];
+                s.__bindgen_anon_1.iter.target_name = buf.as_mut_ptr() as u64;
+                s.__bindgen_anon_1.iter.target_name_len = buf.len() as u32;
+                let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
+                let mut len = size_of_val(&s) as u32;
+
+                let ret = unsafe {
+                    libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast(), &mut len)
+                };
+                if ret != 0 {
+                    return None;
+                }
+
+                let iter_info = unsafe { s.__bindgen_anon_1.iter };
+                let (target_name, iter_type) = if iter_info.target_name_len != 0 {
+                    let target_name = unsafe {
+                        CStr::from_ptr(iter_info.target_name as *const c_char).to_owned()
+                    };
+
+                    let iter_type = match target_name.as_bytes() {
+                        b"bpf_map_elem" | b"bpf_sk_storage_map" => Some(IterType::Map {
+                            map_id: unsafe { iter_info.__bindgen_anon_1.map.map_id },
+                        }),
+                        b"cgroup" => {
+                            let order = match unsafe { iter_info.__bindgen_anon_2.cgroup.order } {
+                                libbpf_sys::BPF_CGROUP_ITER_SELF_ONLY => CgroupIterOrder::SelfOnly,
+                                libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_PRE => {
+                                    CgroupIterOrder::DescendantsPre
+                                }
+                                libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_POST => {
+                                    CgroupIterOrder::DescendantsPost
+                                }
+                                libbpf_sys::BPF_CGROUP_ITER_ANCESTORS_UP => {
+                                    CgroupIterOrder::AncestorsUp
+                                }
+                                _ => CgroupIterOrder::Default,
+                            };
+                            Some(IterType::Cgroup {
+                                cgroup_id: unsafe { iter_info.__bindgen_anon_2.cgroup.cgroup_id },
+                                order,
+                            })
+                        }
+                        b"task" | b"task_file" | b"task_vma" => Some(IterType::Task {
+                            tid: unsafe { iter_info.__bindgen_anon_2.task.tid },
+                            pid: unsafe { iter_info.__bindgen_anon_2.task.pid },
+                        }),
+                        _ => None,
+                    };
+
+                    (Some(target_name), iter_type)
+                } else {
+                    (None, None)
+                };
+
+                LinkTypeInfo::Iter(IterLinkInfo {
+                    target_name,
+                    iter_type,
+                })
+            }
             libbpf_sys::BPF_LINK_TYPE_NETNS => LinkTypeInfo::NetNs(NetNsLinkInfo {
                 ino: unsafe { s.__bindgen_anon_1.netns.netns_ino },
                 attach_type: ProgramAttachType::from(unsafe {
