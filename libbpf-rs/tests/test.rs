@@ -38,6 +38,8 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use libbpf_rs::num_possible_cpus;
+use libbpf_rs::query::IterLinkInfo;
+use libbpf_rs::query::IterType;
 use libbpf_rs::query::KprobeMultiLinkInfo;
 use libbpf_rs::query::LinkTypeInfo;
 use libbpf_rs::query::PerfEventType;
@@ -1487,6 +1489,23 @@ fn test_object_task_iter() {
         assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
         // Check for init
         assert!(items.iter().any(|&item| item.pid == 1));
+
+        let link_info = link.info().expect("failed to get iter link info");
+        let LinkTypeInfo::Iter(iter_info) = link_info.info else {
+            panic!("Expected LinkTypeInfo::Iter, got: {:?}", link_info.info);
+        };
+
+        let IterLinkInfo {
+            target_name,
+            iter_type,
+        } = iter_info;
+        assert_eq!(target_name, CString::new("task").ok());
+
+        let Some(IterType::Task { tid, pid }) = iter_type else {
+            panic!("Expected IterType::Task, got: {iter_type:?}");
+        };
+        assert_eq!(tid, 0); // all threads
+        assert_eq!(pid, 0); // all processes
     }
 
     // Test using auto-attachment.
@@ -1552,6 +1571,22 @@ fn test_object_map_iter() {
     assert!(buf.contains(&0));
     assert!(buf.contains(&1));
     assert!(buf.contains(&2));
+
+    let link_info = link.info().expect("failed to get iter link info");
+    let LinkTypeInfo::Iter(iter_info) = link_info.info else {
+        panic!("Expected LinkTypeInfo::Iter, got: {:?}", link_info.info);
+    };
+
+    let IterLinkInfo {
+        target_name,
+        iter_type,
+    } = iter_info;
+    assert_eq!(target_name, CString::new("bpf_map_elem").ok());
+
+    let Some(IterType::Map { map_id }) = iter_type else {
+        panic!("Expected IterType::Map, got: {iter_type:?}");
+    };
+    assert_eq!(map_id, map.info().unwrap().info.id);
 }
 
 #[tag(root)]
