@@ -227,7 +227,7 @@ impl ObjectBuilder {
         let opts_ptr = self.as_libbpf_object().as_ptr();
         let ptr = unsafe {
             libbpf_sys::bpf_object__open_mem(
-                mem.as_ptr() as *const c_void,
+                mem.as_ptr().cast::<c_void>(),
                 mem.len() as libbpf_sys::size_t,
                 opts_ptr,
             )
@@ -289,7 +289,7 @@ impl OpenObject {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
         // SAFETY: `libbpf_get_error` is always safe to call.
-        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr as *const _) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr.cast()) };
         if err != 0 {
             return None
         }
@@ -389,7 +389,7 @@ impl Object {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
         // SAFETY: `libbpf_get_error` is always safe to call.
-        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr as *const _) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr.cast()) };
         if err != 0 {
             return None
         }

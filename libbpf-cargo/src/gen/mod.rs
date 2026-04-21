@@ -755,7 +755,7 @@ fn open_bpf_object(name: &str, data: &[u8]) -> Result<Object> {
     };
     let object = unsafe {
         libbpf_sys::bpf_object__open_mem(
-            data.as_ptr() as *const c_void,
+            data.as_ptr().cast::<c_void>(),
             data.len() as c_ulong,
             &obj_opts,
         )

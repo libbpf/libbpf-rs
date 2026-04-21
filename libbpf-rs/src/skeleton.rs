@@ -129,7 +129,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
             .expect("Failed to allocate memory for maps skeleton");
 
         unsafe {
-            s.maps = alloc_zeroed(layout) as *mut bpf_map_skeleton;
+            s.maps = alloc_zeroed(layout).cast::<bpf_map_skeleton>();
             for (i, map) in maps.iter_mut().enumerate() {
                 let current_map = s.maps.add(i);
 
@@ -165,7 +165,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
             .expect("Failed to allocate memory for progs skeleton");
 
         unsafe {
-            s.progs = alloc_zeroed(layout) as *mut bpf_prog_skeleton;
+            s.progs = alloc_zeroed(layout).cast::<bpf_prog_skeleton>();
             for (i, prog) in progs.iter_mut().enumerate() {
                 let current_prog = s.progs.add(i);
 
@@ -195,7 +195,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         }
 
         // libbpf_sys will use it as const despite the signature
-        s.data = self.data.as_ptr() as *mut c_void;
+        s.data = self.data.as_ptr().cast_mut().cast();
         s.data_sz = self.data.len() as c_ulong;
 
         // Give s ownership over the box
@@ -304,13 +304,13 @@ impl Drop for ObjectSkeletonConfig<'_> {
 
         if let Some(layout) = self.maps_layout {
             unsafe {
-                dealloc(self.inner.maps as _, layout);
+                dealloc(self.inner.maps.cast(), layout);
             }
         }
 
         if let Some(layout) = self.progs_layout {
             unsafe {
-                dealloc(self.inner.progs as _, layout);
+                dealloc(self.inner.progs.cast(), layout);
             }
         }
 

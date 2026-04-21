@@ -102,7 +102,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
                         libbpf_sys::ring_buffer__new(
                             fd.as_raw_fd(),
                             c_sample_cb,
-                            sample_cb.deref_mut() as *mut _ as *mut _,
+                            (&raw mut *sample_cb.deref_mut()).cast(),
                             null_mut(),
                         )
                     };
@@ -119,7 +119,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
                             ptr.as_ptr(),
                             fd.as_raw_fd(),
                             c_sample_cb,
-                            sample_cb.deref_mut() as *mut _ as *mut _,
+                            (&raw mut *sample_cb.deref_mut()).cast(),
                         )
                     };
 
@@ -144,7 +144,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
-        let callback_struct = ctx as *mut RingBufferCallback<'_>;
+        let callback_struct = ctx.cast::<RingBufferCallback<'_>>();
         let callback = unsafe { (*callback_struct).cb.as_mut() };
         let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
 

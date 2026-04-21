@@ -15,7 +15,6 @@ use libc::SOCK_NONBLOCK;
 use libc::SOCK_RAW;
 
 use libc::c_int;
-use libc::c_void;
 use libc::socklen_t;
 use std::mem::size_of_val;
 
@@ -120,7 +119,7 @@ fn main() -> Result<()> {
             target_socket_fd,
             SOL_SOCKET,
             SO_ATTACH_BPF,
-            &prog_fd as *const _ as *const c_void,
+            (&raw const prog_fd).cast(),
             size_of_val(&prog_fd) as socklen_t,
         )
     } {

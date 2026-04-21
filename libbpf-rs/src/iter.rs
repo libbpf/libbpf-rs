@@ -36,7 +36,7 @@ impl Iter {
 impl io::Read for Iter {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let bytes_read =
-            unsafe { libc::read(self.fd.as_raw_fd(), buf.as_mut_ptr() as *mut _, buf.len()) };
+            unsafe { libc::read(self.fd.as_raw_fd(), buf.as_mut_ptr().cast(), buf.len()) };
         if bytes_read < 0 {
             return Err(io::Error::last_os_error());
         }
