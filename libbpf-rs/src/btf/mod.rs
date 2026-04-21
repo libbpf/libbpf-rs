@@ -261,7 +261,7 @@ impl<'btf> Btf<'btf> {
 
         let ptr = unsafe {
             libbpf_sys::bpf_object__open_mem(
-                object_file.as_ptr() as *const c_void,
+                object_file.as_ptr().cast::<c_void>(),
                 object_file.len() as c_ulong,
                 &obj_opts,
             )

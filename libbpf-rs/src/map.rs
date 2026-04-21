@@ -90,7 +90,7 @@ impl<'obj> OpenMap<'obj> {
     fn initial_value_raw(&self) -> (*mut u8, usize) {
         let mut size = 0u64;
         let ptr = unsafe {
-            libbpf_sys::bpf_map__initial_value(self.ptr.as_ptr(), &mut size as *mut _ as _)
+            libbpf_sys::bpf_map__initial_value(self.ptr.as_ptr(), (&raw mut size).cast())
         };
         (ptr.cast(), size as _)
     }
@@ -149,7 +149,7 @@ impl<'obj> OpenMapMut<'obj> {
         let ret = unsafe {
             libbpf_sys::bpf_map__set_initial_value(
                 self.ptr.as_ptr(),
-                data.as_ptr() as *const c_void,
+                data.as_ptr().cast::<c_void>(),
                 data.len() as libbpf_sys::size_t,
             )
         };
@@ -317,7 +317,7 @@ where
         return ptr::null();
     }
 
-    key.as_ptr() as *const c_void
+    key.as_ptr().cast::<c_void>()
 }
 
 /// Internal function to perform a map lookup and write the value into raw pointer.
@@ -414,7 +414,7 @@ where
         libbpf_sys::bpf_map_update_elem(
             map.as_fd().as_raw_fd(),
             map_key(map, key),
-            value.as_ptr() as *const c_void,
+            value.as_ptr().cast::<c_void>(),
             flags.bits(),
         )
     };
@@ -605,7 +605,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
             libbpf_sys::bpf_map_lookup_elem(
                 self.as_fd().as_raw_fd(),
                 ptr::null(),
-                value.to_vec().as_mut_ptr() as *mut c_void,
+                value.to_vec().as_mut_ptr().cast::<c_void>(),
             )
         };
 
@@ -661,7 +661,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         };
 
         let ret = unsafe {
-            libbpf_sys::bpf_map_delete_elem(self.as_fd().as_raw_fd(), key.as_ptr() as *const c_void)
+            libbpf_sys::bpf_map_delete_elem(self.as_fd().as_raw_fd(), key.as_ptr().cast::<c_void>())
         };
         util::parse_ret(ret)
     }
@@ -698,7 +698,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         let ret = unsafe {
             libbpf_sys::bpf_map_delete_batch(
                 self.as_fd().as_raw_fd(),
-                keys.as_ptr() as *const c_void,
+                keys.as_ptr().cast::<c_void>(),
                 &mut count,
                 &opts as *const libbpf_sys::bpf_map_batch_opts,
             )
@@ -727,7 +727,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
             libbpf_sys::bpf_map_lookup_and_delete_elem(
                 self.as_fd().as_raw_fd(),
                 map_key(self, key),
-                out.as_mut_ptr() as *mut c_void,
+                out.as_mut_ptr().cast::<c_void>(),
             )
         };
 
@@ -814,8 +814,8 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         let ret = unsafe {
             libbpf_sys::bpf_map_update_batch(
                 self.as_fd().as_raw_fd(),
-                keys.as_ptr() as *const c_void,
-                values.as_ptr() as *const c_void,
+                keys.as_ptr().cast::<c_void>(),
+                values.as_ptr().cast::<c_void>(),
                 &mut count,
                 &opts as *const libbpf_sys::bpf_map_batch_opts,
             )
@@ -1571,8 +1571,8 @@ impl Iterator for MapKeyIter<'_> {
         let ret = unsafe {
             libbpf_sys::bpf_map_get_next_key(
                 self.map_fd.as_raw_fd(),
-                prev as _,
-                self.next.as_mut_ptr() as _,
+                prev.cast(),
+                self.next.as_mut_ptr().cast(),
             )
         };
         if ret != 0 {
@@ -1717,7 +1717,7 @@ impl MapInfo {
         let () = util::parse_ret(unsafe {
             bpf_obj_get_info_by_fd(
                 fd.as_raw_fd(),
-                &mut map_info as *mut bpf_map_info as *mut c_void,
+                (&mut map_info as *mut bpf_map_info).cast::<c_void>(),
                 &mut size as *mut u32,
             )
         })?;

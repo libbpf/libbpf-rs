@@ -59,7 +59,7 @@ impl Linker {
         let err = unsafe {
             libbpf_sys::bpf_linker__add_buf(
                 self.linker.as_ptr(),
-                buf.as_ptr() as *mut _,
+                buf.as_ptr().cast_mut().cast(),
                 buf.len() as _,
                 opts,
             )

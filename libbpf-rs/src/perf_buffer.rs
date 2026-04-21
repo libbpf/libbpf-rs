@@ -142,7 +142,7 @@ where
                 self.pages as libbpf_sys::size_t,
                 c_sample_cb,
                 c_lost_cb,
-                callback_struct_ptr as *mut _,
+                callback_struct_ptr.cast(),
                 ptr::null(),
             )
         };
@@ -155,7 +155,7 @@ where
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {
-        let callback_struct = ctx as *mut CbStruct<'_>;
+        let callback_struct = ctx.cast::<CbStruct<'_>>();
 
         if let Some(cb) = unsafe { &mut (*callback_struct).sample_cb } {
             let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
@@ -164,7 +164,7 @@ where
     }
 
     unsafe extern "C" fn call_lost_cb(ctx: *mut c_void, cpu: i32, count: u64) {
-        let callback_struct = ctx as *mut CbStruct<'_>;
+        let callback_struct = ctx.cast::<CbStruct<'_>>();
 
         if let Some(cb) = unsafe { &mut (*callback_struct).lost_cb } {
             cb(cpu, count);

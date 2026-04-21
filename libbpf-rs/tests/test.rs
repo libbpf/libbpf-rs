@@ -2529,7 +2529,7 @@ fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
             perf_buff_ptr.as_ptr(),
             buf_idx as i32,
             ptr::addr_of_mut!(buffer_data_ptr),
-            ptr::addr_of_mut!(buffer_size) as *mut libbpf_sys::size_t,
+            ptr::addr_of_mut!(buffer_size).cast(),
         )
     };
     assert!(ret >= 0);
@@ -2805,7 +2805,7 @@ fn test_run_prog_success() {
     let mut args = [addr_of!(state) as u64];
     let input = ProgramInput {
         context_in: Some(unsafe {
-            slice::from_raw_parts_mut(&mut args as *mut _ as *mut u8, size_of_val(&args))
+            slice::from_raw_parts_mut((&raw mut args).cast(), size_of_val(&args))
         }),
         ..Default::default()
     };

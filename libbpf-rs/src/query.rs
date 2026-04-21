@@ -79,7 +79,7 @@ macro_rules! gen_info_impl {
                 let item_ptr: *mut $uapi_info_ty = &mut item;
                 let mut len = size_of_val(&item) as u32;
 
-                let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len) };
+                let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast(), &mut len) };
                 let parsed_uapi = if ret != 0 {
                     None
                 } else {
@@ -316,7 +316,7 @@ impl ProgramInfo {
         let mut len = size_of_val(&item) as u32;
 
         let ret = unsafe {
-            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast::<c_void>(), &mut len)
         };
         util::parse_ret(ret)?;
 
@@ -326,21 +326,21 @@ impl ProgramInfo {
 
         if opts.include_xlated_prog_insns {
             xlated_prog_insns.resize(item.xlated_prog_len as usize, 0u8);
-            item.xlated_prog_insns = xlated_prog_insns.as_mut_ptr() as *mut c_void as u64;
+            item.xlated_prog_insns = xlated_prog_insns.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.xlated_prog_len = 0;
         }
 
         if opts.include_jited_prog_insns {
             jited_prog_insns.resize(item.jited_prog_len as usize, 0u8);
-            item.jited_prog_insns = jited_prog_insns.as_mut_ptr() as *mut c_void as u64;
+            item.jited_prog_insns = jited_prog_insns.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.jited_prog_len = 0;
         }
 
         if opts.include_map_ids {
             map_ids.resize(item.nr_map_ids as usize, 0u32);
-            item.map_ids = map_ids.as_mut_ptr() as *mut c_void as u64;
+            item.map_ids = map_ids.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_map_ids = 0;
         }
@@ -350,7 +350,7 @@ impl ProgramInfo {
                 item.nr_line_info as usize,
                 libbpf_sys::bpf_line_info::default(),
             );
-            item.line_info = line_info.as_mut_ptr() as *mut c_void as u64;
+            item.line_info = line_info.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_line_info = 0;
         }
@@ -360,41 +360,41 @@ impl ProgramInfo {
                 item.nr_func_info as usize,
                 libbpf_sys::bpf_func_info::default(),
             );
-            item.func_info = func_info.as_mut_ptr() as *mut c_void as u64;
+            item.func_info = func_info.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_func_info = 0;
         }
 
         if opts.include_jited_line_info {
             jited_line_info.resize(item.nr_jited_line_info as usize, ptr::null());
-            item.jited_line_info = jited_line_info.as_mut_ptr() as *mut c_void as u64;
+            item.jited_line_info = jited_line_info.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_jited_line_info = 0;
         }
 
         if opts.include_jited_func_lens {
             jited_func_lens.resize(item.nr_jited_func_lens as usize, 0);
-            item.jited_func_lens = jited_func_lens.as_mut_ptr() as *mut c_void as u64;
+            item.jited_func_lens = jited_func_lens.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_jited_func_lens = 0;
         }
 
         if opts.include_prog_tags {
             prog_tags.resize(item.nr_prog_tags as usize, Tag::default());
-            item.prog_tags = prog_tags.as_mut_ptr() as *mut c_void as u64;
+            item.prog_tags = prog_tags.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_prog_tags = 0;
         }
 
         if opts.include_jited_ksyms {
             jited_ksyms.resize(item.nr_jited_ksyms as usize, ptr::null());
-            item.jited_ksyms = jited_ksyms.as_mut_ptr() as *mut c_void as u64;
+            item.jited_ksyms = jited_ksyms.as_mut_ptr().cast::<c_void>() as u64;
         } else {
             item.nr_jited_ksyms = 0;
         }
 
         let ret = unsafe {
-            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast::<c_void>(), &mut len)
         };
         util::parse_ret(ret)?;
 
@@ -552,7 +552,7 @@ impl BtfInfo {
         let mut len = size_of_val(&item) as u32;
 
         let ret = unsafe {
-            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast::<c_void>(), &mut len)
         };
         util::parse_ret(ret)?;
 
@@ -560,13 +560,13 @@ impl BtfInfo {
         // you to give it back space for a nul-terminator
         item.name_len += 1;
         name.resize(item.name_len as usize, 0u8);
-        item.name = name.as_mut_ptr() as *mut c_void as u64;
+        item.name = name.as_mut_ptr().cast::<c_void>() as u64;
 
         btf.resize(item.btf_size as usize, 0u8);
-        item.btf = btf.as_mut_ptr() as *mut c_void as u64;
+        item.btf = btf.as_mut_ptr().cast::<c_void>() as u64;
 
         let ret = unsafe {
-            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast::<c_void>(), &mut len)
         };
         util::parse_ret(ret)?;
 
@@ -862,7 +862,7 @@ impl LinkInfo {
         let mut len = size_of_val(&link_info) as u32;
 
         let ret = unsafe {
-            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr as *mut c_void, &mut len)
+            libbpf_sys::bpf_obj_get_info_by_fd(fd.as_raw_fd(), item_ptr.cast::<c_void>(), &mut len)
         };
         util::parse_ret(ret)?;
 
@@ -882,7 +882,7 @@ impl LinkInfo {
                 let ret = unsafe {
                     libbpf_sys::bpf_obj_get_info_by_fd(
                         fd.as_raw_fd(),
-                        item_ptr as *mut c_void,
+                        item_ptr.cast::<c_void>(),
                         &mut len,
                     )
                 };
@@ -1014,7 +1014,7 @@ impl LinkInfo {
                     let ret = unsafe {
                         libbpf_sys::bpf_obj_get_info_by_fd(
                             fd.as_raw_fd(),
-                            item_ptr as *mut c_void,
+                            item_ptr.cast::<c_void>(),
                             &mut len,
                         )
                     };

@@ -815,7 +815,7 @@ impl<'obj> Program<'obj> {
         let ret = unsafe {
             libbpf_sys::bpf_obj_get_info_by_fd(
                 fd.as_raw_fd(),
-                prog_info_ptr as *mut c_void,
+                prog_info_ptr.cast::<c_void>(),
                 &mut len,
             )
         };
@@ -1244,7 +1244,7 @@ impl<'obj> ProgramMut<'obj> {
 
         let opts = libbpf_sys::bpf_kprobe_multi_opts {
             sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
-            syms: syms.as_mut_ptr() as _,
+            syms: syms.as_mut_ptr().cast(),
             cnt: cnt as libbpf_sys::size_t,
             retprobe,
             // bpf_kprobe_multi_opts might have padding fields on some platform
@@ -1275,9 +1275,9 @@ impl<'obj> ProgramMut<'obj> {
 
         let opts = libbpf_sys::bpf_kprobe_multi_opts {
             sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
-            syms: syms.as_mut_ptr() as _,
+            syms: syms.as_mut_ptr().cast(),
             cookies: if !cookies.is_empty() {
-                cookies.as_mut_ptr() as _
+                cookies.as_mut_ptr().cast()
             } else {
                 ptr::null()
             },
@@ -1327,7 +1327,7 @@ impl<'obj> ProgramMut<'obj> {
                 self.ptr.as_ptr(),
                 tp_category_ptr,
                 tp_name_ptr,
-                opts as *const _,
+                opts.cast(),
             )
         };
 
