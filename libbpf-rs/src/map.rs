@@ -115,6 +115,26 @@ impl<'obj> OpenMap<'obj> {
     pub fn autocreate(&self) -> bool {
         unsafe { libbpf_sys::bpf_map__autocreate(self.ptr.as_ptr()) }
     }
+
+    /// Retrieve the map flags.
+    pub fn map_flags(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__map_flags(self.ptr.as_ptr()) }
+    }
+
+    /// Retrieve the map numa node.
+    pub fn numa_node(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__numa_node(self.ptr.as_ptr()) }
+    }
+
+    /// Retrieve the key size of the map in bytes.
+    pub fn key_size(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__key_size(self.ptr.as_ptr()) }
+    }
+
+    /// Retrieve the value size of the map in bytes.
+    pub fn value_size(&self) -> u32 {
+        unsafe { libbpf_sys::bpf_map__value_size(self.ptr.as_ptr()) }
+    }
 }
 
 impl<'obj> OpenMapMut<'obj> {
