@@ -2712,6 +2712,26 @@ fn test_map_query_fdinfo() {
     assert_eq!(fdinfo.owner_jited, None);
 }
 
+/// Check that `OpenMap` gets information correctly.
+#[tag(root)]
+#[test]
+fn test_map_get_info() {
+    let obj = open_test_object("runqslower.bpf.o");
+
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+
+    assert!(start.autocreate());
+    assert_eq!(start.key_size(), size_of::<u32>() as _);
+    assert_eq!(start.value_size(), size_of::<u64>() as _);
+    assert_eq!(start.map_flags(), 0);
+    assert_eq!(start.map_type(), MapType::Hash);
+    assert_eq!(start.max_entries(), 10240);
+    assert_eq!(start.numa_node(), 0);
+}
+
 /// Check that we can adjust a map's value size.
 #[tag(root)]
 #[test]
