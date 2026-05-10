@@ -340,13 +340,24 @@ where
     key.as_ptr().cast::<c_void>()
 }
 
+/// Internal selector for which underlying lookup operation to perform.
+///
+/// `bpf_map_lookup_elem_flags` accepts `MapFlags`, while
+/// `bpf_map_lookup_and_delete_elem` does not. Wrapping the choice in an
+/// enum keeps the two cases distinct without leaking an unused `flags`
+/// argument into the lookup-and-delete path.
+enum LookupOp {
+    Lookup(MapFlags),
+    LookupAndDelete,
+}
+
 /// Internal function to perform a map lookup and write the value into raw pointer.
 /// Returns `Ok(true)` if the key was found, `Ok(false)` if not found, or an error.
 fn lookup_raw<M>(
     map: &M,
     key: &[u8],
     value: &mut [mem::MaybeUninit<u8>],
-    flags: MapFlags,
+    op: LookupOp,
 ) -> Result<bool>
 where
     M: MapCore + ?Sized,
@@ -370,13 +381,20 @@ where
     );
 
     let ret = unsafe {
-        libbpf_sys::bpf_map_lookup_elem_flags(
-            map.as_fd().as_raw_fd(),
-            map_key(map, key),
-            // TODO: Use `MaybeUninit::slice_as_mut_ptr` once stable.
-            value.as_mut_ptr().cast(),
-            flags.bits(),
-        )
+        match op {
+            LookupOp::Lookup(flags) => libbpf_sys::bpf_map_lookup_elem_flags(
+                map.as_fd().as_raw_fd(),
+                map_key(map, key),
+                // TODO: Use `MaybeUninit::slice_as_mut_ptr` once stable.
+                value.as_mut_ptr().cast(),
+                flags.bits(),
+            ),
+            LookupOp::LookupAndDelete => libbpf_sys::bpf_map_lookup_and_delete_elem(
+                map.as_fd().as_raw_fd(),
+                map_key(map, key),
+                value.as_mut_ptr().cast(),
+            ),
+        }
     };
 
     if ret == 0 {
@@ -392,19 +410,14 @@ where
 }
 
 /// Internal function to return a value from a map into a buffer of the given size.
-fn lookup_raw_vec<M>(
-    map: &M,
-    key: &[u8],
-    flags: MapFlags,
-    out_size: usize,
-) -> Result<Option<Vec<u8>>>
+fn lookup_raw_vec<M>(map: &M, key: &[u8], op: LookupOp, out_size: usize) -> Result<Option<Vec<u8>>>
 where
     M: MapCore + ?Sized,
 {
     // Allocate without initializing (avoiding memset)
     let mut out = Vec::with_capacity(out_size);
 
-    match lookup_raw(map, key, out.spare_capacity_mut(), flags)? {
+    match lookup_raw(map, key, out.spare_capacity_mut(), op)? {
         true => {
             // SAFETY: `lookup_raw` successfully filled the buffer
             unsafe {
@@ -555,7 +568,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
     fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
         check_not_bloom_or_percpu(self)?;
         let out_size = self.value_size() as usize;
-        lookup_raw_vec(self, key, flags, out_size)
+        lookup_raw_vec(self, key, LookupOp::Lookup(flags), out_size)
     }
 
     /// Looks up a map value into a pre-allocated buffer, avoiding allocation.
@@ -588,7 +601,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
                 value.len(),
             )
         };
-        lookup_raw(self, key, value, flags)
+        lookup_raw(self, key, value, LookupOp::Lookup(flags))
     }
 
     /// Returns many elements in batch mode from the map.
@@ -656,7 +669,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         let aligned_val_size = percpu_aligned_value_size(self);
         let out_size = percpu_buffer_size(self)?;
 
-        let raw_res = lookup_raw_vec(self, key, flags, out_size)?;
+        let raw_res = lookup_raw_vec(self, key, LookupOp::Lookup(flags), out_size)?;
         if let Some(raw_vals) = raw_res {
             let mut out = Vec::new();
             for chunk in raw_vals.chunks_exact(aligned_val_size) {
@@ -728,42 +741,44 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 
     /// Same as [`Self::lookup()`] except this also deletes the key from the map.
     ///
-    /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
-    /// and [`MapType::Stack`].
+    /// Implemented in the kernel for [`MapType::Queue`] and [`MapType::Stack`],
+    /// and (since Linux 5.14) for [`MapType::Hash`] / [`MapType::LruHash`] /
+    /// [`MapType::PercpuHash`] / [`MapType::LruPercpuHash`].
     ///
     /// `key` must have exactly [`Self::key_size()`] elements.
     fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        if key.len() != self.key_size() as usize {
+        let out_size = self.value_size() as usize;
+        lookup_raw_vec(self, key, LookupOp::LookupAndDelete, out_size)
+    }
+
+    /// Same as [`Self::lookup_into()`] except this also deletes the key from the map.
+    ///
+    /// This method provides a zero-allocation alternative to [`Self::lookup_and_delete()`].
+    ///
+    /// `key` must have exactly [`Self::key_size()`] elements.
+    /// `value` must have exactly [`Self::value_size()`] elements.
+    ///
+    /// Returns `Ok(true)` if the key was found and the buffer was filled,
+    /// `Ok(false)` if the key was not found, or an error.
+    ///
+    /// See [`Self::lookup_and_delete()`] for kernel support details.
+    fn lookup_into_and_delete(&self, key: &[u8], value: &mut [u8]) -> Result<bool> {
+        if value.len() != self.value_size() as usize {
             return Err(Error::with_invalid_data(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
+                "value buffer size {} != {}",
+                value.len(),
+                self.value_size()
             )));
-        };
+        }
 
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_lookup_and_delete_elem(
-                self.as_fd().as_raw_fd(),
-                map_key(self, key),
-                out.as_mut_ptr().cast::<c_void>(),
+        // SAFETY: `u8` and `MaybeUninit<u8>` have the same in-memory representation.
+        let value = unsafe {
+            slice::from_raw_parts_mut::<mem::MaybeUninit<u8>>(
+                value.as_mut_ptr().cast(),
+                value.len(),
             )
         };
-
-        if ret == 0 {
-            unsafe {
-                out.set_len(self.value_size() as usize);
-            }
-            Ok(Some(out))
-        } else {
-            let err = io::Error::last_os_error();
-            if err.kind() == io::ErrorKind::NotFound {
-                Ok(None)
-            } else {
-                Err(Error::from(err))
-            }
-        }
+        lookup_raw(self, key, value, LookupOp::LookupAndDelete)
     }
 
     /// Update an element.

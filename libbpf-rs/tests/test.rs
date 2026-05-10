@@ -777,6 +777,81 @@ fn test_object_map_lookup_into_consistency() {
     );
 }
 
+/// Test `lookup_and_delete` on a regular HASH map. The kernel grew support for
+/// `bpf_map_lookup_and_delete_elem` on hash maps in v5.14 (commit 3e87f192b405);
+/// before that, only Queue and Stack were covered (already exercised in
+/// `test_object_map_queue_crud` / `test_object_map_stack_crud`).
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_and_delete_hash() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    let val = start
+        .lookup_and_delete(&[1, 2, 3, 4])
+        .expect("failed to lookup_and_delete")
+        .expect("key should exist");
+    assert_eq!(val, &[1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // The entry must be gone after lookup_and_delete.
+    assert!(start
+        .lookup(&[1, 2, 3, 4], MapFlags::empty())
+        .expect("failed to lookup")
+        .is_none());
+
+    // A second lookup_and_delete reports the missing key as Ok(None).
+    assert!(start
+        .lookup_and_delete(&[1, 2, 3, 4])
+        .expect("failed to lookup_and_delete on missing key")
+        .is_none());
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_into_and_delete() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    let mut value = [0u8; 8];
+    let found = start
+        .lookup_into_and_delete(&[1, 2, 3, 4], &mut value)
+        .expect("failed to lookup_into_and_delete");
+    assert!(found, "key should be found");
+    assert_eq!(value, [1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // The entry must be gone afterwards.
+    assert!(start
+        .lookup(&[1, 2, 3, 4], MapFlags::empty())
+        .expect("failed to lookup")
+        .is_none());
+
+    // Missing keys return Ok(false) and leave the buffer untouched.
+    let mut value2 = [42u8; 8];
+    let found2 = start
+        .lookup_into_and_delete(&[1, 2, 3, 4], &mut value2)
+        .expect("failed to lookup_into_and_delete on missing key");
+    assert!(!found2);
+    assert_eq!(value2, [42u8; 8]);
+
+    // Wrong-sized buffers and wrong-sized keys must error.
+    let mut value_small = [0u8; 4];
+    assert!(start
+        .lookup_into_and_delete(&[1, 2, 3, 4], &mut value_small)
+        .is_err());
+    let mut value_ok = [0u8; 8];
+    assert!(start
+        .lookup_into_and_delete(&[1, 2, 3, 4, 5], &mut value_ok)
+        .is_err());
+}
+
 #[tag(root)]
 #[test]
 fn test_object_map_lookup_flags() {
