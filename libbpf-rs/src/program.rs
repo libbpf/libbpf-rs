@@ -6,6 +6,9 @@ use std::ffi::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::fmt::Debug;
+use std::fs::remove_file;
 use std::io::Read;
 use std::marker::PhantomData;
 use std::mem;
@@ -1727,6 +1730,127 @@ impl<T> AsRawLibbpf for ProgramImpl<'_, T> {
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].
     fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
+    }
+}
+
+/// An owned handle to a loaded BPF program.
+///
+/// Similar to [`MapHandle`][crate::MapHandle] for maps: owns the file descriptor
+/// and caches metadata, so it can outlive the [`Object`][crate::Object] it came from.
+#[derive(Debug)]
+pub struct ProgramHandle {
+    fd: OwnedFd,
+    name: OsString,
+    ty: ProgramType,
+    tag: [u8; 8],
+    id: u32,
+}
+
+impl ProgramHandle {
+    fn from_fd(fd: OwnedFd) -> Result<Self> {
+        let mut info = libbpf_sys::bpf_prog_info::default();
+        let mut len = size_of::<libbpf_sys::bpf_prog_info>() as u32;
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(
+                fd.as_raw_fd(),
+                (&mut info as *mut libbpf_sys::bpf_prog_info).cast::<c_void>(),
+                &mut len,
+            )
+        };
+        util::parse_ret(ret)?;
+
+        let name_cstr = util::c_char_slice_to_cstr(&info.name)
+            .ok_or_else(|| Error::with_invalid_data("program name not NUL-terminated"))?;
+        let name = OsStr::from_bytes(name_cstr.to_bytes()).to_os_string();
+
+        Ok(Self {
+            fd,
+            name,
+            ty: ProgramType::from(info.type_),
+            tag: info.tag,
+            id: info.id,
+        })
+    }
+
+    /// Open a loaded program by its kernel ID.
+    pub fn from_prog_id(id: u32) -> Result<Self> {
+        Self::from_fd(Program::fd_from_id(id)?)
+    }
+
+    /// Open a previously pinned program from its bpffs path.
+    pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let fd = Program::fd_from_pinned_path(path)?;
+        Self::from_fd(fd)
+    }
+
+    /// The program's name.
+    pub fn name(&self) -> &OsStr {
+        &self.name
+    }
+
+    /// The `ProgramType` of this handle.
+    pub fn prog_type(&self) -> ProgramType {
+        self.ty
+    }
+
+    /// The 8-byte tag (instruction hash) of the program.
+    pub fn tag(&self) -> [u8; 8] {
+        self.tag
+    }
+
+    /// The kernel ID of this program.
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this program to bpffs.
+    pub fn pin<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let ret = unsafe { libbpf_sys::bpf_obj_pin(self.fd.as_raw_fd(), path_c.as_ptr()) };
+        util::parse_ret(ret)
+    }
+
+    /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this program from bpffs.
+    pub fn unpin<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        remove_file(path).context("failed to remove pinned program")
+    }
+}
+
+impl AsFd for ProgramHandle {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
+    }
+}
+
+impl<T: Debug> TryFrom<&ProgramImpl<'_, T>> for ProgramHandle {
+    type Error = Error;
+
+    fn try_from(prog: &ProgramImpl<'_, T>) -> Result<Self> {
+        let fd = prog
+            .as_fd()
+            .try_clone_to_owned()
+            .context("failed to duplicate program file descriptor")?;
+        Self::from_fd(fd)
+    }
+}
+
+impl TryFrom<&Self> for ProgramHandle {
+    type Error = Error;
+
+    fn try_from(other: &Self) -> Result<Self> {
+        Ok(Self {
+            fd: other
+                .as_fd()
+                .try_clone_to_owned()
+                .context("failed to duplicate program file descriptor")?,
+            name: other.name.clone(),
+            ty: other.ty,
+            tag: other.tag,
+            id: other.id,
+        })
     }
 }
 
