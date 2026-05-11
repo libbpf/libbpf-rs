@@ -59,6 +59,7 @@ use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
 use libbpf_rs::PerfEventOpts;
 use libbpf_rs::Program;
+use libbpf_rs::ProgramHandle;
 use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
 use libbpf_rs::RawTracepointOpts;
@@ -3106,4 +3107,87 @@ fn test_prog_info_verified_insns() {
         "expected verified_insns > 0, got {}",
         info.verified_insns,
     );
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_from_prog_id() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to get program id");
+
+    let handle = ProgramHandle::from_prog_id(prog_id).expect("failed to create handle from id");
+    // bpf_prog_info.name is [c_char; 16], so kernel truncates to 15 chars.
+    assert_eq!(handle.name(), "handle__sched_s");
+    assert_eq!(handle.prog_type(), prog.prog_type());
+    assert_eq!(handle.id(), prog_id);
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_from_pinned_path() {
+    let path = "/sys/fs/bpf/test_prog_handle_pinned";
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let mut prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to get program id");
+    prog.pin(path).expect("failed to pin program");
+
+    defer! {
+        let _unused = fs::remove_file(path);
+    }
+
+    let handle =
+        ProgramHandle::from_pinned_path(path).expect("failed to create handle from pinned path");
+    assert_eq!(handle.id(), prog_id);
+    assert_eq!(handle.name(), "handle__sched_w");
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_try_from_program() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle from program");
+    assert_eq!(handle.name(), "handle__sched_s");
+    assert_eq!(handle.prog_type(), prog.prog_type());
+}
+
+/// Check that cloning a `ProgramHandle` via `TryFrom<&Self>` gives a distinct fd
+/// with the same metadata.
+#[tag(root)]
+#[test]
+fn test_program_handle_clone() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_wakeup_new");
+    let handle1 = ProgramHandle::try_from(&prog).expect("failed to create handle");
+    let handle2 = ProgramHandle::try_from(&handle1).expect("failed to clone handle");
+
+    assert_eq!(handle1.name(), handle2.name());
+    assert_eq!(handle1.prog_type(), handle2.prog_type());
+    assert_eq!(handle1.tag(), handle2.tag());
+    assert_eq!(handle1.id(), handle2.id());
+    // The cloned handle must hold its own fd.
+    assert_ne!(handle1.as_fd().as_raw_fd(), handle2.as_fd().as_raw_fd());
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_pin_unpin() {
+    let path = "/sys/fs/bpf/test_prog_handle_pin_unpin";
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle");
+
+    defer! {
+        let _unused = fs::remove_file(path);
+    }
+
+    handle.pin(path).expect("failed to pin program handle");
+    assert!(Path::new(path).exists());
+
+    handle.unpin(path).expect("failed to unpin program handle");
+    assert!(!Path::new(path).exists());
 }

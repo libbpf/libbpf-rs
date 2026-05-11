@@ -147,6 +147,7 @@ pub use crate::program::Output as ProgramOutput;
 pub use crate::program::PerfEventOpts;
 pub use crate::program::Program;
 pub use crate::program::ProgramAttachType;
+pub use crate::program::ProgramHandle;
 pub use crate::program::ProgramImpl;
 pub use crate::program::ProgramMut;
 pub use crate::program::ProgramType;
