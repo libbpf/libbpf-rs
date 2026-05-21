@@ -49,9 +49,7 @@ jobs:
     - uses: d-e-s-o/build-linux@a2c2581c6b44879b6070699618be648480a122c5
       id: build
       with:
-        # TODO: Bump to whatever gets tagged next that includes this
-        #       commit.
-        rev: 'b5709f6d26d65f6bb9711f4b5f98469fd507cb5b'
+        rev: 'v7.0'
         config: 'var/config'
         vmlinux: 'true'
     - uses: dtolnay/rust-toolchain@master
@@ -91,7 +89,7 @@ jobs:
     - name: Run root tests
       uses: d-e-s-o/vmsh@2dbf4f434b14f75b860f5550f289ac1ecde6d438
     - run: |
-        vmsh --cpus=$(nproc) --memory=8192 --kernel ${{ steps.build.outputs.build-dir }}/boot/vmlinux-6.18.0+ --env=HOME --env=PATH -- sh -c 'cd ${{ github.workspace }} && ./main.sh'
+        vmsh --cpus=$(nproc) --memory=8192 --kernel ${{ steps.build.outputs.build-dir }}/boot/vmlinux-7.0.0 --env=HOME --env=PATH -- sh -c 'cd ${{ github.workspace }} && ./main.sh'
 
   run-examples:
     name: Run chosen examples
