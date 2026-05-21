@@ -1,0 +1,23 @@
+name: Build kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build kernel
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: d-e-s-o/build-linux@a2c2581c6b44879b6070699618be648480a122c5
+      with:
+        # TODO: Bump to whatever gets tagged next that includes this
+        #       commit.
+        rev: 'b5709f6d26d65f6bb9711f4b5f98469fd507cb5b'
+        config: 'var/config'
+        vmlinux: 'true'
+    - uses: actions/upload-artifact@v7
+      with:
+        name: linux-kernel
+        path: build/boot/vmlinux-*
+        if-no-files-found: error
