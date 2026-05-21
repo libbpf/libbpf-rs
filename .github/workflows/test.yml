@@ -90,7 +90,7 @@ jobs:
     - name: Run root tests
       uses: d-e-s-o/vmsh@adcb371a90d9e8e9cc3e998399d3b00ad21f5b76
     - run: |
-        vmsh ${{ steps.build.outputs.build-dir }}/bzImage --env=HOME --env=PATH -- sh -c 'cd ${{ github.workspace }} && ./main.sh'
+        vmsh --cpus=$(nproc) --memory=8192 ${{ steps.build.outputs.build-dir }}/bzImage --env=HOME --env=PATH -- sh -c 'cd ${{ github.workspace }} && ./main.sh'
 
   run-examples:
     name: Run chosen examples
