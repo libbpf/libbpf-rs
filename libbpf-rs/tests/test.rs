@@ -46,6 +46,7 @@ use libbpf_rs::query::PerfEventType;
 use libbpf_rs::query::ProgInfoIter;
 use libbpf_rs::query::UprobeMultiLinkInfo;
 use libbpf_rs::AsRawLibbpf;
+use libbpf_rs::ErrorKind;
 use libbpf_rs::Iter;
 use libbpf_rs::KprobeMultiOpts;
 use libbpf_rs::KprobeOpts;
@@ -428,6 +429,29 @@ pub fn test_map_info() {
     assert_eq!(map_info.btf_vmlinux_value_type_id, 0);
     assert_eq!(map_info.map_extra, 0);
     assert_eq!(map_info.ifindex, 0);
+}
+
+/// Check that inserting elements beyond a map's `max_entries` should
+/// surface as [`ErrorKind::TooBig`].
+#[tag(root)]
+#[test]
+fn test_map_update_max_entries_exceeded() {
+    let opts = libbpf_sys::bpf_map_create_opts {
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        ..Default::default()
+    };
+    let max_entries = 1;
+    let map = MapHandle::create(MapType::Hash, Some("full_map"), 4, 4, max_entries, &opts).unwrap();
+
+    let value = 0u32.to_ne_bytes();
+    let () = map
+        .update(&1u32.to_ne_bytes(), &value, MapFlags::ANY)
+        .unwrap();
+
+    let err = map
+        .update(&2u32.to_ne_bytes(), &value, MapFlags::ANY)
+        .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::TooBig, "{err:?}");
 }
 
 #[tag(root)]

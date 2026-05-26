@@ -128,6 +128,9 @@ impl ErrorImpl {
                 io::ErrorKind::Unsupported => ErrorKind::Unsupported,
                 io::ErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
                 io::ErrorKind::OutOfMemory => ErrorKind::OutOfMemory,
+                // TODO: Use `io::ErrorKind::ArgumentListTooLong` once
+                //       stable.
+                _ if error.raw_os_error() == Some(libc::E2BIG) => ErrorKind::TooBig,
                 _ => ErrorKind::Other,
             },
             Self::ContextOwned { source, .. } | Self::ContextStatic { source, .. } => {
@@ -255,6 +258,14 @@ pub enum ErrorKind {
     /// An operation could not be completed, because it failed
     /// to allocate enough memory.
     OutOfMemory,
+    /// An argument exceeded a size limit imposed by the kernel.
+    ///
+    /// Corresponds to `E2BIG` from the underlying syscall. For BPF map
+    /// operations such as [`MapCore::update`][crate::MapCore::update]
+    /// this typically means the map has reached its `max_entries`
+    /// limit. The same code can also indicate that a BPF program is too
+    /// large to load.
+    TooBig,
     /// A custom error that does not fall under any other I/O error
     /// kind.
     Other,
@@ -617,5 +628,15 @@ Caused by:
     some invalid data"#;
         assert_eq!(format!("{err:?}"), expected);
         assert_ne!(format!("{err:#?}"), "");
+    }
+
+    /// Check that `E2BIG` is reported as [`ErrorKind::TooBig`].
+    #[test]
+    fn e2big_maps_to_too_big() {
+        let err = Error::from_raw_os_error(libc::E2BIG);
+        assert_eq!(err.kind(), ErrorKind::TooBig);
+
+        let err = err.context("inserting key into map");
+        assert_eq!(err.kind(), ErrorKind::TooBig);
     }
 }
