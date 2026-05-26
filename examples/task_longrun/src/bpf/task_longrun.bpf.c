@@ -66,7 +66,7 @@ int handle__sched_switch(u64 *ctx)
 }
 
 /* bpflint: disable=unstable-attach-point */
-SEC("kprobe/scheduler_tick")
+SEC("kprobe/sched_tick")
 void handle__sched_tick(struct pt_regs *ctx)
 {
     s32 cpu = bpf_get_smp_processor_id();
