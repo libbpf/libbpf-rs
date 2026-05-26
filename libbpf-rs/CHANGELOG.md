@@ -4,6 +4,8 @@ Unreleased
   second info call.
 - Added `key_size`, `value_size` and more getters to `OpenMap{,Mut}`
 - Added specific `IterLinkInfo` fields for `LinkTypeInfo::Iter`.
+- Added `ErrorKind::TooBig` variant, surfaced when the underlying
+  operation fails with `E2BIG` (e.g., a map reaching `max_entries`).
 
 
 0.26.2
