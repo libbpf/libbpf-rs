@@ -8,7 +8,7 @@ jobs:
     name: Build kernel
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: d-e-s-o/build-linux@a2c2581c6b44879b6070699618be648480a122c5
       with:
         # TODO: Bump to whatever gets tagged next that includes this
