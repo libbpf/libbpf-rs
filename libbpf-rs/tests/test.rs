@@ -971,6 +971,39 @@ fn test_object_loading_pinned_map_from_path() {
 
 #[tag(root)]
 #[test]
+fn test_object_loading_pinned_map_from_path_read_only() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let mut map = get_map_mut(&mut obj, "start");
+    let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path_read_only";
+    let key = 1u32.to_ne_bytes();
+    let value = 42u64.to_ne_bytes();
+
+    map.update(&key, &value, MapFlags::ANY)
+        .expect("failed to update map before pinning");
+    map.pin(path).expect("pinning map failed");
+    defer! {
+        map.unpin(path).expect("unpinning map failed");
+    }
+
+    let pinned_map = MapHandle::from_pinned_path_with_file_flags(path, libbpf_sys::BPF_F_RDONLY)
+        .expect("loading a read-only map from a path failed");
+
+    assert_eq!(
+        pinned_map
+            .lookup(&key, MapFlags::ANY)
+            .expect("failed to lookup key")
+            .as_deref(),
+        Some(value.as_slice())
+    );
+
+    let err = pinned_map
+        .update(&key, &43u64.to_ne_bytes(), MapFlags::ANY)
+        .expect_err("read-only map handle allowed update");
+    assert_eq!(err.kind(), ErrorKind::PermissionDenied, "{err:?}");
+}
+
+#[tag(root)]
+#[test]
 fn test_program_loading_fd_from_pinned_path() {
     let path = "/sys/fs/bpf/myprog_test_pin_to_load_from_path";
     let prog_name = "handle__sched_switch";

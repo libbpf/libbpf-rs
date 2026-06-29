@@ -1175,12 +1175,31 @@ impl MapHandle {
     /// # Panics
     /// If the path contains null bytes.
     pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
-        fn inner(path: &Path) -> Result<MapHandle> {
+        Self::from_pinned_path_with_file_flags(path, 0)
+    }
+
+    /// Open a previously pinned map from its path with the provided file flags.
+    ///
+    /// For example, pass [`libbpf_sys::BPF_F_RDONLY`] to open a map as
+    /// read-only from user space.
+    ///
+    /// # Panics
+    /// If the path contains null bytes.
+    pub fn from_pinned_path_with_file_flags<P: AsRef<Path>>(
+        path: P,
+        file_flags: u32,
+    ) -> Result<Self> {
+        fn inner(path: &Path, file_flags: u32) -> Result<MapHandle> {
             let p = CString::new(path.as_os_str().as_bytes()).expect("path contained null bytes");
+            let opts = libbpf_sys::bpf_obj_get_opts {
+                sz: size_of::<libbpf_sys::bpf_obj_get_opts>() as libbpf_sys::size_t,
+                file_flags,
+                ..Default::default()
+            };
             let fd = parse_ret_i32(unsafe {
                 // SAFETY
                 // p is never null since we allocated ourselves.
-                libbpf_sys::bpf_obj_get(p.as_ptr())
+                libbpf_sys::bpf_obj_get_opts(p.as_ptr(), &opts)
             })?;
             MapHandle::from_fd(unsafe {
                 // SAFETY
@@ -1190,7 +1209,7 @@ impl MapHandle {
             })
         }
 
-        inner(path.as_ref())
+        inner(path.as_ref(), file_flags)
     }
 
     /// Open a loaded map from its map id.
