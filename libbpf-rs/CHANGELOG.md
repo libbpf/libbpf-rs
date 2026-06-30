@@ -6,6 +6,8 @@ Unreleased
 - Added specific `IterLinkInfo` fields for `LinkTypeInfo::Iter`.
 - Added `ErrorKind::TooBig` variant, surfaced when the underlying
   operation fails with `E2BIG` (e.g., a map reaching `max_entries`).
+- Added `MapHandle::from_pinned_path_with_file_flags` for opening maps 
+  with custom file flags.
 
 
 0.26.2
