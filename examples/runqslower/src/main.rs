@@ -11,7 +11,7 @@ use clap::Parser;
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::Skel;
 use libbpf_rs::skel::SkelBuilder;
-use libbpf_rs::PerfBufferBuilder;
+use libbpf_rs::RingBufferBuilder;
 use plain::Plain;
 use time::macros::format_description;
 use time::OffsetDateTime;
@@ -45,9 +45,9 @@ struct Command {
 
 unsafe impl Plain for runqslower::types::event {}
 
-fn handle_event(_cpu: i32, data: &[u8]) {
-    let mut event = runqslower::types::event::default();
-    plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
+fn handle_event(data: &[u8]) -> i32 {
+    let event =
+        plain::from_bytes::<types::event>(data).expect("Data buffer was too short or unaligned");
 
     let now = if let Ok(now) = OffsetDateTime::now_local() {
         let format = format_description!("[hour]:[minute]:[second]");
@@ -66,10 +66,8 @@ fn handle_event(_cpu: i32, data: &[u8]) {
         event.pid,
         event.delta_us
     );
-}
 
-fn handle_lost_events(cpu: i32, count: u64) {
-    eprintln!("Lost {count} events on CPU {cpu}");
+    0
 }
 
 fn main() -> Result<()> {
@@ -99,12 +97,11 @@ fn main() -> Result<()> {
     println!("Tracing run queue latency higher than {} us", opts.latency);
     println!("{:8} {:16} {:7} {:14}", "TIME", "COMM", "TID", "LAT(us)");
 
-    let perf = PerfBufferBuilder::new(&skel.maps.events)
-        .sample_cb(handle_event)
-        .lost_cb(handle_lost_events)
-        .build()?;
+    let mut builder = RingBufferBuilder::new();
+    builder.add(&skel.maps.events, handle_event)?;
+    let ringbuf = builder.build()?;
 
     loop {
-        perf.poll(Duration::from_millis(100))?;
+        ringbuf.poll(Duration::from_millis(100))?;
     }
 }

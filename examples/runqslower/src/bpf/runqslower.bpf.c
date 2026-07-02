@@ -27,10 +27,8 @@ struct {
 } start SEC(".maps");
 
 struct {
-    /* bpflint: disable=perfbuf-usage */
-    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-    __type(key, u32);
-    __type(value, u32);
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 1024 * sizeof(struct event));
 } events SEC(".maps");
 
 /* record enqueue timestamp */
@@ -84,7 +82,7 @@ int handle__sched_switch(u64 *ctx)
      */
     struct task_struct *prev = (struct task_struct *)ctx[1];
     struct task_struct *next = (struct task_struct *)ctx[2];
-    struct event event = {};
+    struct event *event;
     u64 *tsp, delta_us;
     long state = get_task_state(prev);
     u32 pid;
@@ -104,13 +102,16 @@ int handle__sched_switch(u64 *ctx)
     if (min_us && delta_us <= min_us)
         return 0;
 
-    event.pid = pid;
-    event.delta_us = delta_us;
-    bpf_probe_read_kernel_str(&event.task, sizeof(event.task), next->comm);
+    event = bpf_ringbuf_reserve(&events, sizeof(*event), 0);
+    if (event == NULL)
+        return 1;
+
+    event->pid = pid;
+    event->delta_us = delta_us;
+    bpf_probe_read_kernel_str(event->task, sizeof(event->task), next->comm);
 
     /* output */
-    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
-                          sizeof(event));
+    bpf_ringbuf_submit(event, 0);
 
     bpf_map_delete_elem(&start, &pid);
     return 0;
