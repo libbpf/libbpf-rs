@@ -28,7 +28,7 @@ int netfilter_local_in(struct bpf_nf_ctx *ctx)
     struct lpm_key key;
     __u32 *match_value;
 
-    if (skb->len <= 20 || bpf_dynptr_from_skb(skb, 0, &ptr))
+    if (skb->len <= 20 || bpf_dynptr_from_skb((void *)skb, 0, &ptr))
         return NF_ACCEPT;
     p = bpf_dynptr_slice(&ptr, 0, &iph, sizeof(iph));
     if (!p)
