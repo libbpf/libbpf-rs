@@ -3249,3 +3249,54 @@ fn test_program_handle_pin_unpin() {
     handle.unpin(path).expect("failed to unpin program handle");
     assert!(!Path::new(path).exists());
 }
+
+/// Check that a `ProgramHandle` is independent of the original
+/// program's object is dropped.
+#[tag(root)]
+#[test]
+fn test_program_handle_outlives_object() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle");
+    let expected_id = handle.id();
+
+    drop(obj);
+
+    assert_eq!(handle.id(), expected_id);
+    assert_eq!(handle.name(), "handle__sched_switch");
+    // Check that the duplicated fd is still live and refers to the same
+    // program.
+    let id = Program::id_from_fd(handle.as_fd()).unwrap();
+    assert_eq!(id, expected_id);
+}
+
+/// Verify that opening a `ProgramHandle` for a non-existent program ID
+/// fails.
+#[tag(root)]
+#[test]
+fn test_program_handle_from_invalid_prog_id() {
+    assert!(ProgramHandle::from_prog_id(u32::MAX).is_err());
+}
+
+/// Make sure that opening a handle from a bpffs path that was never
+/// pinned returns an error.
+#[tag(root)]
+#[test]
+fn test_program_handle_from_nonexistent_pinned_path() {
+    let path = "/sys/fs/bpf/test_prog_handle_does_not_exist";
+    assert!(!Path::new(path).exists());
+    assert!(ProgramHandle::from_pinned_path(path).is_err());
+}
+
+/// Ensure that unpinning a path that was never pinned returns an error.
+#[tag(root)]
+#[test]
+fn test_program_handle_unpin_not_pinned() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle");
+
+    let path = "/sys/fs/bpf/test_prog_handle_never_pinned";
+    assert!(!Path::new(path).exists());
+    assert!(handle.unpin(path).is_err());
+}
