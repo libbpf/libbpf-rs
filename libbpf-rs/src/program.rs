@@ -7,7 +7,6 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::OsStr;
 use std::ffi::OsString;
-use std::fmt::Debug;
 use std::fs::remove_file;
 use std::io::Read;
 use std::marker::PhantomData;
@@ -1825,15 +1824,21 @@ impl AsFd for ProgramHandle {
     }
 }
 
-impl<T: Debug> TryFrom<&ProgramImpl<'_, T>> for ProgramHandle {
+impl<'obj, T> TryFrom<&ProgramImpl<'obj, T>> for ProgramHandle
+where
+    ProgramImpl<'obj, T>: Deref<Target = Program<'obj>>,
+{
     type Error = Error;
 
-    fn try_from(prog: &ProgramImpl<'_, T>) -> Result<Self> {
+    fn try_from(prog: &ProgramImpl<'obj, T>) -> Result<Self> {
         let fd = prog
             .as_fd()
             .try_clone_to_owned()
             .context("failed to duplicate program file descriptor")?;
-        Self::from_fd(fd)
+        Ok(Self {
+            name: prog.name().to_os_string(),
+            ..Self::from_fd(fd)?
+        })
     }
 }
 

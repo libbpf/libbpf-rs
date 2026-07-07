@@ -3207,7 +3207,8 @@ fn test_program_handle_try_from_program() {
     let prog = get_prog_mut(&mut obj, "handle__sched_switch");
 
     let handle = ProgramHandle::try_from(&prog).expect("failed to create handle from program");
-    assert_eq!(handle.name(), "handle__sched_s");
+    assert_eq!(handle.name(), "handle__sched_switch");
+    assert_eq!(handle.name(), prog.name());
     assert_eq!(handle.prog_type(), prog.prog_type());
 }
 
