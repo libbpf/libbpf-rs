@@ -1783,21 +1783,25 @@ impl ProgramHandle {
     }
 
     /// The program's name.
+    #[inline]
     pub fn name(&self) -> &OsStr {
         &self.name
     }
 
     /// The `ProgramType` of this handle.
+    #[inline]
     pub fn prog_type(&self) -> ProgramType {
         self.ty
     }
 
     /// The 8-byte tag (instruction hash) of the program.
+    #[inline]
     pub fn tag(&self) -> [u8; 8] {
         self.tag
     }
 
     /// The kernel ID of this program.
+    #[inline]
     pub fn id(&self) -> u32 {
         self.id
     }
