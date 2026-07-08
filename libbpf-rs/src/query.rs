@@ -658,7 +658,7 @@ pub struct IterLinkInfo {
     /// The `bpf_iter__*` target name.
     pub target_name: Option<CString>,
     /// Specific BPF iterator information.
-    pub iter_type: Option<IterType>,
+    pub iter_type: IterType,
 }
 
 /// Specific BPF iterator types with decoded information.
@@ -683,6 +683,11 @@ pub enum IterType {
         /// Specific process that is iterated over.
         pid: u32,
     },
+    /// An unknown or unsupported iterator type.
+    ///
+    /// The [`target_name`](IterLinkInfo::target_name) can still be used to
+    /// identify the iterator.
+    Unknown,
 }
 
 /// Information about a network namespace link.
@@ -980,9 +985,9 @@ impl LinkInfo {
                     };
 
                     let iter_type = match target_name.as_bytes() {
-                        b"bpf_map_elem" | b"bpf_sk_storage_map" => Some(IterType::Map {
+                        b"bpf_map_elem" | b"bpf_sk_storage_map" => IterType::Map {
                             map_id: unsafe { iter_info.__bindgen_anon_1.map.map_id },
-                        }),
+                        },
                         b"cgroup" => {
                             let order = match unsafe { iter_info.__bindgen_anon_2.cgroup.order } {
                                 libbpf_sys::BPF_CGROUP_ITER_SELF_ONLY => CgroupIterOrder::SelfOnly,
@@ -997,21 +1002,21 @@ impl LinkInfo {
                                 }
                                 _ => CgroupIterOrder::Default,
                             };
-                            Some(IterType::Cgroup {
+                            IterType::Cgroup {
                                 cgroup_id: unsafe { iter_info.__bindgen_anon_2.cgroup.cgroup_id },
                                 order,
-                            })
+                            }
                         }
-                        b"task" | b"task_file" | b"task_vma" => Some(IterType::Task {
+                        b"task" | b"task_file" | b"task_vma" => IterType::Task {
                             tid: unsafe { iter_info.__bindgen_anon_2.task.tid },
                             pid: unsafe { iter_info.__bindgen_anon_2.task.pid },
-                        }),
-                        _ => None,
+                        },
+                        _ => IterType::Unknown,
                     };
 
                     (Some(target_name), iter_type)
                 } else {
-                    (None, None)
+                    (None, IterType::Unknown)
                 };
 
                 LinkTypeInfo::Iter(IterLinkInfo {
