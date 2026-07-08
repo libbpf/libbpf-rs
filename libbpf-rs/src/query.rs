@@ -922,7 +922,7 @@ impl LinkInfo {
     fn from_uapi(fd: BorrowedFd<'_>, mut s: libbpf_sys::bpf_link_info) -> Option<Self> {
         let type_info = match s.type_ {
             libbpf_sys::BPF_LINK_TYPE_RAW_TRACEPOINT => {
-                let mut buf = [0; 256];
+                let mut buf = [0u8; 256];
                 s.__bindgen_anon_1.raw_tracepoint.tp_name = buf.as_mut_ptr() as u64;
                 s.__bindgen_anon_1.raw_tracepoint.tp_name_len = buf.len() as u32;
                 let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
@@ -960,7 +960,7 @@ impl LinkInfo {
                 }),
             }),
             libbpf_sys::BPF_LINK_TYPE_ITER => {
-                let mut buf = [0; 256];
+                let mut buf = [0u8; 256];
                 s.__bindgen_anon_1.iter.target_name = buf.as_mut_ptr() as u64;
                 s.__bindgen_anon_1.iter.target_name_len = buf.len() as u32;
                 let item_ptr: *mut libbpf_sys::bpf_link_info = &mut s;
