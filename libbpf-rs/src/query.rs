@@ -656,7 +656,7 @@ pub struct CgroupLinkInfo {
 #[derive(Debug, Clone)]
 pub struct IterLinkInfo {
     /// The `bpf_iter__*` target name.
-    pub target_name: Option<CString>,
+    pub target_name: CString,
     /// Specific BPF iterator information.
     pub iter_type: IterType,
 }
@@ -979,44 +979,40 @@ impl LinkInfo {
                 }
 
                 let iter_info = unsafe { s.__bindgen_anon_1.iter };
-                let (target_name, iter_type) = if iter_info.target_name_len != 0 {
-                    let target_name = unsafe {
-                        CStr::from_ptr(iter_info.target_name as *const c_char).to_owned()
-                    };
+                // On a successful call the kernel always reports the target name
+                // (its length is `strlen(target) + 1`) and copies it into `buf`,
+                // so it is guaranteed to be present here.
+                let target_name =
+                    unsafe { CStr::from_ptr(iter_info.target_name as *const c_char).to_owned() };
 
-                    let iter_type = match target_name.as_bytes() {
-                        b"bpf_map_elem" | b"bpf_sk_storage_map" => IterType::Map {
-                            map_id: unsafe { iter_info.__bindgen_anon_1.map.map_id },
-                        },
-                        b"cgroup" => {
-                            let order = match unsafe { iter_info.__bindgen_anon_2.cgroup.order } {
-                                libbpf_sys::BPF_CGROUP_ITER_SELF_ONLY => CgroupIterOrder::SelfOnly,
-                                libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_PRE => {
-                                    CgroupIterOrder::DescendantsPre
-                                }
-                                libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_POST => {
-                                    CgroupIterOrder::DescendantsPost
-                                }
-                                libbpf_sys::BPF_CGROUP_ITER_ANCESTORS_UP => {
-                                    CgroupIterOrder::AncestorsUp
-                                }
-                                _ => CgroupIterOrder::Default,
-                            };
-                            IterType::Cgroup {
-                                cgroup_id: unsafe { iter_info.__bindgen_anon_2.cgroup.cgroup_id },
-                                order,
+                let iter_type = match target_name.as_bytes() {
+                    b"bpf_map_elem" | b"bpf_sk_storage_map" => IterType::Map {
+                        map_id: unsafe { iter_info.__bindgen_anon_1.map.map_id },
+                    },
+                    b"cgroup" => {
+                        let order = match unsafe { iter_info.__bindgen_anon_2.cgroup.order } {
+                            libbpf_sys::BPF_CGROUP_ITER_SELF_ONLY => CgroupIterOrder::SelfOnly,
+                            libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_PRE => {
+                                CgroupIterOrder::DescendantsPre
                             }
+                            libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_POST => {
+                                CgroupIterOrder::DescendantsPost
+                            }
+                            libbpf_sys::BPF_CGROUP_ITER_ANCESTORS_UP => {
+                                CgroupIterOrder::AncestorsUp
+                            }
+                            _ => CgroupIterOrder::Default,
+                        };
+                        IterType::Cgroup {
+                            cgroup_id: unsafe { iter_info.__bindgen_anon_2.cgroup.cgroup_id },
+                            order,
                         }
-                        b"task" | b"task_file" | b"task_vma" => IterType::Task {
-                            tid: unsafe { iter_info.__bindgen_anon_2.task.tid },
-                            pid: unsafe { iter_info.__bindgen_anon_2.task.pid },
-                        },
-                        _ => IterType::Unknown,
-                    };
-
-                    (Some(target_name), iter_type)
-                } else {
-                    (None, IterType::Unknown)
+                    }
+                    b"task" | b"task_file" | b"task_vma" => IterType::Task {
+                        tid: unsafe { iter_info.__bindgen_anon_2.task.tid },
+                        pid: unsafe { iter_info.__bindgen_anon_2.task.pid },
+                    },
+                    _ => IterType::Unknown,
                 };
 
                 LinkTypeInfo::Iter(IterLinkInfo {

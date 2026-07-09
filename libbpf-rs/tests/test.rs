@@ -1632,7 +1632,7 @@ fn test_object_task_iter() {
             target_name,
             iter_type,
         } = iter_info;
-        assert_eq!(target_name, CString::new("task").ok());
+        assert_eq!(target_name, CString::new("task").unwrap());
 
         let IterType::Task { tid, pid } = iter_type else {
             panic!("Expected IterType::Task, got: {iter_type:?}");
@@ -1714,7 +1714,7 @@ fn test_object_map_iter() {
         target_name,
         iter_type,
     } = iter_info;
-    assert_eq!(target_name, CString::new("bpf_map_elem").ok());
+    assert_eq!(target_name, CString::new("bpf_map_elem").unwrap());
 
     let IterType::Map { map_id } = iter_type else {
         panic!("Expected IterType::Map, got: {iter_type:?}");
