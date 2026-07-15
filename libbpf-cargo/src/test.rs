@@ -562,7 +562,7 @@ fn test_skeleton_generate_bpf_objs_section() {
     let (_dir, bin) = build_rust_project_from_bpf_c(&bpf_c, &rust);
 
     let buffer = read(&bin)
-        .unwrap_or_else(|_| panic!("failed to read binary file at path={}", &bin.display()));
+        .unwrap_or_else(|_| panic!("failed to read binary file at path={}", bin.display()));
 
     let elf = goblin::elf::Elf::parse(&buffer).unwrap();
 
