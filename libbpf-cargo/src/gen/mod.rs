@@ -932,16 +932,16 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path, obj_ref: bool) ->
         }}
 
         #[derive(Default)]
-        pub struct {name}SkelBuilder {{
+        pub struct {obj_name}SkelBuilder {{
             pub obj_builder: libbpf_rs::ObjectBuilder,
         }}
 
-        impl<'obj> {name}SkelBuilder {{
+        impl<'obj> {obj_name}SkelBuilder {{
             fn open_opts_impl(
                 self,
                 open_opts: *const libbpf_sys::bpf_object_open_opts,
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
-            ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
+            ) -> libbpf_rs::Result<Open{obj_name}Skel<'obj>> {{
                 let skel_config = build_skel_config()?;
                 let skel_ptr = skel_config.as_libbpf_object();
 
@@ -964,9 +964,9 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path, obj_ref: bool) ->
                 let mut obj_ref = unsafe {{ OwnedRef::new(object) }};
 
                 #[allow(unused_mut)]
-                let mut skel = Open{name}Skel {{
-                    maps: unsafe {{ Open{name}Maps::new(&skel_config, obj_ref.as_mut())? }},
-                    progs: unsafe {{ Open{name}Progs::new(obj_ref.as_mut())? }},
+                let mut skel = Open{obj_name}Skel {{
+                    maps: unsafe {{ Open{obj_name}Maps::new(&skel_config, obj_ref.as_mut())? }},
+                    progs: unsafe {{ Open{obj_name}Progs::new(obj_ref.as_mut())? }},
                     obj: obj_ref,
                     // SAFETY: Our `struct_ops` type contains only pointers,
                     //         which are allowed to be NULL.
@@ -980,12 +980,12 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path, obj_ref: bool) ->
             }}
         }}
 
-        impl<'obj> SkelBuilder<'obj> for {name}SkelBuilder {{
-            type Output = Open{name}Skel<'obj>;
+        impl<'obj> SkelBuilder<'obj> for {obj_name}SkelBuilder {{
+            type Output = Open{obj_name}Skel<'obj>;
             fn open(
                 self,
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
-            ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
+            ) -> libbpf_rs::Result<Open{obj_name}Skel<'obj>> {{
                 // Only produce a pointer to our custom open opts object
                 // if customizations have been made. This works around a
                 // bug in older versions of libbpf.
@@ -1001,7 +1001,7 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path, obj_ref: bool) ->
                 self,
                 open_opts: libbpf_sys::bpf_object_open_opts,
                 object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
-            ) -> libbpf_rs::Result<Open{name}Skel<'obj>> {{
+            ) -> libbpf_rs::Result<Open{obj_name}Skel<'obj>> {{
                 self.open_opts_impl(&open_opts, object)
             }}
 
@@ -1013,7 +1013,6 @@ fn gen_skel_contents(raw_obj_name: &str, obj_file_path: &Path, obj_ref: bool) ->
             }}
         }}
         ",
-        name = obj_name,
         struct_ops_init = gen_skel_struct_ops_init(&object)?,
     )?;
 
@@ -1114,7 +1113,7 @@ pub struct StructOps {{}}
                 self.obj.as_mut()
             }}
         ",
-        name = &obj_name,
+        name = obj_name,
         links = if object.progs().next().is_some() {
             format!("links: {obj_name}Links::default()")
         } else {
@@ -1128,14 +1127,13 @@ pub struct StructOps {{}}
     write!(
         skel,
         "\
-        pub struct {name}Skel<'obj> {{
+        pub struct {obj_name}Skel<'obj> {{
             obj: OwnedRef<'obj, libbpf_rs::Object>,
-            pub maps: {name}Maps<'obj>,
-            pub progs: {name}Progs<'obj>,
+            pub maps: {obj_name}Maps<'obj>,
+            pub progs: {obj_name}Progs<'obj>,
             struct_ops: StructOps,
             skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
-        ",
-        name = &obj_name,
+        "
     )?;
     gen_skel_link_getter(&mut skel, &object, &obj_name)?;
     write!(
@@ -1143,10 +1141,10 @@ pub struct StructOps {{}}
         "\
         }}
 
-        unsafe impl Send for {name}Skel<'_> {{}}
-        unsafe impl Sync for {name}Skel<'_> {{}}
+        unsafe impl Send for {obj_name}Skel<'_> {{}}
+        unsafe impl Sync for {obj_name}Skel<'_> {{}}
 
-        impl<'obj> Skel<'obj> for {name}Skel<'obj> {{
+        impl<'obj> Skel<'obj> for {obj_name}Skel<'obj> {{
             fn object(&self) -> &libbpf_rs::Object {{
                 self.obj.as_ref()
             }}
@@ -1155,12 +1153,11 @@ pub struct StructOps {{}}
                 self.obj.as_mut()
             }}
         ",
-        name = &obj_name,
     )?;
     gen_skel_attach(&mut skel, &object, &obj_name)?;
     writeln!(skel, "}}")?;
 
-    write!(skel, "impl {name}Skel<'_> {{", name = &obj_name)?;
+    write!(skel, "impl {obj_name}Skel<'_> {{")?;
     gen_skel_struct_ops_getters(&mut skel, &object)?;
     writeln!(skel, "}}")?;
 
