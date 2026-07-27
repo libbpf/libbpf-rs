@@ -771,6 +771,9 @@ pub struct KprobeMultiLinkInfo {
     pub addrs: Vec<u64>,
     /// Cookies corresponding to the attach addresses.
     pub cookies: Vec<u64>,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a multi-uprobe link.
@@ -792,6 +795,9 @@ pub struct UprobeMultiLinkInfo {
     pub ref_ctr_offsets: Vec<u64>,
     /// Cookies corresponding to the attach addresses.
     pub cookies: Vec<u64>,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a perf event link.
@@ -1076,6 +1082,7 @@ impl LinkInfo {
                     missed: unsafe { s.__bindgen_anon_1.kprobe_multi.missed },
                     addrs,
                     cookies,
+                    _non_exhaustive: (),
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_UPROBE_MULTI => {
@@ -1118,6 +1125,7 @@ impl LinkInfo {
                     offsets,
                     ref_ctr_offsets,
                     cookies,
+                    _non_exhaustive: (),
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_SOCKMAP => LinkTypeInfo::SockMap(SockMapLinkInfo {
