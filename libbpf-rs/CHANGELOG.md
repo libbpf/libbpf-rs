@@ -8,6 +8,8 @@ Unreleased
   operation fails with `E2BIG` (e.g., a map reaching `max_entries`).
 - Added `MapHandle::from_pinned_path_with_file_flags` for opening maps 
   with custom file flags.
+- Changed name members of `query` info types to be `OsString` instead of
+  `CString`
 
 
 0.26.2

@@ -13,8 +13,8 @@ use std::collections::HashSet;
 use std::env::current_exe;
 use std::ffi::c_int;
 use std::ffi::c_void;
-use std::ffi::CString;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs;
 use std::hint;
 use std::io;
@@ -1632,7 +1632,7 @@ fn test_object_task_iter() {
             target_name,
             iter_type,
         } = iter_info;
-        assert_eq!(target_name, CString::new("task").unwrap());
+        assert_eq!(target_name, OsStr::new("task"));
 
         let IterType::Task { tid, pid } = iter_type else {
             panic!("Expected IterType::Task, got: {iter_type:?}");
@@ -1714,7 +1714,7 @@ fn test_object_map_iter() {
         target_name,
         iter_type,
     } = iter_info;
-    assert_eq!(target_name, CString::new("bpf_map_elem").unwrap());
+    assert_eq!(target_name, OsStr::new("bpf_map_elem"));
 
     let IterType::Map { map_id } = iter_type else {
         panic!("Expected IterType::Map, got: {iter_type:?}");
@@ -2512,7 +2512,7 @@ fn test_perf_event_link_info_tracepoint() {
     };
 
     let tp_name = name.as_ref().expect("tracepoint should have a name");
-    assert!(*tp_name == CString::new("sys_enter_getpid").unwrap());
+    assert_eq!(tp_name, OsStr::new("sys_enter_getpid"));
 }
 
 /// Test that `perf_event` link info is properly parsed for kprobe.
@@ -2550,7 +2550,7 @@ fn test_perf_event_link_info_kprobe() {
     let name = func_name
         .as_ref()
         .expect("kprobe should have a function name");
-    assert_eq!(*name, CString::new("bpf_fentry_test1").unwrap());
+    assert_eq!(name, OsStr::new("bpf_fentry_test1"));
 }
 
 /// Test that `perf_event` link info is properly parsed for kretprobe.
@@ -2591,7 +2591,7 @@ fn test_perf_event_link_info_kretprobe() {
     let name = func_name
         .as_ref()
         .expect("kretprobe should have a function name");
-    assert_eq!(*name, CString::new("bpf_fentry_test1").unwrap());
+    assert_eq!(name, OsStr::new("bpf_fentry_test1"));
 }
 
 /// Attaches uprobe with given params and returns the link info.
@@ -2600,7 +2600,7 @@ fn attach_uprobe_get_info(
     path: &PathBuf,
     offset: usize,
     opts: &UprobeOpts,
-) -> (Option<CString>, bool, u32, u64, u64) {
+) -> (Option<OsString>, bool, u32, u64, u64) {
     // SAFETY: `getpid` is always safe to call.
     let pid = unsafe { libc::getpid() };
     let link = prog
@@ -2639,7 +2639,7 @@ fn test_perf_event_link_info_uprobe_uretprobe() {
     let prog: libbpf_rs::ProgramMut = get_prog_mut(&mut obj, "handle__uprobe");
 
     let path = current_exe().expect("failed to find executable name");
-    let path_cstr = CString::new(path.to_str().unwrap()).ok();
+    let path_os = Some(path.clone().into_os_string());
     let func_name = "uprobe_target";
     let func_offset = get_symbol_offset(&path, func_name).unwrap();
 
@@ -2655,7 +2655,7 @@ fn test_perf_event_link_info_uprobe_uretprobe() {
         attach_uprobe_get_info(&prog, &path, 0, &uprobe_opts);
 
     // Test uprobe link info.
-    assert_eq!(up_file, path_cstr);
+    assert_eq!(up_file, path_os);
     assert_eq!(
         up_is_retprobe, uprobe_opts.retprobe,
         "Expected uprobe (not retprobe)"
@@ -2676,7 +2676,7 @@ fn test_perf_event_link_info_uprobe_uretprobe() {
         attach_uprobe_get_info(&prog, &path, func_offset, &uretprobe_opts);
 
     // Test uretprobe link info.
-    assert_eq!(uretp_file, path_cstr);
+    assert_eq!(uretp_file, path_os);
     assert_eq!(
         uretp_is_retprobe, uretprobe_opts.retprobe,
         "Expected uretprobe (not uprobe)"

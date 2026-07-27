@@ -12,8 +12,8 @@
 
 use std::ffi::c_void;
 use std::ffi::CStr;
-use std::ffi::CString;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::io;
 use std::mem::size_of_val;
 use std::mem::zeroed;
@@ -34,6 +34,11 @@ use crate::MapType;
 use crate::ProgramAttachType;
 use crate::ProgramType;
 use crate::Result;
+
+/// Convert a [`CStr`] into an owned [`OsString`].
+fn cstr_to_os_string(s: &CStr) -> OsString {
+    OsStr::from_bytes(s.to_bytes()).to_owned()
+}
 
 macro_rules! gen_info_impl {
     // This magic here allows us to embed doc comments into macro expansions
@@ -131,8 +136,8 @@ pub struct Tag(pub [u8; 8]);
 /// Information about a BPF program. Maps to `struct bpf_prog_info` in kernel uapi.
 #[derive(Debug, Clone)]
 pub struct ProgramInfo {
-    /// A user-defined name for the BPF program (null-terminated string).
-    pub name: CString,
+    /// A user-defined name for the BPF program.
+    pub name: OsString,
     /// The type of the program.
     pub ty: ProgramType,
     /// An 8-byte hash (`BPF_TAG_SIZE`) computed from the program's
@@ -403,7 +408,7 @@ impl ProgramInfo {
         util::parse_ret(ret)?;
 
         Ok(Self {
-            name: name.to_owned(),
+            name: cstr_to_os_string(name),
             ty,
             tag: Tag(item.tag),
             id: item.id,
@@ -469,8 +474,8 @@ impl Iterator for ProgInfoIter {
 /// Information about a BPF map. Maps to `struct bpf_map_info` in kernel uapi.
 #[derive(Debug, Clone)]
 pub struct MapInfo {
-    /// A user-defined name for the BPF Map (null-terminated string).
-    pub name: CString,
+    /// A user-defined name for the BPF Map.
+    pub name: OsString,
     /// The BPF map type.
     pub ty: MapType,
     /// A unique identifier for this map instance.
@@ -508,7 +513,7 @@ impl MapInfo {
         let ty = MapType::from(s.type_);
 
         Some(Self {
-            name: name.to_owned(),
+            name: cstr_to_os_string(name),
             ty,
             id: s.id,
             key_size: s.key_size,
@@ -539,7 +544,7 @@ gen_info_impl!(
 #[derive(Debug, Clone)]
 pub struct BtfInfo {
     /// The name associated with this btf information in the kernel.
-    pub name: CString,
+    pub name: OsString,
     /// The raw btf bytes from the kernel.
     pub btf: Vec<u8>,
     /// The btf id associated with this btf information in the kernel.
@@ -578,7 +583,7 @@ impl BtfInfo {
             // SANITY: Our buffer contained space for a NUL byte and we set its
             //         contents to 0. Barring a `libbpf` bug a NUL byte will be
             //         present.
-            name: CString::from_vec_with_nul(name).unwrap(),
+            name: cstr_to_os_string(CStr::from_bytes_with_nul(&name).unwrap()),
             btf,
             id: item.id,
         })
@@ -656,7 +661,7 @@ pub struct CgroupLinkInfo {
 #[derive(Debug, Clone)]
 pub struct IterLinkInfo {
     /// The `bpf_iter__*` target name.
-    pub target_name: CString,
+    pub target_name: OsString,
     /// Specific BPF iterator information.
     pub iter_type: IterType,
 }
@@ -802,14 +807,14 @@ pub enum PerfEventType {
     /// A tracepoint event.
     Tracepoint {
         /// The tracepoint name.
-        name: Option<CString>,
+        name: Option<OsString>,
         /// Attach cookie value for this link.
         cookie: u64,
     },
     /// A kprobe event (includes both kprobe and kretprobe).
     Kprobe {
         /// The function being probed.
-        func_name: Option<CString>,
+        func_name: Option<OsString>,
         /// Whether this is a return probe (kretprobe).
         is_retprobe: bool,
         /// Address of the probe.
@@ -824,7 +829,7 @@ pub enum PerfEventType {
     /// A uprobe event (includes both uprobe and uretprobe).
     Uprobe {
         /// The absolute file path of the binary being probed.
-        file_name: Option<CString>,
+        file_name: Option<OsString>,
         /// Whether this is a return probe (uretprobe).
         is_retprobe: bool,
         /// Offset from the binary.
@@ -982,8 +987,9 @@ impl LinkInfo {
                 // On a successful call the kernel always reports the target name
                 // (its length is `strlen(target) + 1`) and copies it into `buf`,
                 // so it is guaranteed to be present here.
-                let target_name =
-                    unsafe { CStr::from_ptr(iter_info.target_name as *const c_char).to_owned() };
+                let target_name = unsafe {
+                    cstr_to_os_string(CStr::from_ptr(iter_info.target_name as *const c_char))
+                };
 
                 let iter_type = match target_name.as_bytes() {
                     b"bpf_map_elem" | b"bpf_sk_storage_map" => IterType::Map {
@@ -1200,7 +1206,7 @@ impl LinkInfo {
                                 .cookie
                         };
                         let name = (tp_name != 0).then(|| unsafe {
-                            CStr::from_ptr(tp_name as *const c_char).to_owned()
+                            cstr_to_os_string(CStr::from_ptr(tp_name as *const c_char))
                         });
 
                         PerfEventType::Tracepoint { name, cookie }
@@ -1222,7 +1228,7 @@ impl LinkInfo {
                         let cookie =
                             unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.kprobe.cookie };
                         let func_name = (func_name != 0).then(|| unsafe {
-                            CStr::from_ptr(func_name as *const c_char).to_owned()
+                            cstr_to_os_string(CStr::from_ptr(func_name as *const c_char))
                         });
 
                         let is_retprobe =
@@ -1242,7 +1248,7 @@ impl LinkInfo {
                             unsafe { s.__bindgen_anon_1.perf_event.__bindgen_anon_1.uprobe };
                         // SAFETY: `file_name_ptr` is a valid nul terminated string pointer.
                         let file_name = (uprobe.file_name != 0).then(|| unsafe {
-                            CStr::from_ptr(uprobe.file_name as *const c_char).to_owned()
+                            cstr_to_os_string(CStr::from_ptr(uprobe.file_name as *const c_char))
                         });
 
                         PerfEventType::Uprobe {
