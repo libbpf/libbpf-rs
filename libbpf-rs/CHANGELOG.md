@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.27.0
+------
 - Added `KprobeMultiLinkInfo` & `UprobeMultiLinkInfo` fields that required a
   second info call.
 - Added `key_size`, `value_size` and more getters to `OpenMap{,Mut}`
