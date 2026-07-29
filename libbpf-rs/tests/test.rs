@@ -1631,6 +1631,7 @@ fn test_object_task_iter() {
         let IterLinkInfo {
             target_name,
             iter_type,
+            ..
         } = iter_info;
         assert_eq!(target_name, OsStr::new("task"));
 
@@ -1713,6 +1714,7 @@ fn test_object_map_iter() {
     let IterLinkInfo {
         target_name,
         iter_type,
+        ..
     } = iter_info;
     assert_eq!(target_name, OsStr::new("bpf_map_elem"));
 

@@ -634,6 +634,9 @@ impl Iterator for BtfInfoIter {
 pub struct RawTracepointLinkInfo {
     /// The name of the raw tracepoint.
     pub name: String,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a tracing link
@@ -646,6 +649,9 @@ pub struct TracingLinkInfo {
     pub target_obj_id: u32,
     /// BTF type id inside the target object.
     pub target_btf_id: u32,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a cgroup link
@@ -655,6 +661,9 @@ pub struct CgroupLinkInfo {
     pub cgroup_id: u64,
     /// Attachment type for cgroup-based programs.
     pub attach_type: ProgramAttachType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a BPF iterator link.
@@ -664,6 +673,9 @@ pub struct IterLinkInfo {
     pub target_name: OsString,
     /// Specific BPF iterator information.
     pub iter_type: IterType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Specific BPF iterator types with decoded information.
@@ -702,6 +714,9 @@ pub struct NetNsLinkInfo {
     pub ino: u32,
     /// Attachment type for network namespace programs.
     pub attach_type: ProgramAttachType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a BPF netfilter link.
@@ -715,6 +730,9 @@ pub struct NetfilterLinkInfo {
     pub priority: i32,
     /// Flags used for the netfilter link.
     pub flags: u32,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a XDP link.
@@ -722,6 +740,9 @@ pub struct NetfilterLinkInfo {
 pub struct XdpLinkInfo {
     /// Interface index to which the XDP link is attached.
     pub ifindex: u32,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a BPF sockmap link.
@@ -731,6 +752,9 @@ pub struct SockMapLinkInfo {
     pub map_id: u32,
     /// The type of program attached to the sockmap.
     pub attach_type: ProgramAttachType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a BPF netkit link.
@@ -740,6 +764,9 @@ pub struct NetkitLinkInfo {
     pub ifindex: u32,
     /// Type of program attached to the netkit link.
     pub attach_type: ProgramAttachType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a BPF tc link.
@@ -749,6 +776,9 @@ pub struct TcxLinkInfo {
     pub ifindex: u32,
     /// Type of program attached to the tc link.
     pub attach_type: ProgramAttachType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a BPF `struct_ops` link.
@@ -756,6 +786,9 @@ pub struct TcxLinkInfo {
 pub struct StructOpsLinkInfo {
     /// The ID of the BPF map to which the `struct_ops` link is attached.
     pub map_id: u32,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Information about a multi-kprobe link.
@@ -805,6 +838,9 @@ pub struct UprobeMultiLinkInfo {
 pub struct PerfEventLinkInfo {
     /// The specific type of perf event with decoded information.
     pub event_type: PerfEventType,
+    /// The struct is non-exhaustive and open to extension.
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
 }
 
 /// Specific types of perf events with decoded information.
@@ -960,6 +996,7 @@ impl LinkInfo {
                         unsafe { s.__bindgen_anon_1.raw_tracepoint.tp_name } as *const c_char,
                     )
                     .unwrap_or_else(|_| "?".to_string()),
+                    _non_exhaustive: (),
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_TRACING => LinkTypeInfo::Tracing(TracingLinkInfo {
@@ -968,12 +1005,14 @@ impl LinkInfo {
                 }),
                 target_obj_id: unsafe { s.__bindgen_anon_1.tracing.target_obj_id },
                 target_btf_id: unsafe { s.__bindgen_anon_1.tracing.target_btf_id },
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_CGROUP => LinkTypeInfo::Cgroup(CgroupLinkInfo {
                 cgroup_id: unsafe { s.__bindgen_anon_1.cgroup.cgroup_id },
                 attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.cgroup.attach_type
                 }),
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_ITER => {
                 let mut buf = [0u8; 256];
@@ -1030,6 +1069,7 @@ impl LinkInfo {
                 LinkTypeInfo::Iter(IterLinkInfo {
                     target_name,
                     iter_type,
+                    _non_exhaustive: (),
                 })
             }
             libbpf_sys::BPF_LINK_TYPE_NETNS => LinkTypeInfo::NetNs(NetNsLinkInfo {
@@ -1037,28 +1077,34 @@ impl LinkInfo {
                 attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.netns.attach_type
                 }),
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_NETFILTER => LinkTypeInfo::Netfilter(NetfilterLinkInfo {
                 protocol_family: unsafe { s.__bindgen_anon_1.netfilter.pf },
                 hooknum: unsafe { s.__bindgen_anon_1.netfilter.hooknum },
                 priority: unsafe { s.__bindgen_anon_1.netfilter.priority },
                 flags: unsafe { s.__bindgen_anon_1.netfilter.flags },
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_XDP => LinkTypeInfo::Xdp(XdpLinkInfo {
                 ifindex: unsafe { s.__bindgen_anon_1.xdp.ifindex },
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_NETKIT => LinkTypeInfo::Netkit(NetkitLinkInfo {
                 ifindex: unsafe { s.__bindgen_anon_1.netkit.ifindex },
                 attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.netkit.attach_type
                 }),
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_TCX => LinkTypeInfo::Tcx(TcxLinkInfo {
                 ifindex: unsafe { s.__bindgen_anon_1.tcx.ifindex },
                 attach_type: ProgramAttachType::from(unsafe { s.__bindgen_anon_1.tcx.attach_type }),
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_STRUCT_OPS => LinkTypeInfo::StructOps(StructOpsLinkInfo {
                 map_id: unsafe { s.__bindgen_anon_1.struct_ops.map_id },
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_KPROBE_MULTI => {
                 let count = unsafe { s.__bindgen_anon_1.kprobe_multi.count } as usize;
@@ -1133,6 +1179,7 @@ impl LinkInfo {
                 attach_type: ProgramAttachType::from(unsafe {
                     s.__bindgen_anon_1.sockmap.attach_type
                 }),
+                _non_exhaustive: (),
             }),
             libbpf_sys::BPF_LINK_TYPE_PERF_EVENT => {
                 // Get the BPF perf event type (BPF_PERF_EVENT_*) from the link info.
@@ -1281,7 +1328,10 @@ impl LinkInfo {
                     ty => PerfEventType::Unknown(ty),
                 };
 
-                LinkTypeInfo::PerfEvent(PerfEventLinkInfo { event_type })
+                LinkTypeInfo::PerfEvent(PerfEventLinkInfo {
+                    event_type,
+                    _non_exhaustive: (),
+                })
             }
             _ => LinkTypeInfo::Unknown,
         };

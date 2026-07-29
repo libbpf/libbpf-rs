@@ -10,8 +10,7 @@ Unreleased
   with custom file flags.
 - Changed name members of `query` info types to be `OsString` instead of
   `CString`
-- Made `query::KprobeMultiLinkInfo` and `query::UprobeMultiLinkInfo`
-  non-exhaustive
+- Made various `query::*Info` types non-exhaustive
 
 
 0.26.2
