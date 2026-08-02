@@ -1274,14 +1274,7 @@ pub(crate) fn gen_single(
         name
     } else {
         match filename.to_str() {
-            Some(n) => {
-                ensure!(
-                    n.ends_with(".o"),
-                    "Object file does not have `.o` suffix: {n}"
-                );
-
-                n.split('.').next().unwrap()
-            }
+            Some(n) => n.split('.').next().unwrap(),
             None => bail!(
                 "Object file name is not valid unicode: {}",
                 filename.to_string_lossy()
