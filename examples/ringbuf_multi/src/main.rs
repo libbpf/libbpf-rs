@@ -23,10 +23,10 @@ mod ringbuf_multi {
 #[allow(clippy::wildcard_imports)]
 use ringbuf_multi::*;
 
-unsafe impl Plain for types::sample {}
+unsafe impl Plain for types::rb_sample {}
 
 fn process_sample(ring: c_int, data: &[u8]) -> i32 {
-    let s = plain::from_bytes::<types::sample>(data).unwrap();
+    let s = plain::from_bytes::<types::rb_sample>(data).unwrap();
 
     match s.seq {
         0 => {
