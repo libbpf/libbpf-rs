@@ -6,7 +6,7 @@
 
 char _license[] SEC("license") = "GPL";
 
-struct sample {
+struct rb_sample {
     int pid;
     int seq;
     long value;
@@ -44,7 +44,7 @@ struct {
         },
 };
 
-struct sample nosample = {};
+struct rb_sample nosample = {};
 
 /* inputs */
 int pid = 0;
@@ -60,7 +60,7 @@ SEC("tp/syscalls/sys_enter_getpgid")
 int test_ringbuf(void *ctx)
 {
     int cur_pid = bpf_get_current_pid_tgid() >> 32;
-    struct sample *sample;
+    struct rb_sample *sample;
     void *rb;
 
     if (cur_pid != pid)
