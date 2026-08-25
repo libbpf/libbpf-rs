@@ -2,6 +2,7 @@
 
 mod common;
 
+mod test_api_coverage;
 mod test_netfilter;
 mod test_print;
 mod test_streams;

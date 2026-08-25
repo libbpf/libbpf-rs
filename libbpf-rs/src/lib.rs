@@ -65,6 +65,32 @@
 //! This is probably the best way to understand how libbpf-rs and libbpf-cargo work together.
 //!
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
+//!
+//! ## API coverage
+//!
+//! `libbpf-rs` is a curated, high-level wrapper of `libbpf` rather than
+//! a one-to-one binding: it exposes safe, idiomatic equivalents instead
+//! of every `libbpf` symbol. Here is a rough overview of currently
+//! captured functionality:
+//!
+//! | Capability | Status |
+//! |----------------------------------------------------------------------|---------------------------------|
+//! | Object open/load/close; map & program iteration                      | ✅                              |
+//! | Program attach: kprobe, uprobe, tracepoint, USDT, perf, cgroup, …    | ✅                              |
+//! | Map access: lookup/update/delete, batched ops, pinning, `struct_ops` | ✅                              |
+//! | Links; TC; XDP; netfilter; object/map/program/link query & info      | ✅                              |
+//! | Ring buffer, user ring buffer, perf buffer                           | ✅                              |
+//! | Feature probing; BPF object linking ([`Linker`])                     | ✅                              |
+//! | BTF ([`Btf`])                                                        | ◐ introspection only            |
+//! | Program attach: `freplace`, `tcx`, `netkit`                          | ❌                              |
+//! | Object-level bulk pin/unpin (per-map/program pinning *is* supported) | ❌                              |
+//! | Low-level `bpf()` syscalls (`bpf_prog_load`, `bpf_link_create`, …)   | ❌ superseded by the object API |
+//! | BPF token, light-skeleton loader, subskeletons, func/line info       | ❌                              |
+//!
+//! Refer to [`tests/test_api_coverage.rs`] for the exhaustive list of
+//! wrapped symbols.
+//!
+//! [`tests/test_api_coverage.rs`]: https://github.com/libbpf/libbpf-rs/blob/master/libbpf-rs/tests/test_api_coverage.rs
 
 pub mod btf;
 mod error;
