@@ -316,7 +316,7 @@ jobs:
           components: rustfmt
       - run: cargo fmt -- --check
 
-  cargo-doc:
+  rustdoc:
     name: Check documentation
     runs-on: ubuntu-latest
     env:
@@ -331,7 +331,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo doc --locked --no-deps
+      - run: cargo doc --locked --workspace --no-deps --document-private-items
 
   required-checks:
     needs: [
@@ -340,7 +340,7 @@ jobs:
       build-capable,
       build-features,
       build-minimum,
-      cargo-doc,
+      rustdoc,
       clippy,
       run-examples,
       rustfmt,

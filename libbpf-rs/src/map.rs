@@ -1754,11 +1754,11 @@ impl Iterator for BatchedMapIter<'_> {
     }
 }
 
-/// A convenience wrapper for [`bpf_map_info`][libbpf_sys::bpf_map_info]. It
-/// provides the ability to retrieve the details of a certain map.
+/// A convenience wrapper for [`bpf_map_info`]. It provides the ability
+/// to retrieve the details of a certain map.
 #[derive(Debug)]
 pub struct MapInfo {
-    /// The inner [`bpf_map_info`][libbpf_sys::bpf_map_info] object.
+    /// The inner [`bpf_map_info`] object.
     pub info: bpf_map_info,
 }
 

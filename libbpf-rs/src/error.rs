@@ -295,9 +295,9 @@ pub enum ErrorKind {
 /// assert!(inner_err.to_string().starts_with("No such file or directory"));
 /// ```
 ///
-/// For convenient reporting, the [`Display`][std::fmt::Display]
-/// representation takes care of reporting the complete error chain when
-/// the alternate flag is set:
+/// For convenient reporting, the [`Display`] representation takes care
+/// of reporting the complete error chain when the alternate flag is
+/// set:
 /// ```
 /// # use std::fs::File;
 /// # use std::error::Error as _;
@@ -309,8 +309,8 @@ pub enum ErrorKind {
 /// println!("{err:#}");
 /// ```
 ///
-/// The [`Debug`][std::fmt::Debug] representation similarly will print
-/// the entire error chain, but will do so in a multi-line format:
+/// The [`Debug`] representation similarly will print the entire error
+/// chain, but will do so in a multi-line format:
 /// ```
 /// # use std::fs::File;
 /// # use std::error::Error as _;
