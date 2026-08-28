@@ -89,7 +89,7 @@ jobs:
         EOF
         chmod a+x main.sh
     - name: Run root tests
-      uses: d-e-s-o/vmsh@2dbf4f434b14f75b860f5550f289ac1ecde6d438
+      uses: d-e-s-o/vmsh@05cc646c9a151878d3b511c07df2e13c0a63ba77
     - run: |
         vmsh --cpus=$(nproc) --memory=8192 --kernel ${{ steps.build.outputs.build-dir }}/boot/vmlinux-6.18.0+ --env=HOME --env=PATH -- sh -c 'cd ${{ github.workspace }} && ./main.sh'
 
