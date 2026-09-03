@@ -1,3 +1,9 @@
+0.27.1
+------
+- Added documentation aliases for underlying `libbpf` C functionality to
+  various types/functions
+
+
 0.27.0
 ------
 - Added `KprobeMultiLinkInfo` & `UprobeMultiLinkInfo` fields that required a

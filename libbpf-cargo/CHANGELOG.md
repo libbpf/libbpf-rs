@@ -1,3 +1,8 @@
+0.27.1
+------
+- Removed requirement for `.o` extension for object files
+
+
 0.26.2
 ------
 - Included `missing-docs` lint suppression on generated skeleton
