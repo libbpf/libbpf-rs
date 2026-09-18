@@ -1562,6 +1562,12 @@ pub enum MapType {
     BloomFilter = libbpf_sys::BPF_MAP_TYPE_BLOOM_FILTER,
     #[allow(missing_docs)]
     UserRingBuf = libbpf_sys::BPF_MAP_TYPE_USER_RINGBUF,
+    /// A sparse shared memory region that both BPF programs and user space can
+    /// address directly.
+    ///
+    /// Refer [documentation](https://docs.ebpf.io/linux/map-type/BPF_MAP_TYPE_ARENA/)
+    /// for more details.
+    Arena = libbpf_sys::BPF_MAP_TYPE_ARENA,
     /// We choose to specify our own "unknown" type here b/c it's really up to the kernel
     /// to decide if it wants to reject the map. If it accepts it, it just means whoever
     /// using this library is a bit out of date.
@@ -1648,6 +1654,7 @@ impl From<u32> for MapType {
             x if x == TaskStorage as u32 => TaskStorage,
             x if x == BloomFilter as u32 => BloomFilter,
             x if x == UserRingBuf as u32 => UserRingBuf,
+            x if x == Arena as u32 => Arena,
             _ => Unknown,
         }
     }
@@ -2035,6 +2042,7 @@ mod tests {
             TaskStorage,
             BloomFilter,
             UserRingBuf,
+            Arena,
             Unknown,
         ] {
             // check if discriminants match after a roundtrip conversion
