@@ -3,6 +3,10 @@
 mod common;
 
 mod test_api_coverage;
+// The test relies on a generated skeleton, which is not available when
+// test file generation is disabled.
+#[cfg(not(feature = "dont-generate-test-files"))]
+mod test_arena;
 mod test_netfilter;
 mod test_print;
 mod test_streams;

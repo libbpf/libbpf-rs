@@ -569,6 +569,7 @@ dependencies = [
 name = "libbpf-rs-dev"
 version = "0.0.0"
 dependencies = [
+ "libbpf-cargo",
  "libbpf-sys",
  "serde",
  "serde_json",

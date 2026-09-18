@@ -237,6 +237,39 @@ fn prepare_test_files(crate_root: &Path) {
     })
 }
 
+/// The BPF objects for which we generate a skeleton.
+const SKELETONS: [&str; 1] = ["arena.bpf.o"];
+
+/// Prepare skeletons for the test objects listed in [`SKELETONS`].
+#[cfg(feature = "generate-test-files")]
+fn prepare_test_skeletons(crate_root: &Path) {
+    use libbpf_cargo::SkeletonBuilder;
+
+    let bin_dir = crate_root.join("tests").join("bin");
+
+    for obj in SKELETONS {
+        let src = bin_dir.join(obj);
+        // Strip both the `.o` and the `.bpf` extension.
+        let dst = bin_dir.join(Path::new(obj).with_extension("").with_extension("skel.rs"));
+
+        println!("cargo:rerun-if-changed={}", dst.display());
+
+        // Generate from the object that `prepare_test_files` just
+        // created, as opposed to from source, to not compile it twice.
+        let () = SkeletonBuilder::new()
+            .obj(&src)
+            .generate(&dst)
+            .unwrap_or_else(|err| panic!("failed to generate skeleton for `{obj}`: {err}"));
+
+        let () = adjust_mtime(&dst).unwrap();
+    }
+}
+
+#[cfg(not(feature = "generate-test-files"))]
+fn prepare_test_skeletons(_crate_root: &Path) {
+    unimplemented!()
+}
+
 fn main() {
     let crate_dir = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
         .parent()
@@ -245,5 +278,6 @@ fn main() {
 
     if cfg!(feature = "generate-test-files") && !cfg!(feature = "dont-generate-test-files") {
         prepare_test_files(&crate_dir);
+        prepare_test_skeletons(&crate_dir);
     }
 }
