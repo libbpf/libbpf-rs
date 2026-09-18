@@ -13,12 +13,13 @@ path = "lib.rs"
 [features]
 # Enable this feature to opt in to the generation of unit test files.
 # Having these test files created is necessary for running tests.
-generate-test-files = ["libbpf-sys/vendored-libbpf", "dep:tempfile"]
+generate-test-files = ["libbpf-sys/vendored-libbpf", "dep:libbpf-cargo", "dep:tempfile"]
 # Disable generation of test files. This feature takes preference over
 # `generate-test-files`.
 dont-generate-test-files = []
 
 [build-dependencies]
+libbpf-cargo = { path = "../../libbpf-cargo", optional = true }
 libbpf-sys = { version = "1.5.0", default-features = false, optional = true }
 tempfile = { version = "3.15", optional = true }
 vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52" }
