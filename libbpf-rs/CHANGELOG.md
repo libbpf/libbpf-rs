@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Added `MapType::Arena` variant
+
+
 0.27.1
 ------
 - Added documentation aliases for underlying `libbpf` C functionality to
