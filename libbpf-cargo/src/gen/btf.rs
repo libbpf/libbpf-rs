@@ -29,6 +29,7 @@ use libbpf_rs::HasSize;
 use libbpf_rs::ReferencesType;
 
 use super::canonicalize_internal_map_name;
+use super::datasec_type_name;
 use super::InternalMapType;
 
 const ANON_PREFIX: &str = "__anon_";
@@ -1036,15 +1037,10 @@ impl<'s> GenBtf<'s> {
         dependent_types: &mut Vec<BtfType<'a>>,
         t: types::DataSec<'_>,
     ) -> Result<()> {
-        let sec_name = match t.name().map(|s| s.to_string_lossy().into_owned()) {
+        let sec_name = match t.name() {
             None => bail!("Datasec name is empty"),
-            Some(mut s) if s.starts_with('.') => {
-                s.remove(0);
-                s
-            }
-            Some(s) => s,
+            Some(s) => datasec_type_name(&s.to_string_lossy()),
         };
-        let sec_name = sec_name.replace('.', "_");
 
         // Don't generate anything for ksyms. The BTF is patched up by libbpf at
         // load time and the result can contain multiple variables with the same

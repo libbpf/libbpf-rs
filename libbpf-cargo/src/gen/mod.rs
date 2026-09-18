@@ -52,6 +52,15 @@ fn escape_raw_name(name: &str) -> String {
     name.replace('.', "_")
 }
 
+/// Derive the name of the Rust type that we generate for the BTF data
+/// section `sec_name`.
+///
+/// E.g., `.rodata` maps to `rodata` and `.addr_space.1` to `addr_space_1`.
+pub(crate) fn datasec_type_name(sec_name: &str) -> String {
+    escape_raw_name(sec_name.strip_prefix('.').unwrap_or(sec_name))
+}
+
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum InternalMapType<'name> {
     Data,
@@ -83,15 +92,25 @@ impl Display for InternalMapType<'_> {
 /// Meta-data about a BPF map.
 enum MapMeta {
     NonDatasec,
-    Datasec { mmap_idx: usize, read_only: bool },
+    Datasec {
+        mmap_idx: usize,
+        read_only: bool,
+        /// Name of the type in the generated `types` module describing
+        /// the contents of the data section backing this map.
+        ///
+        /// For the regular data sections this is the same as the map
+        /// name.
+        ty_name: String,
+    },
 }
 
 impl MapMeta {
-    fn new(idx: usize, map: &Map<'_>) -> Self {
+    fn new(idx: usize, map: &Map<'_>, name: &str) -> Self {
         if map_is_datasec(map) {
             Self::Datasec {
                 mmap_idx: idx,
                 read_only: map_is_readonly(map),
+                ty_name: name.to_string(),
             }
         } else {
             Self::NonDatasec
@@ -123,10 +142,11 @@ impl MapData {
             return Ok(None)
         };
 
+        let meta = MapMeta::new(idx, map, &name);
         let slf = Self {
             raw_name,
             name,
-            meta: MapMeta::new(idx, map),
+            meta,
         };
         Ok(Some(slf))
     }
@@ -398,14 +418,17 @@ fn gen_skel_map_defs(
             name = map.name
         )?;
 
-        if let MapMeta::Datasec { read_only, .. } = map.meta {
+        if let MapMeta::Datasec {
+            read_only, ty_name, ..
+        } = &map.meta
+        {
             // After "open" all maps are writable. That's the point,
             // they can be modified.
-            let ref_mut = if open || !read_only { " mut" } else { "" };
+            let ref_mut = if open || !*read_only { " mut" } else { "" };
             write!(
                 skel,
                 "\
-                    pub {name}_data: Option<&'obj{ref_mut} types::{name}>,
+                    pub {name}_data: Option<&'obj{ref_mut} types::{ty_name}>,
                 ",
                 name = map.name,
             )?;
@@ -487,9 +510,10 @@ fn gen_skel_map_defs(
         if let MapMeta::Datasec {
             mmap_idx,
             read_only,
-        } = map.meta
+            ty_name,
+        } = &map.meta
         {
-            let ref_conv = if open || !read_only { "mut" } else { "ref" };
+            let ref_conv = if open || !*read_only { "mut" } else { "ref" };
             write!(
                 skel,
                 "\
@@ -497,7 +521,7 @@ fn gen_skel_map_defs(
                                 config
                                     .map_mmap_ptr({mmap_idx})
                                     .expect(\"BPF map `{name}` does not have mmap pointer\")
-                                    .cast::<types::{name}>()
+                                    .cast::<types::{ty_name}>()
                                     .as_{ref_conv}()
                             }},
                 ",
