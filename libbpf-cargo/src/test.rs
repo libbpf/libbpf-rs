@@ -680,6 +680,151 @@ fn test_skeleton_datasec() {
     build_rust_project_from_bpf_c(&bpf_c, &rust);
 }
 
+/// Generate a skeleton for the provided BPF C program and return its
+/// contents.
+fn gen_skel_from_bpf_c(bpf_c: &str) -> String {
+    let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
+
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+    write(proj_dir.join("src/bpf/prog.bpf.c"), bpf_c).expect("failed to write prog.bpf.c");
+    add_vmlinux_header(&proj_dir);
+
+    let skel = proj_dir.join("src/bpf/skel.rs");
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .obj(proj_dir.join("src/bpf/prog.o"))
+        .build_and_generate(&skel)
+        .expect("failed to generate skeleton");
+
+    read_to_string(&skel).expect("failed to read skeleton")
+}
+
+/// The preamble for a test program using a BPF arena: an arena map named
+/// `name`, along with the annotation for globals living inside of it.
+fn arena_preamble(name: &str) -> String {
+    format!(
+        indoc! {r#"
+            #include "vmlinux.h"
+            #include <bpf/bpf_helpers.h>
+
+            /* Not provided by `bpf_helpers.h`. Requires clang 19 or newer.
+             */
+            #define __arena __attribute__((address_space(1)))
+
+            struct {{
+                __uint(type, BPF_MAP_TYPE_ARENA);
+                __uint(map_flags, BPF_F_MMAPABLE);
+                __uint(max_entries, 100);
+                __ulong(map_extra, (1ull << 44));
+            }} {name} SEC(".maps");
+        "#},
+        name = name,
+    )
+}
+
+#[test]
+fn test_skeleton_arena_datasec() {
+    let bpf_c = format!(
+        indoc! {r#"
+            {preamble}
+
+            int __arena myglobal;
+            long __arena mysum;
+
+            SEC("syscall")
+            int this_is_my_prog(void *ctx)
+            {{
+                    myglobal += 1;
+                    mysum += 10;
+                    return 0;
+            }}
+        "#},
+        preamble = arena_preamble("arena"),
+    );
+
+    let rust = indoc! {r#"
+        #![warn(elided_lifetimes_in_paths)]
+        mod bpf;
+        use std::mem::MaybeUninit;
+        use bpf::*;
+        use libbpf_rs::skel::SkelBuilder;
+        use libbpf_rs::skel::OpenSkel;
+
+        fn main() {
+            let builder = ProgSkelBuilder::default();
+            let mut open_object = MaybeUninit::uninit();
+            let mut open_skel = builder
+                .open(&mut open_object)
+                .expect("failed to open skel");
+
+            // Arena globals are writable both before...
+            open_skel.maps.arena_data.as_deref_mut().unwrap().myglobal = 42;
+
+            let mut skel = open_skel.load().expect("failed to load skel");
+
+            // ...and after load.
+            skel.maps.arena_data.as_deref_mut().unwrap().mysum = 1337;
+            let _arena: &types::addr_space_1 = skel.maps.arena_data.as_deref().unwrap();
+
+            // The map itself remains accessible as well.
+            let _map = &skel.maps.arena;
+        }
+    "#}
+    .to_string();
+    build_rust_project_from_bpf_c(&bpf_c, &rust);
+}
+
+/// Check that the generated arena accessor is named after the map,
+/// while the type it points to is named after the backing section.
+#[test]
+fn test_skeleton_arena_custom_map_name() {
+    let bpf_c = format!(
+        indoc! {r#"
+            {preamble}
+
+            int __arena myglobal;
+
+            SEC("kprobe/foo")
+            int this_is_my_prog(u64 *ctx)
+            {{
+                    return 0;
+            }}
+        "#},
+        preamble = arena_preamble("my_arena"),
+    );
+
+    let skel = gen_skel_from_bpf_c(&bpf_c);
+    assert!(
+        skel.contains("my_arena_data: Option<&'obj mut types::addr_space_1>"),
+        "{skel}"
+    );
+}
+
+/// Check that an arena without any global variables does not gain an
+/// accessor.
+#[test]
+fn test_skeleton_arena_without_data() {
+    let bpf_c = format!(
+        indoc! {r#"
+            {preamble}
+
+            SEC("kprobe/foo")
+            int this_is_my_prog(u64 *ctx)
+            {{
+                    return 0;
+            }}
+        "#},
+        preamble = arena_preamble("arena"),
+    );
+
+    let skel = gen_skel_from_bpf_c(&bpf_c);
+    assert!(
+        skel.contains("pub arena: libbpf_rs::MapMut<'obj>"),
+        "{skel}"
+    );
+    assert!(!skel.contains("arena_data"), "{skel}");
+}
+
 #[test]
 fn test_skeleton_builder_basic() {
     let (_dir, proj_dir, cargo_toml) = setup_temp_project();

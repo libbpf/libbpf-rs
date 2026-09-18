@@ -1,3 +1,9 @@
+Unreleased
+----------
+- Added `<arena-map>_data` skeleton members for accessing `__arena`
+  global variables
+
+
 0.27.1
 ------
 - Removed requirement for `.o` extension for object files

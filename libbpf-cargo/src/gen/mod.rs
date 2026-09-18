@@ -89,6 +89,13 @@ impl Display for InternalMapType<'_> {
 }
 
 
+/// The data section in which Clang places `__arena`
+/// (i.e., `__attribute__((address_space(1)))`) global variables.
+///
+/// Mirrors libbpf's `ARENA_SEC`.
+const ARENA_SEC: &str = ".addr_space.1";
+
+
 /// Meta-data about a BPF map.
 enum MapMeta {
     NonDatasec,
@@ -111,6 +118,14 @@ impl MapMeta {
                 mmap_idx: idx,
                 read_only: map_is_readonly(map),
                 ty_name: name.to_string(),
+            }
+        } else if map_is_arena_with_data(map) {
+            Self::Datasec {
+                mmap_idx: idx,
+                // Arenas are never read-only: the kernel rejects creation
+                // of one that is not writable by the program.
+                read_only: false,
+                ty_name: datasec_type_name(ARENA_SEC),
             }
         } else {
             Self::NonDatasec
@@ -334,6 +349,31 @@ fn map_is_datasec(map: &Map<'_>) -> bool {
     internal && mmapable
 }
 
+/// Check whether `map` is a BPF arena carrying `ARENA_SEC` global variable
+/// data.
+///
+/// This function mirrors what `bpftool` does.
+fn map_is_arena_with_data(map: &Map<'_>) -> bool {
+    if map.map_type() != MapType::Arena {
+        return false
+    }
+
+    let map_ptr = map.as_libbpf_object().as_ptr();
+    let mut size = 0;
+    // SAFETY: The pointer returned by `as_libbpf_object` is always valid and
+    //         `size` is a valid out parameter.
+    let data = unsafe { libbpf_sys::bpf_map__initial_value(map_ptr, &mut size) };
+    // libbpf points an arena map's initial value at its copy of the
+    // `ARENA_SEC` section contents, if the object contains any.
+    !data.is_null()
+}
+
+/// Check whether the skeleton has to keep track of an `mmap`ed pointer for
+/// `map`.
+fn map_needs_mmap_ptr(map: &Map<'_>) -> bool {
+    map_is_mmapable(map) || map_is_arena_with_data(map)
+}
+
 fn map_is_readonly(map: &Map<'_>) -> bool {
     assert!(map_is_mmapable(map));
 
@@ -366,7 +406,7 @@ fn gen_skel_c_skel_constructor(skel: &mut String, object: &Object, name: &str) -
 
     for map in maps(object) {
         let raw_name = get_raw_map_name(&map)?;
-        let mmaped = if map_is_mmapable(&map) {
+        let mmaped = if map_needs_mmap_ptr(&map) {
             "true"
         } else {
             "false"
