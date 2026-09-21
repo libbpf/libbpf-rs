@@ -12,7 +12,7 @@ on:
 jobs:
   test:
     name: Test [${{ matrix.rust }}, ${{ matrix.profile }}]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +53,7 @@ jobs:
         #       commit.
         rev: 'b5709f6d26d65f6bb9711f4b5f98469fd507cb5b'
         config: 'var/config'
+        patches: 'var/patches/*.patch'
         vmlinux: 'true'
     - uses: dtolnay/rust-toolchain@master
       with:
@@ -61,9 +62,9 @@ jobs:
     - name: Install deps
       run: |
         sudo apt-get update
-        sudo apt-get install --yes --no-install-recommends clang-18 libelf-dev zlib1g-dev linux-headers-$(uname -r)
+        sudo apt-get install --yes --no-install-recommends clang-20 libelf-dev zlib1g-dev linux-headers-$(uname -r)
         sudo ln -s /usr/include/asm-generic /usr/include/asm
-        sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-18 /bin/clang
+        sudo rm -f /bin/clang && sudo ln -s /usr/bin/clang-20 /bin/clang
     - uses: Swatinem/rust-cache@v2
       with:
         save-if: ${{ github.ref == 'refs/heads/master' }}
