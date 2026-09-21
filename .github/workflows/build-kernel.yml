@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     name: Build kernel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
     - uses: d-e-s-o/build-linux@a2c2581c6b44879b6070699618be648480a122c5
@@ -15,6 +15,7 @@ jobs:
         #       commit.
         rev: 'b5709f6d26d65f6bb9711f4b5f98469fd507cb5b'
         config: 'var/config'
+        patches: 'var/patches/*.patch'
         vmlinux: 'true'
     - uses: actions/upload-artifact@v7
       with:
