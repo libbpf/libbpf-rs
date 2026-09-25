@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.27.2
+------
 - Added `MapType::Arena` variant
 
 
