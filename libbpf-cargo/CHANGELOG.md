@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.27.2
+------
 - Added `<arena-map>_data` skeleton members for accessing `__arena`
   global variables
 
