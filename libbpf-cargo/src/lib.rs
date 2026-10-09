@@ -77,6 +77,7 @@ pub mod util;
 #[cfg(test)]
 mod test;
 
+use __private::RUSTFMT_EXE_DEFAULT;
 use build::BpfObjBuilder;
 
 
@@ -101,7 +102,7 @@ pub struct SkeletonBuilder {
     obj: Option<PathBuf>,
     clang: Option<PathBuf>,
     clang_args: Vec<OsString>,
-    rustfmt: PathBuf,
+    rustfmt: Option<PathBuf>,
     dir: Option<TempDir>,
     reference_obj: bool,
     original_obj_name: Option<String>,
@@ -121,7 +122,7 @@ impl SkeletonBuilder {
             obj: None,
             clang: None,
             clang_args: Vec::new(),
-            rustfmt: "rustfmt".into(),
+            rustfmt: Some(RUSTFMT_EXE_DEFAULT.into()),
             dir: None,
             reference_obj: false,
             original_obj_name: None,
@@ -183,8 +184,8 @@ impl SkeletonBuilder {
     /// Specify which `rustfmt` binary to use
     ///
     /// Default searches `$PATH` for `rustfmt`
-    pub fn rustfmt<P: AsRef<Path>>(&mut self, rustfmt: P) -> &mut Self {
-        self.rustfmt = rustfmt.as_ref().to_path_buf();
+    pub fn rustfmt(&mut self, rustfmt: Option<PathBuf>) -> &mut Self {
+        self.rustfmt = rustfmt;
         self
     }
 
@@ -305,7 +306,7 @@ impl SkeletonBuilder {
         r#gen::gen_single(
             objfile,
             r#gen::OutputDest::File(output.as_ref()),
-            Some(&self.rustfmt),
+            self.rustfmt.as_deref(),
             self.reference_obj,
             self.original_obj_name.as_deref(),
         )
@@ -330,4 +331,6 @@ pub mod __private {
     pub mod make {
         pub use crate::make::make;
     }
+
+    pub const RUSTFMT_EXE_DEFAULT: &str = "rustfmt";
 }

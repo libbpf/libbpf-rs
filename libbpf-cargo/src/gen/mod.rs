@@ -230,7 +230,7 @@ fn try_rustfmt<'code>(s: &'code str, rustfmt_path: Option<&Path>) -> Result<Cow<
     let result = if let Some(r) = rustfmt_path {
         Command::new(r)
     } else {
-        Command::new("rustfmt")
+        return Ok(Cow::Borrowed(s.as_bytes()));
     }
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
