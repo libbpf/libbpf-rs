@@ -65,7 +65,7 @@ extern "C" fn outer_print_cb(
     va_list: *mut c_void,
 ) -> c_int {
     let level = level.into();
-    if let Some((min_level, func)) = { *PRINT_CB.lock().unwrap() } {
+    if let Some((min_level, func)) = *PRINT_CB.lock().unwrap() {
         if level <= min_level {
             let msg = match unsafe { vsprintf::vsprintf(fmtstr, va_list) } {
                 Ok(s) => s,
