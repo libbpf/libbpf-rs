@@ -18,6 +18,7 @@ use tracing_subscriber::FmtSubscriber;
 use libbpf_cargo::__private::build;
 use libbpf_cargo::__private::make;
 use libbpf_cargo::__private::r#gen;
+use libbpf_cargo::__private::RUSTFMT_EXE_DEFAULT;
 
 
 #[doc(hidden)]
@@ -77,9 +78,12 @@ enum Command {
         #[arg(long, value_parser)]
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
-        #[arg(long, value_parser)]
+        #[arg(long, value_parser, conflicts_with = "disable_rustfmt")]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
+        /// Whether to disable applying rustfmt to the generated skeleton Rust source.
+        #[arg(long)]
+        disable_rustfmt: bool,
         #[arg(long, value_parser)]
         /// Generate skeleton for the specified object file and print results to stdout
         ///
@@ -100,6 +104,9 @@ enum Command {
         #[arg(long, value_parser)]
         /// Path to rustfmt binary
         rustfmt_path: Option<PathBuf>,
+        /// Whether to disable applying rustfmt to the generated skeleton Rust source.
+        #[arg(long)]
+        disable_rustfmt: bool,
     },
 }
 
@@ -136,12 +143,20 @@ fn main() -> Result<()> {
             Command::Gen {
                 manifest_path,
                 rustfmt_path,
+                disable_rustfmt,
                 object,
-            } => r#gen::generate(
-                manifest_path.as_deref(),
-                rustfmt_path.as_deref(),
-                object.as_deref(),
-            ),
+            } => {
+                let rustfmt_path = if disable_rustfmt {
+                    None
+                } else {
+                    Some(rustfmt_path.unwrap_or(RUSTFMT_EXE_DEFAULT.into()))
+                };
+                r#gen::generate(
+                    manifest_path.as_deref(),
+                    rustfmt_path.as_deref(),
+                    object.as_deref(),
+                )
+            }
             Command::Make {
                 manifest_path,
                 clang_opts:
@@ -151,13 +166,21 @@ fn main() -> Result<()> {
                     },
                 cargo_build_args,
                 rustfmt_path,
-            } => make::make(
-                manifest_path.as_deref(),
-                clang_path.as_deref(),
-                clang_args,
-                cargo_build_args,
-                rustfmt_path.as_deref(),
-            ),
+                disable_rustfmt,
+            } => {
+                let rustfmt_path = if disable_rustfmt {
+                    None
+                } else {
+                    Some(rustfmt_path.unwrap_or(RUSTFMT_EXE_DEFAULT.into()))
+                };
+                make::make(
+                    manifest_path.as_deref(),
+                    clang_path.as_deref(),
+                    clang_args,
+                    cargo_build_args,
+                    rustfmt_path.as_deref(),
+                )
+            }
         },
     }
 }

@@ -1,3 +1,12 @@
+Unreleased
+----------
+- Added ability to skip running `rustfmt` on the skeleton Rust source entirely
+  in `libbpf-cargo`.
+  Changed signature of `SkeletonBuilder::rustfmt()` to take parameter
+    `Option<PathBuf>`.
+  Added flag `--disable-rustfmt` to CLI.
+
+
 0.27.2
 ------
 - Added `<arena-map>_data` skeleton members for accessing `__arena`
