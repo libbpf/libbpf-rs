@@ -1929,6 +1929,11 @@ impl MapFdInfo {
                 .map_err(|e| Error::with_invalid_data(format!("`{key}`: {e}")))
         };
 
+        let parse_u64 = |key: &str, val: &str| -> Result<u64> {
+            val.parse()
+                .map_err(|e| Error::with_invalid_data(format!("`{key}`: {e}")))
+        };
+
         let mut map_type = None;
         let mut key_size = None;
         let mut value_size = None;
@@ -1962,7 +1967,7 @@ impl MapFdInfo {
                 "map_extra" => {
                     map_extra = Some(parse_hex(value).with_context(|| format!("bad `{key}`"))?)
                 }
-                "memlock" => memlock = Some(parse(key, value)? as u64),
+                "memlock" => memlock = Some(parse_u64(key, value)?),
                 "map_id" => map_id = Some(parse(key, value)?),
                 "frozen" => frozen = Some(parse(key, value)? != 0),
                 "owner_prog_type" => owner_prog_type = Some(parse(key, value)?),
