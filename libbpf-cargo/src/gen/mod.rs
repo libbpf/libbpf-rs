@@ -224,10 +224,14 @@ pub(crate) enum OutputDest<'a> {
 
 /// Try running `rustfmt` over `s` and return result.
 ///
-/// If no `rustfmt` binary could be found the content is left untouched, as
-/// it's only meant as a cosmetic brush up, without change of semantics.
+/// If no `rustfmt` binary could be found, or an empty path is supplied,
+/// the content is left untouched, as it's only meant as a cosmetic brush up,
+/// without change of semantics.
 fn try_rustfmt<'code>(s: &'code str, rustfmt_path: Option<&Path>) -> Result<Cow<'code, [u8]>> {
     let result = if let Some(r) = rustfmt_path {
+        if r.as_os_str().is_empty() {
+            return Ok(Cow::Borrowed(s.as_bytes()));
+        }
         Command::new(r)
     } else {
         Command::new("rustfmt")

@@ -78,7 +78,8 @@ enum Command {
         /// Path to top level Cargo.toml
         manifest_path: Option<PathBuf>,
         #[arg(long, value_parser)]
-        /// Path to rustfmt binary
+        /// Path to rustfmt binary.
+        /// If set to an empty path, formatting will be skipped.
         rustfmt_path: Option<PathBuf>,
         #[arg(long, value_parser)]
         /// Generate skeleton for the specified object file and print results to stdout
