@@ -182,8 +182,8 @@ impl SkeletonBuilder {
 
     /// Specify which `rustfmt` binary to use.
     ///
-    /// Default searches `$PATH` for `rustfmt`.
-    /// To skip formatting, an empty path can be supplied.
+    /// Default searches `$PATH` for `rustfmt`. To skip formatting, an
+    /// empty path can be supplied.
     pub fn rustfmt<P: AsRef<Path>>(&mut self, rustfmt: P) -> &mut Self {
         self.rustfmt = rustfmt.as_ref().to_path_buf();
         self

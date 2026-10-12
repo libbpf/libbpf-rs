@@ -1,8 +1,8 @@
 Unreleased
 ----------
-- Added ability to skip running `rustfmt` on the skeleton Rust source entirely
-  in `libbpf-cargo` by setting `rustfmt-path` to an empty string for the CLI or
-  passing an empty path to `SkeletonBuilder::rustfmt()`.
+- Added ability to skip running `rustfmt` on generated skeleton by
+  passing empty string to `--rustfmt-path` command line option or
+  `SkeletonBuilder::rustfmt()`
 
 
 0.27.2
