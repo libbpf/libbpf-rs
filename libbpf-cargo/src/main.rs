@@ -79,6 +79,7 @@ enum Command {
         manifest_path: Option<PathBuf>,
         #[arg(long, value_parser)]
         /// Path to rustfmt binary.
+        ///
         /// If set to an empty path, formatting will be skipped.
         rustfmt_path: Option<PathBuf>,
         #[arg(long, value_parser)]
