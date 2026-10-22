@@ -3,14 +3,30 @@
 use std::env;
 use std::env::consts::ARCH;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs::read_dir;
 use std::io::Error;
 use std::io::Result;
-use std::ops::Deref as _;
 use std::path::Path;
 use std::process::Command;
 use std::process::Output;
 use std::process::Stdio;
+
+
+/// Concatenate a command and its arguments into a single string.
+fn concat_command<C, A, S>(command: C, args: A) -> OsString
+where
+    C: AsRef<OsStr>,
+    A: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    args.into_iter()
+        .fold(command.as_ref().to_os_string(), |mut cmd, arg| {
+            cmd.push(OsStr::new(" "));
+            cmd.push(arg.as_ref());
+            cmd
+        })
+}
 
 
 /// Format a command with the given list of arguments as a string.
@@ -20,14 +36,7 @@ where
     A: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    args.into_iter().fold(
-        command.as_ref().to_string_lossy().into_owned(),
-        |mut cmd, arg| {
-            cmd += " ";
-            cmd += arg.as_ref().to_string_lossy().deref();
-            cmd
-        },
-    )
+    concat_command(command, args).to_string_lossy().to_string()
 }
 
 
