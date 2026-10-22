@@ -289,7 +289,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: d-e-s-o/bpflint@8a10eab33b187ef6df98b86efa48cb4164fd2ba6
+      - uses: d-e-s-o/bpflint@ea99dee4b3a73a8b51630250bc197791bdd6ddd2
       - run: |
           find . -iname '*.bpf.c' > bpf.c.files
           bpflinter '@bpf.c.files'
