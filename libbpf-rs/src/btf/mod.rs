@@ -12,6 +12,9 @@
 //! [`Btf::type_by_kind`]). If you want to get a type independently of the kind, just make sure `K`
 //! binds to [`BtfType`].
 
+mod dump;
+pub use dump::BtfDump;
+pub use dump::EmitTypeDeclOpts;
 pub mod types;
 
 use std::ffi::CStr;
