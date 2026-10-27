@@ -4,6 +4,7 @@ Unreleased
   type count
 - Fixed lifetimes of string and object references returned by various
   map and program methods
+- Added `btf::dump::BtfDump` for emitting C declarations from BTF
 
 
 0.27.2
