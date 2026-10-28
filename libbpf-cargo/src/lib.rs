@@ -105,6 +105,7 @@ pub struct SkeletonBuilder {
     dir: Option<TempDir>,
     reference_obj: bool,
     original_obj_name: Option<String>,
+    extract_vmlinux_header: bool,
 }
 
 impl Default for SkeletonBuilder {
@@ -125,6 +126,7 @@ impl SkeletonBuilder {
             dir: None,
             reference_obj: false,
             original_obj_name: None,
+            extract_vmlinux_header: false,
         }
     }
 
@@ -210,6 +212,31 @@ impl SkeletonBuilder {
         self
     }
 
+    /// Specify whether vmlinux header is generated from the running kernel.
+    ///
+    /// If set, the header is made available as `vmlinux.h` to the BPF
+    /// program. This assumes that the host and target architectures
+    /// are the same; otherwise it returns an error.
+    ///
+    /// The resulting BPF object and the skeleton depend on the
+    /// running kernel, meaning that the same program referencing the
+    /// same struct (e.g., `task_struct`) compiled against 6.18 and
+    /// 7.0 headers results in different objects.
+    ///
+    /// Default is off.
+    pub fn extract_vmlinux_header(&mut self, extract: bool) -> Result<&mut Self> {
+        let host_arch = env::consts::ARCH;
+        let target_arch = env::var("CARGO_CFG_TARGET_ARCH");
+        let target_arch = target_arch.as_deref().unwrap_or(host_arch);
+        if target_arch != host_arch {
+            return Err(anyhow!(
+                "vmlinux.h extracted on {host_arch} cannot be used for {target_arch}"
+            ));
+        }
+        self.extract_vmlinux_header = extract;
+        Ok(self)
+    }
+
     /// Build BPF programs and generate the skeleton at path `output`
     ///
     /// # Notes
@@ -290,6 +317,7 @@ impl SkeletonBuilder {
             builder.compiler(clang);
         }
         builder.compiler_args(&self.clang_args);
+        builder.extract_vmlinux_header(self.extract_vmlinux_header);
 
         // SANITY: Unwrap is safe here since we guarantee that obj.is_some() above.
         builder
