@@ -303,7 +303,7 @@ impl<'obj> OpenProgram<'obj> {
 
     /// Retrieve the name of this `OpenProgram`.
     #[doc(alias = "bpf_program__name")]
-    pub fn name(&self) -> &'obj OsStr {
+    pub fn name(&self) -> &OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
         // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
@@ -312,7 +312,7 @@ impl<'obj> OpenProgram<'obj> {
 
     /// Retrieve the name of the section this `OpenProgram` belongs to.
     #[doc(alias = "bpf_program__section_name")]
-    pub fn section(&self) -> &'obj OsStr {
+    pub fn section(&self) -> &OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
         // SAFETY: `bpf_program__section_name` will always return a non-NULL
@@ -342,7 +342,7 @@ impl<'obj> OpenProgram<'obj> {
     /// instructions will have FDs embedded, etc. So instructions returned before load and after it
     /// might be quite different.
     #[doc(alias = "bpf_program__insns")]
-    pub fn insns(&self) -> &'obj [libbpf_sys::bpf_insn] {
+    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
@@ -801,7 +801,7 @@ impl<'obj> Program<'obj> {
 
     /// Retrieve the name of this `Program`.
     #[doc(alias = "bpf_program__name")]
-    pub fn name(&self) -> &'obj OsStr {
+    pub fn name(&self) -> &OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
         // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
@@ -810,7 +810,7 @@ impl<'obj> Program<'obj> {
 
     /// Retrieve the name of the section this `Program` belongs to.
     #[doc(alias = "bpf_program__section_name")]
-    pub fn section(&self) -> &'obj OsStr {
+    pub fn section(&self) -> &OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
         // SAFETY: `bpf_program__section_name` will always return a non-NULL
@@ -928,7 +928,7 @@ impl<'obj> Program<'obj> {
     ///
     /// Please see note in [`OpenProgram::insns`].
     #[doc(alias = "bpf_program__insns")]
-    pub fn insns(&self) -> &'obj [libbpf_sys::bpf_insn] {
+    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
