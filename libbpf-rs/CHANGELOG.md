@@ -1,7 +1,7 @@
 Unreleased
 ----------
-- Fixed lifetimes of strings returned by `OpenMap::name()` and
-  `MapInfo::name()`
+- Fixed lifetimes of string and object references returned by various
+  map and program methods
 
 
 0.27.2
