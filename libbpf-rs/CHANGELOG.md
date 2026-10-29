@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Added `btf::dump::BtfDump` for emitting C declarations from BTF
+
+
 0.27.2
 ------
 - Added `MapType::Arena` variant
