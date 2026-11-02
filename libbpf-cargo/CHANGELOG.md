@@ -3,6 +3,8 @@ Unreleased
 - Added ability to skip running `rustfmt` on generated skeleton by
   passing empty string to `--rustfmt-path` command line option or
   `SkeletonBuilder::rustfmt()`
+- Added `SkeletonBuilder::extract_vmlinux_header` for enabling
+  vmlinux.h generation from the running kernel
 
 
 0.27.2
