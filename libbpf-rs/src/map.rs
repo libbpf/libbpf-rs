@@ -1861,7 +1861,7 @@ impl MapInfo {
     ///
     /// Returns error if the underlying data in the structure is not a valid
     /// utf-8 string.
-    pub fn name<'a>(&self) -> Result<&'a str> {
+    pub fn name(&self) -> Result<&str> {
         // SAFETY: convert &[i8] to &[u8], and then cast that to &str. i8 and u8 has the same size.
         let char_slice =
             unsafe { from_raw_parts(self.info.name[..].as_ptr().cast(), self.info.name.len()) };

@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Fixed lifetime of string return by `MapInfo::name()`
+
+
 0.27.2
 ------
 - Added `MapType::Arena` variant
