@@ -1,6 +1,7 @@
 Unreleased
 ----------
-- Fixed lifetime of string return by `MapInfo::name()`
+- Fixed lifetimes of strings returned by `OpenMap::name()` and
+  `MapInfo::name()`
 
 
 0.27.2
