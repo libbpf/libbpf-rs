@@ -74,7 +74,7 @@ impl<'obj> OpenMap<'obj> {
 
     /// Retrieve the [`OpenMap`]'s name.
     #[doc(alias = "bpf_map__name")]
-    pub fn name(&self) -> &'obj OsStr {
+    pub fn name(&self) -> &OsStr {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_map__name(self.ptr.as_ptr()) };
         // SAFETY: `bpf_map__name` can return NULL but only if it's passed
