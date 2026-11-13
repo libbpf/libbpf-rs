@@ -27,6 +27,7 @@ use crate::metadata::UnprocessedObj;
 pub(crate) struct BpfObjBuilder {
     compiler: PathBuf,
     compiler_args: Vec<OsString>,
+    extract_vmlinux_header: bool,
 }
 
 impl BpfObjBuilder {
@@ -46,6 +47,12 @@ impl BpfObjBuilder {
             .into_iter()
             .map(|arg| arg.as_ref().to_os_string())
             .collect();
+        self
+    }
+
+    /// Specify whether vmlinux header is generated from the running kernel.
+    pub fn extract_vmlinux_header(&mut self, extract: bool) -> &mut Self {
+        self.extract_vmlinux_header = extract;
         self
     }
 
@@ -124,6 +131,16 @@ impl BpfObjBuilder {
         if let Some(dir) = header_dir {
             compiler_args.push(OsString::from("-I"));
             compiler_args.push(dir.into_os_string());
+        }
+
+        if self.extract_vmlinux_header {
+            let header_dir = extract_vmlinux_header_to_disk(header_parent_dir.path())
+                .context("failed to extract vmlinux header")?;
+
+            if let Some(dir) = header_dir {
+                compiler_args.push(OsString::from("-I"));
+                compiler_args.push(dir.into_os_string());
+            }
         }
 
         // Explicitly disable stack protector logic, which doesn't work with
@@ -207,6 +224,7 @@ impl Default for BpfObjBuilder {
         Self {
             compiler: "clang".into(),
             compiler_args: Vec::new(),
+            extract_vmlinux_header: false,
         }
     }
 }
@@ -259,6 +277,140 @@ fn extract_libbpf_headers_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> 
 #[cfg(not(feature = "default"))]
 fn extract_libbpf_headers_to_disk(_target_dir: &Path) -> Result<Option<PathBuf>> {
     Ok(None)
+}
+
+fn extract_vmlinux_header_to_disk(target_dir: &Path) -> Result<Option<PathBuf>> {
+    use libbpf_rs::btf::dump::BtfDump;
+    use libbpf_rs::btf::dump::EmitTypeDeclOpts;
+    use libbpf_rs::btf::types;
+    use libbpf_rs::btf::Btf;
+    use std::fs::OpenOptions;
+    use std::io;
+    use std::io::Write;
+
+    let parent_dir = target_dir.join("bpf").join("src");
+    fs::create_dir_all(&parent_dir)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(parent_dir.join("vmlinux.h"))?;
+
+    // The logic copied from:
+    // https://github.com/libbpf/bpftool/blob/19bb41ccbd7ae7286981035a252a05126e0bab10/src/btf.c#L1095
+    write!(
+        file,
+        concat!(
+	    "#ifndef __VMLINUX_H__\n",
+	    "#define __VMLINUX_H__\n",
+	    "\n",
+	    "#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n",
+	    "#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n",
+	    "#endif\n\n",
+	    "#ifndef __ksym\n",
+	    "#define __ksym __attribute__((section(\".ksyms\")))\n",
+	    "#endif\n\n",
+	    "#ifndef __weak\n",
+	    "#define __weak __attribute__((weak))\n",
+	    "#endif\n\n",
+	    "#ifndef __bpf_fastcall\n",
+	    "#if __has_attribute(bpf_fastcall)\n",
+	    "#define __bpf_fastcall __attribute__((bpf_fastcall))\n",
+	    "#else\n",
+	    "#define __bpf_fastcall\n",
+	    "#endif\n",
+	    "#endif\n\n",
+        ),
+    )?;
+
+    {
+        let btf = Btf::from_vmlinux()?;
+        let mut dump = BtfDump::new(&btf, &file)?;
+        for type_id in 1..btf.len() as u32 {
+            dump.dump_type(type_id.into())?;
+        }
+    }
+
+    write!(
+        file,
+        concat!("\n/* BPF kfuncs */\n", "#ifndef BPF_NO_KFUNC_PROTOTYPES\n",),
+    )?;
+
+    let mut kfuncs = vec![];
+    let mut fastcalls = HashSet::new();
+
+    let btf = Btf::from_vmlinux()?;
+
+    for type_id in 1..btf.len() as u32 {
+        let Some(t) = btf.type_by_id::<types::DeclTag<'_>>(type_id.into()) else {
+            continue;
+        };
+        if t.component_index().is_some() {
+            continue;
+        }
+        let Some(nt) = t.next_type() else {
+            continue;
+        };
+        let Some(ft) = btf.type_by_id::<types::Func<'_>>(nt.type_id()) else {
+            continue;
+        };
+        let Some(name) = t.name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if name.starts_with("bpf_kfunc") {
+            kfuncs.push(ft);
+        }
+        if name.starts_with("bpf_fastcall") {
+            fastcalls.insert(ft.type_id());
+        }
+    }
+
+    for kfunc in kfuncs {
+        let Some(name) = kfunc.name() else {
+            continue;
+        };
+        let Some(nt) = kfunc.next_type() else {
+            continue;
+        };
+        write!(file, "extern ")?;
+
+        if fastcalls.contains(&kfunc.type_id()) {
+            write!(file, "__bpf_fastcall ")?;
+        }
+
+        {
+            let field_name = name.to_str().ok_or_else(|| {
+                libbpf_rs::Error::from(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "kfunc has invalid name",
+                ))
+            })?;
+
+            let mut dump = BtfDump::new(&btf, &file)?;
+            let opts = EmitTypeDeclOpts {
+                field_name: Some(field_name.to_string()),
+                ..Default::default()
+            };
+            dump.emit_type_decl(nt.type_id(), opts)?;
+        }
+
+        writeln!(file, " __weak __ksym;")?;
+    }
+
+    write!(file, "#endif\n\n")?;
+
+    write!(
+        file,
+        concat!(
+            "#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n",
+            "#pragma clang attribute pop\n",
+            "#endif\n",
+            "\n",
+            "#endif /* __VMLINUX_H__ */\n",
+        ),
+    )?;
+
+    Ok(Some(parent_dir))
 }
 
 /// Concatenate a command and its arguments into a single string.

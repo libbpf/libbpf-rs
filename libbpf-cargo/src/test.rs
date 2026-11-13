@@ -1511,6 +1511,42 @@ fn test_skeleton_duplicate_struct() {
     assert!(status.success());
 }
 
+/// Check that `extract_vmlinux_header(true)` generates a vmlinux.h.
+#[fork]
+#[test]
+fn test_skeleton_builder_extract_vmlinux_header() {
+    let (_dir, proj_dir, _cargo_toml) = setup_temp_project();
+
+    create_dir(proj_dir.join("src/bpf")).expect("failed to create prog dir");
+
+    let bpf_c = indoc! {r#"
+        #include "vmlinux.h"
+        #include <bpf/bpf_helpers.h>
+
+        struct {
+            __uint(type, BPF_MAP_TYPE_HASH);
+            __uint(max_entries, 1024);
+            __type(key, u32);
+            __type(value, u64);
+        } mymap SEC(".maps");
+
+        SEC("kprobe/foo")
+        int this_is_my_prog(u64 *ctx)
+        {
+                return 0;
+        }
+    "#}
+    .to_string();
+    write(proj_dir.join("src/bpf/prog.bpf.c"), bpf_c).expect("failed to write prog.bpf.c");
+
+    SkeletonBuilder::new()
+        .source(proj_dir.join("src/bpf/prog.bpf.c"))
+        .obj(proj_dir.join("src/bpf/prog.o"))
+        .extract_vmlinux_header(true)
+        .build()
+        .expect("failed to build bpf file");
+}
+
 // -- TEST RUST GENERATION OF BTF PROGRAMS --
 
 /// Searches the Btf struct for a `BtfType`
