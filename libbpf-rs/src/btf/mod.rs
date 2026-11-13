@@ -413,25 +413,10 @@ impl AsRawLibbpf for Btf<'_> {
 
 impl Debug for Btf<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        struct BtfDumper<'btf>(&'btf Btf<'btf>);
-
-        impl Debug for BtfDumper<'_> {
-            fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-                f.debug_list()
-                    .entries(
-                        (1..self.0.len())
-                            .map(|i| TypeId::from(i as u32))
-                            // SANITY: A type with this ID should always exist
-                            //         given that BTF IDs are fully populated up
-                            //         to `len`. Conversion to `BtfType` is
-                            //         always infallible.
-                            .map(|id| self.0.type_by_id::<BtfType<'_>>(id).unwrap()),
-                    )
-                    .finish()
-            }
-        }
-
-        f.debug_tuple("Btf<'_>").field(&BtfDumper(self)).finish()
+        f.debug_struct("Btf")
+            .field("ptr", &self.ptr)
+            .field("type_count", &self.len())
+            .finish()
     }
 }
 
