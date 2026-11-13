@@ -1,5 +1,7 @@
 Unreleased
 ----------
+- Trimmed `Btf`'s `Debug` impl to only print the underlying pointer and
+  type count
 - Fixed lifetimes of string and object references returned by various
   map and program methods
 
