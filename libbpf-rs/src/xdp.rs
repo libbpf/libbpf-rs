@@ -51,8 +51,8 @@ impl<'fd> Xdp<'fd> {
             attach_opts: libbpf_sys::bpf_xdp_attach_opts::default(),
             query_opts: libbpf_sys::bpf_xdp_query_opts::default(),
         };
-        xdp.attach_opts.sz = size_of::<libbpf_sys::bpf_xdp_attach_opts>() as libbpf_sys::size_t;
-        xdp.query_opts.sz = size_of::<libbpf_sys::bpf_xdp_query_opts>() as libbpf_sys::size_t;
+        xdp.attach_opts.sz = size_of::<libbpf_sys::bpf_xdp_attach_opts>();
+        xdp.query_opts.sz = size_of::<libbpf_sys::bpf_xdp_query_opts>();
         xdp
     }
 

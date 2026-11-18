@@ -126,7 +126,7 @@ impl<'btf> BtfDump<'btf> {
         F: io::Write + 'btf,
     {
         let opts = libbpf_sys::btf_dump_opts {
-            sz: size_of::<libbpf_sys::btf_dump_opts>() as _,
+            sz: size_of::<libbpf_sys::btf_dump_opts>(),
         };
 
         // # Safety
@@ -210,7 +210,7 @@ impl<'btf> BtfDump<'btf> {
 
         #[allow(clippy::needless_update)]
         let libbpf_opts = libbpf_sys::btf_dump_emit_type_decl_opts {
-            sz: size_of::<libbpf_sys::btf_dump_emit_type_decl_opts>() as _,
+            sz: size_of::<libbpf_sys::btf_dump_emit_type_decl_opts>(),
             field_name: field_name_ptr.cast(),
             indent_level: indent_level as c_int,
             strip_mods,

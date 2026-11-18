@@ -14,7 +14,6 @@ use std::io::stdout;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::mem::size_of;
-use std::os::raw::c_ulong;
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
@@ -816,16 +815,12 @@ fn gen_skel_link_getter(skel: &mut String, object: &Object, obj_name: &str) -> R
 fn open_bpf_object(name: &str, data: &[u8]) -> Result<Object> {
     let cname = CString::new(name)?;
     let obj_opts = libbpf_sys::bpf_object_open_opts {
-        sz: size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_object_open_opts>(),
         object_name: cname.as_ptr(),
         ..Default::default()
     };
     let object = unsafe {
-        libbpf_sys::bpf_object__open_mem(
-            data.as_ptr().cast::<c_void>(),
-            data.len() as c_ulong,
-            &obj_opts,
-        )
+        libbpf_sys::bpf_object__open_mem(data.as_ptr().cast::<c_void>(), data.len(), &obj_opts)
     };
     ensure!(!object.is_null(), "Failed to bpf_object__open_mem()");
 

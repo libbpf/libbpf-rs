@@ -64,7 +64,7 @@ impl Linker {
             libbpf_sys::bpf_linker__add_buf(
                 self.linker.as_ptr(),
                 buf.as_ptr().cast_mut().cast(),
-                buf.len() as _,
+                buf.len(),
                 opts,
             )
         };

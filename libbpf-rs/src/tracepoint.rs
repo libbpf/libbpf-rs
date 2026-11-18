@@ -20,7 +20,7 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
 
         #[allow(clippy::needless_update)]
         Self {
-            sz: size_of::<Self>() as _,
+            sz: size_of::<Self>(),
             bpf_cookie: cookie,
             // bpf_tracepoint_opts might have padding fields on some platform
             ..Default::default()
@@ -47,7 +47,7 @@ impl From<RawTracepointOpts> for libbpf_sys::bpf_raw_tracepoint_opts {
 
         #[allow(clippy::needless_update)]
         Self {
-            sz: size_of::<Self>() as _,
+            sz: size_of::<Self>(),
             cookie,
             // bpf_raw_tracepoint_opts might have padding fields on some platform
             ..Default::default()
