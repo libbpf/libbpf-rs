@@ -30,7 +30,6 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
 use std::ops::Deref;
-use std::os::raw::c_ulong;
 use std::os::raw::c_void;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::FromRawFd;
@@ -263,7 +262,7 @@ impl<'btf> Btf<'btf> {
             .unwrap();
 
         let obj_opts = libbpf_sys::bpf_object_open_opts {
-            sz: size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            sz: size_of::<libbpf_sys::bpf_object_open_opts>(),
             object_name: cname.as_ptr(),
             ..Default::default()
         };
@@ -271,7 +270,7 @@ impl<'btf> Btf<'btf> {
         let ptr = unsafe {
             libbpf_sys::bpf_object__open_mem(
                 object_file.as_ptr().cast::<c_void>(),
-                object_file.len() as c_ulong,
+                object_file.len(),
                 &obj_opts,
             )
         };
@@ -333,7 +332,7 @@ impl<'btf> Btf<'btf> {
     /// The btf pointer size.
     #[doc(alias = "btf__pointer_size")]
     pub fn ptr_size(&self) -> Result<NonZeroUsize> {
-        let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) as usize };
+        let sz = unsafe { libbpf_sys::btf__pointer_size(self.ptr.as_ptr()) };
         NonZeroUsize::new(sz).ok_or_else(|| {
             Error::with_io_error(io::ErrorKind::Other, "could not determine pointer size")
         })

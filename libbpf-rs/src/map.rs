@@ -91,11 +91,9 @@ impl<'obj> OpenMap<'obj> {
     }
 
     fn initial_value_raw(&self) -> (*mut u8, usize) {
-        let mut size = 0u64;
-        let ptr = unsafe {
-            libbpf_sys::bpf_map__initial_value(self.ptr.as_ptr(), (&raw mut size).cast())
-        };
-        (ptr.cast(), size as _)
+        let mut size = 0;
+        let ptr = unsafe { libbpf_sys::bpf_map__initial_value(self.ptr.as_ptr(), &mut size) };
+        (ptr.cast(), size)
     }
 
     /// Retrieve the initial value of the map.
@@ -183,7 +181,7 @@ impl<'obj> OpenMapMut<'obj> {
             libbpf_sys::bpf_map__set_initial_value(
                 self.ptr.as_ptr(),
                 data.as_ptr().cast::<c_void>(),
-                data.len() as libbpf_sys::size_t,
+                data.len(),
             )
         };
 
@@ -493,7 +491,7 @@ where
 {
     #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_batch_opts {
-        sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+        sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>(),
         elem_flags: elem_flags.bits(),
         flags: flags.bits(),
         // bpf_map_batch_opts might have padding fields on some platform
@@ -762,7 +760,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 
         #[allow(clippy::needless_update)]
         let opts = libbpf_sys::bpf_map_batch_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>(),
             elem_flags: elem_flags.bits(),
             flags: flags.bits(),
             // bpf_map_batch_opts might have padding fields on some platform
@@ -888,7 +886,7 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
 
         #[allow(clippy::needless_update)]
         let opts = libbpf_sys::bpf_map_batch_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>() as _,
+            sz: mem::size_of::<libbpf_sys::bpf_map_batch_opts>(),
             elem_flags: elem_flags.bits(),
             flags: flags.bits(),
             // bpf_map_batch_opts might have padding fields on some platform
@@ -1254,7 +1252,7 @@ impl MapHandle {
         fn inner(path: &Path, file_flags: u32) -> Result<MapHandle> {
             let p = CString::new(path.as_os_str().as_bytes()).expect("path contained null bytes");
             let opts = libbpf_sys::bpf_obj_get_opts {
-                sz: size_of::<libbpf_sys::bpf_obj_get_opts>() as libbpf_sys::size_t,
+                sz: size_of::<libbpf_sys::bpf_obj_get_opts>(),
                 file_flags,
                 ..Default::default()
             };

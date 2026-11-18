@@ -148,7 +148,7 @@ impl PartialEq for ObjectBuilder {
 impl ObjectBuilder {
     fn opts(&self) -> &libbpf_sys::bpf_object_open_opts {
         self.opts.get_or_init(|| libbpf_sys::bpf_object_open_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>(),
             ..Default::default()
         })
     }
@@ -231,11 +231,7 @@ impl ObjectBuilder {
     pub fn open_memory(&mut self, mem: &[u8]) -> Result<OpenObject> {
         let opts_ptr = self.as_libbpf_object().as_ptr();
         let ptr = unsafe {
-            libbpf_sys::bpf_object__open_mem(
-                mem.as_ptr().cast::<c_void>(),
-                mem.len() as libbpf_sys::size_t,
-                opts_ptr,
-            )
+            libbpf_sys::bpf_object__open_mem(mem.as_ptr().cast::<c_void>(), mem.len(), opts_ptr)
         };
         let ptr = validate_bpf_ret(ptr).context("failed to open object from memory")?;
         let obj = unsafe { OpenObject::from_ptr(ptr) };

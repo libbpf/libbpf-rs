@@ -109,7 +109,7 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
         } = opts;
         #[allow(clippy::needless_update)]
         Self {
-            sz: size_of::<Self>() as _,
+            sz: size_of::<Self>(),
             usdt_cookie: cookie,
             // bpf_usdt_opts might have padding fields on some platform
             ..Default::default()
@@ -136,7 +136,7 @@ impl From<KprobeOpts> for libbpf_sys::bpf_kprobe_opts {
 
         #[allow(clippy::needless_update)]
         Self {
-            sz: size_of::<Self>() as _,
+            sz: size_of::<Self>(),
             bpf_cookie: cookie,
             // bpf_kprobe_opts might have padding fields on some platform
             ..Default::default()
@@ -180,7 +180,7 @@ impl From<PerfEventOpts> for libbpf_sys::bpf_perf_event_opts {
 
         #[allow(clippy::needless_update)]
         Self {
-            sz: size_of::<Self>() as _,
+            sz: size_of::<Self>(),
             bpf_cookie: cookie,
             force_ioctl_attach,
             // bpf_perf_event_opts might have padding fields on some platform
@@ -329,7 +329,7 @@ impl<'obj> OpenProgram<'obj> {
     /// So [`OpenProgram::insn_cnt`] and [`Program::insn_cnt`] may return different values.
     #[doc(alias = "bpf_program__insn_cnt")]
     pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) }
     }
 
     /// Gives read-only access to BPF program's underlying BPF instructions.
@@ -921,7 +921,7 @@ impl<'obj> Program<'obj> {
     /// Please see note in [`OpenProgram::insn_cnt`].
     #[doc(alias = "bpf_program__insn_cnt")]
     pub fn insn_cnt(&self) -> usize {
-        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) as usize }
+        unsafe { libbpf_sys::bpf_program__insn_cnt(self.ptr.as_ptr()) }
     }
 
     /// Gives read-only access to BPF program's underlying BPF instructions.
@@ -1029,7 +1029,7 @@ impl<'obj> ProgramMut<'obj> {
                 retprobe,
                 pid,
                 path_ptr,
-                func_offset as libbpf_sys::size_t,
+                func_offset,
             )
         };
         let ptr = validate_bpf_ret(ptr).context("failed to attach uprobe")?;
@@ -1068,8 +1068,8 @@ impl<'obj> ProgramMut<'obj> {
             .as_ref()
             .map_or(ptr::null(), |func_name| func_name.as_ptr());
         let opts = libbpf_sys::bpf_uprobe_opts {
-            sz: size_of::<libbpf_sys::bpf_uprobe_opts>() as _,
-            ref_ctr_offset: ref_ctr_offset as libbpf_sys::size_t,
+            sz: size_of::<libbpf_sys::bpf_uprobe_opts>(),
+            ref_ctr_offset,
             bpf_cookie: cookie,
             retprobe,
             func_name: ptr,
@@ -1081,7 +1081,7 @@ impl<'obj> ProgramMut<'obj> {
                 self.ptr.as_ptr(),
                 pid,
                 path_ptr,
-                func_offset as libbpf_sys::size_t,
+                func_offset,
                 &opts as *const _,
             )
         };
@@ -1184,12 +1184,12 @@ impl<'obj> ProgramMut<'obj> {
         };
 
         let c_opts = libbpf_sys::bpf_uprobe_multi_opts {
-            sz: size_of::<libbpf_sys::bpf_uprobe_multi_opts>() as _,
+            sz: size_of::<libbpf_sys::bpf_uprobe_multi_opts>(),
             syms: syms_ptr.cast_mut(),
             offsets: offsets_ptr.cast(),
             ref_ctr_offsets: ref_ctr_offsets_ptr.cast(),
             cookies: cookies_ptr.cast(),
-            cnt: cnt as libbpf_sys::size_t,
+            cnt,
             retprobe,
             session,
             ..Default::default()
@@ -1301,9 +1301,9 @@ impl<'obj> ProgramMut<'obj> {
         let mut syms = csyms.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();
 
         let opts = libbpf_sys::bpf_kprobe_multi_opts {
-            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
+            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>(),
             syms: syms.as_mut_ptr().cast(),
-            cnt: cnt as libbpf_sys::size_t,
+            cnt,
             retprobe,
             // bpf_kprobe_multi_opts might have padding fields on some platform
             ..Default::default()
@@ -1333,14 +1333,14 @@ impl<'obj> ProgramMut<'obj> {
         let mut syms = csyms.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();
 
         let opts = libbpf_sys::bpf_kprobe_multi_opts {
-            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
+            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>(),
             syms: syms.as_mut_ptr().cast(),
             cookies: if !cookies.is_empty() {
                 cookies.as_mut_ptr().cast()
             } else {
                 ptr::null()
             },
-            cnt: cnt as libbpf_sys::size_t,
+            cnt,
             retprobe,
             // bpf_kprobe_multi_opts might have padding fields on some platform
             ..Default::default()
@@ -1353,7 +1353,7 @@ impl<'obj> ProgramMut<'obj> {
     #[doc(alias = "bpf_program__attach_ksyscall")]
     pub fn attach_ksyscall<T: AsRef<str>>(&self, retprobe: bool, syscall_name: T) -> Result<Link> {
         let opts = libbpf_sys::bpf_ksyscall_opts {
-            sz: size_of::<libbpf_sys::bpf_ksyscall_opts>() as _,
+            sz: size_of::<libbpf_sys::bpf_ksyscall_opts>(),
             retprobe,
             ..Default::default()
         };
@@ -1668,7 +1668,7 @@ impl<'obj> ProgramMut<'obj> {
         let attach_opt = libbpf_sys::bpf_iter_attach_opts {
             link_info: linkinfo_ptr,
             link_info_len: linkinfo_len,
-            sz: size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
+            sz: size_of::<libbpf_sys::bpf_iter_attach_opts>(),
             ..Default::default()
         };
         let ptr = unsafe {
@@ -1731,7 +1731,7 @@ impl<'obj> ProgramMut<'obj> {
         } = input;
 
         let mut opts = unsafe { mem::zeroed::<libbpf_sys::bpf_test_run_opts>() };
-        opts.sz = size_of_val(&opts) as _;
+        opts.sz = size_of_val(&opts);
         opts.ctx_in = context_in
             .as_ref()
             .map(|data| data.as_ptr().cast())

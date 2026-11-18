@@ -1,4 +1,3 @@
-use core::ffi::c_ulong;
 use std::io::Error;
 use std::io::Read;
 use std::mem;
@@ -35,7 +34,7 @@ impl Read for Stream<'_> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         let ret = unsafe {
             let mut c_opts = bpf_prog_stream_read_opts {
-                sz: mem::size_of::<bpf_prog_stream_read_opts>() as c_ulong,
+                sz: mem::size_of::<bpf_prog_stream_read_opts>(),
             };
             libbpf_sys::bpf_prog_stream_read(
                 self.prog_fd.as_raw_fd(),

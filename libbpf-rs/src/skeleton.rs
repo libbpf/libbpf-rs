@@ -6,7 +6,6 @@ use std::ffi::CString;
 use std::mem::size_of;
 use std::mem::MaybeUninit;
 use std::os::raw::c_char;
-use std::os::raw::c_ulong;
 use std::ptr;
 use std::ptr::addr_of;
 use std::ptr::NonNull;
@@ -186,7 +185,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         let mut string_pool = Vec::new();
 
         let mut s = libbpf_sys::bpf_object_skeleton {
-            sz: size_of::<bpf_object_skeleton>() as c_ulong,
+            sz: size_of::<bpf_object_skeleton>(),
             ..Default::default()
         };
 
@@ -196,7 +195,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
 
         // libbpf_sys will use it as const despite the signature
         s.data = self.data.as_ptr().cast_mut().cast();
-        s.data_sz = self.data.len() as c_ulong;
+        s.data_sz = self.data.len();
 
         // Give s ownership over the box
         s.obj = Box::into_raw(self.obj);

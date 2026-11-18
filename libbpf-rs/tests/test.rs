@@ -403,7 +403,7 @@ fn test_object_map_delete_batch() {
 #[test]
 pub fn test_map_info() {
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>(),
         map_flags: libbpf_sys::BPF_ANY,
         btf_fd: 0,
         btf_key_type_id: 0,
@@ -442,7 +442,7 @@ pub fn test_map_info() {
 #[test]
 fn test_map_update_max_entries_exceeded() {
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>(),
         ..Default::default()
     };
     let max_entries = 1;
@@ -1667,7 +1667,7 @@ fn test_object_task_iter() {
 fn test_object_map_iter() {
     // Create a map for iteration test.
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>(),
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         ..Default::default()
     };
@@ -1733,7 +1733,7 @@ fn test_object_map_iter() {
 #[test]
 fn test_object_map_create_and_pin() {
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>(),
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         ..Default::default()
     };
@@ -1777,7 +1777,7 @@ fn test_object_map_create_and_pin() {
 #[test]
 fn test_object_map_create_without_name() {
     let opts = libbpf_sys::bpf_map_create_opts {
-        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>(),
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
         btf_fd: 0,
         btf_key_type_id: 0,

@@ -4,7 +4,6 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::ops::Deref as _;
 use std::ops::DerefMut as _;
-use std::os::raw::c_ulong;
 use std::os::unix::prelude::AsRawFd;
 use std::os::unix::prelude::BorrowedFd;
 use std::ptr::null_mut;
@@ -145,10 +144,10 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
         }
     }
 
-    unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
+    unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: usize) -> i32 {
         let callback_struct = ctx.cast::<RingBufferCallback<'_>>();
         let callback = unsafe { (*callback_struct).cb.as_mut() };
-        let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
+        let slice = unsafe { slice::from_raw_parts(data as *const u8, size) };
 
         callback(slice)
     }
@@ -212,7 +211,7 @@ impl RingBuffer<'_> {
     /// Return the amount of events consumed, or a negative value in case of error.
     #[doc(alias = "ring_buffer__consume_n")]
     pub fn consume_raw_n(&self, len: usize) -> i32 {
-        unsafe { libbpf_sys::ring_buffer__consume_n(self.ptr.as_ptr(), len as libbpf_sys::size_t) }
+        unsafe { libbpf_sys::ring_buffer__consume_n(self.ptr.as_ptr(), len) }
     }
 
     /// Greedily consume from all open ring buffers, calling the registered

@@ -65,8 +65,8 @@ impl TcHook {
             opts: libbpf_sys::bpf_tc_opts::default(),
         };
 
-        tc_hook.hook.sz = size_of::<libbpf_sys::bpf_tc_hook>() as libbpf_sys::size_t;
-        tc_hook.opts.sz = size_of::<libbpf_sys::bpf_tc_opts>() as libbpf_sys::size_t;
+        tc_hook.hook.sz = size_of::<libbpf_sys::bpf_tc_hook>();
+        tc_hook.opts.sz = size_of::<libbpf_sys::bpf_tc_opts>();
         tc_hook.opts.prog_fd = fd.as_raw_fd();
 
         tc_hook

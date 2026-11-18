@@ -140,7 +140,7 @@ where
         let ptr = unsafe {
             libbpf_sys::perf_buffer__new(
                 self.map.as_fd().as_raw_fd(),
-                self.pages as libbpf_sys::size_t,
+                self.pages,
                 c_sample_cb,
                 c_lost_cb,
                 callback_struct_ptr.cast(),
@@ -226,25 +226,18 @@ impl PerfBuffer<'_> {
 
     #[doc(alias = "perf_buffer__consume_buffer")]
     pub fn consume_buffer(&self, buf_idx: usize) -> Result<()> {
-        let ret = unsafe {
-            libbpf_sys::perf_buffer__consume_buffer(
-                self.ptr.as_ptr(),
-                buf_idx as libbpf_sys::size_t,
-            )
-        };
+        let ret = unsafe { libbpf_sys::perf_buffer__consume_buffer(self.ptr.as_ptr(), buf_idx) };
         util::parse_ret(ret)
     }
 
     #[doc(alias = "perf_buffer__buffer_cnt")]
     pub fn buffer_cnt(&self) -> usize {
-        unsafe { libbpf_sys::perf_buffer__buffer_cnt(self.ptr.as_ptr()) as usize }
+        unsafe { libbpf_sys::perf_buffer__buffer_cnt(self.ptr.as_ptr()) }
     }
 
     #[doc(alias = "perf_buffer__buffer_fd")]
     pub fn buffer_fd(&self, buf_idx: usize) -> Result<i32> {
-        let ret = unsafe {
-            libbpf_sys::perf_buffer__buffer_fd(self.ptr.as_ptr(), buf_idx as libbpf_sys::size_t)
-        };
+        let ret = unsafe { libbpf_sys::perf_buffer__buffer_fd(self.ptr.as_ptr(), buf_idx) };
         util::parse_ret_i32(ret)
     }
 }
