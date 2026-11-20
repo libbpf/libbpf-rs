@@ -160,7 +160,7 @@ mod tests {
     fn test_roundup() {
         for i in 1..=256 {
             let up = roundup(i, 8);
-            assert!(up % 8 == 0);
+            assert!(up.is_multiple_of(8));
             assert!(i <= up);
             assert!(up - i < 8);
         }

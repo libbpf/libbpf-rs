@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Bumped minimum Rust version to `1.89`
 - Added ability to skip running `rustfmt` on generated skeleton by
   passing empty string to `--rustfmt-path` command line option or
   `SkeletonBuilder::rustfmt()`

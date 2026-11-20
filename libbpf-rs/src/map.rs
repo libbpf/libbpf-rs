@@ -749,7 +749,9 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         elem_flags: MapFlags,
         flags: MapFlags,
     ) -> Result<()> {
-        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
+        if keys.len() as u32 / count != self.key_size()
+            || !(keys.len() as u32).is_multiple_of(count)
+        {
             return Err(Error::with_invalid_data(format!(
                 "batch key_size {} != {} * {}",
                 keys.len(),
@@ -862,7 +864,9 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
         elem_flags: MapFlags,
         flags: MapFlags,
     ) -> Result<()> {
-        if keys.len() as u32 / count != self.key_size() || (keys.len() as u32) % count != 0 {
+        if keys.len() as u32 / count != self.key_size()
+            || !(keys.len() as u32).is_multiple_of(count)
+        {
             return Err(Error::with_invalid_data(format!(
                 "batch key_size {} != {} * {}",
                 keys.len(),
@@ -871,7 +875,9 @@ pub trait MapCore: Debug + AsFd + private::Sealed {
             )));
         };
 
-        if values.len() as u32 / count != self.value_size() || (values.len() as u32) % count != 0 {
+        if values.len() as u32 / count != self.value_size()
+            || !(values.len() as u32).is_multiple_of(count)
+        {
             return Err(Error::with_invalid_data(format!(
                 "batch value_size {} != {} * {}",
                 values.len(),
