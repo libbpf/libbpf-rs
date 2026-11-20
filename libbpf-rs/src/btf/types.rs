@@ -1119,6 +1119,9 @@ mod test {
             BtfKind::DeclTag => "",
             BtfKind::TypeTag => "",
             BtfKind::Enum64 => "",
+            BtfKind::LocParam => "",
+            BtfKind::LocProto => "",
+            BtfKind::LocSec => "",
         });
     }
 
