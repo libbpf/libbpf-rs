@@ -93,6 +93,12 @@ pub enum BtfKind {
     TypeTag,
     /// [Enum64](types::Enum64)
     Enum64,
+    /// Location parameter information.
+    LocParam,
+    /// Location prototype describing parameter locations.
+    LocProto,
+    /// Location information for an ELF section.
+    LocSec,
 }
 
 impl TryFrom<u32> for BtfKind {
@@ -122,6 +128,9 @@ impl TryFrom<u32> for BtfKind {
             x if x == DeclTag as u32 => DeclTag,
             x if x == TypeTag as u32 => TypeTag,
             x if x == Enum64 as u32 => Enum64,
+            x if x == LocParam as u32 => LocParam,
+            x if x == LocProto as u32 => LocProto,
+            x if x == LocSec as u32 => LocSec,
             v => return Err(v),
         })
     }
@@ -592,7 +601,10 @@ impl<'btf> BtfType<'btf> {
             | BtfKind::Fwd
             | BtfKind::DataSec
             | BtfKind::Float
-            | BtfKind::Enum64 => None,
+            | BtfKind::Enum64
+            | BtfKind::LocParam
+            | BtfKind::LocProto
+            | BtfKind::LocSec => None,
         }
     }
 
@@ -675,7 +687,10 @@ impl<'btf> BtfType<'btf> {
             | BtfKind::Fwd
             | BtfKind::Func
             | BtfKind::DeclTag
-            | BtfKind::TypeTag => Err(Error::with_invalid_data(format!(
+            | BtfKind::TypeTag
+            | BtfKind::LocParam
+            | BtfKind::LocProto
+            | BtfKind::LocSec => Err(Error::with_invalid_data(format!(
                 "Cannot get alignment of type with kind {:?}. TypeId is {}",
                 skipped.kind(),
                 skipped.type_id(),
@@ -732,7 +747,6 @@ mod sealed {
 mod tests {
     use super::*;
 
-    use std::mem::discriminant;
 
     #[test]
     fn from_vmlinux() {
@@ -741,17 +755,8 @@ mod tests {
 
     #[test]
     fn btf_kind() {
-        use BtfKind::*;
-
-        for t in [
-            Void, Int, Ptr, Array, Struct, Union, Enum, Fwd, Typedef, Volatile, Const, Restrict,
-            Func, FuncProto, Var, DataSec, Float, DeclTag, TypeTag, Enum64,
-        ] {
-            // check if discriminants match after a roundtrip conversion
-            assert_eq!(
-                discriminant(&t),
-                discriminant(&BtfKind::try_from(t as u32).unwrap())
-            );
+        for kind in libbpf_sys::BTF_KIND_UNKN..=libbpf_sys::BTF_KIND_MAX {
+            assert_eq!(BtfKind::try_from(kind).unwrap() as u32, kind);
         }
     }
 }
