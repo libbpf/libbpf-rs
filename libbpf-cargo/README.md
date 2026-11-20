@@ -1,5 +1,5 @@
 [![CI](https://github.com/libbpf/libbpf-rs/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/libbpf/libbpf-rs/actions/workflows/test.yml)
-[![rustc](https://img.shields.io/badge/rustc-1.82+-blue.svg)](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/)
+[![rustc](https://img.shields.io/badge/rustc-1.89+-blue.svg)](https://blog.rust-lang.org/2025/08/07/Rust-1.89.0/)
 
 # libbpf-cargo
 

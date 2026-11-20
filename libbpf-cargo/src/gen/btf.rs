@@ -151,7 +151,7 @@ fn is_struct_packed(composite: &types::Composite<'_>, btf: &Btf<'_>) -> Result<b
         let align = btf.type_by_id::<BtfType<'_>>(m.ty).unwrap().alignment()?;
 
         if let MemberAttr::Normal { offset } = m.attr {
-            if offset as usize % (align.get() * 8) != 0 {
+            if !(offset as usize).is_multiple_of(align.get() * 8) {
                 return Ok(true);
             }
         }
