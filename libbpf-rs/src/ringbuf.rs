@@ -224,6 +224,24 @@ impl RingBuffer<'_> {
         util::parse_ret(ret)
     }
 
+    /// Wait until at least one of the ring buffers has data, without
+    /// consuming it. If `timeout` is `Duration::MAX`, this will block
+    /// indefinitely.
+    ///
+    /// Returns the number of ring buffers that have data, or zero if the
+    /// timeout expired.
+    #[doc(alias = "ring_buffer__wait")]
+    pub fn wait(&self, timeout: Duration) -> Result<usize> {
+        let mut timeout_ms = -1;
+        if timeout != Duration::MAX {
+            timeout_ms = timeout.as_millis() as i32;
+        }
+
+        let ret = unsafe { libbpf_sys::ring_buffer__wait(self.ptr.as_ptr(), timeout_ms) };
+
+        util::parse_ret_i32(ret).map(|cnt| cnt as usize)
+    }
+
     /// Get an fd that can be used to sleep until data is available
     #[doc(alias = "ring_buffer__epoll_fd")]
     pub fn epoll_fd(&self) -> i32 {
