@@ -9,6 +9,7 @@ mod test_api_coverage;
 mod test_arena;
 mod test_netfilter;
 mod test_print;
+mod test_ring;
 mod test_streams;
 mod test_tc;
 mod test_xdp;
