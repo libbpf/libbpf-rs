@@ -1,3 +1,5 @@
+//! Build script for the `compiler_warnings` example.
+
 use std::env;
 use std::ffi::OsStr;
 use std::path::PathBuf;

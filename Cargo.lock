@@ -284,7 +284,6 @@ name = "compiler_warnings"
 version = "0.0.0"
 dependencies = [
  "libbpf-cargo",
- "libbpf-rs",
  "tracing",
  "tracing-subscriber",
  "vmlinux",

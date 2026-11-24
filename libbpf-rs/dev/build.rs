@@ -247,6 +247,7 @@ fn prepare_test_files(crate_root: &Path) {
 }
 
 /// The BPF objects for which we generate a skeleton.
+#[cfg(feature = "generate-test-files")]
 const SKELETONS: [&str; 1] = ["arena.bpf.o"];
 
 /// Prepare skeletons for the test objects listed in [`SKELETONS`].
