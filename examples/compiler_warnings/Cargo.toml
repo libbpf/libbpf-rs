@@ -11,5 +11,5 @@ tracing = { version = "0.1", default-features = false }
 tracing-subscriber = {version = "0.3", features = ["ansi", "chrono", "env-filter", "fmt"]}
 vmlinux = { version = "0.0", git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52" }
 
-[dependencies]
-libbpf-rs = { path = "../../libbpf-rs" }
+[lints]
+workspace = true
