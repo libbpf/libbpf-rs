@@ -8,6 +8,9 @@ Unreleased
 - Added `btf::BtfKind::{LocParam, LocProto, LocSec}` variants
 - Updated `libbpf-sys` dependency to `2.0.0`
 - Bumped minimum Rust version to `1.89`
+- Added `RingBuffer::wait` method
+- Added `Ring` for consuming a ring buffer record by record instead of
+  through a callback, with support for overwritable ring buffers
 
 
 0.27.2

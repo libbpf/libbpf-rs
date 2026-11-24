@@ -208,13 +208,9 @@ const EXPECTED_UNWRAPPED: &[&str] = &[
     "libbpf_version_string",
     "perf_buffer__buffer",
     "perf_buffer__new_raw",
-    "ring__avail_data_size",
     "ring__consume",
     "ring__consume_n",
-    "ring__consumer_pos",
     "ring__map_fd",
-    "ring__producer_pos",
-    "ring__size",
     "ring_buffer__ring",
     "user_ring_buffer__reserve_blocking",
 ];
